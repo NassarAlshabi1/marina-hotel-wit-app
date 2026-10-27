@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,7 +33,9 @@ class SyncNotificationManager {
     if (_isInitialized) {
       return;
     }
-    if (kIsWeb) {
+    if (kIsWeb ||
+        (!kIsWeb &&
+            (Platform.isWindows || Platform.isLinux || Platform.isMacOS))) {
       // لا توجد قناة Android في Web، لكن نعتبر التهيئة منتهية حتى لا
       // تعيد الاستدعاءات اللاحقة المحاولة بلا فائدة.
       _isInitialized = true;

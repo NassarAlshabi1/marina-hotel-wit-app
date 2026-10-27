@@ -13,7 +13,7 @@
 //    → tombstone بعيد يُطبَّق محلياً ويُستبعد من listAll
 //
 //  رحلة ذهاب وعودة (جهازان):
-//    payload الجهاز A → سحب الجهاز B → رفع B → الحقول التسعة مستقرة بلا انحراف.
+//    payload الجهاز A → سحب الجهاز B → رفع B → حقول البيانات مستقرة بلا انحراف.
 
 import 'dart:convert';
 
@@ -28,7 +28,7 @@ import 'package:marina_hotel_mobile/services/sync/payload_mapper.dart';
 
 import '../helpers/test_database.dart';
 
-/// الحقول التسعة التي يدخلها المستخدم في شاشة «معلومات النزلاء».
+/// حقول البيانات التي يدخلها المستخدم في شاشة «معلومات النزلاء».
 const List<String> kGuestDataFields = [
   'roomNumber',
   'guestName',
@@ -39,6 +39,7 @@ const List<String> kGuestDataFields = [
   'issuePlace',
   'governorate',
   'notes',
+  'entryDate',
 ];
 
 const int kBaseEpoch = 1760000000;
@@ -109,6 +110,7 @@ void main() {
       'issuePlace': 'صنعاء',
       'governorate': governorate,
       'notes': notes,
+      'entryDate': '2026-01-03',
       'createdAtIso': '2026-01-01T00:00:00.000Z',
       'updatedAtIso': '2026-01-02T00:00:00.000Z',
       if (deletedAt != null) 'deletedAt': deletedAt,
@@ -131,6 +133,7 @@ void main() {
         issuePlace: 'عدن',
         governorate: 'عدن',
         notes: 'وصول متأخر',
+        entryDate: '2025-06-10',
       );
 
       final row = await (db.select(
@@ -154,6 +157,7 @@ void main() {
       expect(payload['roomNumber'], '202');
       expect(payload['idType'], 'جواز سفر');
       expect(payload['notes'], 'وصول متأخر');
+      expect(payload['entryDate'], '2025-06-10');
     });
 
     test('guestInfoToRemote يحتوي كل الحقول ولا تُصفّيها الـ schema', () async {
@@ -167,6 +171,7 @@ void main() {
         issuePlace: 'الرياض',
         governorate: 'الرياض',
         notes: 'إقامة قصيرة',
+        entryDate: '2024-03-12',
       );
       final row = await (db.select(
         db.guestInfos,
@@ -185,6 +190,7 @@ void main() {
       for (final f in kGuestDataFields) {
         expect(filtered[f], payload[f], reason: 'التصفية أسقطت/غيّرت $f');
       }
+      expect(filtered['entryDate'], '2024-03-12');
       // لا مفاتيح خارج مخطط Appwrite (يمنع خطأ Unknown attribute)
       for (final k in filtered.keys) {
         expect(
@@ -206,6 +212,7 @@ void main() {
         nationality: 'يمني',
         idNumber: '5544332211',
         notes: 'قبل التعديل',
+        entryDate: '2026-04-15',
       );
       final created = await (db.select(
         db.guestInfos,
@@ -233,6 +240,7 @@ void main() {
       expect(pending.single.op, 'update');
       expect(outboxPayload(pending.single)['roomNumber'], '405');
       expect(outboxPayload(pending.single)['notes'], 'بعد التعديل');
+      expect(outboxPayload(pending.single)['entryDate'], '2026-04-15');
     });
 
     test('الحذف الناعم يرفع tombstone (deletedAt) لا حذفاً صامتاً', () async {
@@ -293,6 +301,7 @@ void main() {
       expect(row.issuePlace, 'صنعاء');
       expect(row.governorate, 'عدن');
       expect(row.notes, 'ملاحظة أصلية');
+      expect(row.entryDate, '2026-01-03');
       expect(row.origin, 'server');
       expect(row.lastModified, kBaseEpoch);
       expect(row.version, 1);
@@ -387,6 +396,7 @@ void main() {
         issuePlace: 'المكلا',
         governorate: 'حضرموت',
         notes: 'إقامة عائلية',
+        entryDate: '2023-11-10',
       );
       final rowA = await (db.select(
         db.guestInfos,
@@ -404,7 +414,7 @@ void main() {
       );
       final rowB = await findByUuid(uuidB);
 
-      // الحقول التسعة مطابقة تماماً لدى B
+      // حقول البيانات مطابقة تماماً لدى B
       expect(rowB.roomNumber, rowA.roomNumber);
       expect(rowB.guestName, rowA.guestName);
       expect(rowB.nationality, rowA.nationality);
@@ -414,6 +424,7 @@ void main() {
       expect(rowB.issuePlace, rowA.issuePlace);
       expect(rowB.governorate, rowA.governorate);
       expect(rowB.notes, rowA.notes);
+      expect(rowB.entryDate, rowA.entryDate);
 
       // ── الجهاز B يرفع نسخته (بعد أن أصبحت origin=server)
       final wirePayloadB = AppwriteSyncUtils.filterPayloadForCollection(

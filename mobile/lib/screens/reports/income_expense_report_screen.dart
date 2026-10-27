@@ -7,7 +7,6 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../components/app_scaffold.dart';
@@ -23,9 +22,8 @@ import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_expense_classifier.dart';
 import '../../services/salary_mirror_matcher.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../../src/pdf/report_templates/income_expense_report_pdf.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/income_expense_pdf_isolate.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
@@ -63,15 +61,10 @@ class _IncomeExpenseReportScreenState
   int _bookingsCount = 0;
   int _activeBookingsCount = 0;
   int _checkoutBookingsCount = 0;
-  int _totalDebtsCount = 0;
-  int _unsettledDebtsCount = 0;
-  double _unsettledDebtsAmount = 0;
   int _activeEmployeesCount = 0;
   int _terminatedEmployeesCount = 0;
   double _totalSalaryObligation = 0;
   // الديون غير المسددة في الفترة المحددة فقط
-  int _unsettledDebtsInPeriodCount = 0;
-  double _unsettledDebtsInPeriodAmount = 0;
 
   @override
   void initState() {
@@ -318,11 +311,6 @@ class _IncomeExpenseReportScreenState
           _bookingsCount = result.bookingsCount;
           _activeBookingsCount = result.activeBookingsCount;
           _checkoutBookingsCount = result.checkoutBookingsCount;
-          _totalDebtsCount = result.totalDebtsCount;
-          _unsettledDebtsCount = result.unsettledDebtsCount;
-          _unsettledDebtsAmount = result.unsettledDebtsAmount;
-          _unsettledDebtsInPeriodCount = result.unsettledDebtsInPeriodCount;
-          _unsettledDebtsInPeriodAmount = result.unsettledDebtsInPeriodAmount;
           _activeEmployeesCount = result.activeEmployeesCount;
           _terminatedEmployeesCount = result.terminatedEmployeesCount;
           _totalSalaryObligation = result.totalSalaryObligation;
@@ -383,6 +371,9 @@ class _IncomeExpenseReportScreenState
         if (sw.amount <= 0) continue;
 
         final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+          // ✅ (هجرة 68) المستوى 0: التمييز بهوية العملية (UUID)
+          expenseUuid: sw.expenseUuid,
+          withdrawalLocalUuid: sw.localUuid,
           expenseId: sw.expenseId,
           reason: sw.reason,
           amount: sw.amount,
@@ -398,6 +389,8 @@ class _IncomeExpenseReportScreenState
               date: e.date,
               hotelDayKey: e.hotelDayKey,
               relatedId: e.relatedId,
+              localUuid: e.localUuid,
+              withdrawalUuid: e.withdrawalUuid,
             ),
           ),
         );
@@ -417,19 +410,6 @@ class _IncomeExpenseReportScreenState
     return rows;
   }
 
-  String _getGroupTypeLabel(String groupBy) {
-    switch (groupBy) {
-      case 'daily':
-        return 'يومي';
-      case 'monthly':
-        return 'شهري';
-      case 'yearly':
-        return 'سنوي';
-      default:
-        return 'عام';
-    }
-  }
-
   // ═══════════════════════════════════════════════════════════════
   // بناء PDF داخل isolate منفصل (إصلاح توقف التطبيق عند التصدير):
   // كان بناء المستند + doc.save() يُنفَّذان على الخيط الرئيسي فتتجمد
@@ -437,70 +417,56 @@ class _IncomeExpenseReportScreenState
   // والخطوط تُمرَّر كبايتات خام قابلة للإرسال بين isolates.
   // ═══════════════════════════════════════════════════════════════
 
-  Map<String, Object?> _incomeEntryToMap(_IncomeEntry e) => {
-    'date': e.date.millisecondsSinceEpoch,
-    'roomNumber': e.roomNumber,
-    'guestName': e.guestName,
-    'paymentMethod': e.paymentMethod,
-    'revenueType': e.revenueType,
-    'amount': e.amount,
-  };
-
-  Map<String, Object?> _expenseEntryToMap(_ExpenseEntry e) => {
-    'date': e.date.millisecondsSinceEpoch,
-    'type': e.type,
-    'description': e.description,
-    'amount': e.amount,
-    'isSalary': e.isSalary,
-  };
-
-  Future<IncomeExpensePdfParams> _collectPdfParams({
-    String groupBy = '',
-  }) async {
-    final regular = await EnhancedPdfUtils.regularFontBytes();
-    final bold = await EnhancedPdfUtils.boldFontBytes();
-    return IncomeExpensePdfParams(
-      incomeRows: _incomeEntries.map(_incomeEntryToMap).toList(),
-      expenseRows: _expenseEntries.map(_expenseEntryToMap).toList(),
-      fromDate: _fromDate!,
-      toDate: _toDate!,
-      incomeTotal: _incomeTotal,
-      expenseTotal: _expenseTotal,
-      salaryTotal: _salaryTotal,
-      net: _net,
-      bookingsCount: _bookingsCount,
-      activeBookingsCount: _activeBookingsCount,
-      checkoutBookingsCount: _checkoutBookingsCount,
-      totalDebtsCount: _totalDebtsCount,
-      unsettledDebtsCount: _unsettledDebtsCount,
-      unsettledDebtsAmount: _unsettledDebtsAmount,
-      unsettledDebtsInPeriodCount: _unsettledDebtsInPeriodCount,
-      unsettledDebtsInPeriodAmount: _unsettledDebtsInPeriodAmount,
+  // ===== تصدير =====
+  /// تجميع بيانات الشاشة الحالية في كائن بيانات القالب المستقل
+  /// (lib/src/pdf/report_templates/income_expense_report_pdf.dart).
+  IncomeExpenseReportData _buildReportData() {
+    return IncomeExpenseReportData(
+      incomeEntries: _incomeEntries
+          .map(
+            (e) => IncomeExpenseIncomeEntry(
+              date: e.date,
+              description: e.description,
+              amount: e.amount,
+              roomNumber: e.roomNumber,
+              guestName: e.guestName,
+              paymentMethod: e.paymentMethod,
+              revenueType: e.revenueType,
+            ),
+          )
+          .toList(),
+      expenseEntries: _expenseEntries
+          .map(
+            (e) => IncomeExpenseExpenseEntry(
+              date: e.date,
+              type: e.type,
+              description: e.description,
+              amount: e.amount,
+              isSalary: e.isSalary,
+            ),
+          )
+          .toList(),
+      fromDate: _fromDate,
+      toDate: _toDate,
       activeEmployeesCount: _activeEmployeesCount,
       terminatedEmployeesCount: _terminatedEmployeesCount,
       totalSalaryObligation: _totalSalaryObligation,
-      groupBy: groupBy,
-      fontRegularBytes: regular,
-      fontBoldBytes: bold,
+      bookingsCount: _bookingsCount,
+      activeBookingsCount: _activeBookingsCount,
+      checkoutBookingsCount: _checkoutBookingsCount,
     );
   }
 
-  /// بايتات تقرير الدورة المالية الشامل — تُبنى في خلفية isolate.
-  Future<Uint8List> _buildMainPdfBytes() async {
-    final params = await _collectPdfParams();
-    return incomeExpensePdfMainJob(params);
-  }
-
-  /// بايتات التقرير التفصيلي المجمّع — تُبنى في خلفية isolate.
-  Future<Uint8List> _buildGroupedPdfBytes(String groupBy) async {
-    final params = await _collectPdfParams(groupBy: groupBy);
-    return incomeExpensePdfGroupedJob(params);
-  }
-
-  // ===== تصدير =====
-  String _getFilename({String suffix = ''}) {
-    final s = suffix.isNotEmpty ? '-$suffix' : '';
-    return 'تقرير-الدورة-المالية-الشامل$s-${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf';
+  IncomeExpenseGroupMode _groupModeOf(String groupBy) {
+    switch (groupBy) {
+      case 'daily':
+        return IncomeExpenseGroupMode.daily;
+      case 'monthly':
+        return IncomeExpenseGroupMode.monthly;
+      case 'yearly':
+      default:
+        return IncomeExpenseGroupMode.yearly;
+    }
   }
 
   /// غلاف موحد لأعمال التصدير الطويلة: حوار انتظار غير قابل للإغلاق
@@ -555,8 +521,7 @@ class _IncomeExpenseReportScreenState
       return;
     }
     await _runLongExport(() async {
-      final bytes = await _buildMainPdfBytes();
-      await Printing.sharePdf(bytes: bytes, filename: _getFilename());
+      await IncomeExpenseReportPdf.share(_buildReportData());
     });
   }
 
@@ -565,10 +530,9 @@ class _IncomeExpenseReportScreenState
       return;
     }
     await _runLongExport(() async {
-      final bytes = await _buildGroupedPdfBytes(groupBy);
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: _getFilename(suffix: _getGroupTypeLabel(groupBy)),
+      await IncomeExpenseReportPdf.shareGrouped(
+        _buildReportData(),
+        mode: _groupModeOf(groupBy),
       );
     });
   }
@@ -578,8 +542,7 @@ class _IncomeExpenseReportScreenState
       return;
     }
     await _runLongExport(() async {
-      final bytes = await _buildMainPdfBytes();
-      await Printing.layoutPdf(onLayout: (format) async => bytes);
+      await IncomeExpenseReportPdf.print(_buildReportData());
     });
   }
 
@@ -589,14 +552,11 @@ class _IncomeExpenseReportScreenState
     }
     final messenger = ScaffoldMessenger.of(context);
     await _runLongExport(() async {
-      final bytes = await _buildMainPdfBytes();
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/${_getFilename()}');
-      await file.writeAsBytes(bytes);
+      final path = await IncomeExpenseReportPdf.save(_buildReportData());
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('تم حفظ الملف: ${file.path}'),
+            content: Text('تم حفظ الملف: $path'),
             duration: const Duration(seconds: 3),
           ),
         );

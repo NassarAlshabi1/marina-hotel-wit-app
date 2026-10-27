@@ -14,6 +14,7 @@ import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/time.dart';
 import '../../utils/english_digits_input_formatter.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   const BookingCheckoutScreen({required this.booking, super.key});
@@ -55,19 +56,73 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     });
   }
 
+  @override
+  void dispose() {
+    _hotelDayTickerSub?.cancel();
+    _isProcessingNotifier.dispose();
+    super.dispose();
+  }
+
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshForBookingId(widget.booking.id);
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
   }
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);
 
-  @override
-  void dispose() {
-    _hotelDayTickerSub?.cancel();
-    _isProcessingNotifier.dispose(); // ✅ تنظيف ValueNotifier لمنع memory leak
-    super.dispose();
+  /// يتحقق من نظافة سجلات BookingNight:
+  /// - لا تكرار في sequence
+  /// - لا فجوات في sequence
+  /// - لا ليالٍ مستقبلية تتجاوز actualNights
+  /// - finalRate/nightlyRate > 0
+  bool _validateNightsIntegrity(List<BookingNight> nights, int expectedNights) {
+    if (nights.isEmpty) return false;
+
+    // 1) لا تكرار في sequence
+    final sequences = nights.map((n) => n.sequence).toList();
+    if (sequences.length != sequences.toSet().length) {
+      dwarn(() => "⚠️ [NightsIntegrity] تكرار في sequence: $sequences");
+      return false;
+    }
+
+    // 2) لا فجوات — sequence يجب أن يكون 1..n متواصلاً
+    sequences.sort();
+    for (int i = 0; i < sequences.length; i++) {
+      if (sequences[i] != i + 1) {
+        dwarn(
+          () =>
+              "⚠️ [NightsIntegrity] فجوة في sequence عند الفهرس $i: ${sequences[i]}",
+        );
+        return false;
+      }
+    }
+
+    // 3) عدد السجلات لا يتجاوز الليالي المتوقعة (منع ليالٍ مستقبلية زائدة)
+    if (nights.length > expectedNights) {
+      dwarn(
+        () =>
+            "⚠️ [NightsIntegrity] سجلات الليالي (${nights.length}) > الليالي المتوقعة ($expectedNights)",
+      );
+      return false;
+    }
+
+    // 4) كل ليلة لها سعر صحيح (> 0)
+    for (final n in nights) {
+      final rate = n.finalRate > 0 ? n.finalRate : n.nightlyRate;
+      if (rate <= 0) {
+        dwarn(
+          () =>
+              "⚠️ [NightsIntegrity] ليلة sequence=${n.sequence} بسعر غير صالح: finalRate=${n.finalRate}, nightlyRate=${n.nightlyRate}",
+        );
+        return false;
+      }
+    }
+
+    return true;
   }
 
   int _countNightsWithDiscount(
@@ -142,9 +197,14 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     final discount = widget.booking.discount;
     final discountType = widget.booking.discountType;
     final discountStartDate = _parseDateTime(widget.booking.discountStartDate);
+    // ── حارس سلامة لسجلات الليالي ────────────────────────────────
+    final bool nightsAreClean = _validateNightsIntegrity(nights, actualNights);
+    final nightsCount = (nightsAreClean && nights.isNotEmpty)
+        ? nights.length
+        : actualNights;
 
-    final nightsCount = nights.isNotEmpty ? nights.length : actualNights;
-    final nightTotal = nights.isNotEmpty
+    // ── تكلفة الليالي: نستخدم finalRate > 0 ? finalRate : nightlyRate ─────
+    final double nightTotal = (nightsAreClean && nights.isNotEmpty)
         ? nights.fold<double>(
             0,
             (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
@@ -152,7 +212,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         : (() {
             final checkout = actualCheckout ?? DateTime.now();
             if (discount > 0 &&
-                discountType == 'per_night' &&
+                discountType == "per_night" &&
                 checkin != null) {
               final discountedNights = _countNightsWithDiscount(
                 checkin,
@@ -173,7 +233,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             return actualNights * roomPrice;
           })();
 
-    final totalDue = discount > 0 && discountType == 'total'
+    final totalDue = discount > 0 && discountType == "total"
         ? (nightTotal - discount).clamp(0.0, nightTotal)
         : nightTotal;
 

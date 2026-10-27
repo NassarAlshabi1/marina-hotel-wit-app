@@ -1,10 +1,13 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../services/appwrite_realtime_sync.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../services/payment_session_context.dart';
 import '../utils/app_logger.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AuthUser {
@@ -49,6 +52,15 @@ class AuthUser {
   String get name => fullName.isNotEmpty ? fullName : username;
 
   bool get isAdmin => userType == 'admin' || permissions.contains('all');
+
+  /// بوابة احتياطية للوظائف العامة المقيدة بالدور (مثل إلغاء الدفعات)،
+  /// ولا تستبدل [canPerform] عند فحص فعل مرتبط بوحدة محددة.
+  bool get canManageRecords =>
+      AuthLocalStore.isManagerialRole(userType) || permissions.contains('all');
+
+  /// إلغاء الدفعات (void) متاح للمدير والمشرف فقط — لا يكفي
+  /// امتلاك صلاحية القسم؛ الدور نفسه يجب أن يكون admin أو manager أو supervisor.
+  bool get canVoidPayments => canManageRecords;
 
   bool canPerform(String module, String action) => AuthLocalStore.canPerform(
     userType: userType,

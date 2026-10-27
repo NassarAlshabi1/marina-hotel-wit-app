@@ -1657,6 +1657,42 @@ class AppwriteSyncManager {
   /// - حلقة المزامنة الدائرية (pull → update → push → pull → ...)
   /// ✅ استخراج $updatedAt من مستند Appwrite وتحويله إلى ثوانٍ epoch.
   ///
+  /// مفتاح قانوني لمطابقة المستندات المكررة (نفس localUuid بعدة $ids).
+  /// يطابق تطبيع base_repository (شرطات + حالة أحرف) حتى لا تنشأ مجموعتان
+  /// لصيغتين نصيتين لنفس الهوية.
+  String _canonicalDedupKey(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final compact = trimmed.replaceAll('-', '');
+    if (compact.length == 32 && !compact.contains(RegExp(r'[^0-9a-fA-F]'))) {
+      return '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
+              '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+              '${compact.substring(20)}'
+          .toLowerCase();
+    }
+    return trimmed.toLowerCase();
+  }
+
+  /// حداثة المستند للمفاضلة بين النسخ المكررة — بلا آثار جانبية
+  /// (لا يلمس `_maxUpdatedAtInPull` الذي يُدار في مسار السحب نفسه).
+  int _docRecency(models.Document doc) {
+    final data = doc.data;
+    final lm = data['lastModified'];
+    if (lm is int) return lm;
+    if (lm is num) return lm.toInt();
+    if (lm is String) {
+      final n = int.tryParse(lm);
+      if (n != null) return n;
+    }
+    try {
+      final s = doc.$updatedAt;
+      if (s.isEmpty) return 0;
+      return DateTime.parse(s).millisecondsSinceEpoch ~/ 1000;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// $updatedAt هو حقل نظام في Appwrite يتوفر دائماً في كل مستند ويُحدَّث
   /// تلقائياً عند أي تعديل. نستخدمه كمرجع زمني موثوق لفحص التعارضات عندما
   /// يكون lastModified البعيد مفقوداً (وهو ما يحدث في بعض المجموعات مثل
@@ -2241,36 +2277,29 @@ class AppwriteSyncManager {
             enqueueOutbox: false,
           );
 
-          // ✅ 3. Recalculate derived fields — فقط للحجوزات النشطة أو غير المكتملة.
+          // ✅ 3. Recalculate derived fields.
           //
-          // منع حرج: لا نستدعي refreshForBookingId للحجوزات المكتملة (التي تمت
-          // مغادرتها) لأن:
-          //   - جهاز 1: عند _processCheckout، يحدّث الحجز + الغرفة + يرفع البيانات
-          //     (بما في ذلك الليالي النهائية) إلى Appwrite Cloud.
-          //   - جهاز 2: عند _syncBookings، يستقبل الحجز المكتمل + الليالي من السحابة.
-          //     إذا استدعينا refreshForBookingId هنا، سيُعيد بناء الليالي محلياً
-          //     بـ UUIDs جديدة مختلفة عن تلك المرفوعة من جهاز 1، مما يُسبب:
-          //       (أ) تكرار منطق حساب الليالي (إعادة تنفيذ جزء من المغادرة)
-          //       (ب) تضارب UUIDs بين الأجهزة عند الرفع التالي
-          //       (ج) احتمال إنشاء ليالٍ إضافية أو فروقات مالية
-          //   الحل: نعتمد الليالي المرفوعة من جهاز المصدر كما هي للحجوزات
-          //   المكتملة، ونُعيد الحساب فقط للحجوزات النشطة (التي قد تتغير لياليها
-          //   مع مرور الوقت).
-          final isCompletedBooking =
-              !StatusUtils.isActiveBooking(booking.status) ||
-              (booking.actualCheckout != null &&
-                  booking.actualCheckout!.isNotEmpty);
+          // الحجز المنتهي (actualCheckout مضى) يُعاد تجميع مستحقه من لياليه
+          // المحفوظة دون إعادة بنائها أو تسعيرها بسعر الغرفة الحالي — ضروري
+          // لأن الحقول المحسوبة لا تُسحب من Appwrite وتبدأ صفراً هنا، وإلا
+          // تظهر الإقامة "مدفوعة بالكامل". الحجوزات غير النشطة الأخرى (بلا
+          // actualCheckout) تبقى دون إعادة حساب حتى لا تُعاد بناء لياليها.
+          final isFrozenStay =
+              BookingDerivedFieldsService.isFrozenCompletedStay(booking);
+          final isActive =
+              StatusUtils.isActiveBooking(booking.status) &&
+              (booking.actualCheckout == null ||
+                  booking.actualCheckout!.isEmpty);
 
-          if (!isCompletedBooking) {
+          if (isFrozenStay || isActive) {
             await _bookingsRepository.derivedFields.refreshForBookingId(
               booking.id,
               enqueueOutbox: false,
             );
           } else {
             _logger.debug(
-              '⏭️ تخطي refreshForBookingId للحجز المكتمل ${localUuid.substring(0, 8)}... '
-              '(status=${booking.status}, actualCheckout=${booking.actualCheckout}) — '
-              'الليالي مرفوعة من جهاز المصدر، لا حاجة لإعادة الحساب',
+              '⏭️ تخطي refreshForBookingId للحجز ${localUuid.substring(0, 8)}... '
+              '(status=${booking.status}, actualCheckout=${booking.actualCheckout})',
               tag: 'SYNC',
             );
           }
@@ -3134,6 +3163,39 @@ class AppwriteSyncManager {
 
   /// تصفية الحمولة قبل الإرسال — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
+  /// يضمن وجود UUID الحجز في حمولة السجل التابع (الأجهزة الأخرى تحل به فقط).
+  /// [bookingUuidIndex] avoids one query per row during full pushes.
+  Future<Map<String, dynamic>> _withBookingUuid(
+    Map<String, dynamic> payload,
+    int? bookingLocalId, {
+    Map<int, String>? bookingUuidIndex,
+  }) async {
+    final existing = payload['bookingUuidCache'];
+    if ((existing is String && existing.isNotEmpty) || bookingLocalId == null) {
+      return payload;
+    }
+    if (bookingUuidIndex != null) {
+      final uuid = bookingUuidIndex[bookingLocalId];
+      if (uuid == null || uuid.isEmpty) return payload;
+      return {...payload, 'bookingUuidCache': uuid};
+    }
+    final booking =
+        await (database.select(database.bookings)
+              ..where((b) => b.id.equals(bookingLocalId))
+              ..limit(1))
+            .getSingleOrNull();
+    if (booking == null || booking.localUuid.isEmpty) return payload;
+    return {...payload, 'bookingUuidCache': booking.localUuid};
+  }
+
+  Future<Map<int, String>> _loadBookingUuidIndex() async {
+    final rows = await database.select(database.bookings).get();
+    return {
+      for (final b in rows)
+        if (b.localUuid.isNotEmpty) b.id: b.localUuid,
+    };
+  }
+
   Map<String, dynamic> _filterPayload(
     String collectionId,
     Map<String, dynamic> payload,
@@ -3985,16 +4047,78 @@ class AppwriteSyncManager {
 
   // ─── SalaryWithdrawals ──────────────────────────────────────────────────
 
+  /// ✅ (المرحلة 0 — P0.2) جسر اختبار بلا شبكة لمسار سحب مسحوبات الرواتب.
+  ///
+  /// يُستخدم من test/services/phase0_data_integrity_test.dart لإثبات حذف
+  /// "الطريقة 2" (مطابقة employeeId البعيد مع id محلي) — الكود الإنتاجي
+  /// نفسه بلا محاكاة، تماماً كجسر applyBookingNightsForTesting.
+  @visibleForTesting
+  Future<int> syncSalaryWithdrawalsForTesting(
+    List<models.Document> documents,
+  ) => _syncSalaryWithdrawals(documents);
+
+  /// ✅ جسر اختبار بلا شبكة لمسار دفع سحب راتب (المرحلة 0 — P0.5 / R6).
+  ///
+  /// يُثبت أن سحبة بموظف غائب محلياً تُعيد false → العنصر يبقى في الطابور
+  /// (processing) بلا علامة تسليم، وreclaimForPush يُعيده إلى pending.
+  /// (السلوك القديم return true كان يُسقط العنصر فيختفي من السحابة للأبد.)
+  /// يستخدمه test/services/p05_orphan_deferral_and_blacklist_push_test.dart
+  @visibleForTesting
+  Future<bool> processSalaryWithdrawalEntryForTesting(OutboxData entry) =>
+      _processSalaryWithdrawalEntry(entry);
+
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
-    if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     // (بيانات قديمة بلا employeeUuid — تُشفى عبر
     // scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js)
     final orphans = <String>[];
+    // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
+    final employeeFkResolver = IdResolver(database);
 
+    // ✅ إصلاح (طابور يتامى دائم): نحاول أولاً استعادة سحوبات رواتب يتيمة
+    // من دورات سابقة — حتى لو وصلت هذه الدورة بلا مستندات جديدة إطلاقاً
+    // (`documents.isEmpty`)، فالموظف الناقص قد يكون وصل عبر مجموعة أخرى في
+    // هذه الدورة أو دورة سابقة. لذلك هذا الاستدعاء قبل أي عودة مبكرة.
+    processed += await _flushPendingSalaryWithdrawalOrphans(employeeFkResolver);
+
+    if (documents.isEmpty) return processed;
+
+    // ✅ إزالة تكرار مستندات السحابة اليتيمة: نفس localUuid بعدة $ids
+    // (بقايا حقبة ما قبل idempotency والنسخ الشامل بـ ID.unique()).
+    // بدونها يُعاد upsert نفس الصف N مرات في الدورة (آخر كاتب يفوز حسب
+    // ترتيب الصفحات عشوائياً) ويتكرر تحذير SYNC_RELINK لكل نسخة.
+    // القاعدة: المرجع ($id == localUuid) أولاً — الدفع يستهدف documentId
+    // = localUuid دائماً فهو الأحدث بالبناء؛ ثم الأحدث lastModified.
+    final docsByUuid = <String, models.Document>{};
+    var dupCollapsed = 0;
     for (final doc in documents) {
+      final rawKey = (doc.data['localUuid']?.toString() ?? doc.$id);
+      final key = _canonicalDedupKey(rawKey);
+      final prev = docsByUuid[key];
+      if (prev == null) {
+        docsByUuid[key] = doc;
+      } else {
+        dupCollapsed++;
+        final prevCanon =
+            prev.$id == key || _canonicalDedupKey(prev.$id) == key;
+        final curCanon = doc.$id == key || _canonicalDedupKey(doc.$id) == key;
+        if ((curCanon && !prevCanon) ||
+            (curCanon == prevCanon && _docRecency(doc) > _docRecency(prev))) {
+          docsByUuid[key] = doc;
+        }
+      }
+    }
+    if (dupCollapsed > 0) {
+      _logger.debug(
+        '🧹 دُمج $dupCollapsed مستند withdrawals مكرر (نفس localUuid بعدة '
+        r'$ids) — عولج المرجع/الأحدث فقط، والباقي يتيم يُشفى سحابياً',
+        tag: 'SYNC',
+      );
+    }
+
+    for (final doc in docsByUuid.values) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
@@ -4020,7 +4144,15 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
+        // ⚠️ (المرحلة 0 — P0.2 / R2) أُزيلت "الطريقة 2" (مطابقة employeeId
+        // البعيد مع e.id المحلي): Employee.id autoIncrement يختلف بين
+        // الأجهزة (base_repository يزيل id للسجلات الجديدة)، والمطابقة
+        // تربط السحوبة بموظف خاطئ بصمت عند التصادم الرقمي — 378 سحوبة
+        // في بيانات الإنتاج على جهاز جديد. إصلاح 1c83e916 أُلغي صامتاً في
+        // دمج 07c26a65 (حلّ الـ merge أخذ جانب الأب الثاني) وأُعيد هنا:
+        // IdResolver يجرّب UUID بكل صيغه ثم serverId، ولا يجرّب id المحلي
+        // للمصدر البعيد (fromRemote: true).
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -4029,31 +4161,20 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
         Employee? employee;
-
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+        if (resolvedEmployeeId != null) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
@@ -4063,29 +4184,40 @@ class AppwriteSyncManager {
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
           );
+          // ✅ إصلاح: حفظ المستند في طابور يتامى دائم (SharedPreferences)
+          // بدل تخطيه نهائياً. employeeId عمود NOT NULL على salary_withdrawals
+          // (local_db.dart) فلا يمكن حفظ الصف محلياً بلا موظف محلول كما
+          // تفعل payments/debts (bookingLocalId nullable هناك) — الطابور
+          // المعلّق هو البديل الدائم بدل الاعتماد على إعادة إرسال Appwrite
+          // لنفس المستند (قد يكون الـ checkpoint تجاوزه فعلاً فلا يُعاد
+          // سحبه أبداً في دورة Delta لاحقة). يُستأنف من [_flushPendingSalaryWithdrawalOrphans].
+          await _queueSalaryWithdrawalOrphan(data);
           continue;
         }
 
         // ✅ استبدال employeeId البعيد بالمعرف المحلي للموظف
         // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
+        // ✅ (استعادة 1c83e916) ختم employeeUuid القياسي: المحلّل داخل
+        // الـ adapter (أثناء upsertFromJson) يحل المرجع عبر UUID حتماً بدل
+        // قيم خام قد تفشل عبر الأجهزة.
+        data['employeeUuid'] = employee.localUuid;
 
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
 
-        // ✅ كتابة expense_id في العمود الخام (Migration 40+)
-        // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً
-        final remoteExpenseId = _asIntSafe(data, 'expenseId');
-        if (remoteExpenseId != null && remoteExpenseId > 0) {
-          final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
-          if (swAdapter is SalaryWithdrawalsAdapter) {
-            await swAdapter.writeExpenseIdRaw(
-              database,
-              insertedId,
-              remoteExpenseId,
-            );
-          }
-        }
+        // ✅ (migration 68) كتابة expense_id في العمود الخام (Migration 40+)
+        // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً.
+        // ✅ الآن بحل uuid المرآة أولاً: expense_id الخام من جهاز المصدر
+        // لا يصلح عبر الأجهزة (autoincrement معاد الترقيم) — إصلاح جذر
+        // انكسار رابط سحبة↔مصروف (643/688 زوجاً خاطئاً على السحابة).
+        await _resolveAndWriteMirrorExpenseId(
+          insertedId,
+          expenseUuid: _asNullableString(
+            data['expenseUuid'] ?? data['expense_uuid'],
+          ),
+          rawExpenseId: _asIntSafe(data, 'expenseId'),
+        );
 
         // ✅ Wave 7 tighten: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
@@ -4140,18 +4272,15 @@ class AppwriteSyncManager {
         try {
           final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
               .upsertFromJson(data, src: Source.appwrite);
-          // ✅ كتابة expense_id في العمود الخام
-          final deferredExpenseId = _asIntSafe(data, 'expenseId');
-          if (deferredExpenseId != null && deferredExpenseId > 0) {
-            final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
-            if (swAdapter is SalaryWithdrawalsAdapter) {
-              await swAdapter.writeExpenseIdRaw(
-                database,
-                deferredInsertedId,
-                deferredExpenseId,
-              );
-            }
-          }
+          // ✅ (migration 68) كتابة expense_id عبر حل uuid المرآة أولاً
+          // (نفس منطق الموقع الرئيسي أعلاه — راجع التوثيق هناك).
+          await _resolveAndWriteMirrorExpenseId(
+            deferredInsertedId,
+            expenseUuid: _asNullableString(
+              data['expenseUuid'] ?? data['expense_uuid'],
+            ),
+            rawExpenseId: _asIntSafe(data, 'expenseId'),
+          );
           // ✅ Wave 7 tighten: notify remote change from another device
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
             entity: 'salary_withdrawals',
@@ -4171,6 +4300,192 @@ class AppwriteSyncManager {
     }
 
     return processed;
+  }
+
+  /// مفتاح SharedPreferences لطابور مسحوبات الرواتب اليتيمة المعلّقة
+  /// (مستند وصل من Appwrite أثناء السحب لكن موظفه غير موجود محلياً بعد).
+  ///
+  /// سبب الحاجة لطابور دائم بدل الاعتماد على دورة سحب لاحقة فقط: مؤشر
+  /// Delta لهذه المجموعة يتقدّم من `max($updatedAt)` لكل مستندات الصفحة
+  /// (unified_pull_engine.dart) بصرف النظر عن نجاح تطبيقها محلياً — فإن لم
+  /// يُحفظ المستند اليتيم هنا، لن يُعاد سحبه أبداً في دورة Delta قادمة (قد
+  /// يكون أقدم من المؤشر الجديد)، ويبقى ضائعاً صامتاً حتى يُشغَّل سكربت
+  /// backfill يدوي. تخزينه محلياً يجعل الاستعادة تلقائية فوراً عند توفّر
+  /// الموظف، بصرف النظر عن حالة مؤشر Delta.
+  static const String _pendingSalaryWithdrawalOrphansKey =
+      'salary_withdrawal_pending_orphans_v1';
+
+  /// سقف أمان ضد نمو غير محدود — مؤشر خلل جوهري (لا سيناريو تشغيلي طبيعي
+  /// يُنتج آلاف سحوبات رواتب يتيمة الموظف في فندق واحد).
+  static const int _maxPendingSalaryWithdrawalOrphans = 500;
+
+  Future<List<Map<String, dynamic>>>
+  _loadPendingSalaryWithdrawalOrphans() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_pendingSalaryWithdrawalOrphansKey);
+      if (raw == null || raw.isEmpty) return <Map<String, dynamic>>[];
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <Map<String, dynamic>>[];
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل قراءة طابور يتامى مسحوبات الرواتب المعلّق: $e',
+        tag: 'SYNC',
+      );
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<void> _savePendingSalaryWithdrawalOrphans(
+    List<Map<String, dynamic>> docs,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (docs.isEmpty) {
+        await prefs.remove(_pendingSalaryWithdrawalOrphansKey);
+        return;
+      }
+      await prefs.setString(
+        _pendingSalaryWithdrawalOrphansKey,
+        jsonEncode(docs),
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل حفظ طابور يتامى مسحوبات الرواتب المعلّق: $e',
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// ✅ يضيف مستند سحب راتب يتيم (موظف غير موجود محلياً) إلى الطابور
+  /// المعلّق الدائم — انظر توثيق [_pendingSalaryWithdrawalOrphansKey].
+  Future<void> _queueSalaryWithdrawalOrphan(Map<String, dynamic> data) async {
+    final localUuid = data['localUuid']?.toString();
+    if (localUuid == null || localUuid.isEmpty) return;
+
+    final pending = await _loadPendingSalaryWithdrawalOrphans();
+    final byUuid = <String, Map<String, dynamic>>{
+      for (final d in pending)
+        if (d['localUuid']?.toString() != null) d['localUuid'].toString(): d,
+    };
+
+    if (!byUuid.containsKey(localUuid) &&
+        byUuid.length >= _maxPendingSalaryWithdrawalOrphans) {
+      _logger.error(
+        '🚨 طابور يتامى مسحوبات الرواتب تجاوز '
+        '$_maxPendingSalaryWithdrawalOrphans — تخطي $localUuid (مؤشر خلل '
+        'جوهري يحتاج تدخلاً، راجع '
+        'scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js)',
+        tag: 'SYNC',
+      );
+      return;
+    }
+
+    byUuid[localUuid] = data; // آخر نسخة مستلمة لنفس السجل تفوز.
+    await _savePendingSalaryWithdrawalOrphans(byUuid.values.toList());
+  }
+
+  /// ✅ يعيد محاولة ربط سحوبات الرواتب اليتيمة المعلّقة من دورات سابقة.
+  ///
+  /// يُستدعى في بداية كل دورة سحب لـ salary_withdrawals (حتى لو وصلت هذه
+  /// الدورة بلا مستندات جديدة إطلاقاً) لأن الموظف الناقص قد يكون وصل عبر
+  /// مجموعة `employees` ضمن الدورة الحالية أو دورة سابقة. يُعيد عدد
+  /// السجلات التي استُعيدت بنجاح (تُضاف إلى `processed`).
+  Future<int> _flushPendingSalaryWithdrawalOrphans(
+    IdResolver employeeFkResolver,
+  ) async {
+    final pending = await _loadPendingSalaryWithdrawalOrphans();
+    if (pending.isEmpty) return 0;
+
+    var recovered = 0;
+    final stillPending = <Map<String, dynamic>>[];
+
+    for (final data in pending) {
+      try {
+        final remoteEmployeeId =
+            _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
+        final employeeUuid =
+            (data['employeeUuid'] as String?) ??
+            (data['employee_uuid'] as String?) ??
+            (data['employeeLocalUuid'] as String?) ??
+            (data['employee_local_uuid'] as String?);
+
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
+        Employee? employee;
+        if (resolvedEmployeeId != null) {
+          employee =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+        }
+
+        if (employee == null) {
+          // لا يزال الموظف غائباً محلياً — يبقى في الطابور لدورة لاحقة.
+          stillPending.add(data);
+          continue;
+        }
+
+        data['employeeId'] = employee.id;
+        data['employeeUuid'] = employee.localUuid;
+
+        final insertedId = await _adapterRegistry.salaryWithdrawals
+            .upsertFromJson(data, src: Source.appwrite);
+
+        await _resolveAndWriteMirrorExpenseId(
+          insertedId,
+          expenseUuid: _asNullableString(
+            data['expenseUuid'] ?? data['expense_uuid'],
+          ),
+          rawExpenseId: _asIntSafe(data, 'expenseId'),
+        );
+
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_withdrawals',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+
+        recovered++;
+        _logger.info(
+          '✅ استُعيد سحب راتب يتيم معلّق ${data['localUuid']} '
+          '→ employee #${employee.id}',
+          tag: 'SYNC_RELINK',
+        );
+      } catch (e) {
+        // فشل مؤقت (مثل FK constraint) — يبقى في الطابور ليُعاد لاحقاً.
+        stillPending.add(data);
+        _logger.warning(
+          '⚠️ فشلت محاولة استعادة سحب راتب يتيم معلّق '
+          '${data['localUuid']}: $e',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    }
+
+    if (recovered > 0) {
+      _logger.info(
+        '🔗 تم استرجاع $recovered/${pending.length} سحب راتب يتيم من الطابور المعلّق',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
+    await _savePendingSalaryWithdrawalOrphans(stillPending);
+    return recovered;
   }
 
   Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
@@ -4234,11 +4549,14 @@ class AppwriteSyncManager {
     } else if (employee == null) {
       // الموظف غير موجود محلياً — سجل يتيم
       _logger.warning(
-        '⏭️ تخطي salary_withdrawal: الموظف ${withdrawal.employeeId} غير موجود محلياً (سجل يتيم)',
+        '⏳ تأجيل salary_withdrawal: الموظف ${withdrawal.employeeId} غير موجود محلياً (سجل يتيم) — يبقى في الطابور',
         tag: 'SYNC',
       );
-      // لا نستطيع رفع سحب راتب بدون موظف — نحذفه من الطابور
-      return true;
+      // ✅ (المرحلة 0 — P0.5 / R6) لا نستطيع رفع سحب راتب بلا موظف، لكن
+      // الإرجاع true كان يُسقط العنصر من الطابور فيختفي من السحابة إلى
+      // الأبد. false = لم يُسلَّم → يبقى processing، وتُعيده reclaimForPush
+      // إلى pending في الدورة التالية، فينجح تلقائياً بعد وصول الموظف.
+      return false;
     }
 
     final payload = _payloadMapper.salaryWithdrawalToRemote(
@@ -4266,6 +4584,265 @@ class AppwriteSyncManager {
       database.salaryWithdrawals,
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
+
+  /// ✅ (migration 68) تحويل قيمة JSON إلى نص nullable بشكل آمن.
+  static String? _asNullableString(Object? value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  /// ✅ (migration 68) حل رابط المرآة سحبة→مصروف وكتابة expense_id الخام.
+  ///
+  /// المستوى 1 (الموثوق قطعياً): expense_uuid → expenses.local_uuid.
+  /// UUID هو هوية ثابتة عبر الأجهزة، فيُحل دائماً إلى المصروف الصحيح
+  /// (بعد وصول المصروف محلياً — المصروفات تُسحب قبل السحبات).
+  ///
+  /// المستوى 2 (احتياطي للسجلات القديمة قبل ترحيل السحابة): expense_id
+  /// الخام من جهاز المصدر — نفس السلوك التاريخي. تُترك القيمة الخام
+  /// للترحيل 68 + _relinkMirrorExpenseIds لتصحيحها لاحقاً.
+  ///
+  /// ⚠️ إذا وُجد expense_uuid لكن المصروف لم يصل محلياً بعد، لا نكتب
+  /// الرابط الخام (معروف بأنه غير موثوق عبر الأجهزة) — العمود يبقى null
+  /// وexpense_uuid محفوظ في عمود السحبة نفسه، و_relinkMirrorExpenseIds
+  /// يُصلح الرابط في دورة لاحقة بعد وصول المصروف.
+  Future<void> _resolveAndWriteMirrorExpenseId(
+    int salaryWithdrawalRowId, {
+    String? expenseUuid,
+    int? rawExpenseId,
+  }) async {
+    int? resolvedExpenseId;
+    if (expenseUuid != null && expenseUuid.isNotEmpty) {
+      try {
+        final linkedExpense =
+            await (database.select(database.expenses)
+                  ..where((e) => e.localUuid.equals(expenseUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (linkedExpense != null) {
+          final withdrawal =
+              await (database.select(database.salaryWithdrawals)
+                    ..where((w) => w.id.equals(salaryWithdrawalRowId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          final withdrawalEmployeeUuid = withdrawal?.employeeUuid?.trim();
+          final expenseEmployeeUuid = linkedExpense.employeeUuid?.trim();
+          if (withdrawalEmployeeUuid != null &&
+              withdrawalEmployeeUuid.isNotEmpty &&
+              expenseEmployeeUuid != null &&
+              expenseEmployeeUuid.isNotEmpty &&
+              withdrawalEmployeeUuid != expenseEmployeeUuid) {
+            _logger.error(
+              '❌ رفض ربط السحبة #$salaryWithdrawalRowId بالمصروف '
+              '$expenseUuid: employeeUuid mismatch '
+              '($withdrawalEmployeeUuid != $expenseEmployeeUuid)',
+              tag: 'SYNC_RELINK',
+            );
+            return;
+          }
+        }
+        resolvedExpenseId = linkedExpense?.id;
+      } catch (e) {
+        _logger.warning(
+          '⚠️ فشل حل expense_uuid=$expenseUuid للسحبة '
+          '#$salaryWithdrawalRowId: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    if (expenseUuid == null || expenseUuid.trim().isEmpty) {
+      // Remote numeric expense_id is a source-device autoincrement value.
+      // It is never safe to copy it into this device because the same number
+      // may belong to a completely different expense/employee here. Preserve
+      // the existing local value and wait for a UUID-bearing record/relink.
+      _logger.warning(
+        '⚠️ salary_withdrawal #$salaryWithdrawalRowId arrived without '
+        'expenseUuid; raw remote expenseId=$rawExpenseId was deliberately ignored',
+        tag: 'SYNC_RELINK',
+      );
+      return;
+    }
+
+    if (resolvedExpenseId == null) {
+      // UUID is authoritative but the expense may not have arrived yet. Do
+      // not fall back to the remote numeric id. _relinkMirrorExpenseIds()
+      // will resolve it after the expense is pulled.
+      return;
+    }
+
+    final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
+    if (swAdapter is SalaryWithdrawalsAdapter) {
+      await swAdapter.writeExpenseIdRaw(
+        database,
+        salaryWithdrawalRowId,
+        resolvedExpenseId,
+      );
+    }
+  }
+
+  /// ✅ (migration 68) إصلاح روابط المرآة salary_withdrawals.expense_id
+  /// عبر expense_uuid المخزّن على السحبة نفسه — يُشغَّل في كل دورة مزامنة
+  /// بعد سحب المصروفات، فيصلح الروابط التي وصل مصروفها متأخراً، وكذلك
+  /// يصحح الروابط الخاطئة المكتوبة تاريخياً (expense_id يشير إلى مصروف
+  /// محلي لا يطابق expense_uuid).
+  /// يعيد عدد الروابط المُصلحة.
+  Future<int> _relinkMirrorExpenseIds() async {
+    var relinked = 0;
+    try {
+      // سحبات لها expense_uuid لكن expense_id مفقود أو يشير إلى مصروف
+      // محلي لا يساوي المصروف صاحب الـ uuid (رابط خاطئ أو يتيم).
+      final rows = await database
+          .customSelect(
+            'SELECT w.id AS wid, w.expense_id AS current_expense_id, '
+            'w.expense_uuid AS expense_uuid, '
+            '(SELECT e.id FROM expenses e WHERE e.local_uuid = w.expense_uuid '
+            '  AND e.deleted_at IS NULL '
+            '  AND (e.employee_uuid IS NULL OR w.employee_uuid IS NULL '
+            '       OR e.employee_uuid = w.employee_uuid) LIMIT 1) AS resolved_expense_id '
+            'FROM salary_withdrawals w '
+            'WHERE w.expense_uuid IS NOT NULL '
+            "AND w.expense_uuid != '' "
+            'AND w.deleted_at IS NULL '
+            'AND (w.expense_id IS NULL OR w.expense_id NOT IN '
+            '  (SELECT e2.id FROM expenses e2 '
+            "   WHERE e2.local_uuid = w.expense_uuid AND e2.deleted_at IS NULL))",
+          )
+          .get();
+      for (final row in rows) {
+        final wid = row.read<int>('wid');
+        final resolved = row.read<int?>('resolved_expense_id');
+        final current = row.read<int?>('current_expense_id');
+        if (resolved == null) {
+          // المصروف لم يصل بعد — يُعاد الفحص في الدورة التالية
+          continue;
+        }
+        if (current == resolved) continue;
+        await database.customStatement(
+          'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+          [resolved, wid],
+        );
+        relinked++;
+        _logger.debug(
+          '🩹 إصلاح رابط المرآة: السحبة #$wid كانت expense_id=$current '
+          '→ أصبحت #$resolved وفق expense_uuid',
+          tag: 'SYNC_RELINK',
+        );
+      }
+      if (relinked > 0) {
+        _logger.info(
+          '✅ إصلاح $relinked رابط مرآة سحبة→مصروف عبر expense_uuid',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إصلاح روابط المرآة عبر expense_uuid',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+    return relinked;
+  }
+
+  /// ✅ (هجرة 68) الاتجاه العكسي: إصلاح/تعبئة ختم المصروف
+  /// `expenses.withdrawal_uuid` من `salary_withdrawals.expense_uuid`.
+  ///
+  /// يعالج ثلاث حالات:
+  /// 1. **الختم الذاتي الفاسد**: خطأ تاريخي في مسارات الإنشاء/التعديل كان
+  ///    يختم المصروف بهويته هو (`withdrawal_uuid == local_uuid`) بدل هوية
+  ///    المرآة — فيكسر حلّ الهوية ويُوقع النظام على المطابقات البيانية.
+  /// 2. **ختم يشير لسحبة لم تعد موجودة** (حُذفت أو رُحّلت).
+  /// 3. **ختم مفقود** لمصروف تعلن مرآة قائمة ارتباطها به عبر
+  ///    `expense_uuid`.
+  ///
+  /// المصدر الوحيد للحقيقة هنا هو هوية العملية نفسها: سحبة واحدة نشطة
+  /// تعلن `expense_uuid == مصروف.local_uuid`. لا يُستخدم اسم الموظف ولا
+  /// اليوم ولا المبلغ إطلاقاً. يعيد عدد الصفوف المُصلحة.
+  Future<int> _relinkExpenseWithdrawalUuids() async {
+    var relinked = 0;
+    try {
+      final rows = await database
+          .customSelect(
+            'SELECT e.id AS eid, e.local_uuid AS e_uuid, '
+            'e.withdrawal_uuid AS current_w_uuid, '
+            '(SELECT w.local_uuid FROM salary_withdrawals w '
+            "  WHERE w.expense_uuid = e.local_uuid AND w.deleted_at IS NULL "
+            '  ORDER BY w.updated_at DESC LIMIT 1) AS resolved_w_uuid '
+            'FROM expenses e '
+            "WHERE e.local_uuid IS NOT NULL AND e.local_uuid != '' "
+            'AND e.deleted_at IS NULL '
+            'AND EXISTS (SELECT 1 FROM salary_withdrawals w2 '
+            '  WHERE w2.expense_uuid = e.local_uuid AND w2.deleted_at IS NULL) '
+            'AND (e.withdrawal_uuid IS NULL '
+            "  OR TRIM(e.withdrawal_uuid) = '' "
+            '  OR e.withdrawal_uuid = e.local_uuid '
+            '  OR e.withdrawal_uuid NOT IN '
+            '    (SELECT w3.local_uuid FROM salary_withdrawals w3 '
+            '     WHERE w3.deleted_at IS NULL))',
+          )
+          .get();
+      final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      for (final row in rows) {
+        final eid = row.read<int>('eid');
+        final eUuid = row.read<String?>('e_uuid');
+        final resolved = row.read<String?>('resolved_w_uuid');
+        final current = row.read<String?>('current_w_uuid');
+        if (resolved == null || resolved.isEmpty) continue;
+        if (current == resolved) continue;
+        await database.customStatement(
+          'UPDATE expenses SET withdrawal_uuid = ? WHERE id = ?',
+          [resolved, eid],
+        );
+        relinked++;
+        _logger.debug(
+          '🩹 إصلاح الختم العكسي: المصروف #$eid كان withdrawal_uuid=$current '
+          '→ أصبح $resolved وفق هوية المرآة (سحبة.expense_uuid)',
+          tag: 'SYNC_RELINK',
+        );
+        // ✅ تعميم الإصلاح للسحابة: الدفع يعيد بناء الحمولة من الصف
+        // الكامل فيحمل الختم الصحيح لكل الأجهزة (وليس إضافة جديدة —
+        // عنصر outbox مربوط بهوية المصروف نفسه).
+        if (eUuid != null && eUuid.isNotEmpty) {
+          try {
+            await outboxDao.merge(
+              entity: 'expenses',
+              op: 'update',
+              localUuid: eUuid,
+              payload: {'lastModified': nowEpoch},
+              clientTs: nowEpoch,
+            );
+          } catch (e) {
+            _logger.warning(
+              '⚠️ تعذّر جدولة دفع الختم العكسي للمصروف $eUuid: $e',
+              tag: 'SYNC_RELINK',
+            );
+          }
+        }
+      }
+      if (relinked > 0) {
+        _logger.info(
+          '✅ إصلاح $relinked ختم عكسي مصروف→سحبة عبر هوية المرآة',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إصلاح الأختام العكسية مصروف→سحبة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+    return relinked;
+  }
+
+  /// جسر اختباري لإصلاح الأختام العكسية (مصروف → سحبة) بالهوية —
+  /// بنفس نمط [syncSalaryWithdrawalsForTesting]: الكود الإنتاجي نفسه
+  /// بلا محاكاة ولا شبكة.
+  @visibleForTesting
+  Future<int> relinkExpenseWithdrawalUuidsForTesting() =>
+      _relinkExpenseWithdrawalUuids();
 
   Map<String, dynamic> _roomToRemote(Room room) =>
       _payloadMapper.roomToRemote(room);
@@ -5095,9 +5672,19 @@ class AppwriteSyncManager {
 
   /// رفع التغييرات المحلية إلى Appwrite فوراً
   /// ✅ P1-3 fix: يُرجع عدد السجلات المدفوعة فعلياً بدل bool
+  /// ✅ P1-3 موسّع: يُرجع `-1` عند الفشل الحقيقي (فشل `sync()` أو استثناء)
+  /// حتى لا يعرض النداء «نجاح» كاذماً عند بقاء Outbox ممتلئاً.
   Future<int> pushLocalChanges() async {
     try {
       final result = await sync(pull: false);
+      if (result.status == SyncStatus.failed) {
+        _logger.warning(
+          'pushLocalChanges: sync() returned failed — '
+          '${result.errorMessage ?? 'unknown'}',
+          tag: 'SYNC',
+        );
+        return -1;
+      }
       return result.recordsPushed;
     } catch (e, stackTrace) {
       _logger.error(
@@ -5111,7 +5698,7 @@ class AppwriteSyncManager {
         error: e.toString(),
         stackTrace: stackTrace,
       );
-      return 0;
+      return -1;
     }
   }
 
@@ -5198,7 +5785,37 @@ class AppwriteSyncManager {
           queries: plan.queries,
           useCache: false,
         ),
-        apply: (docs) => _syncExpenses(docs),
+        apply: (docs) async {
+          final synced = await _syncExpenses(docs);
+          // ✅ (migration 68) بعد وصول المصروفات: أصلح روابط المرآة
+          // salary_withdrawals.expense_id عبر expense_uuid — يغطي السحبات
+          // التي سبق مصروفها (أو كُتب رابطها الخام الخاطئ تاريخياً).
+          try {
+            await _relinkMirrorExpenseIds();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkMirrorExpenseIds فشل بعد سحب المصروفات — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
+          // ✅ (هجرة 68) الاتجاه العكسي: أصلح/عبّئ ختم المصروف
+          // (مصروف → سحبة) بالهوية — يشمل إصلاح الختم الذاتي الفاسد.
+          try {
+            await _relinkExpenseWithdrawalUuids();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkExpenseWithdrawalUuids فشل بعد سحب المصروفات — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
+          return synced;
+        },
       ),
       CollectionPullTask(
         name: 'booking_nights',
@@ -5269,7 +5886,24 @@ class AppwriteSyncManager {
           queries: plan.queries,
           useCache: false,
         ),
-        apply: (docs) => _syncSalaryWithdrawals(docs),
+        apply: (docs) async {
+          final synced = await _syncSalaryWithdrawals(docs);
+          // ✅ (هجرة 68) بعد وصول السحبات: أصلح روابط المرآة في الاتجاهين
+          // بالهوية — سحبة→مصروف (expense_id) ومصروف→سحبة (الختم العكسي).
+          try {
+            await _relinkMirrorExpenseIds();
+            await _relinkExpenseWithdrawalUuids();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ إصلاح روابط المرآة فشل بعد سحب السحبات — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
+          return synced;
+        },
       ),
       CollectionPullTask(
         name: 'guest_infos',
@@ -5725,11 +6359,16 @@ class AppwriteSyncManager {
       _logger.info('✅ تم رفع ${stats['debts']} دين', tag: 'SYNC');
 
       // رفع ملاحظات الحجوزات
+      final bookingUuidIndex = await _loadBookingUuidIndex();
       final bookingNotes = await database.select(database.bookingNotes).get();
       for (final note in bookingNotes) {
         if (skipDeleted && note.deletedAt != null) continue;
         try {
-          final payload = _bookingNoteToRemote(note);
+          final payload = await _withBookingUuid(
+            _bookingNoteToRemote(note),
+            note.bookingId,
+            bookingUuidIndex: bookingUuidIndex,
+          );
           await appwriteService.upsertBookingNote(
             note.localUuid,
             _filterPayload('booking_notes', payload),
@@ -5750,7 +6389,11 @@ class AppwriteSyncManager {
       for (final night in bookingNights) {
         if (skipDeleted && night.deletedAt != null) continue;
         try {
-          final payload = _bookingNightToRemote(night);
+          final payload = await _withBookingUuid(
+            _bookingNightToRemote(night),
+            night.bookingLocalId,
+            bookingUuidIndex: bookingUuidIndex,
+          );
           await appwriteService.upsertBookingNight(
             night.localUuid,
             _filterPayload('booking_nights', payload),
@@ -6208,6 +6851,23 @@ class AppwriteSyncManager {
         .getSingleOrNull();
   }
 
+  // ✅ D1-path audit fix (2026-10-04): مُلقٍ مخصص لصفوف القائمة السوداء.
+  //
+  // الإصلاح السابق (2026-08-06) أضاف فلتر createdBy='user' إلى
+  // `_getShiftNoteByLocalUuid` — فصحّح مسار shift_notes لكنه كسر مسار
+  // blacklist الذي كان يعيد استخدام نفس المُلقٍ: صفوف blacklist تُخزَّن
+  // محلياً في shift_notes بـ createdBy='blacklist' (انظر `_syncBlacklist`
+  // و `BlacklistRepository._createdByTag`)، لذا كان المُلقٍ يعيد NULL
+  // دائماً لمدخلات blacklist في الـ outbox → `_handleDeleteOp` يدفع
+  // tombstone ويحذف مستند blacklist من السحابة عند كل رفع!
+  // الفصل الصريح أدناه يعيد المسارين إلى المسار الصحيح لكل منهما.
+  Future<BlacklistData?> _getBlacklistEntryByLocalUuid(String uuid) {
+    return (database.select(database.blacklist)
+          ..where((t) => t.localUuid.equals(uuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   // ─── Blacklist ──────────────────────────────────────────────────────────
 
   /// ✅ رفع سجل ترحيل الراتب إلى Appwrite
@@ -6276,7 +6936,10 @@ class AppwriteSyncManager {
             appwriteService.deleteBlacklist(entry.localUuid),
       );
     }
-    final item = await _getShiftNoteByLocalUuid(entry.localUuid);
+    // ✅ D1-path audit fix (2026-10-04): مُلقٍ مخصص بفلتر
+    // createdBy='blacklist' — سابقاً كان هنا `_getShiftNoteByLocalUuid`
+    // بفلتر 'user' فيعيد NULL لكل صفوف blacklist ويدفع حذف المستند السحابي.
+    final item = await _getBlacklistEntryByLocalUuid(entry.localUuid);
     if (item == null) {
       return _handleDeleteOp(
         entity: 'blacklist',
@@ -6298,6 +6961,27 @@ class AppwriteSyncManager {
     );
     return true;
   }
+
+  /// ✅ جسر اختبار لمسار دفع القائمة السوداء — يُثبت أن رفع إنشاء/تحديث
+  /// لصف blacklist يرفع (upsert) فقط ولا يحذف المستند السحابي أبداً
+  /// (عطل تدقيق D1-path المُصلَح 2026-10-04: الجلب عبر مُلقٍ بفلتر
+  /// 'user' كان يعيد NULL → _handleDeleteOp → تومستون/حذف عند كل رفع).
+  /// يستخدمه test/services/p05_orphan_deferral_and_blacklist_push_test.dart
+  @visibleForTesting
+  Future<bool> processBlacklistEntryForTesting(OutboxData entry) =>
+      _processBlacklistEntry(entry);
+
+  /// ✅ جسر يثبت فلتر المُلقٍ القديم (createdBy='user') — لا يرى صفوف
+  /// blacklist، وهو ما جعله مصدر علة الحذف قبل إصلاح 2026-10-04.
+  @visibleForTesting
+  Future<ShiftNote?> shiftNoteByLocalUuidForTesting(String uuid) =>
+      _getShiftNoteByLocalUuid(uuid);
+
+  /// ✅ جسر يثبت فلتر المُلقٍ المخصص — يرى صفوف
+  /// القائمة السوداء فقط، ويمنع سقوط الرفع في مسار الحذف.
+  @visibleForTesting
+  Future<BlacklistData?> blacklistEntryByLocalUuidForTesting(String uuid) =>
+      _getBlacklistEntryByLocalUuid(uuid);
 
   // ─── PriceAdjustments ─────────────────────────────────────────────────
 
@@ -6353,7 +7037,7 @@ class AppwriteSyncManager {
   Map<String, dynamic> _priceAdjustmentToRemote(PriceAdjustment row) =>
       _payloadMapper.priceAdjustmentToRemote(row);
 
-  Map<String, dynamic> _blacklistToRemote(ShiftNote item) =>
+  Map<String, dynamic> _blacklistToRemote(BlacklistData item) =>
       _payloadMapper.blacklistToRemote(item);
 
   Future<int> _syncBlacklist(List<models.Document> documents) async {
@@ -6364,17 +7048,6 @@ class AppwriteSyncManager {
         final data = Map<String, dynamic>.from(doc.data);
         final localUuid = (data['localUuid'] as String?) ?? doc.$id;
         final name = (data['name'] as String?) ?? '';
-
-        // تحويل بيانات Appwrite إلى صيغة shift_notes المحلية
-        final content = jsonEncode({
-          'nationality': (data['nationality'] as String?) ?? '',
-          'nationalId': (data['nationalId'] as String?) ?? '',
-          'phone': (data['phone'] as String?) ?? '',
-          'reason': (data['reason'] as String?) ?? '',
-          'notes': (data['notes'] as String?) ?? '',
-          'reportedBy': (data['reportedBy'] as String?) ?? 'police',
-          'active': (data['active'] as bool?) ?? true,
-        });
 
         // Appwrite blacklist: createdAt/updatedAt/deletedAt هي STRING (ISO)
         final createdAtIso =
@@ -6414,7 +7087,7 @@ class AppwriteSyncManager {
         // معالجة الحذف الناعم
         final deletedAtVal = data['deletedAt'];
         int? deletedAtEpoch;
-        String? deletedAtStr; // ✅ Audit Fix: رفع لـ outer scope
+        String? deletedAtStr;
         if (deletedAtVal != null) {
           deletedAtStr = deletedAtVal as String?;
           if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
@@ -6432,11 +7105,11 @@ class AppwriteSyncManager {
         // إذا كان السجل محذوفاً، نحذفه محلياً
         if (deletedAtEpoch != null && deletedAtEpoch > 0) {
           final existing = await (database.select(
-            database.shiftNotes,
+            database.blacklist,
           )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
           if (existing != null) {
             await (database.delete(
-              database.shiftNotes,
+              database.blacklist,
             )..where((t) => t.localUuid.equals(localUuid))).go();
           }
           processed++;
@@ -6447,7 +7120,7 @@ class AppwriteSyncManager {
         // المنطق السابق كان يستبدل السجل المحلي بغض النظر عن lastModified.
         // الآن نفحص أولاً: إذا كان المحلي أحدث، نتخطى (نحمي تعديلات المستخدم).
         final existingForCheck = await (database.select(
-          database.shiftNotes,
+          database.blacklist,
         )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
         if (!(await _isRemoteDataNewer(
           data,
@@ -6469,22 +7142,19 @@ class AppwriteSyncManager {
           continue;
         }
 
-        final companion = ShiftNotesCompanion(
-          title: drift.Value(name),
-          content: drift.Value(content),
-          priority: const drift.Value('high'),
-          shiftType: const drift.Value('all'),
+        final companion = BlacklistCompanion(
+          name: drift.Value(name),
+          nationality: drift.Value((data['nationality'] as String?) ?? ''),
+          nationalId: drift.Value((data['nationalId'] as String?) ?? ''),
+          phone: drift.Value((data['phone'] as String?) ?? ''),
+          reason: drift.Value((data['reason'] as String?) ?? ''),
+          notes: drift.Value((data['notes'] as String?) ?? ''),
+          reportedBy: drift.Value((data['reportedBy'] as String?) ?? 'police'),
+          active: drift.Value((data['active'] as bool?) ?? true),
           createdAt: drift.Value(createdAtEpoch),
           createdAtIso: drift.Value(createdAtIso),
           updatedAt: drift.Value(updatedAtEpoch),
           lastModified: drift.Value(lastModified),
-          // ✅ Audit Fix (2026-08-06): إضافة SyncFields المفقودة.
-          // سابقاً، هذه الحقول لم تكن تُكتب عند sync الـ blacklist.
-          // النتيجة: version=1 (default), vectorClock='{}' (default),
-          // origin='local' (default), deviceId='' (default).
-          // هذا يُسبب فشل كشف التعارضات في المزامنة اللاحقة لأن
-          // VectorClockComparator.compare يرى VC فارغة → LWW فقط
-          // (بدلاً من 3-way merge).
           createdAtEpoch: drift.Value(createdAtEpoch),
           lastModifiedEpoch: drift.Value(lastModified),
           version: drift.Value((existingForCheck?.version ?? 0) + 1),
@@ -6499,9 +7169,6 @@ class AppwriteSyncManager {
             (data['idempotencyKey'] as String?) ??
                 (data['idempotency_key'] as String?),
           ),
-          expiresAt: const drift.Value(null),
-          isRead: const drift.Value(0),
-          createdBy: const drift.Value('blacklist'),
           localUuid: drift.Value(localUuid),
           serverId: serverId != null
               ? drift.Value(serverId)
@@ -6517,10 +7184,10 @@ class AppwriteSyncManager {
         // upsert: البحث عن سجل موجود بنفس localUuid
         if (existingForCheck != null) {
           await (database.update(
-            database.shiftNotes,
+            database.blacklist,
           )..where((t) => t.localUuid.equals(localUuid))).write(companion);
         } else {
-          await database.into(database.shiftNotes).insert(companion);
+          await database.into(database.blacklist).insert(companion);
         }
 
         processed++;
@@ -6531,7 +7198,6 @@ class AppwriteSyncManager {
     return processed;
   }
 
-  /// ✅ معالجة سجل إلغاء دفع (PaymentVoid) من الـ outbox
   Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       // ✅ Wave 5: durable tombstone
@@ -6895,7 +7561,10 @@ class AppwriteSyncManager {
             appwriteService.deleteBookingNote(entry.localUuid),
       );
     }
-    final payload = _payloadMapper.bookingNoteToRemote(item);
+    final payload = await _withBookingUuid(
+      _payloadMapper.bookingNoteToRemote(item),
+      item.bookingId,
+    );
     final occPayload = await _occPushCheck(
       entity: 'booking_notes',
       documentId: item.localUuid,
@@ -6934,7 +7603,10 @@ class AppwriteSyncManager {
             appwriteService.deleteBookingNight(entry.localUuid),
       );
     }
-    final payload = _payloadMapper.bookingNightToRemote(item);
+    final payload = await _withBookingUuid(
+      _payloadMapper.bookingNightToRemote(item),
+      item.bookingLocalId,
+    );
     final occPayload = await _occPushCheck(
       entity: 'booking_nights',
       documentId: item.localUuid,
@@ -7511,7 +8183,54 @@ class AppwriteSyncManager {
       }
     }
 
+    await _refreshCompletedStaysForNights(uuids);
+
     return processed;
+  }
+
+  /// Pulled nights can arrive after their checked-out booking, so the booking
+  /// is re-totalled from the nights now stored locally.
+  Future<void> _refreshCompletedStaysForNights(List<String> nightUuids) async {
+    final bookingIds = <int>{};
+    const chunkSize = 500;
+    try {
+      for (var i = 0; i < nightUuids.length; i += chunkSize) {
+        final chunk = nightUuids.sublist(
+          i,
+          (i + chunkSize).clamp(0, nightUuids.length),
+        );
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final rows = await database
+            .customSelect(
+              'SELECT DISTINCT b.id AS id FROM booking_nights n '
+              'JOIN bookings b ON b.id = n.booking_local_id '
+              'WHERE n.local_uuid IN ($placeholders) '
+              "AND b.actual_checkout IS NOT NULL AND b.actual_checkout <> '' "
+              'AND b.deleted_at IS NULL',
+              variables: [for (final u in chunk) drift.Variable<String>(u)],
+              readsFrom: {database.bookingNights, database.bookings},
+            )
+            .get();
+        bookingIds.addAll(rows.map((r) => r.read<int>('id')));
+      }
+    } catch (e) {
+      _logger.warning(
+        'تعذر تحديد الحجوزات المنتهية بعد سحب الليالي: $e',
+        tag: 'SYNC',
+      );
+      return;
+    }
+
+    for (final bookingId in bookingIds) {
+      try {
+        await _bookingsRepository.derivedFields.refreshForBookingId(
+          bookingId,
+          enqueueOutbox: false,
+        );
+      } catch (e) {
+        dwarn(() => 'refreshForBookingId($bookingId) after nights pull: $e');
+      }
+    }
   }
 
   /// حالة ليلة محلية موجودة — الأعمدة المطلوبة فقط لفحص الأحدثية والتعارض.
@@ -7655,6 +8374,8 @@ class AppwriteSyncManager {
     final deferred = <Map<String, dynamic>>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     final orphans = <String>[];
+    // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
+    final employeeFkResolver = IdResolver(database);
 
     for (final doc in documents) {
       try {
@@ -7682,7 +8403,11 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
+        // ⚠️ (المرحلة 0 — P0.2 / R2) أُزيلت "الطريقة 2" (مطابقة employeeId
+        // البعيد مع e.id المحلي) — نفس قرار salary_withdrawals أعلاه:
+        // ربط خاطئ صامت عبر الأجهزة عند تصادم id محليين. إصلاح 1c83e916
+        // أُلغي في دمج 07c26a65 وأُعيد عبر IdResolver (UUID → serverId).
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -7691,31 +8416,20 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
         Employee? employee;
-
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+        if (resolvedEmployeeId != null) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
@@ -7730,6 +8444,8 @@ class AppwriteSyncManager {
 
         // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
+        // ✅ (استعادة 1c83e916) ختم employeeUuid القياسي للمحلّل داخل الـ adapter.
+        data['employeeUuid'] = employee.localUuid;
 
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
@@ -7965,6 +8681,7 @@ class AppwriteSyncManager {
           if (adj != null && adj.bookingLocalId != null) {
             await _bookingsRepository.derivedFields.refreshForBookingId(
               adj.bookingLocalId!,
+              enqueueOutbox: false,
             );
           }
         }
@@ -8022,6 +8739,7 @@ class AppwriteSyncManager {
             if (adj != null && adj.bookingLocalId != null) {
               await _bookingsRepository.derivedFields.refreshForBookingId(
                 adj.bookingLocalId!,
+                enqueueOutbox: false,
               );
             }
           }
@@ -8120,6 +8838,7 @@ class AppwriteSyncManager {
                 await derivedFieldsService.refreshForBookingId(
                   booking.id,
                   forceRebuild: true,
+                  enqueueOutbox: false,
                 );
               }
             }
@@ -8569,7 +9288,13 @@ class AppwriteSyncManager {
   }
 
   /// إجراء فحص شامل لسلامة البيانات بعد انتهاء المزامنة
-  /// ✅ إصلاح: أصبح يُصلح السجلات اليتيمة تلقائياً بدلاً من مجرد التسجيل
+  /// ✅ (المرحلة 0 — P0.1 / R1) السجلات المالية اليتيمة تُحفَظ وتُسجَّل
+  /// فقط — لا حذف نهائي أبداً (كان DELETE بعد كل مزامنة = فقدان دائم).
+  /// جدول الحجوزات (payments/debts) يبقى بإزالة ربط الحجز القابلة للتصفير.
+  @visibleForTesting
+  Future<void> performPostSyncIntegrityCheckForTesting() =>
+      _performPostSyncIntegrityCheck();
+
   Future<void> _performPostSyncIntegrityCheck() async {
     try {
       // 1. فحص انتهاكات المفاتيح الأجنبية (Foreign Key Violations)
@@ -8595,26 +9320,29 @@ class AppwriteSyncManager {
             tag: 'SYNC_INTEGRITY',
           );
 
-          // ✅ إصلاح تلقائي: حذف السجلات اليتيمة (التي تشير لآباء غير موجودين)
+          // ✅ (المرحلة 0 — P0.1 / R1) لا حذف نهائي لبيانات مالية أبداً.
+          // السجلات اليتيمة في جداول الرواتب كانت تُحذف نهائياً بعد كل
+          // مزامنة (DELETE ... WHERE rowid) — فقدان دائم لسجلات قد لم تُرفع
+          // بعد ولا tombstone ولا أثر. الآن: عزل منطقي — نُبقي الصف كما هو
+          // ونسجّل صفّه كاملاً للمراجعة اليدوية (شاشة الصيانة — المرحلة 6).
+          // جداول الحجوزات غير المالية (payments/debts) تبقى كما هي لأن
+          // ربطها بحجز قابل للتصفير بسلامة دون فقدان بيانات.
           try {
-            if (table == 'salary_withdrawals' || table == 'salary_cycles') {
-              // حذف السجل الذي يشير لموظف غير موجود
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
-                tag: 'SYNC_INTEGRITY',
-              );
-            } else if (table == 'salary_payments') {
-              // حذف السجل الذي يشير لدورة راتب غير موجودة
-              await database.customStatement(
-                'DELETE FROM $table WHERE rowid = ?',
-                [int.tryParse(rowId)],
-              );
-              _logger.info(
-                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+            if (table == 'salary_withdrawals' ||
+                table == 'salary_cycles' ||
+                table == 'salary_payments') {
+              final orphanRowId = int.tryParse(rowId);
+              final orphanRow = orphanRowId == null
+                  ? null
+                  : await database
+                        .customSelect(
+                          'SELECT * FROM $table WHERE rowid = ?',
+                          variables: [drift.Variable.withInt(orphanRowId)],
+                        )
+                        .getSingleOrNull();
+              _logger.warning(
+                '⛔ سجل يتيم محفوظ (لا حذف) في $table rowid=$rowId '
+                'parent=$parent — يتطلب مراجعة. الصف: ${orphanRow?.data}',
                 tag: 'SYNC_INTEGRITY',
               );
             } else if (table == 'payments' && parent == 'bookings') {
@@ -8650,7 +9378,8 @@ class AppwriteSyncManager {
         await CrashlyticsService.instance.recordSyncError(
           operation: 'post_sync_integrity_check',
           error:
-              'Foreign key violations detected and auto-fixed: ${violations.length} rows',
+              'Foreign key violations detected: ${violations.length} rows '
+              '(financial orphans preserved for review — no hard delete)',
           context: {'violations_count': violations.length.toString()},
         );
 
@@ -8663,6 +9392,15 @@ class AppwriteSyncManager {
             final rowId = row.data['rowid'];
 
             if (table == null || rowId == null) continue;
+
+            // الجداول المالية (salary_*) لا تُعالَج هنا إطلاقاً — حُرِّص
+            // أعلاه على حفظها (P0.1). السطور التالية للحجوزات فقط.
+            if (table != 'payments' &&
+                table != 'debts' &&
+                table != 'booking_nights' &&
+                table != 'booking_price_adjustments') {
+              continue;
+            }
 
             _logger.info(
               '🔧 إصلاح تلقائي: حذف سجل يتيم من $table (rowId=$rowId)',
@@ -8711,7 +9449,6 @@ class AppwriteSyncManager {
 
       // 2. التحقق من السجلات اليتيمة - باستخدام JOIN بدل الأعمدة غير الموجودة
       // ✅ إصلاح: استخدام LEFT JOIN للتحقق من وجود الحجز بدلاً من booking_uuid_cache
-      // (booking_uuid_cache موجود فقط في جدول payments وليس في جدول debts)
       final orphanPayments = await database.customSelect('''
         SELECT COUNT(*) as count FROM payments p
         LEFT JOIN bookings b ON p.booking_local_id = b.id
@@ -8727,6 +9464,28 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح: إعادة ربط المدفوعات اليتيمة بـ bookingUuidCache
         await _relinkOrphanedPayments();
+      }
+
+      // 2ب. ✅ إصلاح (مطابق للدفعات): الديون اليتيمة — booking_uuid_cache
+      // موجود فعلاً في جدول debts (Wave 6، local_db.dart:379) بالضبط كما في
+      // payments، لذا تخضع لنفس فحص واتجاه إعادة الربط التلقائي — قبل هذا
+      // الإصلاح كانت الديون التي تفشل في ربطها داخل دورة السحب (الحجز لم
+      // يُسحب بعد من جهاز آخر) تبقى غير مربوطة إلى الأبد بلا أي محاولة لاحقة.
+      final orphanDebts = await database.customSelect('''
+        SELECT COUNT(*) as count FROM debts d
+        LEFT JOIN bookings b ON d.booking_local_id = b.id
+        WHERE d.booking_local_id IS NOT NULL AND b.id IS NULL AND d.deleted_at IS NULL
+      ''').getSingle();
+
+      final orphanDebtCount = orphanDebts.read<int>('count');
+      if (orphanDebtCount > 0) {
+        _logger.warning(
+          '⚠️ يوجد $orphanDebtCount دين يتيم (بدون ربط بحجز موجود)',
+          tag: 'SYNC_INTEGRITY',
+        );
+
+        // ✅ إصلاح: إعادة ربط الديون اليتيمة بـ bookingUuidCache
+        await _relinkOrphanedDebts();
       }
 
       // 3. التحقق من سحوبات الرواتب اليتيمة
@@ -8847,7 +9606,9 @@ class AppwriteSyncManager {
 
       if (relinked > 0) {
         _logger.info(
-          '✅ تم إعادة ربط $relinked/$orphans.length دفعة يتيمة',
+          // ✅ إصلاح طفيف: كانت $orphans.length (بلا أقواس) تُفسَّر كـ
+          // toString() للقائمة + النص الحرفي ".length" بدل طول القائمة.
+          '✅ تم إعادة ربط $relinked/${orphans.length} دفعة يتيمة',
           tag: 'SYNC_RELINK',
         );
 
@@ -8866,6 +9627,7 @@ class AppwriteSyncManager {
           try {
             await _bookingsRepository.derivedFields.refreshForBookingId(
               bookingId,
+              enqueueOutbox: false,
             );
           } catch (e) {
             dwarn(() => 'refreshForBookingId($bookingId) failed: $e');
@@ -8875,6 +9637,95 @@ class AppwriteSyncManager {
     } catch (e, st) {
       _logger.error(
         '❌ فشل إعادة ربط المدفوعات اليتيمة',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC_RELINK',
+      );
+    }
+  }
+
+  /// ✅ إعادة ربط الديون اليتيمة بحجوزاتها عبر bookingUuidCache.
+  ///
+  /// نفس مشكلة [_relinkOrphanedPayments] بالضبط وبنفس الحل — جدول `debts`
+  /// يحمل `bookingUuidCache` (Wave 6، local_db.dart:379) و[DebtsAdapter]
+  /// يترك `bookingLocalId` فارغاً عمداً عند فشل resolveBooking أثناء السحب
+  /// (debts_adapter.dart) بدل رفض السجل، تماماً كما تفعل المدفوعات. قبل
+  /// هذا الإصلاح لم يكن لهذه الحالة أي مسار إعادة ربط لاحق — الدين يبقى
+  /// يتيماً إلى الأبد إن فشلت محاولة الربط داخل دورة السحب (مثلاً الحجز لم
+  /// يصل بعد من جهاز آخر). الآن تُعاد المحاولة بعد كل مزامنة كاملة.
+  ///
+  /// ملاحظة: بعكس المدفوعات، لا توجد حقول مشتقة على `Bookings` تعتمد على
+  /// الديون (لا مجموع ديون مخزَّن على الحجز) — لذا لا حاجة لاستدعاء
+  /// `refreshForBookingId` بعد إعادة الربط هنا.
+  Future<void> _relinkOrphanedDebts() async {
+    try {
+      // ابحث عن الديون التي لها bookingUuidCache لكن bookingLocalId
+      // غير مربوط (NULL أو يشير لحجز غير موجود).
+      final orphans = await database
+          .customSelect(
+            'SELECT d.id, d.booking_uuid_cache, d.booking_local_id '
+            'FROM debts d '
+            'LEFT JOIN bookings b ON d.booking_local_id = b.id '
+            'WHERE d.booking_uuid_cache IS NOT NULL '
+            "AND d.booking_uuid_cache != '' "
+            'AND d.deleted_at IS NULL '
+            'AND (d.booking_local_id IS NULL OR b.id IS NULL)',
+            readsFrom: {database.debts, database.bookings},
+          )
+          .get();
+
+      if (orphans.isEmpty) {
+        return;
+      }
+
+      _logger.info(
+        '🔗 إعادة ربط ${orphans.length} دين يتيم عبر bookingUuidCache',
+        tag: 'SYNC_RELINK',
+      );
+
+      final resolver = IdResolver(database);
+      int relinked = 0;
+
+      for (final row in orphans) {
+        final debtId = row.read<int>('id');
+        final bookingUuid = row.read<String>('booking_uuid_cache');
+
+        // استخدم IdResolver لـ resolveBooking (يجرّب كلا صيغتي UUID).
+        final resolvedBookingId = await resolver.resolveBooking(
+          uuid: bookingUuid,
+        );
+
+        if (resolvedBookingId != null) {
+          // ✅ وجدنا الحجز — أعد الربط.
+          await (database.update(
+            database.debts,
+          )..where((t) => t.id.equals(debtId))).write(
+            DebtsCompanion(bookingLocalId: drift.Value(resolvedBookingId)),
+          );
+          relinked++;
+          _logger.debug(
+            '  ✅ Debt #$debtId → booking #$resolvedBookingId '
+            '(uuid: ${bookingUuid.substring(0, 8)}...)',
+            tag: 'SYNC_RELINK',
+          );
+        } else {
+          _logger.warning(
+            '  ❌ Debt #$debtId: could not resolve booking '
+            'uuid: $bookingUuid',
+            tag: 'SYNC_RELINK',
+          );
+        }
+      }
+
+      if (relinked > 0) {
+        _logger.info(
+          '✅ تم إعادة ربط $relinked/${orphans.length} دين يتيم',
+          tag: 'SYNC_RELINK',
+        );
+      }
+    } catch (e, st) {
+      _logger.error(
+        '❌ فشل إعادة ربط الديون اليتيمة',
         error: e,
         stackTrace: st,
         tag: 'SYNC_RELINK',

@@ -29,7 +29,7 @@ if not exist "MARINA_HOTEL_PORTABLE\data" mkdir "MARINA_HOTEL_PORTABLE\data"
 
 :: نسخ قاعدة البيانات
 if exist "hotel_db.sql" copy "hotel_db.sql" "MARINA_HOTEL_PORTABLE\" >nul 2>&1
-if exist "setup_exe_database.php" copy "setup_exe_database.php" "MARINA_HOTEL_PORTABLE\" >nul 2>&1
+if exist "scripts\php\maintenance\setup_exe_database.php" copy "scripts\php\maintenance\setup_exe_database.php" "MARINA_HOTEL_PORTABLE\" >nul 2>&1
 
 echo ✅ تم نسخ ملفات النظام
 
@@ -313,7 +313,7 @@ if not exist "MARINA_HOTEL_PORTABLE\data" mkdir "MARINA_HOTEL_PORTABLE\data"
 
 :: نسخ قاعدة البيانات
 if exist "hotel_db.sql" copy "hotel_db.sql" "MARINA_HOTEL_PORTABLE\" >nul 2>&1
-if exist "setup_exe_database.php" copy "setup_exe_database.php" "MARINA_HOTEL_PORTABLE\" >nul 2>&1
+if exist "scripts\php\maintenance\setup_exe_database.php" copy "scripts\php\maintenance\setup_exe_database.php" "MARINA_HOTEL_PORTABLE\" >nul 2>&1
 
 echo ✅ تم نسخ ملفات النظام
 

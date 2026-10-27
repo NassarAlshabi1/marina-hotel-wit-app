@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../../models/payment_models.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../services/local_db.dart' as db;
+import '../../../utils/responsive.dart';
 import '../../../utils/status_utils.dart';
 
 /// تبويب الإجراءات — widget مستقل مُستخرج من BookingPaymentScreen.
@@ -62,6 +63,9 @@ class ActionsTab extends ConsumerWidget {
               : booking.actualCheckout!)
         : null;
 
+    final canVoidPayments =
+        ref.watch(authProvider).currentUser?.canVoidPayments ?? false;
+
     final actions = <Widget>[
       _buildActionCard(
         'عرض الفاتورة الشاملة',
@@ -104,13 +108,14 @@ class ActionsTab extends ConsumerWidget {
           Colors.green,
           () {}, // بطاقة معلومات فقط — بلا إجراء
         ),
-      _buildActionCard(
-        'إلغاء يوم إضافي',
-        'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
-        Icons.remove_circle_outline,
-        Colors.red.shade700,
-        () => onShowCancelTodayPayment(summary),
-      ),
+      if (canVoidPayments)
+        _buildActionCard(
+          'إلغاء يوم إضافي',
+          'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
+          Icons.remove_circle_outline,
+          Colors.red.shade700,
+          () => onShowCancelTodayPayment(summary),
+        ),
       _buildActionCard(
         'إرسال كشف حساب',
         'إرسال ملخص المدفوعات للعميل',
@@ -269,7 +274,11 @@ class ActionsTab extends ConsumerWidget {
             const SizedBox(height: 6),
           ],
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: context.adaptiveColumns(
+              mobile: 2,
+              itemMinWidth: 200,
+              max: 6,
+            ),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 8,
@@ -330,35 +339,42 @@ class ActionsTab extends ConsumerWidget {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 14,
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+          // ✅ (2026-10-04) FittedBox(scaleDown): كان العمود يفيض 1.8px عند
+          // التفاف العنوان/الوصف لسطرين في كثافات شاشة معينة — يفشل بذلك
+          // اختبار Patrol E2E (booking_payment_test) بخطأ rendering.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: color.withValues(alpha: 0.15),
+                  child: Icon(icon, size: 16, color: color),
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 8, color: Colors.grey),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 8, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ),
       ),

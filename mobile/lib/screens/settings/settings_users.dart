@@ -4,6 +4,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
 import '../../utils/snackbar_helper.dart';
+import '../../widgets/permission_matrix_editor.dart';
 
 class SettingsUsersScreen extends ConsumerStatefulWidget {
   const SettingsUsersScreen({super.key});
@@ -294,27 +295,17 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: AuthLocalStore.permissionEditorKeys.map((
-                          key,
-                        ) {
-                          final selected = selectedPerms.contains(key);
-                          return FilterChip(
-                            label: Text(_permLabel(key)),
-                            selected: selected,
-                            onSelected: (value) {
-                              setStateDialog(() {
-                                if (value) {
-                                  selectedPerms.add(key);
-                                } else if (selectedPerms.length > 1) {
-                                  selectedPerms.remove(key);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
+                      PermissionMatrixEditor(
+                        selected: selectedPerms,
+                        onToggle: (key, value) {
+                          setStateDialog(() {
+                            if (value) {
+                              selectedPerms.add(key);
+                            } else if (selectedPerms.length > 1) {
+                              selectedPerms.remove(key);
+                            }
+                          });
+                        },
                       ),
                       if (localError != null)
                         Padding(
@@ -660,27 +651,17 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: AuthLocalStore.permissionEditorKeys.map((
-                            k,
-                          ) {
-                            final selected = selectedPerms.contains(k);
-                            return FilterChip(
-                              label: Text(_permLabel(k)),
-                              selected: selected,
-                              onSelected: (v) {
-                                setDialog(() {
-                                  if (v) {
-                                    selectedPerms.add(k);
-                                  } else if (selectedPerms.length > 1) {
-                                    selectedPerms.remove(k);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
+                        PermissionMatrixEditor(
+                          selected: selectedPerms.toSet(),
+                          onToggle: (k, v) {
+                            setDialog(() {
+                              if (v) {
+                                selectedPerms.add(k);
+                              } else if (selectedPerms.length > 1) {
+                                selectedPerms.remove(k);
+                              }
+                            });
+                          },
                         ),
                       ],
                       const SizedBox(height: 12),
@@ -1007,27 +988,18 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                 child: CircularProgressIndicator(),
               )
             else ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: allKeys.map((k) {
-                  final checked = isAdminUser ? true : _perms.contains(k);
-                  return FilterChip(
-                    label: Text(_permLabel(k)),
-                    selected: checked,
-                    onSelected: isAdminUser || _savingPermissions
-                        ? null
-                        : (v) {
-                            final next = List<String>.from(_perms);
-                            if (v) {
-                              if (!next.contains(k)) next.add(k);
-                            } else {
-                              next.remove(k);
-                            }
-                            _savePermissions(next);
-                          },
-                  );
-                }).toList(),
+              PermissionMatrixEditor(
+                selected: isAdminUser ? allKeys.toSet() : _perms.toSet(),
+                enabled: !isAdminUser && !_savingPermissions,
+                onToggle: (k, v) {
+                  final next = List<String>.from(_perms);
+                  if (v) {
+                    if (!next.contains(k)) next.add(k);
+                  } else {
+                    next.remove(k);
+                  }
+                  _savePermissions(next);
+                },
               ),
               if (!isAdminUser)
                 Align(
@@ -1045,49 +1017,6 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
         ),
       ),
     );
-  }
-}
-
-String _permLabel(String key) {
-  final separator = key.indexOf('.');
-  if (separator > 0 && separator < key.length - 1) {
-    final module = key.substring(0, separator);
-    final action = key.substring(separator + 1);
-    return '${AuthLocalStore.operationLabel(action)} ${_moduleLabel(module)}';
-  }
-  return _moduleLabel(key);
-}
-
-String _moduleLabel(String key) {
-  switch (key) {
-    case 'dashboard':
-      return 'لوحة التحكم';
-    case 'rooms':
-      return 'الغرف';
-    case 'bookings':
-      return 'الحجوزات';
-    case 'payments':
-      return 'المدفوعات';
-    case 'debts':
-      return 'الديون';
-    case 'employees':
-      return 'الموظفون';
-    case 'expenses':
-      return 'المصروفات';
-    case 'finance':
-      return 'المالية';
-    case 'reports':
-      return 'التقارير';
-    case 'notes':
-      return 'الملاحظات';
-    case 'information':
-      return 'المعلومية';
-    case 'settings':
-      return 'الإعدادات';
-    case 'inventory':
-      return 'المخزون';
-    default:
-      return key;
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/payment_models.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/responsive.dart';
 
 /// Widget لعرض بطاقة ملخص المدفوعات للحجز
 class PaymentSummaryWidget extends StatelessWidget {
@@ -637,8 +638,12 @@ class PaymentMethodSelector extends StatelessWidget {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: context.adaptiveColumns(
+              mobile: 2,
+              itemMinWidth: 220,
+              max: 4,
+            ),
             childAspectRatio: 2.5,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,

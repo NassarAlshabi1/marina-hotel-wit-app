@@ -65,7 +65,7 @@
 
 ---
 
-### 4️⃣ [إصلاح مشكلة 404 في الحذف](./DELETE_404_FIX_DOCUMENTATION.md)
+### 4️⃣ [إصلاح مشكلة 404 في الحذف](../reports/DELETE_404_FIX_DOCUMENTATION.md)
 **دليل تفصيلي** لحل مشكلة توقف المزامنة عند حذف عناصر غير موجودة.
 
 **المحتويات:**
@@ -78,7 +78,7 @@
 
 ---
 
-### 5️⃣ [مقارنة الكود قبل وبعد الإصلاح](./CODE_COMPARISON_404_FIX.md)
+### 5️⃣ [مقارنة الكود قبل وبعد الإصلاح](../reports/CODE_COMPARISON_404_FIX.md)
 **مقارنة مفصلة** بين الكود القديم (المشكلة) والكود الجديد (الحل).
 
 **المحتويات:**
@@ -99,11 +99,11 @@
 
 ### للمحترفين:
 1. راجع **[الأمثلة المتقدمة](./APPWRITE_FLUTTER_ADVANCED_EXAMPLES.md)** 🚀
-2. طبّق **[إصلاح 404](./DELETE_404_FIX_DOCUMENTATION.md)** ✅
+2. طبّق **[إصلاح 404](../reports/DELETE_404_FIX_DOCUMENTATION.md)** ✅
 3. استخدم **[Checklist](./APPWRITE_FLUTTER_BEST_PRACTICES.md#-checklist-للمشاريع-production)** في مشاريعك
 
 ### لحل مشاكل محددة:
-- **المزامنة تتوقف؟** → [إصلاح 404](./DELETE_404_FIX_DOCUMENTATION.md)
+- **المزامنة تتوقف؟** → [إصلاح 404](../reports/DELETE_404_FIX_DOCUMENTATION.md)
 - **أخطاء متكررة؟** → [معالجة الأخطاء](./APPWRITE_FLUTTER_BEST_PRACTICES.md#1️⃣-معالجة-الأخطاء-error-handling)
 - **أداء بطيء؟** → [نصائح الأداء](./APPWRITE_FLUTTER_ADVANCED_EXAMPLES.md#-نصائح-الأداء)
 - **مشاكل Offline؟** → [Offline Support](./APPWRITE_FLUTTER_BEST_PRACTICES.md#7️⃣-offline-support--sync)

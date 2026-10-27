@@ -62,6 +62,7 @@ import 'services/google_drive_conflict_resolver.dart';
 import 'services/google_drive_logger.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/hotel_day_key_fix_service.dart';
+import 'services/booking_child_uuid_backfill_service.dart';
 import 'services/late_payment_notification_service.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
@@ -89,6 +90,7 @@ import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/performance_config.dart';
 import 'utils/performance_monitor.dart';
+import 'utils/responsive.dart';
 import 'utils/theme.dart';
 import 'utils/weak_device_optimizer.dart';
 
@@ -528,7 +530,9 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     // بدون هذا، registerOneOffTask/registerPeriodicTask تفشل بصمت!
     dlog('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
     try {
-      await Workmanager().initialize(_unifiedCallbackDispatcher);
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        await Workmanager().initialize(_unifiedCallbackDispatcher);
+      }
       await SyncContinuationService.initialize(debug: kDebugMode);
       // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
       await SyncContinuationService.schedulePeriodicCheck();
@@ -689,12 +693,18 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   DateTime? _lastLocalAutoSync;
   bool _localAutoSyncRunning = false;
   AppDatabase? _pendingDatabase;
+  late final ProviderSubscription<AppDatabase> _databaseSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    ref.listen<AppDatabase>(databaseProvider, (previous, database) {
+    // ref.listen خارج build غير مسموح (Riverpod 2.6.1) — كان يكسر إقلاع
+    // Windows بشاشة حمراء. listenManual هو المكافئ المشروع داخل initState.
+    _databaseSub = ref.listenManual<AppDatabase>(databaseProvider, (
+      previous,
+      database,
+    ) {
       if (_sessionConfigured &&
           previous != null &&
           identical(previous, database)) {
@@ -738,6 +748,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
         // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud
         await HotelDayKeyFixService.instance.runIfNeeded(database);
+        await BookingChildUuidBackfillService.instance.runIfNeeded(database);
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();
@@ -1043,6 +1054,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _databaseSub.close();
     AppwriteRealtimeSync().stop();
     _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
@@ -1247,7 +1259,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               GlobalWidgetsLocalizations.delegate,
             ],
             supportedLocales: const [Locale('ar')],
-            // ✅ تم إزالة onGenerateRoute — جميع المسارات تُدار عبر HomeShell
+            // ✅ يغطي كل المسارات (بما فيها الشاشات المدفوعة عبر Navigator
+            // خارج AdminLayout): على الشاشات الواسعة يُقصّر عرض المحتوى
+            // ويُمركزه — لا أثر على مسار الهاتف (<768).
+            builder: (context, child) =>
+                ResponsiveContent(child: child ?? const SizedBox.shrink()),
             home: const RootRouter(),
           );
         },

@@ -21,6 +21,9 @@ header('Cache-Control: private, max-age=60');
 $current_dir = dirname($_SERVER['SCRIPT_NAME']);
 $depth = substr_count($current_dir, '/') - 1;
 $base_path = str_repeat('../', max(0, $depth));
+if (defined('MARINA_RELOCATED_TOOL') && MARINA_RELOCATED_TOOL) {
+    $base_path = '';
+}
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">

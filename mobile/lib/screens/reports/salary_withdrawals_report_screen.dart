@@ -4,8 +4,6 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/widgets.dart' as pw;
-
 import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
@@ -14,9 +12,9 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_mirror_matcher.dart';
 import '../../utils/device_attribution.dart';
-import '../../utils/enhanced_pdf_utils.dart';
+import '../../mixins/pdf_export_guard_mixin.dart';
+import '../../src/pdf/report_templates/salary_withdrawals_report_pdf.dart';
 import '../../utils/hotel_time_engine.dart';
-import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -26,6 +24,7 @@ class _SalaryTxRow {
   _SalaryTxRow({
     required this.id,
     required this.date,
+    required this.employeeUuid,
     required this.amount,
     required this.withdrawalType,
     required this.reason,
@@ -39,6 +38,10 @@ class _SalaryTxRow {
 
   final int id;
   final DateTime date;
+
+  /// Stable employee identity used for reporting/grouping across devices.
+  /// Never use the local SQLite employee id as the cross-device identity.
+  final String? employeeUuid;
   final double amount;
   final String withdrawalType;
   final String reason;
@@ -112,7 +115,11 @@ List<SalaryWithdrawal> dedupeMirrorDuplicates(
         ? sw.hotelDayKey!.trim()
         : sw.withdrawDate.trim();
     final family = sw.amount >= 0 ? 'cash' : 'deduction';
-    return '${sw.employeeId}|$day|$family';
+    final employeeKey = (sw.employeeUuid ?? '').trim().toLowerCase();
+    final stableOrLegacyKey = employeeKey.isNotEmpty
+        ? 'uuid:$employeeKey'
+        : 'legacy-id:${sw.employeeId}';
+    return '$stableOrLegacyKey|$day|$family';
   }
 
   final kept = <SalaryWithdrawal>[];
@@ -121,6 +128,8 @@ List<SalaryWithdrawal> dedupeMirrorDuplicates(
 
   for (final sw in withdrawals) {
     final resolvedId = SalaryMirrorMatcher.resolveLinkedExpenseId(
+      // ✅ (هجرة 68) المستوى 0: التمييز بهوية العملية (سحبة → مصروف)
+      expenseUuid: sw.expenseUuid,
       expenseId: sw.expenseId,
       reason: sw.reason,
       expenses: expenses,
@@ -185,7 +194,8 @@ class SalaryWithdrawalsReportScreen extends ConsumerStatefulWidget {
 }
 
 class _SalaryWithdrawalsReportScreenState
-    extends ConsumerState<SalaryWithdrawalsReportScreen> {
+    extends ConsumerState<SalaryWithdrawalsReportScreen>
+    with PdfExportGuardMixin {
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd');
@@ -196,11 +206,11 @@ class _SalaryWithdrawalsReportScreenState
   bool _initialized = false;
 
   final List<_SalaryTxRow> _allRows = [];
-  final Map<int, _EmployeeSalaryGroup> _employeeGroups = {};
+  final Map<String, _EmployeeSalaryGroup> _employeeGroups = {};
   final List<Employee> _allEmployees = [];
 
   final String _sortBy = 'date';
-  int? _selectedEmployeeId; // null = الكل
+  String? _selectedEmployeeUuid; // null = الكل; stable identity
 
   @override
   void didChangeDependencies() {
@@ -304,10 +314,11 @@ class _SalaryWithdrawalsReportScreenState
         );
     }
 
-    // فلترة حسب الموظف المحدد
-    if (_selectedEmployeeId != null) {
+    // فلترة حسب هوية الموظف الثابتة. لا نستخدم employeeId المحلي
+    // كمرجع للمزامنة أو التقرير، لأنه يختلف بين الأجهزة.
+    if (_selectedEmployeeUuid != null) {
       query = query
-        ..where((tbl) => tbl.employeeId.equals(_selectedEmployeeId!));
+        ..where((tbl) => tbl.employeeUuid.equals(_selectedEmployeeUuid!));
     }
 
     final rawWithdrawals = await query.get();
@@ -352,6 +363,9 @@ class _SalaryWithdrawalsReportScreenState
             date: e.date,
             hotelDayKey: e.hotelDayKey,
             relatedId: e.relatedId,
+            // ✅ (هجرة 68) حقول الهوية — المستوى 0 في المطابِق
+            localUuid: e.localUuid,
+            withdrawalUuid: e.withdrawalUuid,
           ),
         )
         .toList(growable: false);
@@ -363,15 +377,23 @@ class _SalaryWithdrawalsReportScreenState
 
     // بناء خريطة الموظفين — من **كل** الموظفين (نشطين ومحذوفين ناعماً):
     // سحوبات الموظف المحذوف يجب أن تحلّ اسمه في التقارير (fix أعلاه).
-    final employeeMap = <int, Employee>{};
+    final employeeByUuid = <String, Employee>{};
+    final employeeById = <int, Employee>{};
     for (final emp in allEmployees) {
-      employeeMap[emp.id] = emp;
+      final uuid = emp.localUuid.trim().toLowerCase();
+      if (uuid.isNotEmpty) employeeByUuid[uuid] = emp;
+      employeeById[emp.id] = emp;
     }
 
-    // بناء الصفوف
+    // بناء الصفوف: UUID الموظف هو المصدر الأساسي.
+    // fallback إلى employeeId مسموح فقط للسجلات التاريخية التي لا تحمل
+    // UUID، ولا يُستخدم لتحديد هوية سجل متزامن جديد.
     final rows = <_SalaryTxRow>[];
     for (final sw in withdrawals) {
-      final employee = employeeMap[sw.employeeId];
+      final employeeUuid = sw.employeeUuid?.trim().toLowerCase();
+      final employee = employeeUuid != null && employeeUuid.isNotEmpty
+          ? employeeByUuid[employeeUuid]
+          : employeeById[sw.employeeId];
       final date = _parseDate(sw.withdrawDate);
       // ✅ وقت الإنشاء الفعلي من عمود createdAt (epoch) — إن وُجد
       final createdAt = sw.createdAt > 0
@@ -381,6 +403,7 @@ class _SalaryWithdrawalsReportScreenState
         _SalaryTxRow(
           id: sw.id,
           date: date,
+          employeeUuid: employeeUuid,
           amount: sw.amount,
           withdrawalType: sw.withdrawalType ?? '',
           reason: sw.reason ?? '',
@@ -406,14 +429,18 @@ class _SalaryWithdrawalsReportScreenState
     });
 
     // تجميع حسب الموظف
-    final groups = <int, _EmployeeSalaryGroup>{};
+    final groups = <String, _EmployeeSalaryGroup>{};
     for (final row in rows) {
-      final empId = row.employee?.id ?? 0;
+      // Group by stable employee UUID. For legacy rows without UUID, use a
+      // namespaced local key so they can never collide with a real UUID.
+      final groupKey = row.employeeUuid?.isNotEmpty == true
+          ? row.employeeUuid!
+          : 'legacy:${row.employee?.id ?? row.id}';
       groups.putIfAbsent(
-        empId,
+        groupKey,
         () => _EmployeeSalaryGroup(employee: row.employee),
       );
-      final group = groups[empId]!;
+      final group = groups[groupKey]!;
       group.transactions.add(row);
       group.totalAmount += row.amount;
       group.txCount++;
@@ -433,158 +460,67 @@ class _SalaryWithdrawalsReportScreenState
     if (rows.isEmpty) {
       return;
     }
+    await runProtectedPdfExport(() => _buildAndShareSalaryPdf(rows));
+  }
 
-    final selectedEmpName = _selectedEmployeeId != null
+  Future<void> _buildAndShareSalaryPdf(List<_SalaryTxRow> rows) async {
+    final selectedEmpName = _selectedEmployeeUuid != null
         ? _employeeDisplayName(
-            _allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull,
+            _allEmployees
+                .where(
+                  (e) =>
+                      e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid,
+                )
+                .firstOrNull,
           )
         : null;
 
-    final headers = _selectedEmployeeId != null
-        ? <String>['التاريخ', 'المبلغ', 'النوع', 'السبب', 'الملاحظات']
-        : <String>[
-            'التاريخ',
-            'المبلغ',
-            'النوع',
-            'السبب',
-            'الملاحظات',
-            'الموظف',
-          ];
-
-    final dataRows = <List<String>>[];
-    for (final row in rows) {
-      // تنظيف حقل السبب: إذا كان يبدأ بـ "exp_" يُعتبر ربط داخلي، لا يُعرض
-      String displayReason = '-';
-      if (row.reason.isNotEmpty && !row.reason.startsWith('exp_')) {
-        displayReason = row.reason;
-      }
-
-      final cells = <String>[
-        _dateLabelFormat.format(row.date),
-        EnhancedPdfUtils.formatNumber(row.amount),
-        if (row.withdrawalType.isNotEmpty) row.withdrawalType else 'سحب',
-        displayReason,
-        if (row.description.isNotEmpty) row.description else '-',
-      ];
-      if (_selectedEmployeeId == null) {
-        cells.add(_employeeDisplayName(row.employee));
-      }
-      dataRows.add(cells);
-    }
-
-    final totalAmount = rows.fold<double>(0, (sum, r) => sum + r.amount);
-    final emptyCells = List.filled(headers.length, '');
-    dataRows.add([
-      'الإجمالي',
-      EnhancedPdfUtils.formatNumber(totalAmount),
-      ...emptyCells.sublist(2),
-    ]);
-
-    await ReportPdfBuilder.buildAndShare(
-      ReportPdfConfig(
-        title: 'تقرير سحبيات الرواتب',
+    // ✅ الشاشة تُمرّر بيانات فقط — التصميم بالكامل في القالب المستقل
+    // lib/src/pdf/report_templates/salary_withdrawals_report_pdf.dart.
+    await SalaryWithdrawalsReportPdf.share(
+      SalaryWithdrawalsReportData(
+        rows: rows.map((row) {
+          // تنظيف حقل السبب: إذا كان يبدأ بـ "exp_" يُعتبر ربط داخلي،
+          // لا يُعرض.
+          String displayReason = '-';
+          if (row.reason.isNotEmpty && !row.reason.startsWith('exp_')) {
+            displayReason = row.reason;
+          }
+          return SalaryWithdrawalsReportRow(
+            date: row.date,
+            amount: row.amount,
+            withdrawalType: row.withdrawalType.isNotEmpty
+                ? row.withdrawalType
+                : 'سحب',
+            displayReason: displayReason,
+            description: row.description.isNotEmpty ? row.description : '-',
+            employeeName: _employeeDisplayName(row.employee),
+          );
+        }).toList(),
         fromDate: _fromDate,
         toDate: _toDate,
-        buildContent: (fonts) {
-          final fromLabel = _fromDate != null
-              ? DateFormat('yyyy-MM-dd').format(_fromDate!)
-              : 'غير محدد';
-          final toLabel = _toDate != null
-              ? DateFormat('yyyy-MM-dd').format(_toDate!)
-              : 'غير محدد';
-
-          return [
-            pw.SizedBox(height: 16),
-            EnhancedPdfUtils.buildInfoCard(
-              title: 'تقرير سحبيات الرواتب',
-              fonts: fonts,
-              content: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'الفترة',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        'من $fromLabel إلى $toLabel',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'الموظف',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        selectedEmpName ?? 'الكل',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        'عدد السجلات',
-                        style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                      ),
-                      pw.Text(
-                        '${rows.length}',
-                        style: pw.TextStyle(font: fonts.regular, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 12),
-            EnhancedPdfUtils.buildProfessionalTable(
-              headers: headers,
-              data: dataRows,
-              fonts: fonts,
-              headerColor: PdfColors.primary,
-              alternateRowColor: PdfColors.backgroundLight,
-            ),
-          ];
-        },
-        fileName: ReportPdfBuilder.generateFileName(
-          selectedEmpName != null
-              ? 'سحبيات راتب $selectedEmpName'
-              : 'تقرير سحبيات الرواتب',
-        ),
+        selectedEmployeeName: selectedEmpName,
       ),
     );
   }
 
   List<_SalaryTxRow> get _filteredRows {
-    if (_selectedEmployeeId == null) {
+    if (_selectedEmployeeUuid == null) {
       return _allRows;
     }
     return _allRows
-        .where((r) => r.employee?.id == _selectedEmployeeId)
+        .where((r) => r.employeeUuid == _selectedEmployeeUuid)
         .toList();
   }
 
-  Map<int, _EmployeeSalaryGroup> get _filteredGroups {
-    if (_selectedEmployeeId == null) {
+  Map<String, _EmployeeSalaryGroup> get _filteredGroups {
+    if (_selectedEmployeeUuid == null) {
       return _employeeGroups;
     }
-    final filtered = <int, _EmployeeSalaryGroup>{};
-    final g = _employeeGroups[_selectedEmployeeId];
+    final filtered = <String, _EmployeeSalaryGroup>{};
+    final g = _employeeGroups[_selectedEmployeeUuid];
     if (g != null) {
-      filtered[_selectedEmployeeId!] = g;
+      filtered[_selectedEmployeeUuid!] = g;
     }
     return filtered;
   }
@@ -604,7 +540,7 @@ class _SalaryWithdrawalsReportScreenState
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: filteredRows.isEmpty ? null : _exportPdf,
+          onPressed: filteredRows.isEmpty || isPdfExporting ? null : _exportPdf,
         ),
       ],
       body: Padding(
@@ -638,8 +574,8 @@ class _SalaryWithdrawalsReportScreenState
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int?>(
-                        value: _selectedEmployeeId,
+                      child: DropdownButton<String?>(
+                        value: _selectedEmployeeUuid,
                         isExpanded: true,
                         hint: const Text(
                           'عرض بحسب الموظف',
@@ -647,7 +583,7 @@ class _SalaryWithdrawalsReportScreenState
                         ),
                         icon: const Icon(Icons.arrow_drop_down, size: 20),
                         items: [
-                          const DropdownMenuItem<int?>(
+                          const DropdownMenuItem<String?>(
                             child: Row(
                               children: [
                                 Icon(
@@ -664,8 +600,9 @@ class _SalaryWithdrawalsReportScreenState
                             ),
                           ),
                           ..._allEmployees.map((emp) {
-                            return DropdownMenuItem<int?>(
-                              value: emp.id,
+                            final uuid = emp.localUuid.trim().toLowerCase();
+                            return DropdownMenuItem<String?>(
+                              value: uuid.isEmpty ? null : uuid,
                               child: Row(
                                 children: [
                                   const Icon(
@@ -687,7 +624,7 @@ class _SalaryWithdrawalsReportScreenState
                           }),
                         ],
                         onChanged: (value) {
-                          setState(() => _selectedEmployeeId = value);
+                          setState(() => _selectedEmployeeUuid = value);
                         },
                       ),
                     ),
@@ -733,8 +670,8 @@ class _SalaryWithdrawalsReportScreenState
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _selectedEmployeeId != null
-                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees.where((e) => e.id == _selectedEmployeeId).firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
+                        _selectedEmployeeUuid != null
+                            ? 'سحبيات: ${_employeeDisplayName(_allEmployees.where((e) => e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid).firstOrNull, fallback: "")} — ${filteredRows.length} عملية'
                             : 'جميع الموظفين — ${filteredRows.length} عملية',
                         style: TextStyle(
                           fontSize: 12,
@@ -768,7 +705,7 @@ class _SalaryWithdrawalsReportScreenState
                           'لم يتم العثور على سحبيات رواتب ضمن النطاق المحدد.',
                       icon: Icons.account_balance_wallet,
                     )
-                  : _selectedEmployeeId == null
+                  : _selectedEmployeeUuid == null
                   ? ListView(
                       padding: const EdgeInsets.only(bottom: 8),
                       children: _buildGroupedList(filteredGroups),
@@ -788,7 +725,7 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   /// بناء القائمة مجمععة حسب الموظف (عند اختيار "الكل")
-  List<Widget> _buildGroupedList(Map<int, _EmployeeSalaryGroup> groups) {
+  List<Widget> _buildGroupedList(Map<String, _EmployeeSalaryGroup> groups) {
     final widgets = <Widget>[];
     final entries = groups.entries.toList();
 
@@ -1160,6 +1097,6 @@ class _SalaryReportData {
   });
 
   final List<_SalaryTxRow> rows;
-  final Map<int, _EmployeeSalaryGroup> groups;
+  final Map<String, _EmployeeSalaryGroup> groups;
   final List<Employee> allEmployees;
 }

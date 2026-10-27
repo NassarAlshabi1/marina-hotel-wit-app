@@ -955,8 +955,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
                 try {
                   final repo = ref.read(employeesRepoProvider);
-                  await repo.terminate(
-                    id: employee.id,
+                  await repo.terminateByLocalUuid(
+                    localUuid: employee.localUuid,
                     terminationType: terminationType,
                     terminationDate: dateStr,
                     terminationReason: reasonController.text.trim(),
@@ -1050,7 +1050,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
     try {
       final repo = ref.read(employeesRepoProvider);
-      await repo.reactivate(id: employee.id);
+      await repo.reactivateByLocalUuid(localUuid: employee.localUuid);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1537,7 +1537,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     try {
       financialRecords = await ref
           .read(employeesRepoProvider)
-          .financialRecordsCount(employee.id);
+          .financialRecordsCountByLocalUuid(employee.localUuid);
     } catch (_) {
       // فشل العدّ لا يمنع الحوار — يُعرض التحذير العام (الأكثر أماناً).
       financialRecords = -1;
@@ -1691,7 +1691,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
 
     try {
       final repo = ref.read(employeesRepoProvider);
-      await repo.delete(employee.id);
+      await repo.deleteByLocalUuid(employee.localUuid);
       // ✅ رفع فوري لحذف موظف إلى Appwrite Cloud.
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
       if (context.mounted) {

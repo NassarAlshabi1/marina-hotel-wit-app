@@ -246,6 +246,20 @@ final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
     const Duration(milliseconds: 150),
   ),
 );
+
+/// كل الحجوزات النشطة بلا LIMIT — لشاشة إدارة الضيوف حتى لا يختفي
+/// ضيوف الغرف المحجوزة الأقدم عند تجاوز سقف القائمة على الأجهزة الضعيفة
+/// (قاعدة المستودع: لا قصّ SQL في مسارات عرض البيانات).
+final activeBookingsForGuestsProvider =
+    StreamProvider.autoDispose<List<Booking>>(
+      (ref) => debounceStream(
+        BookingsDao(
+          ref.watch(databaseProvider),
+          ref.watch(outboxDaoProvider),
+        ).watchList(statuses: StatusUtils.activeBookingStatuses),
+        const Duration(milliseconds: 150),
+      ),
+    );
 final activeNotesProvider = FutureProvider.autoDispose(
   (ref) => ref.watch(notesRepoProvider).listAllActive(),
 );

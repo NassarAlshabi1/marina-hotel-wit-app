@@ -15,10 +15,10 @@
 
 import 'dart:async';
 
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
+
 import '../appwrite_sync_manager.dart';
 import '../auto_outbox_sync_watcher.dart';
-import '../sync_guard.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 mixin SyncTriggerMixin {
   Timer? _syncDebounceTimer;
@@ -26,8 +26,7 @@ mixin SyncTriggerMixin {
 
   /// Triggers a debounced pushLocalChanges.
   ///
-  /// ✅ P2-1 FIX: استخدام SyncGuard لمنع الـ Race Condition
-  /// بين AutoOutboxSyncWatcher والـ Manual Trigger.
+  /// يفوض الرفع إلى watcher؛ هو وحده يملك SyncGuard أثناء push.
   void triggerSync() {
     _syncDebounceTimer?.cancel();
     _syncDebounceTimer = Timer(_debounceDuration, _doSync);
@@ -47,29 +46,17 @@ mixin SyncTriggerMixin {
         return;
       }
 
-      // ✅ Wave 5: ownership-safe tryAcquire (with token).
-      // فقط الـ token الصحيح يستطيع فك القفل في finally/catch.
-      final token = SyncGuard.tryAcquire(label: 'sync_trigger_manual');
-      if (token == null) {
-        dlog(
-          '⏸️ Trigger sync skipped — another sync is active (${SyncGuard.activeLabel})',
-        );
-        return;
-      }
-
-      // ✅ المسار الرئيسي: عبر watcher الموحّد
+      // المسار الرئيسي عبر watcher؛ لا نأخذ القفل هنا لأن _doPush يملكه.
       if (!AutoOutboxSyncWatcher.instance.isRunning) {
         // Fallback: watcher لم يبدأ بعد — استخدم المسار المباشر
         final manager = AppwriteSyncManager.instance;
         if (manager == null) {
           dlog('⚠️ triggerSync: sync manager not initialized');
-          SyncGuard.release(token);
           return;
         }
         unawaited(
           manager.pushLocalChanges().catchError((Object e) {
             dlog(() => '⚠️ Auto-sync push failed (direct): $e');
-            SyncGuard.release(token);
             return 0;
           }),
         );
@@ -80,12 +67,10 @@ mixin SyncTriggerMixin {
       unawaited(
         AutoOutboxSyncWatcher.instance.pushNow().catchError((Object e) {
           dlog(() => '⚠️ Auto-sync push failed (via watcher): $e');
-          SyncGuard.release(token);
         }),
       );
     } catch (e) {
       dlog(() => '⚠️ triggerSync error: $e');
-      SyncGuard.markFinished();
     }
   }
 

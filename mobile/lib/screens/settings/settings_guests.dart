@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../utils/performance_config.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
@@ -38,7 +39,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bookingsAsync = ref.watch(bookingsListProvider);
+    final bookingsAsync = ref.watch(activeBookingsForGuestsProvider);
     final roomsAsync = ref.watch(roomsListProvider);
 
     return AppScaffold(
@@ -110,7 +111,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: () async {
-                        ref.invalidate(bookingsListProvider);
+                        ref.invalidate(activeBookingsForGuestsProvider);
                         ref.invalidate(roomsListProvider);
                       },
                       child: ListView.builder(
@@ -144,7 +145,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         continue;
       }
 
-      final key = '${booking.guestName}_${booking.guestPhone}';
+      // تطبيع المفتاح: مسافات زائدة في الاسم/الهاتف كانت تُنتج ضيفاً مكرراً.
+      final key = '${booking.guestName.trim()}_${booking.guestPhone.trim()}';
       final email = booking.guestEmail ?? '';
       final idType = booking.guestIdType;
       final idNumber = booking.guestIdNumber;
@@ -579,6 +581,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestHistory(BuildContext context, GuestInfo guest) {
+    final canUpdate =
+        ref.read(authProvider).currentUser?.canPerform('bookings', 'update') ??
+        false;
+    final canDelete =
+        ref.read(authProvider).currentUser?.canPerform('bookings', 'delete') ??
+        false;
     showDialog<void>(
       context: context,
       builder: (context) => Directionality(
@@ -616,33 +624,39 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                         isThreeLine: true,
                       ),
                       // ✅ أزرار تعديل وحذف لكل حجز فردي
-                      OverflowBar(
-                        alignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _editBooking(context, booking);
-                            },
-                            icon: const Icon(Icons.edit, size: 16),
-                            label: const Text('تعديل الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue,
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _deleteBooking(context, booking, guest);
-                            },
-                            icon: const Icon(Icons.delete_outline, size: 16),
-                            label: const Text('حذف الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                          ),
-                        ],
-                      ),
+                      if (canUpdate || canDelete)
+                        OverflowBar(
+                          alignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            if (canUpdate)
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _editBooking(context, booking);
+                                },
+                                icon: const Icon(Icons.edit, size: 16),
+                                label: const Text('تعديل الحجز'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.blue,
+                                ),
+                              ),
+                            if (canDelete)
+                              TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _deleteBooking(context, booking, guest);
+                                },
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 16,
+                                ),
+                                label: const Text('حذف الحجز'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                              ),
+                          ],
+                        ),
                     ],
                   ),
                 );
@@ -660,18 +674,31 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     );
   }
 
-  /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
+  /// يتحقق من الفعل الدقيق على الحجوزات، كما تعرضه مصفوفة الصلاحيات.
+  bool _canPerformBookingAction(String action) {
+    final user = ref.read(authProvider).currentUser;
+    if (user?.canPerform('bookings', action) ?? false) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('ليست لديك صلاحية لتنفيذ هذا الإجراء على الحجوزات'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return false;
+  }
+
   Future<void> _editBooking(BuildContext context, Booking booking) async {
+    if (!_canPerformBookingAction('update')) return;
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => BookingEditScreen(existing: booking),
       ),
     );
     if ((result ?? false) && mounted) {
+      ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحجز')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحجز')));
     }
   }
 
@@ -681,6 +708,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     Booking booking,
     GuestInfo guest,
   ) async {
+    if (!_canPerformBookingAction('delete')) return;
     final isActive = StatusUtils.isActiveBooking(booking.status);
 
     final confirmed = await showDialog<bool>(
@@ -738,7 +766,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       // 3. حذف المدفوعات المرتبطة
       final payments = await paymentsRepo.paymentsByBooking(booking.id).first;
       for (final payment in payments) {
-        await paymentsRepo.delete(payment.id);
+        await paymentsRepo.delete(payment.id, voidReason: 'حُذف الحجز');
       }
 
       // 4. حذف الديون المرتبطة
@@ -757,6 +785,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (!mounted) return;
+      ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1187,9 +1216,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)),
     );
     if ((result ?? false) && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
   }
 
@@ -1232,6 +1260,20 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final debtsRepo = ref.read(debtsRepoProvider);
       final notesRepo = ref.read(notesRepoProvider);
       final database = ref.read(databaseProvider);
+      // الغرف محمّلة مسبقاً — خريطة رقم→غرفة تُجنّب استعلاماً لكل غرفة.
+      final Map<String, Room> roomsByNumber = {
+        for (final r
+            in ref.read(roomsListProvider).valueOrNull ?? const <Room>[])
+          r.roomNumber: r,
+      };
+      Future<void> freeRoom(String roomNumber) async {
+        final room =
+            roomsByNumber[roomNumber] ??
+            await roomsRepo.watchByNumber(roomNumber).first;
+        if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
+          await roomsRepo.update(room.id, status: 'شاغرة');
+        }
+      }
 
       if (guest.bookings.isEmpty) {
         return;
@@ -1255,10 +1297,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
         // ─── 2. تحرير الغرف ───
         for (final roomNumber in freedRooms) {
-          final room = await roomsRepo.watchByNumber(roomNumber).first;
-          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-            await roomsRepo.update(room.id, status: 'شاغرة');
-          }
+          await freeRoom(roomNumber);
         }
 
         // ─── 3. حذف الملاحظات ───
@@ -1275,7 +1314,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
               .paymentsByBooking(booking.id)
               .first;
           for (final payment in payments) {
-            await paymentsRepo.delete(payment.id);
+            await paymentsRepo.delete(payment.id, voidReason: 'حُذف الحجز');
           }
         }
 
@@ -1299,10 +1338,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             .toSet()
             .difference(freedRooms);
         for (final roomNumber in allRoomNumbers) {
-          final room = await roomsRepo.watchByNumber(roomNumber).first;
-          if (room != null && !StatusUtils.isRoomAvailable(room.status)) {
-            await roomsRepo.update(room.id, status: 'شاغرة');
-          }
+          await freeRoom(roomNumber);
         }
       }); // ✅ نهاية transaction — atomic
 

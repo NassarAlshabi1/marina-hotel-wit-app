@@ -207,6 +207,10 @@ class StayBalanceCalculator {
     final moment = now ?? DateTime.now();
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
     final checkinDateOnly = DateTime(checkin.year, checkin.month, checkin.day);
+    final recordedCheckout =
+        (booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty)
+        ? DateTime.tryParse(booking.actualCheckout!)
+        : null;
 
     // ✅ حماية: إذا كان checkinDate فارغ أو تالف بالكامل، نستخدم now
     // لمنع القيم السلبية أو الحلقات اللانهائية
@@ -288,7 +292,16 @@ class StayBalanceCalculator {
     }
 
     // ─── حساب تكلفة الأيام المقضية فعلياً ───
-    final actualNightsSpent = Time.nightsWithCutoff(checkin, checkout: moment);
+    // موعد المغادرة المخطط لا يوقف التراكم؛ وحده actualCheckout المسجل
+    // يحدد نهاية الإقامة. وإذا كان وقت الخروج مسجلاً في المستقبل نستخدم الآن.
+    final effectiveStayEnd =
+        recordedCheckout != null && !recordedCheckout.isAfter(moment)
+        ? recordedCheckout
+        : moment;
+    final actualNightsSpent = Time.nightsWithCutoff(
+      checkin,
+      checkout: effectiveStayEnd,
+    );
 
     int consumedCostMinor = 0;
     DateTime consumedNight = firstHotelDay;

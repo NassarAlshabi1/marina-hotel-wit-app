@@ -6921,6 +6921,1413 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
   }
 }
 
+class $BlacklistTable extends Blacklist
+    with TableInfo<$BlacklistTable, BlacklistData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BlacklistTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtIsoMeta = const VerificationMeta(
+    'createdAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+    'created_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtIsoMeta = const VerificationMeta(
+    'updatedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+    'updated_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtIsoMeta = const VerificationMeta(
+    'deletedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+    'deleted_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtEpochMeta = const VerificationMeta(
+    'createdAtEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+    'created_at_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastModifiedEpochMeta = const VerificationMeta(
+    'lastModifiedEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+    'last_modified_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _vectorClockMeta = const VerificationMeta(
+    'vectorClock',
+  );
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+    'vector_clock',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nationalityMeta = const VerificationMeta(
+    'nationality',
+  );
+  @override
+  late final GeneratedColumn<String> nationality = GeneratedColumn<String>(
+    'nationality',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nationalIdMeta = const VerificationMeta(
+    'nationalId',
+  );
+  @override
+  late final GeneratedColumn<String> nationalId = GeneratedColumn<String>(
+    'national_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+    'phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reportedByMeta = const VerificationMeta(
+    'reportedBy',
+  );
+  @override
+  late final GeneratedColumn<String> reportedBy = GeneratedColumn<String>(
+    'reported_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('police'),
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    syncTimestamp,
+    idempotencyKey,
+    id,
+    name,
+    nationality,
+    nationalId,
+    phone,
+    reason,
+    notes,
+    reportedBy,
+    active,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'blacklist';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BlacklistData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(
+        _localUuidMeta,
+        localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+        _createdAtIsoMeta,
+        createdAtIso.isAcceptableOrUnknown(
+          data['created_at_iso']!,
+          _createdAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+        _updatedAtIsoMeta,
+        updatedAtIso.isAcceptableOrUnknown(
+          data['updated_at_iso']!,
+          _updatedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+        _deletedAtIsoMeta,
+        deletedAtIso.isAcceptableOrUnknown(
+          data['deleted_at_iso']!,
+          _deletedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+        _createdAtEpochMeta,
+        createdAtEpoch.isAcceptableOrUnknown(
+          data['created_at_epoch']!,
+          _createdAtEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+        _lastModifiedEpochMeta,
+        lastModifiedEpoch.isAcceptableOrUnknown(
+          data['last_modified_epoch']!,
+          _lastModifiedEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+        _vectorClockMeta,
+        vectorClock.isAcceptableOrUnknown(
+          data['vector_clock']!,
+          _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('nationality')) {
+      context.handle(
+        _nationalityMeta,
+        nationality.isAcceptableOrUnknown(
+          data['nationality']!,
+          _nationalityMeta,
+        ),
+      );
+    }
+    if (data.containsKey('national_id')) {
+      context.handle(
+        _nationalIdMeta,
+        nationalId.isAcceptableOrUnknown(data['national_id']!, _nationalIdMeta),
+      );
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+        _phoneMeta,
+        phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta),
+      );
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('reported_by')) {
+      context.handle(
+        _reportedByMeta,
+        reportedBy.isAcceptableOrUnknown(data['reported_by']!, _reportedByMeta),
+      );
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BlacklistData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BlacklistData(
+      localUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_uuid'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified'],
+      )!,
+      createdAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at_iso'],
+      ),
+      updatedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at_iso'],
+      ),
+      deletedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at_iso'],
+      ),
+      createdAtEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_epoch'],
+      )!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified_epoch'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      vectorClock: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vector_clock'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      nationality: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nationality'],
+      ),
+      nationalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}national_id'],
+      ),
+      phone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone'],
+      ),
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      reportedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reported_by'],
+      )!,
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+    );
+  }
+
+  @override
+  $BlacklistTable createAlias(String alias) {
+    return $BlacklistTable(attachedDatabase, alias);
+  }
+}
+
+class BlacklistData extends DataClass implements Insertable<BlacklistData> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final String deviceId;
+  final int syncTimestamp;
+  final String? idempotencyKey;
+  final int id;
+  final String name;
+  final String? nationality;
+  final String? nationalId;
+  final String? phone;
+  final String? reason;
+  final String? notes;
+  final String reportedBy;
+  final bool active;
+  const BlacklistData({
+    required this.localUuid,
+    this.serverId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.lastModified,
+    this.createdAtIso,
+    this.updatedAtIso,
+    this.deletedAtIso,
+    required this.createdAtEpoch,
+    required this.lastModifiedEpoch,
+    required this.version,
+    required this.origin,
+    required this.vectorClock,
+    required this.deviceId,
+    required this.syncTimestamp,
+    this.idempotencyKey,
+    required this.id,
+    required this.name,
+    this.nationality,
+    this.nationalId,
+    this.phone,
+    this.reason,
+    this.notes,
+    required this.reportedBy,
+    required this.active,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || nationality != null) {
+      map['nationality'] = Variable<String>(nationality);
+    }
+    if (!nullToAbsent || nationalId != null) {
+      map['national_id'] = Variable<String>(nationalId);
+    }
+    if (!nullToAbsent || phone != null) {
+      map['phone'] = Variable<String>(phone);
+    }
+    if (!nullToAbsent || reason != null) {
+      map['reason'] = Variable<String>(reason);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['reported_by'] = Variable<String>(reportedBy);
+    map['active'] = Variable<bool>(active);
+    return map;
+  }
+
+  BlacklistCompanion toCompanion(bool nullToAbsent) {
+    return BlacklistCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      syncTimestamp: Value(syncTimestamp),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
+      id: Value(id),
+      name: Value(name),
+      nationality: nationality == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nationality),
+      nationalId: nationalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nationalId),
+      phone: phone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phone),
+      reason: reason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reason),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      reportedBy: Value(reportedBy),
+      active: Value(active),
+    );
+  }
+
+  factory BlacklistData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BlacklistData(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      nationality: serializer.fromJson<String?>(json['nationality']),
+      nationalId: serializer.fromJson<String?>(json['nationalId']),
+      phone: serializer.fromJson<String?>(json['phone']),
+      reason: serializer.fromJson<String?>(json['reason']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      reportedBy: serializer.fromJson<String>(json['reportedBy']),
+      active: serializer.fromJson<bool>(json['active']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'nationality': serializer.toJson<String?>(nationality),
+      'nationalId': serializer.toJson<String?>(nationalId),
+      'phone': serializer.toJson<String?>(phone),
+      'reason': serializer.toJson<String?>(reason),
+      'notes': serializer.toJson<String?>(notes),
+      'reportedBy': serializer.toJson<String>(reportedBy),
+      'active': serializer.toJson<bool>(active),
+    };
+  }
+
+  BlacklistData copyWith({
+    String? localUuid,
+    Value<int?> serverId = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+    int? lastModified,
+    Value<String?> createdAtIso = const Value.absent(),
+    Value<String?> updatedAtIso = const Value.absent(),
+    Value<String?> deletedAtIso = const Value.absent(),
+    int? createdAtEpoch,
+    int? lastModifiedEpoch,
+    int? version,
+    String? origin,
+    String? vectorClock,
+    String? deviceId,
+    int? syncTimestamp,
+    Value<String?> idempotencyKey = const Value.absent(),
+    int? id,
+    String? name,
+    Value<String?> nationality = const Value.absent(),
+    Value<String?> nationalId = const Value.absent(),
+    Value<String?> phone = const Value.absent(),
+    Value<String?> reason = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    String? reportedBy,
+    bool? active,
+  }) => BlacklistData(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
+    id: id ?? this.id,
+    name: name ?? this.name,
+    nationality: nationality.present ? nationality.value : this.nationality,
+    nationalId: nationalId.present ? nationalId.value : this.nationalId,
+    phone: phone.present ? phone.value : this.phone,
+    reason: reason.present ? reason.value : this.reason,
+    notes: notes.present ? notes.value : this.notes,
+    reportedBy: reportedBy ?? this.reportedBy,
+    active: active ?? this.active,
+  );
+  BlacklistData copyWithCompanion(BlacklistCompanion data) {
+    return BlacklistData(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock: data.vectorClock.present
+          ? data.vectorClock.value
+          : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      nationality: data.nationality.present
+          ? data.nationality.value
+          : this.nationality,
+      nationalId: data.nationalId.present
+          ? data.nationalId.value
+          : this.nationalId,
+      phone: data.phone.present ? data.phone.value : this.phone,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      reportedBy: data.reportedBy.present
+          ? data.reportedBy.value
+          : this.reportedBy,
+      active: data.active.present ? data.active.value : this.active,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BlacklistData(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('nationality: $nationality, ')
+          ..write('nationalId: $nationalId, ')
+          ..write('phone: $phone, ')
+          ..write('reason: $reason, ')
+          ..write('notes: $notes, ')
+          ..write('reportedBy: $reportedBy, ')
+          ..write('active: $active')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    syncTimestamp,
+    idempotencyKey,
+    id,
+    name,
+    nationality,
+    nationalId,
+    phone,
+    reason,
+    notes,
+    reportedBy,
+    active,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BlacklistData &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.nationality == this.nationality &&
+          other.nationalId == this.nationalId &&
+          other.phone == this.phone &&
+          other.reason == this.reason &&
+          other.notes == this.notes &&
+          other.reportedBy == this.reportedBy &&
+          other.active == this.active);
+}
+
+class BlacklistCompanion extends UpdateCompanion<BlacklistData> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<int> syncTimestamp;
+  final Value<String?> idempotencyKey;
+  final Value<int> id;
+  final Value<String> name;
+  final Value<String?> nationality;
+  final Value<String?> nationalId;
+  final Value<String?> phone;
+  final Value<String?> reason;
+  final Value<String?> notes;
+  final Value<String> reportedBy;
+  final Value<bool> active;
+  const BlacklistCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.nationality = const Value.absent(),
+    this.nationalId = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.reportedBy = const Value.absent(),
+    this.active = const Value.absent(),
+  });
+  BlacklistCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
+    required String name,
+    this.nationality = const Value.absent(),
+    this.nationalId = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.reportedBy = const Value.absent(),
+    this.active = const Value.absent(),
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       name = Value(name);
+  static Insertable<BlacklistData> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
+    Expression<String>? idempotencyKey,
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<String>? nationality,
+    Expression<String>? nationalId,
+    Expression<String>? phone,
+    Expression<String>? reason,
+    Expression<String>? notes,
+    Expression<String>? reportedBy,
+    Expression<bool>? active,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (nationality != null) 'nationality': nationality,
+      if (nationalId != null) 'national_id': nationalId,
+      if (phone != null) 'phone': phone,
+      if (reason != null) 'reason': reason,
+      if (notes != null) 'notes': notes,
+      if (reportedBy != null) 'reported_by': reportedBy,
+      if (active != null) 'active': active,
+    });
+  }
+
+  BlacklistCompanion copyWith({
+    Value<String>? localUuid,
+    Value<int?>? serverId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? lastModified,
+    Value<String?>? createdAtIso,
+    Value<String?>? updatedAtIso,
+    Value<String?>? deletedAtIso,
+    Value<int>? createdAtEpoch,
+    Value<int>? lastModifiedEpoch,
+    Value<int>? version,
+    Value<String>? origin,
+    Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<int>? syncTimestamp,
+    Value<String?>? idempotencyKey,
+    Value<int>? id,
+    Value<String>? name,
+    Value<String?>? nationality,
+    Value<String?>? nationalId,
+    Value<String?>? phone,
+    Value<String?>? reason,
+    Value<String?>? notes,
+    Value<String>? reportedBy,
+    Value<bool>? active,
+  }) {
+    return BlacklistCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      id: id ?? this.id,
+      name: name ?? this.name,
+      nationality: nationality ?? this.nationality,
+      nationalId: nationalId ?? this.nationalId,
+      phone: phone ?? this.phone,
+      reason: reason ?? this.reason,
+      notes: notes ?? this.notes,
+      reportedBy: reportedBy ?? this.reportedBy,
+      active: active ?? this.active,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (nationality.present) {
+      map['nationality'] = Variable<String>(nationality.value);
+    }
+    if (nationalId.present) {
+      map['national_id'] = Variable<String>(nationalId.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (reportedBy.present) {
+      map['reported_by'] = Variable<String>(reportedBy.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BlacklistCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('nationality: $nationality, ')
+          ..write('nationalId: $nationalId, ')
+          ..write('phone: $phone, ')
+          ..write('reason: $reason, ')
+          ..write('notes: $notes, ')
+          ..write('reportedBy: $reportedBy, ')
+          ..write('active: $active')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $EmployeesTable extends Employees
     with TableInfo<$EmployeesTable, Employee> {
   @override
@@ -8723,6 +10130,17 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _withdrawalUuidMeta = const VerificationMeta(
+    'withdrawalUuid',
+  );
+  @override
+  late final GeneratedColumn<String> withdrawalUuid = GeneratedColumn<String>(
+    'withdrawal_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -8754,6 +10172,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     cashFlowUuid,
     isAutoGenerated,
     employeeUuid,
+    withdrawalUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9005,6 +10424,15 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         ),
       );
     }
+    if (data.containsKey('withdrawal_uuid')) {
+      context.handle(
+        _withdrawalUuidMeta,
+        withdrawalUuid.isAcceptableOrUnknown(
+          data['withdrawal_uuid']!,
+          _withdrawalUuidMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -9130,6 +10558,10 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.string,
         data['${effectivePrefix}employee_uuid'],
       ),
+      withdrawalUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}withdrawal_uuid'],
+      ),
     );
   }
 
@@ -9169,6 +10601,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String? cashFlowUuid;
   final bool isAutoGenerated;
   final String? employeeUuid;
+  final String? withdrawalUuid;
   const Expense({
     required this.localUuid,
     this.serverId,
@@ -9199,6 +10632,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     this.cashFlowUuid,
     required this.isAutoGenerated,
     this.employeeUuid,
+    this.withdrawalUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9255,6 +10689,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['is_auto_generated'] = Variable<bool>(isAutoGenerated);
     if (!nullToAbsent || employeeUuid != null) {
       map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
+    if (!nullToAbsent || withdrawalUuid != null) {
+      map['withdrawal_uuid'] = Variable<String>(withdrawalUuid);
     }
     return map;
   }
@@ -9314,6 +10751,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       employeeUuid: employeeUuid == null && nullToAbsent
           ? const Value.absent()
           : Value(employeeUuid),
+      withdrawalUuid: withdrawalUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(withdrawalUuid),
     );
   }
 
@@ -9352,6 +10792,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       cashFlowUuid: serializer.fromJson<String?>(json['cashFlowUuid']),
       isAutoGenerated: serializer.fromJson<bool>(json['isAutoGenerated']),
       employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
+      withdrawalUuid: serializer.fromJson<String?>(json['withdrawalUuid']),
     );
   }
   @override
@@ -9387,6 +10828,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'cashFlowUuid': serializer.toJson<String?>(cashFlowUuid),
       'isAutoGenerated': serializer.toJson<bool>(isAutoGenerated),
       'employeeUuid': serializer.toJson<String?>(employeeUuid),
+      'withdrawalUuid': serializer.toJson<String?>(withdrawalUuid),
     };
   }
 
@@ -9420,6 +10862,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     Value<String?> cashFlowUuid = const Value.absent(),
     bool? isAutoGenerated,
     Value<String?> employeeUuid = const Value.absent(),
+    Value<String?> withdrawalUuid = const Value.absent(),
   }) => Expense(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -9454,6 +10897,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     cashFlowUuid: cashFlowUuid.present ? cashFlowUuid.value : this.cashFlowUuid,
     isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
     employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
+    withdrawalUuid: withdrawalUuid.present
+        ? withdrawalUuid.value
+        : this.withdrawalUuid,
   );
   Expense copyWithCompanion(ExpensesCompanion data) {
     return Expense(
@@ -9520,6 +10966,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       employeeUuid: data.employeeUuid.present
           ? data.employeeUuid.value
           : this.employeeUuid,
+      withdrawalUuid: data.withdrawalUuid.present
+          ? data.withdrawalUuid.value
+          : this.withdrawalUuid,
     );
   }
 
@@ -9554,7 +11003,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('categoryUuid: $categoryUuid, ')
           ..write('cashFlowUuid: $cashFlowUuid, ')
           ..write('isAutoGenerated: $isAutoGenerated, ')
-          ..write('employeeUuid: $employeeUuid')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('withdrawalUuid: $withdrawalUuid')
           ..write(')'))
         .toString();
   }
@@ -9590,6 +11040,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     cashFlowUuid,
     isAutoGenerated,
     employeeUuid,
+    withdrawalUuid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -9623,7 +11074,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.categoryUuid == this.categoryUuid &&
           other.cashFlowUuid == this.cashFlowUuid &&
           other.isAutoGenerated == this.isAutoGenerated &&
-          other.employeeUuid == this.employeeUuid);
+          other.employeeUuid == this.employeeUuid &&
+          other.withdrawalUuid == this.withdrawalUuid);
 }
 
 class ExpensesCompanion extends UpdateCompanion<Expense> {
@@ -9656,6 +11108,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String?> cashFlowUuid;
   final Value<bool> isAutoGenerated;
   final Value<String?> employeeUuid;
+  final Value<String?> withdrawalUuid;
   const ExpensesCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -9686,6 +11139,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.cashFlowUuid = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
     this.employeeUuid = const Value.absent(),
+    this.withdrawalUuid = const Value.absent(),
   });
   ExpensesCompanion.insert({
     required String localUuid,
@@ -9717,6 +11171,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.cashFlowUuid = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
     this.employeeUuid = const Value.absent(),
+    this.withdrawalUuid = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -9755,6 +11210,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? cashFlowUuid,
     Expression<bool>? isAutoGenerated,
     Expression<String>? employeeUuid,
+    Expression<String>? withdrawalUuid,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -9786,6 +11242,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (cashFlowUuid != null) 'cash_flow_uuid': cashFlowUuid,
       if (isAutoGenerated != null) 'is_auto_generated': isAutoGenerated,
       if (employeeUuid != null) 'employee_uuid': employeeUuid,
+      if (withdrawalUuid != null) 'withdrawal_uuid': withdrawalUuid,
     });
   }
 
@@ -9819,6 +11276,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<String?>? cashFlowUuid,
     Value<bool>? isAutoGenerated,
     Value<String?>? employeeUuid,
+    Value<String?>? withdrawalUuid,
   }) {
     return ExpensesCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -9850,6 +11308,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       cashFlowUuid: cashFlowUuid ?? this.cashFlowUuid,
       isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
       employeeUuid: employeeUuid ?? this.employeeUuid,
+      withdrawalUuid: withdrawalUuid ?? this.withdrawalUuid,
     );
   }
 
@@ -9943,6 +11402,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (employeeUuid.present) {
       map['employee_uuid'] = Variable<String>(employeeUuid.value);
     }
+    if (withdrawalUuid.present) {
+      map['withdrawal_uuid'] = Variable<String>(withdrawalUuid.value);
+    }
     return map;
   }
 
@@ -9977,7 +11439,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('categoryUuid: $categoryUuid, ')
           ..write('cashFlowUuid: $cashFlowUuid, ')
           ..write('isAutoGenerated: $isAutoGenerated, ')
-          ..write('employeeUuid: $employeeUuid')
+          ..write('employeeUuid: $employeeUuid, ')
+          ..write('withdrawalUuid: $withdrawalUuid')
           ..write(')'))
         .toString();
   }
@@ -11942,6 +13405,28 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _deletedByDeviceMeta = const VerificationMeta(
+    'deletedByDevice',
+  );
+  @override
+  late final GeneratedColumn<String> deletedByDevice = GeneratedColumn<String>(
+    'deleted_by_device',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedByNameMeta = const VerificationMeta(
+    'deletedByName',
+  );
+  @override
+  late final GeneratedColumn<String> deletedByName = GeneratedColumn<String>(
+    'deleted_by_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -11989,6 +13474,8 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     receivedByName,
     receivedSessionUuid,
     receivedByCloudId,
+    deletedByDevice,
+    deletedByName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -12372,6 +13859,24 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         ),
       );
     }
+    if (data.containsKey('deleted_by_device')) {
+      context.handle(
+        _deletedByDeviceMeta,
+        deletedByDevice.isAcceptableOrUnknown(
+          data['deleted_by_device']!,
+          _deletedByDeviceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_by_name')) {
+      context.handle(
+        _deletedByNameMeta,
+        deletedByName.isAcceptableOrUnknown(
+          data['deleted_by_name']!,
+          _deletedByNameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -12561,6 +14066,14 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}received_by_cloud_id'],
       ),
+      deletedByDevice: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_by_device'],
+      ),
+      deletedByName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_by_name'],
+      ),
     );
   }
 
@@ -12616,6 +14129,8 @@ class Payment extends DataClass implements Insertable<Payment> {
   final String? receivedByName;
   final String? receivedSessionUuid;
   final String? receivedByCloudId;
+  final String? deletedByDevice;
+  final String? deletedByName;
   const Payment({
     required this.localUuid,
     this.serverId,
@@ -12662,6 +14177,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     this.receivedByName,
     this.receivedSessionUuid,
     this.receivedByCloudId,
+    this.deletedByDevice,
+    this.deletedByName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12765,6 +14282,12 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || receivedByCloudId != null) {
       map['received_by_cloud_id'] = Variable<String>(receivedByCloudId);
     }
+    if (!nullToAbsent || deletedByDevice != null) {
+      map['deleted_by_device'] = Variable<String>(deletedByDevice);
+    }
+    if (!nullToAbsent || deletedByName != null) {
+      map['deleted_by_name'] = Variable<String>(deletedByName);
+    }
     return map;
   }
 
@@ -12867,6 +14390,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedByCloudId: receivedByCloudId == null && nullToAbsent
           ? const Value.absent()
           : Value(receivedByCloudId),
+      deletedByDevice: deletedByDevice == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedByDevice),
+      deletedByName: deletedByName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedByName),
     );
   }
 
@@ -12931,6 +14460,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedByCloudId: serializer.fromJson<String?>(
         json['receivedByCloudId'],
       ),
+      deletedByDevice: serializer.fromJson<String?>(json['deletedByDevice']),
+      deletedByName: serializer.fromJson<String?>(json['deletedByName']),
     );
   }
   @override
@@ -12984,6 +14515,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       'receivedByName': serializer.toJson<String?>(receivedByName),
       'receivedSessionUuid': serializer.toJson<String?>(receivedSessionUuid),
       'receivedByCloudId': serializer.toJson<String?>(receivedByCloudId),
+      'deletedByDevice': serializer.toJson<String?>(deletedByDevice),
+      'deletedByName': serializer.toJson<String?>(deletedByName),
     };
   }
 
@@ -13033,6 +14566,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     Value<String?> receivedByName = const Value.absent(),
     Value<String?> receivedSessionUuid = const Value.absent(),
     Value<String?> receivedByCloudId = const Value.absent(),
+    Value<String?> deletedByDevice = const Value.absent(),
+    Value<String?> deletedByName = const Value.absent(),
   }) => Payment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -13109,6 +14644,12 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedByCloudId: receivedByCloudId.present
         ? receivedByCloudId.value
         : this.receivedByCloudId,
+    deletedByDevice: deletedByDevice.present
+        ? deletedByDevice.value
+        : this.deletedByDevice,
+    deletedByName: deletedByName.present
+        ? deletedByName.value
+        : this.deletedByName,
   );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -13219,6 +14760,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedByCloudId: data.receivedByCloudId.present
           ? data.receivedByCloudId.value
           : this.receivedByCloudId,
+      deletedByDevice: data.deletedByDevice.present
+          ? data.deletedByDevice.value
+          : this.deletedByDevice,
+      deletedByName: data.deletedByName.present
+          ? data.deletedByName.value
+          : this.deletedByName,
     );
   }
 
@@ -13269,7 +14816,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
           ..write('receivedSessionUuid: $receivedSessionUuid, ')
-          ..write('receivedByCloudId: $receivedByCloudId')
+          ..write('receivedByCloudId: $receivedByCloudId, ')
+          ..write('deletedByDevice: $deletedByDevice, ')
+          ..write('deletedByName: $deletedByName')
           ..write(')'))
         .toString();
   }
@@ -13321,6 +14870,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedByName,
     receivedSessionUuid,
     receivedByCloudId,
+    deletedByDevice,
+    deletedByName,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -13370,7 +14921,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.receivedByUserId == this.receivedByUserId &&
           other.receivedByName == this.receivedByName &&
           other.receivedSessionUuid == this.receivedSessionUuid &&
-          other.receivedByCloudId == this.receivedByCloudId);
+          other.receivedByCloudId == this.receivedByCloudId &&
+          other.deletedByDevice == this.deletedByDevice &&
+          other.deletedByName == this.deletedByName);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -13419,6 +14972,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<String?> receivedByName;
   final Value<String?> receivedSessionUuid;
   final Value<String?> receivedByCloudId;
+  final Value<String?> deletedByDevice;
+  final Value<String?> deletedByName;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -13465,6 +15020,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
     this.receivedByCloudId = const Value.absent(),
+    this.deletedByDevice = const Value.absent(),
+    this.deletedByName = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -13512,6 +15069,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
     this.receivedByCloudId = const Value.absent(),
+    this.deletedByDevice = const Value.absent(),
+    this.deletedByName = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -13566,6 +15125,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<String>? receivedByName,
     Expression<String>? receivedSessionUuid,
     Expression<String>? receivedByCloudId,
+    Expression<String>? deletedByDevice,
+    Expression<String>? deletedByName,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -13616,6 +15177,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (receivedSessionUuid != null)
         'received_session_uuid': receivedSessionUuid,
       if (receivedByCloudId != null) 'received_by_cloud_id': receivedByCloudId,
+      if (deletedByDevice != null) 'deleted_by_device': deletedByDevice,
+      if (deletedByName != null) 'deleted_by_name': deletedByName,
     });
   }
 
@@ -13665,6 +15228,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<String?>? receivedByName,
     Value<String?>? receivedSessionUuid,
     Value<String?>? receivedByCloudId,
+    Value<String?>? deletedByDevice,
+    Value<String?>? deletedByName,
   }) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -13714,6 +15279,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       receivedByName: receivedByName ?? this.receivedByName,
       receivedSessionUuid: receivedSessionUuid ?? this.receivedSessionUuid,
       receivedByCloudId: receivedByCloudId ?? this.receivedByCloudId,
+      deletedByDevice: deletedByDevice ?? this.deletedByDevice,
+      deletedByName: deletedByName ?? this.deletedByName,
     );
   }
 
@@ -13861,6 +15428,12 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     if (receivedByCloudId.present) {
       map['received_by_cloud_id'] = Variable<String>(receivedByCloudId.value);
     }
+    if (deletedByDevice.present) {
+      map['deleted_by_device'] = Variable<String>(deletedByDevice.value);
+    }
+    if (deletedByName.present) {
+      map['deleted_by_name'] = Variable<String>(deletedByName.value);
+    }
     return map;
   }
 
@@ -13911,7 +15484,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
           ..write('receivedSessionUuid: $receivedSessionUuid, ')
-          ..write('receivedByCloudId: $receivedByCloudId')
+          ..write('receivedByCloudId: $receivedByCloudId, ')
+          ..write('deletedByDevice: $deletedByDevice, ')
+          ..write('deletedByName: $deletedByName')
           ..write(')'))
         .toString();
   }
@@ -23129,6 +24704,17 @@ class $SalaryPaymentsTable extends SalaryPayments
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _cycleUuidMeta = const VerificationMeta(
+    'cycleUuid',
+  );
+  @override
+  late final GeneratedColumn<String> cycleUuid = GeneratedColumn<String>(
+    'cycle_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
   late final GeneratedColumn<int> amount = GeneratedColumn<int>(
@@ -23207,6 +24793,7 @@ class $SalaryPaymentsTable extends SalaryPayments
     id,
     cycleId,
     employeeUuid,
+    cycleUuid,
     amount,
     hotelDayKey,
     paymentDateIso,
@@ -23382,6 +24969,12 @@ class $SalaryPaymentsTable extends SalaryPayments
         ),
       );
     }
+    if (data.containsKey('cycle_uuid')) {
+      context.handle(
+        _cycleUuidMeta,
+        cycleUuid.isAcceptableOrUnknown(data['cycle_uuid']!, _cycleUuidMeta),
+      );
+    }
     if (data.containsKey('amount')) {
       context.handle(
         _amountMeta,
@@ -23512,6 +25105,10 @@ class $SalaryPaymentsTable extends SalaryPayments
         DriftSqlType.string,
         data['${effectivePrefix}employee_uuid'],
       ),
+      cycleUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cycle_uuid'],
+      ),
       amount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}amount'],
@@ -23562,6 +25159,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
   final int id;
   final int cycleId;
   final String? employeeUuid;
+  final String? cycleUuid;
   final int amount;
   final String? hotelDayKey;
   final String paymentDateIso;
@@ -23588,6 +25186,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     required this.id,
     required this.cycleId,
     this.employeeUuid,
+    this.cycleUuid,
     required this.amount,
     this.hotelDayKey,
     required this.paymentDateIso,
@@ -23630,6 +25229,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     map['cycle_id'] = Variable<int>(cycleId);
     if (!nullToAbsent || employeeUuid != null) {
       map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
+    if (!nullToAbsent || cycleUuid != null) {
+      map['cycle_uuid'] = Variable<String>(cycleUuid);
     }
     map['amount'] = Variable<int>(amount);
     if (!nullToAbsent || hotelDayKey != null) {
@@ -23679,6 +25281,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       employeeUuid: employeeUuid == null && nullToAbsent
           ? const Value.absent()
           : Value(employeeUuid),
+      cycleUuid: cycleUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cycleUuid),
       amount: Value(amount),
       hotelDayKey: hotelDayKey == null && nullToAbsent
           ? const Value.absent()
@@ -23717,6 +25322,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       id: serializer.fromJson<int>(json['id']),
       cycleId: serializer.fromJson<int>(json['cycleId']),
       employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
+      cycleUuid: serializer.fromJson<String?>(json['cycleUuid']),
       amount: serializer.fromJson<int>(json['amount']),
       hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
       paymentDateIso: serializer.fromJson<String>(json['paymentDateIso']),
@@ -23748,6 +25354,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       'id': serializer.toJson<int>(id),
       'cycleId': serializer.toJson<int>(cycleId),
       'employeeUuid': serializer.toJson<String?>(employeeUuid),
+      'cycleUuid': serializer.toJson<String?>(cycleUuid),
       'amount': serializer.toJson<int>(amount),
       'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
       'paymentDateIso': serializer.toJson<String>(paymentDateIso),
@@ -23777,6 +25384,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     int? id,
     int? cycleId,
     Value<String?> employeeUuid = const Value.absent(),
+    Value<String?> cycleUuid = const Value.absent(),
     int? amount,
     Value<String?> hotelDayKey = const Value.absent(),
     String? paymentDateIso,
@@ -23805,6 +25413,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     id: id ?? this.id,
     cycleId: cycleId ?? this.cycleId,
     employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
+    cycleUuid: cycleUuid.present ? cycleUuid.value : this.cycleUuid,
     amount: amount ?? this.amount,
     hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
     paymentDateIso: paymentDateIso ?? this.paymentDateIso,
@@ -23853,6 +25462,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       employeeUuid: data.employeeUuid.present
           ? data.employeeUuid.value
           : this.employeeUuid,
+      cycleUuid: data.cycleUuid.present ? data.cycleUuid.value : this.cycleUuid,
       amount: data.amount.present ? data.amount.value : this.amount,
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
@@ -23890,6 +25500,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
           ..write('employeeUuid: $employeeUuid, ')
+          ..write('cycleUuid: $cycleUuid, ')
           ..write('amount: $amount, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('paymentDateIso: $paymentDateIso, ')
@@ -23921,6 +25532,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     id,
     cycleId,
     employeeUuid,
+    cycleUuid,
     amount,
     hotelDayKey,
     paymentDateIso,
@@ -23951,6 +25563,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           other.id == this.id &&
           other.cycleId == this.cycleId &&
           other.employeeUuid == this.employeeUuid &&
+          other.cycleUuid == this.cycleUuid &&
           other.amount == this.amount &&
           other.hotelDayKey == this.hotelDayKey &&
           other.paymentDateIso == this.paymentDateIso &&
@@ -23979,6 +25592,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
   final Value<int> id;
   final Value<int> cycleId;
   final Value<String?> employeeUuid;
+  final Value<String?> cycleUuid;
   final Value<int> amount;
   final Value<String?> hotelDayKey;
   final Value<String> paymentDateIso;
@@ -24005,6 +25619,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.id = const Value.absent(),
     this.cycleId = const Value.absent(),
     this.employeeUuid = const Value.absent(),
+    this.cycleUuid = const Value.absent(),
     this.amount = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     this.paymentDateIso = const Value.absent(),
@@ -24032,6 +25647,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.id = const Value.absent(),
     required int cycleId,
     this.employeeUuid = const Value.absent(),
+    this.cycleUuid = const Value.absent(),
     this.amount = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     required String paymentDateIso,
@@ -24064,6 +25680,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Expression<int>? id,
     Expression<int>? cycleId,
     Expression<String>? employeeUuid,
+    Expression<String>? cycleUuid,
     Expression<int>? amount,
     Expression<String>? hotelDayKey,
     Expression<String>? paymentDateIso,
@@ -24091,6 +25708,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       if (id != null) 'id': id,
       if (cycleId != null) 'cycle_id': cycleId,
       if (employeeUuid != null) 'employee_uuid': employeeUuid,
+      if (cycleUuid != null) 'cycle_uuid': cycleUuid,
       if (amount != null) 'amount': amount,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (paymentDateIso != null) 'payment_date_iso': paymentDateIso,
@@ -24120,6 +25738,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Value<int>? id,
     Value<int>? cycleId,
     Value<String?>? employeeUuid,
+    Value<String?>? cycleUuid,
     Value<int>? amount,
     Value<String?>? hotelDayKey,
     Value<String>? paymentDateIso,
@@ -24147,6 +25766,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       id: id ?? this.id,
       cycleId: cycleId ?? this.cycleId,
       employeeUuid: employeeUuid ?? this.employeeUuid,
+      cycleUuid: cycleUuid ?? this.cycleUuid,
       amount: amount ?? this.amount,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       paymentDateIso: paymentDateIso ?? this.paymentDateIso,
@@ -24218,6 +25838,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     if (employeeUuid.present) {
       map['employee_uuid'] = Variable<String>(employeeUuid.value);
     }
+    if (cycleUuid.present) {
+      map['cycle_uuid'] = Variable<String>(cycleUuid.value);
+    }
     if (amount.present) {
       map['amount'] = Variable<int>(amount.value);
     }
@@ -24259,6 +25882,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
           ..write('employeeUuid: $employeeUuid, ')
+          ..write('cycleUuid: $cycleUuid, ')
           ..write('amount: $amount, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('paymentDateIso: $paymentDateIso, ')
@@ -35865,6 +37489,15 @@ class $GuestInfosTable extends GuestInfos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _entryDateMeta = const VerificationMeta('entryDate');
+  @override
+  late final GeneratedColumn<String> entryDate = GeneratedColumn<String>(
+    'entry_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _guestPhoneMeta = const VerificationMeta(
     'guestPhone',
   );
@@ -35905,6 +37538,7 @@ class $GuestInfosTable extends GuestInfos
     issuePlace,
     governorate,
     notes,
+    entryDate,
     guestPhone,
   ];
   @override
@@ -36127,6 +37761,12 @@ class $GuestInfosTable extends GuestInfos
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('entry_date')) {
+      context.handle(
+        _entryDateMeta,
+        entryDate.isAcceptableOrUnknown(data['entry_date']!, _entryDateMeta),
+      );
+    }
     if (data.containsKey('guest_phone')) {
       context.handle(
         _guestPhoneMeta,
@@ -36250,6 +37890,10 @@ class $GuestInfosTable extends GuestInfos
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      entryDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entry_date'],
+      ),
       guestPhone: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}guest_phone'],
@@ -36291,6 +37935,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final String? issuePlace;
   final String? governorate;
   final String? notes;
+  final String? entryDate;
   final String? guestPhone;
   const GuestInfo({
     required this.localUuid,
@@ -36320,6 +37965,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     this.issuePlace,
     this.governorate,
     this.notes,
+    this.entryDate,
     this.guestPhone,
   });
   @override
@@ -36371,6 +38017,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || entryDate != null) {
+      map['entry_date'] = Variable<String>(entryDate);
     }
     if (!nullToAbsent || guestPhone != null) {
       map['guest_phone'] = Variable<String>(guestPhone);
@@ -36427,6 +38076,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      entryDate: entryDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(entryDate),
       guestPhone: guestPhone == null && nullToAbsent
           ? const Value.absent()
           : Value(guestPhone),
@@ -36466,6 +38118,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       issuePlace: serializer.fromJson<String?>(json['issuePlace']),
       governorate: serializer.fromJson<String?>(json['governorate']),
       notes: serializer.fromJson<String?>(json['notes']),
+      entryDate: serializer.fromJson<String?>(json['entryDate']),
       guestPhone: serializer.fromJson<String?>(json['guestPhone']),
     );
   }
@@ -36500,6 +38153,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       'issuePlace': serializer.toJson<String?>(issuePlace),
       'governorate': serializer.toJson<String?>(governorate),
       'notes': serializer.toJson<String?>(notes),
+      'entryDate': serializer.toJson<String?>(entryDate),
       'guestPhone': serializer.toJson<String?>(guestPhone),
     };
   }
@@ -36532,6 +38186,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     Value<String?> issuePlace = const Value.absent(),
     Value<String?> governorate = const Value.absent(),
     Value<String?> notes = const Value.absent(),
+    Value<String?> entryDate = const Value.absent(),
     Value<String?> guestPhone = const Value.absent(),
   }) => GuestInfo(
     localUuid: localUuid ?? this.localUuid,
@@ -36563,6 +38218,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issuePlace: issuePlace.present ? issuePlace.value : this.issuePlace,
     governorate: governorate.present ? governorate.value : this.governorate,
     notes: notes.present ? notes.value : this.notes,
+    entryDate: entryDate.present ? entryDate.value : this.entryDate,
     guestPhone: guestPhone.present ? guestPhone.value : this.guestPhone,
   );
   GuestInfo copyWithCompanion(GuestInfosCompanion data) {
@@ -36620,6 +38276,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ? data.governorate.value
           : this.governorate,
       notes: data.notes.present ? data.notes.value : this.notes,
+      entryDate: data.entryDate.present
+          ? data.entryDate.value
+          : this.entryDate,
       guestPhone: data.guestPhone.present
           ? data.guestPhone.value
           : this.guestPhone,
@@ -36656,6 +38315,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ..write('issuePlace: $issuePlace, ')
           ..write('governorate: $governorate, ')
           ..write('notes: $notes, ')
+          ..write('entryDate: $entryDate, ')
           ..write('guestPhone: $guestPhone')
           ..write(')'))
         .toString();
@@ -36690,6 +38350,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issuePlace,
     governorate,
     notes,
+    entryDate,
     guestPhone,
   ]);
   @override
@@ -36723,6 +38384,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           other.issuePlace == this.issuePlace &&
           other.governorate == this.governorate &&
           other.notes == this.notes &&
+          other.entryDate == this.entryDate &&
           other.guestPhone == this.guestPhone);
 }
 
@@ -36754,6 +38416,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
   final Value<String?> issuePlace;
   final Value<String?> governorate;
   final Value<String?> notes;
+  final Value<String?> entryDate;
   final Value<String?> guestPhone;
   const GuestInfosCompanion({
     this.localUuid = const Value.absent(),
@@ -36783,6 +38446,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
     this.notes = const Value.absent(),
+    this.entryDate = const Value.absent(),
     this.guestPhone = const Value.absent(),
   });
   GuestInfosCompanion.insert({
@@ -36813,6 +38477,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
     this.notes = const Value.absent(),
+    this.entryDate = const Value.absent(),
     this.guestPhone = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
@@ -36850,6 +38515,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Expression<String>? issuePlace,
     Expression<String>? governorate,
     Expression<String>? notes,
+    Expression<String>? entryDate,
     Expression<String>? guestPhone,
   }) {
     return RawValuesInsertable({
@@ -36880,6 +38546,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       if (issuePlace != null) 'issue_place': issuePlace,
       if (governorate != null) 'governorate': governorate,
       if (notes != null) 'notes': notes,
+      if (entryDate != null) 'entry_date': entryDate,
       if (guestPhone != null) 'guest_phone': guestPhone,
     });
   }
@@ -36912,6 +38579,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Value<String?>? issuePlace,
     Value<String?>? governorate,
     Value<String?>? notes,
+    Value<String?>? entryDate,
     Value<String?>? guestPhone,
   }) {
     return GuestInfosCompanion(
@@ -36942,6 +38610,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       issuePlace: issuePlace ?? this.issuePlace,
       governorate: governorate ?? this.governorate,
       notes: notes ?? this.notes,
+      entryDate: entryDate ?? this.entryDate,
       guestPhone: guestPhone ?? this.guestPhone,
     );
   }
@@ -37030,6 +38699,9 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (entryDate.present) {
+      map['entry_date'] = Variable<String>(entryDate.value);
+    }
     if (guestPhone.present) {
       map['guest_phone'] = Variable<String>(guestPhone.value);
     }
@@ -37066,6 +38738,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
           ..write('issuePlace: $issuePlace, ')
           ..write('governorate: $governorate, ')
           ..write('notes: $notes, ')
+          ..write('entryDate: $entryDate, ')
           ..write('guestPhone: $guestPhone')
           ..write(')'))
         .toString();
@@ -37382,6 +39055,17 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _expenseUuidMeta = const VerificationMeta(
+    'expenseUuid',
+  );
+  @override
+  late final GeneratedColumn<String> expenseUuid = GeneratedColumn<String>(
+    'expense_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _recorderNameMeta = const VerificationMeta(
     'recorderName',
   );
@@ -37422,6 +39106,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     withdrawalType,
     description,
     expenseId,
+    expenseUuid,
     recorderName,
   ];
   @override
@@ -37651,6 +39336,15 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta),
       );
     }
+    if (data.containsKey('expense_uuid')) {
+      context.handle(
+        _expenseUuidMeta,
+        expenseUuid.isAcceptableOrUnknown(
+          data['expense_uuid']!,
+          _expenseUuidMeta,
+        ),
+      );
+    }
     if (data.containsKey('recorder_name')) {
       context.handle(
         _recorderNameMeta,
@@ -37777,6 +39471,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.int,
         data['${effectivePrefix}expense_id'],
       ),
+      expenseUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expense_uuid'],
+      ),
       recorderName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}recorder_name'],
@@ -37819,6 +39517,7 @@ class SalaryWithdrawal extends DataClass
   final String? withdrawalType;
   final String? description;
   final int? expenseId;
+  final String? expenseUuid;
   final String? recorderName;
   const SalaryWithdrawal({
     required this.localUuid,
@@ -37848,6 +39547,7 @@ class SalaryWithdrawal extends DataClass
     this.withdrawalType,
     this.description,
     this.expenseId,
+    this.expenseUuid,
     this.recorderName,
   });
   @override
@@ -37903,6 +39603,9 @@ class SalaryWithdrawal extends DataClass
     }
     if (!nullToAbsent || expenseId != null) {
       map['expense_id'] = Variable<int>(expenseId);
+    }
+    if (!nullToAbsent || expenseUuid != null) {
+      map['expense_uuid'] = Variable<String>(expenseUuid);
     }
     if (!nullToAbsent || recorderName != null) {
       map['recorder_name'] = Variable<String>(recorderName);
@@ -37963,6 +39666,9 @@ class SalaryWithdrawal extends DataClass
       expenseId: expenseId == null && nullToAbsent
           ? const Value.absent()
           : Value(expenseId),
+      expenseUuid: expenseUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseUuid),
       recorderName: recorderName == null && nullToAbsent
           ? const Value.absent()
           : Value(recorderName),
@@ -38002,6 +39708,7 @@ class SalaryWithdrawal extends DataClass
       withdrawalType: serializer.fromJson<String?>(json['withdrawalType']),
       description: serializer.fromJson<String?>(json['description']),
       expenseId: serializer.fromJson<int?>(json['expenseId']),
+      expenseUuid: serializer.fromJson<String?>(json['expenseUuid']),
       recorderName: serializer.fromJson<String?>(json['recorderName']),
     );
   }
@@ -38036,6 +39743,7 @@ class SalaryWithdrawal extends DataClass
       'withdrawalType': serializer.toJson<String?>(withdrawalType),
       'description': serializer.toJson<String?>(description),
       'expenseId': serializer.toJson<int?>(expenseId),
+      'expenseUuid': serializer.toJson<String?>(expenseUuid),
       'recorderName': serializer.toJson<String?>(recorderName),
     };
   }
@@ -38068,6 +39776,7 @@ class SalaryWithdrawal extends DataClass
     Value<String?> withdrawalType = const Value.absent(),
     Value<String?> description = const Value.absent(),
     Value<int?> expenseId = const Value.absent(),
+    Value<String?> expenseUuid = const Value.absent(),
     Value<String?> recorderName = const Value.absent(),
   }) => SalaryWithdrawal(
     localUuid: localUuid ?? this.localUuid,
@@ -38101,6 +39810,7 @@ class SalaryWithdrawal extends DataClass
         : this.withdrawalType,
     description: description.present ? description.value : this.description,
     expenseId: expenseId.present ? expenseId.value : this.expenseId,
+    expenseUuid: expenseUuid.present ? expenseUuid.value : this.expenseUuid,
     recorderName: recorderName.present ? recorderName.value : this.recorderName,
   );
   SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
@@ -38162,6 +39872,9 @@ class SalaryWithdrawal extends DataClass
           ? data.description.value
           : this.description,
       expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
+      expenseUuid: data.expenseUuid.present
+          ? data.expenseUuid.value
+          : this.expenseUuid,
       recorderName: data.recorderName.present
           ? data.recorderName.value
           : this.recorderName,
@@ -38198,6 +39911,7 @@ class SalaryWithdrawal extends DataClass
           ..write('withdrawalType: $withdrawalType, ')
           ..write('description: $description, ')
           ..write('expenseId: $expenseId, ')
+          ..write('expenseUuid: $expenseUuid, ')
           ..write('recorderName: $recorderName')
           ..write(')'))
         .toString();
@@ -38232,6 +39946,7 @@ class SalaryWithdrawal extends DataClass
     withdrawalType,
     description,
     expenseId,
+    expenseUuid,
     recorderName,
   ]);
   @override
@@ -38265,6 +39980,7 @@ class SalaryWithdrawal extends DataClass
           other.withdrawalType == this.withdrawalType &&
           other.description == this.description &&
           other.expenseId == this.expenseId &&
+          other.expenseUuid == this.expenseUuid &&
           other.recorderName == this.recorderName);
 }
 
@@ -38296,6 +40012,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String?> withdrawalType;
   final Value<String?> description;
   final Value<int?> expenseId;
+  final Value<String?> expenseUuid;
   final Value<String?> recorderName;
   const SalaryWithdrawalsCompanion({
     this.localUuid = const Value.absent(),
@@ -38325,6 +40042,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
     this.expenseId = const Value.absent(),
+    this.expenseUuid = const Value.absent(),
     this.recorderName = const Value.absent(),
   });
   SalaryWithdrawalsCompanion.insert({
@@ -38355,6 +40073,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
     this.expenseId = const Value.absent(),
+    this.expenseUuid = const Value.absent(),
     this.recorderName = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
@@ -38391,6 +40110,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? withdrawalType,
     Expression<String>? description,
     Expression<int>? expenseId,
+    Expression<String>? expenseUuid,
     Expression<String>? recorderName,
   }) {
     return RawValuesInsertable({
@@ -38421,6 +40141,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (withdrawalType != null) 'withdrawal_type': withdrawalType,
       if (description != null) 'description': description,
       if (expenseId != null) 'expense_id': expenseId,
+      if (expenseUuid != null) 'expense_uuid': expenseUuid,
       if (recorderName != null) 'recorder_name': recorderName,
     });
   }
@@ -38453,6 +40174,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String?>? withdrawalType,
     Value<String?>? description,
     Value<int?>? expenseId,
+    Value<String?>? expenseUuid,
     Value<String?>? recorderName,
   }) {
     return SalaryWithdrawalsCompanion(
@@ -38483,6 +40205,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       withdrawalType: withdrawalType ?? this.withdrawalType,
       description: description ?? this.description,
       expenseId: expenseId ?? this.expenseId,
+      expenseUuid: expenseUuid ?? this.expenseUuid,
       recorderName: recorderName ?? this.recorderName,
     );
   }
@@ -38571,6 +40294,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (expenseId.present) {
       map['expense_id'] = Variable<int>(expenseId.value);
     }
+    if (expenseUuid.present) {
+      map['expense_uuid'] = Variable<String>(expenseUuid.value);
+    }
     if (recorderName.present) {
       map['recorder_name'] = Variable<String>(recorderName.value);
     }
@@ -38607,6 +40333,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('withdrawalType: $withdrawalType, ')
           ..write('description: $description, ')
           ..write('expenseId: $expenseId, ')
+          ..write('expenseUuid: $expenseUuid, ')
           ..write('recorderName: $recorderName')
           ..write(')'))
         .toString();
@@ -43728,6 +45455,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $BookingsTable bookings = $BookingsTable(this);
   late final $BookingNotesTable bookingNotes = $BookingNotesTable(this);
   late final $ShiftNotesTable shiftNotes = $ShiftNotesTable(this);
+  late final $BlacklistTable blacklist = $BlacklistTable(this);
   late final $EmployeesTable employees = $EmployeesTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $CashTransactionsTable cashTransactions = $CashTransactionsTable(
@@ -43766,6 +45494,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $InventoryTransactionsTable(this);
   late final $AncestorCacheTable ancestorCache = $AncestorCacheTable(this);
   late final $SyncRemoteMetaTable syncRemoteMeta = $SyncRemoteMetaTable(this);
+  late final Index uxSalaryWithdrawalsExpenseUuidActive = Index(
+    'ux_salary_withdrawals_expense_uuid_active',
+    'CREATE UNIQUE INDEX ux_salary_withdrawals_expense_uuid_active ON salary_withdrawals (expense_uuid) WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != \'\' AND deleted_at IS NULL',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -43775,6 +45507,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     bookings,
     bookingNotes,
     shiftNotes,
+    blacklist,
     employees,
     expenses,
     cashTransactions,
@@ -43804,6 +45537,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     inventoryTransactions,
     ancestorCache,
     syncRemoteMeta,
+    uxSalaryWithdrawalsExpenseUuidActive,
   ];
 }
 
@@ -47678,6 +49412,623 @@ typedef $$ShiftNotesTableProcessedTableManager =
       ShiftNote,
       PrefetchHooks Function()
     >;
+typedef $$BlacklistTableCreateCompanionBuilder =
+    BlacklistCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<int> syncTimestamp,
+      Value<String?> idempotencyKey,
+      Value<int> id,
+      required String name,
+      Value<String?> nationality,
+      Value<String?> nationalId,
+      Value<String?> phone,
+      Value<String?> reason,
+      Value<String?> notes,
+      Value<String> reportedBy,
+      Value<bool> active,
+    });
+typedef $$BlacklistTableUpdateCompanionBuilder =
+    BlacklistCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<int> syncTimestamp,
+      Value<String?> idempotencyKey,
+      Value<int> id,
+      Value<String> name,
+      Value<String?> nationality,
+      Value<String?> nationalId,
+      Value<String?> phone,
+      Value<String?> reason,
+      Value<String?> notes,
+      Value<String> reportedBy,
+      Value<bool> active,
+    });
+
+class $$BlacklistTableFilterComposer
+    extends Composer<_$AppDatabase, $BlacklistTable> {
+  $$BlacklistTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nationality => $composableBuilder(
+    column: $table.nationality,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nationalId => $composableBuilder(
+    column: $table.nationalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportedBy => $composableBuilder(
+    column: $table.reportedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BlacklistTableOrderingComposer
+    extends Composer<_$AppDatabase, $BlacklistTable> {
+  $$BlacklistTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nationality => $composableBuilder(
+    column: $table.nationality,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nationalId => $composableBuilder(
+    column: $table.nationalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phone => $composableBuilder(
+    column: $table.phone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportedBy => $composableBuilder(
+    column: $table.reportedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BlacklistTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BlacklistTable> {
+  $$BlacklistTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get nationality => $composableBuilder(
+    column: $table.nationality,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nationalId => $composableBuilder(
+    column: $table.nationalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get phone =>
+      $composableBuilder(column: $table.phone, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get reportedBy => $composableBuilder(
+    column: $table.reportedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+}
+
+class $$BlacklistTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BlacklistTable,
+          BlacklistData,
+          $$BlacklistTableFilterComposer,
+          $$BlacklistTableOrderingComposer,
+          $$BlacklistTableAnnotationComposer,
+          $$BlacklistTableCreateCompanionBuilder,
+          $$BlacklistTableUpdateCompanionBuilder,
+          (
+            BlacklistData,
+            BaseReferences<_$AppDatabase, $BlacklistTable, BlacklistData>,
+          ),
+          BlacklistData,
+          PrefetchHooks Function()
+        > {
+  $$BlacklistTableTableManager(_$AppDatabase db, $BlacklistTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BlacklistTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BlacklistTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BlacklistTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> nationality = const Value.absent(),
+                Value<String?> nationalId = const Value.absent(),
+                Value<String?> phone = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> reportedBy = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+              }) => BlacklistCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
+                idempotencyKey: idempotencyKey,
+                id: id,
+                name: name,
+                nationality: nationality,
+                nationalId: nationalId,
+                phone: phone,
+                reason: reason,
+                notes: notes,
+                reportedBy: reportedBy,
+                active: active,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<String?> nationality = const Value.absent(),
+                Value<String?> nationalId = const Value.absent(),
+                Value<String?> phone = const Value.absent(),
+                Value<String?> reason = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<String> reportedBy = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+              }) => BlacklistCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
+                idempotencyKey: idempotencyKey,
+                id: id,
+                name: name,
+                nationality: nationality,
+                nationalId: nationalId,
+                phone: phone,
+                reason: reason,
+                notes: notes,
+                reportedBy: reportedBy,
+                active: active,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BlacklistTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BlacklistTable,
+      BlacklistData,
+      $$BlacklistTableFilterComposer,
+      $$BlacklistTableOrderingComposer,
+      $$BlacklistTableAnnotationComposer,
+      $$BlacklistTableCreateCompanionBuilder,
+      $$BlacklistTableUpdateCompanionBuilder,
+      (
+        BlacklistData,
+        BaseReferences<_$AppDatabase, $BlacklistTable, BlacklistData>,
+      ),
+      BlacklistData,
+      PrefetchHooks Function()
+    >;
 typedef $$EmployeesTableCreateCompanionBuilder =
     EmployeesCompanion Function({
       required String localUuid,
@@ -48656,6 +51007,7 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       Value<String?> cashFlowUuid,
       Value<bool> isAutoGenerated,
       Value<String?> employeeUuid,
+      Value<String?> withdrawalUuid,
     });
 typedef $$ExpensesTableUpdateCompanionBuilder =
     ExpensesCompanion Function({
@@ -48688,6 +51040,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<String?> cashFlowUuid,
       Value<bool> isAutoGenerated,
       Value<String?> employeeUuid,
+      Value<String?> withdrawalUuid,
     });
 
 class $$ExpensesTableFilterComposer
@@ -48841,6 +51194,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get employeeUuid => $composableBuilder(
     column: $table.employeeUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get withdrawalUuid => $composableBuilder(
+    column: $table.withdrawalUuid,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -48998,6 +51356,11 @@ class $$ExpensesTableOrderingComposer
     column: $table.employeeUuid,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get withdrawalUuid => $composableBuilder(
+    column: $table.withdrawalUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpensesTableAnnotationComposer
@@ -49129,6 +51492,11 @@ class $$ExpensesTableAnnotationComposer
     column: $table.employeeUuid,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get withdrawalUuid => $composableBuilder(
+    column: $table.withdrawalUuid,
+    builder: (column) => column,
+  );
 }
 
 class $$ExpensesTableTableManager
@@ -49188,6 +51556,7 @@ class $$ExpensesTableTableManager
                 Value<String?> cashFlowUuid = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
                 Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> withdrawalUuid = const Value.absent(),
               }) => ExpensesCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -49218,6 +51587,7 @@ class $$ExpensesTableTableManager
                 cashFlowUuid: cashFlowUuid,
                 isAutoGenerated: isAutoGenerated,
                 employeeUuid: employeeUuid,
+                withdrawalUuid: withdrawalUuid,
               ),
           createCompanionCallback:
               ({
@@ -49250,6 +51620,7 @@ class $$ExpensesTableTableManager
                 Value<String?> cashFlowUuid = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
                 Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> withdrawalUuid = const Value.absent(),
               }) => ExpensesCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -49280,6 +51651,7 @@ class $$ExpensesTableTableManager
                 cashFlowUuid: cashFlowUuid,
                 isAutoGenerated: isAutoGenerated,
                 employeeUuid: employeeUuid,
+                withdrawalUuid: withdrawalUuid,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -50083,6 +52455,8 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
       Value<String?> receivedByCloudId,
+      Value<String?> deletedByDevice,
+      Value<String?> deletedByName,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
     PaymentsCompanion Function({
@@ -50131,6 +52505,8 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
       Value<String?> receivedByCloudId,
+      Value<String?> deletedByDevice,
+      Value<String?> deletedByName,
     });
 
 final class $$PaymentsTableReferences
@@ -50398,6 +52774,16 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<String> get receivedByCloudId => $composableBuilder(
     column: $table.receivedByCloudId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedByDevice => $composableBuilder(
+    column: $table.deletedByDevice,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedByName => $composableBuilder(
+    column: $table.deletedByName,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -50672,6 +53058,16 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deletedByDevice => $composableBuilder(
+    column: $table.deletedByDevice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedByName => $composableBuilder(
+    column: $table.deletedByName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -50915,6 +53311,16 @@ class $$PaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deletedByDevice => $composableBuilder(
+    column: $table.deletedByDevice,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedByName => $composableBuilder(
+    column: $table.deletedByName,
+    builder: (column) => column,
+  );
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -51038,6 +53444,8 @@ class $$PaymentsTableTableManager
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
                 Value<String?> receivedByCloudId = const Value.absent(),
+                Value<String?> deletedByDevice = const Value.absent(),
+                Value<String?> deletedByName = const Value.absent(),
               }) => PaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -51084,6 +53492,8 @@ class $$PaymentsTableTableManager
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
                 receivedByCloudId: receivedByCloudId,
+                deletedByDevice: deletedByDevice,
+                deletedByName: deletedByName,
               ),
           createCompanionCallback:
               ({
@@ -51132,6 +53542,8 @@ class $$PaymentsTableTableManager
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
                 Value<String?> receivedByCloudId = const Value.absent(),
+                Value<String?> deletedByDevice = const Value.absent(),
+                Value<String?> deletedByName = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -51178,6 +53590,8 @@ class $$PaymentsTableTableManager
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
                 receivedByCloudId: receivedByCloudId,
+                deletedByDevice: deletedByDevice,
+                deletedByName: deletedByName,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -55906,6 +58320,7 @@ typedef $$SalaryPaymentsTableCreateCompanionBuilder =
       Value<int> id,
       required int cycleId,
       Value<String?> employeeUuid,
+      Value<String?> cycleUuid,
       Value<int> amount,
       Value<String?> hotelDayKey,
       required String paymentDateIso,
@@ -55934,6 +58349,7 @@ typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
       Value<int> id,
       Value<int> cycleId,
       Value<String?> employeeUuid,
+      Value<String?> cycleUuid,
       Value<int> amount,
       Value<String?> hotelDayKey,
       Value<String> paymentDateIso,
@@ -56068,6 +58484,11 @@ class $$SalaryPaymentsTableFilterComposer
 
   ColumnFilters<String> get employeeUuid => $composableBuilder(
     column: $table.employeeUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cycleUuid => $composableBuilder(
+    column: $table.cycleUuid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -56224,6 +58645,11 @@ class $$SalaryPaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get cycleUuid => $composableBuilder(
+    column: $table.cycleUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get amount => $composableBuilder(
     column: $table.amount,
     builder: (column) => ColumnOrderings(column),
@@ -56359,6 +58785,9 @@ class $$SalaryPaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get cycleUuid =>
+      $composableBuilder(column: $table.cycleUuid, builder: (column) => column);
+
   GeneratedColumn<int> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
 
@@ -56454,6 +58883,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<int> cycleId = const Value.absent(),
                 Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> cycleUuid = const Value.absent(),
                 Value<int> amount = const Value.absent(),
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String> paymentDateIso = const Value.absent(),
@@ -56480,6 +58910,7 @@ class $$SalaryPaymentsTableTableManager
                 id: id,
                 cycleId: cycleId,
                 employeeUuid: employeeUuid,
+                cycleUuid: cycleUuid,
                 amount: amount,
                 hotelDayKey: hotelDayKey,
                 paymentDateIso: paymentDateIso,
@@ -56508,6 +58939,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<int> id = const Value.absent(),
                 required int cycleId,
                 Value<String?> employeeUuid = const Value.absent(),
+                Value<String?> cycleUuid = const Value.absent(),
                 Value<int> amount = const Value.absent(),
                 Value<String?> hotelDayKey = const Value.absent(),
                 required String paymentDateIso,
@@ -56534,6 +58966,7 @@ class $$SalaryPaymentsTableTableManager
                 id: id,
                 cycleId: cycleId,
                 employeeUuid: employeeUuid,
+                cycleUuid: cycleUuid,
                 amount: amount,
                 hotelDayKey: hotelDayKey,
                 paymentDateIso: paymentDateIso,
@@ -62707,6 +65140,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String?> withdrawalType,
       Value<String?> description,
       Value<int?> expenseId,
+      Value<String?> expenseUuid,
       Value<String?> recorderName,
     });
 typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
@@ -62738,6 +65172,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String?> withdrawalType,
       Value<String?> description,
       Value<int?> expenseId,
+      Value<String?> expenseUuid,
       Value<String?> recorderName,
     });
 
@@ -62911,6 +65346,11 @@ class $$SalaryWithdrawalsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get expenseUuid => $composableBuilder(
+    column: $table.expenseUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get recorderName => $composableBuilder(
     column: $table.recorderName,
     builder: (column) => ColumnFilters(column),
@@ -63079,6 +65519,11 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get expenseUuid => $composableBuilder(
+    column: $table.expenseUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get recorderName => $composableBuilder(
     column: $table.recorderName,
     builder: (column) => ColumnOrderings(column),
@@ -63223,6 +65668,11 @@ class $$SalaryWithdrawalsTableAnnotationComposer
   GeneratedColumn<int> get expenseId =>
       $composableBuilder(column: $table.expenseId, builder: (column) => column);
 
+  GeneratedColumn<String> get expenseUuid => $composableBuilder(
+    column: $table.expenseUuid,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get recorderName => $composableBuilder(
     column: $table.recorderName,
     builder: (column) => column,
@@ -63312,6 +65762,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<int?> expenseId = const Value.absent(),
+                Value<String?> expenseUuid = const Value.absent(),
                 Value<String?> recorderName = const Value.absent(),
               }) => SalaryWithdrawalsCompanion(
                 localUuid: localUuid,
@@ -63341,6 +65792,7 @@ class $$SalaryWithdrawalsTableTableManager
                 withdrawalType: withdrawalType,
                 description: description,
                 expenseId: expenseId,
+                expenseUuid: expenseUuid,
                 recorderName: recorderName,
               ),
           createCompanionCallback:
@@ -63372,6 +65824,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<int?> expenseId = const Value.absent(),
+                Value<String?> expenseUuid = const Value.absent(),
                 Value<String?> recorderName = const Value.absent(),
               }) => SalaryWithdrawalsCompanion.insert(
                 localUuid: localUuid,
@@ -63401,6 +65854,7 @@ class $$SalaryWithdrawalsTableTableManager
                 withdrawalType: withdrawalType,
                 description: description,
                 expenseId: expenseId,
+                expenseUuid: expenseUuid,
                 recorderName: recorderName,
               ),
           withReferenceMapper: (p0) => p0
@@ -66183,6 +68637,8 @@ class $AppDatabaseManager {
       $$BookingNotesTableTableManager(_db, _db.bookingNotes);
   $$ShiftNotesTableTableManager get shiftNotes =>
       $$ShiftNotesTableTableManager(_db, _db.shiftNotes);
+  $$BlacklistTableTableManager get blacklist =>
+      $$BlacklistTableTableManager(_db, _db.blacklist);
   $$EmployeesTableTableManager get employees =>
       $$EmployeesTableTableManager(_db, _db.employees);
   $$ExpensesTableTableManager get expenses =>

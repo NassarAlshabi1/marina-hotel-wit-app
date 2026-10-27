@@ -83,7 +83,6 @@ const SNAKE_TO_CAMEL = {
   server_booking_id: "serverBookingId",
   server_payment_id: "serverPaymentId",
   booking_local_id: "bookingLocalId",
-  server_booking_id: "serverBookingId",
   payment_date: "paymentDate",
   payment_method: "paymentMethod",
   revenue_type: "revenueType",

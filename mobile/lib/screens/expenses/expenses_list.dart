@@ -129,7 +129,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         ],
         body: employeesAsync.when(
           data: (employees) {
-            final employeeNames = {
+            final employeeNamesByUuid = {
+              for (final emp in employees)
+                emp.localUuid.trim().toLowerCase(): emp.name,
+            };
+            final employeeNamesById = {
               for (final emp in employees) emp.id: emp.name,
             };
             return StreamBuilder<List<Expense>>(
@@ -203,7 +207,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             return RepaintBoundary(
                               child: _buildExpenseCard(
                                 expense,
-                                employeeNames[expense.relatedId],
+                                _employeeNameForExpense(
+                                  expense,
+                                  employeeNamesByUuid,
+                                  employeeNamesById,
+                                ),
                                 employees,
                               ),
                             );
@@ -687,6 +695,21 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     );
   }
 
+  String? _employeeNameForExpense(
+    Expense expense,
+    Map<String, String> byUuid,
+    Map<int, String> byId,
+  ) {
+    final uuid = expense.employeeUuid?.trim().toLowerCase();
+    if (uuid != null && uuid.isNotEmpty) {
+      final name = byUuid[uuid];
+      if (name != null) return name;
+    }
+    // Legacy-only rows may not have employee_uuid. This fallback is local-only
+    // and must never be used as a sync identity.
+    return byId[expense.relatedId];
+  }
+
   Widget _buildExpenseCard(
     Expense expense,
     String? employeeName,
@@ -859,7 +882,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
       // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
       // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
-      await salaryRepo.deleteByExpenseId(expense.id);
+      // ✅ (المرحلة 0 — P0.3) تمرير موظف المصروف كي لا يُحذف مسحوب جهاز/موظف
+      // آخر تصادم expense_id/reason رقمياً مع هذا المصروف (R3).
+      await salaryRepo.deleteByExpenseId(
+        expense.id,
+        employeeId: expense.relatedId,
+        employeeUuid: expense.employeeUuid,
+      );
       await repo.delete(expense.id);
 
       markDataChanged();
@@ -978,7 +1007,25 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         }
         return true;
       }).toList();
-      int? selectedEmployeeId = existing?.relatedId;
+      String? selectedEmployeeUuid = existing?.employeeUuid
+          ?.trim()
+          .toLowerCase();
+      if ((selectedEmployeeUuid == null || selectedEmployeeUuid.isEmpty) &&
+          existing?.relatedId != null) {
+        selectedEmployeeUuid = allEmployees
+            .where((e) => e.id == existing!.relatedId)
+            .map((e) => e.localUuid.trim().toLowerCase())
+            .firstOrNull;
+      }
+      int? selectedEmployeeId = selectedEmployeeUuid == null
+          ? null
+          : availableEmployees
+                .where(
+                  (e) =>
+                      e.localUuid.trim().toLowerCase() == selectedEmployeeUuid,
+                )
+                .map((e) => e.id)
+                .firstOrNull;
 
       final ok = await showDialog<bool>(
         context: context,
@@ -1020,8 +1067,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                           selectedType = value;
                           if (selectedType == _salaryType) {
                             if (availableEmployees.isNotEmpty) {
-                              selectedEmployeeId ??=
-                                  availableEmployees.first.id;
+                              selectedEmployeeUuid ??= availableEmployees
+                                  .first
+                                  .localUuid
+                                  .trim()
+                                  .toLowerCase();
+                              selectedEmployeeId = availableEmployees.first.id;
                             }
                           } else {
                             selectedEmployeeId = null;
@@ -1035,16 +1086,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                       if (availableEmployees.isEmpty)
                         const Text('لا يوجد موظفين مسجلين حالياً.'),
                       if (availableEmployees.isNotEmpty) ...[
-                        DropdownButtonFormField<int>(
-                          initialValue: selectedEmployeeId,
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedEmployeeUuid,
                           style: dropdownTextStyle,
                           decoration: const InputDecoration(
                             labelText: 'اسم الموظف',
                           ),
                           items: availableEmployees
                               .map(
-                                (employee) => DropdownMenuItem<int>(
-                                  value: employee.id,
+                                (employee) => DropdownMenuItem<String>(
+                                  value: employee.localUuid
+                                      .trim()
+                                      .toLowerCase(),
                                   child: Text(
                                     employee.name,
                                     style: dropdownTextStyle,
@@ -1052,8 +1105,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                                 ),
                               )
                               .toList(),
-                          onChanged: (value) =>
-                              setState(() => selectedEmployeeId = value),
+                          onChanged: (value) => setState(() {
+                            selectedEmployeeUuid = value;
+                            selectedEmployeeId = availableEmployees
+                                .where(
+                                  (e) =>
+                                      e.localUuid.trim().toLowerCase() == value,
+                                )
+                                .map((e) => e.id)
+                                .firstOrNull;
+                          }),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
@@ -1195,9 +1256,22 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           // ملاحظة: نُبقي سلوك firstWhere الأصلي (StateError عند عدم الإيجاد) لأن
           // الشاشة تتحقق مسبقًا من وجود موظفين ومن اختيار موظف قبل الحفظ.
           final Employee? resolvedEmployee =
-              (isSalaryExpense && selectedEmployeeId != null)
-              ? availableEmployees.firstWhere((e) => e.id == selectedEmployeeId)
+              isSalaryExpense && selectedEmployeeUuid != null
+              ? availableEmployees
+                    .where(
+                      (e) =>
+                          e.localUuid.trim().toLowerCase() ==
+                          selectedEmployeeUuid,
+                    )
+                    .firstOrNull
               : null;
+          if (isSalaryExpense && resolvedEmployee == null) {
+            throw StateError(
+              'تعذر حل الموظف بواسطة employeeUuid؛ أُوقف الحفظ لمنع ربط '
+              'المصروف بموظف خاطئ.',
+            );
+          }
+          selectedEmployeeId = resolvedEmployee?.id;
 
           final newId = await repo.create(
             expenseType: savedType,
@@ -1237,9 +1311,22 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
           // ✅ التوصية 1: حل الموظف مرة واحدة لاستخدام localUuid في تعديل المصروف.
           final Employee? resolvedEmployee =
-              (isSalaryExpense && selectedEmployeeId != null)
-              ? availableEmployees.firstWhere((e) => e.id == selectedEmployeeId)
+              isSalaryExpense && selectedEmployeeUuid != null
+              ? availableEmployees
+                    .where(
+                      (e) =>
+                          e.localUuid.trim().toLowerCase() ==
+                          selectedEmployeeUuid,
+                    )
+                    .firstOrNull
               : null;
+          if (isSalaryExpense && resolvedEmployee == null) {
+            throw StateError(
+              'تعذر حل الموظف بواسطة employeeUuid؛ أُوقف الحفظ لمنع ربط '
+              'المصروف بموظف خاطئ.',
+            );
+          }
+          selectedEmployeeId = resolvedEmployee?.id;
 
           await repo.update(
             existing.id,
@@ -1284,9 +1371,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
               hotelDayKey: updatedHotelDayKey,
               // ✅ المبلغ القديم الموقّع — للتبنّي بدل التكرار
               previousAmount: previousSignedAmount,
+              // ✅ (المرحلة 0 — P0.3) موظف المصروف السابق — كي تجد المرآة
+              // عند إعادة تعيين الموظف ولا تُنشأ مرآة ثانية مكررة.
+              previousEmployeeId: existing.relatedId,
             );
           } else {
-            await salaryRepo.deleteByExpenseId(existing.id);
+            // ✅ (المرحلة 0 — P0.3) تمرير موظف المصروف السابق (قبل التحويل
+            // من راتب لغير راتب — existing يحمل القيم قبل update) كي لا تُمسَّ
+            // مرآة أجنبية تصادم الرقم.
+            await salaryRepo.deleteByExpenseId(
+              existing.id,
+              employeeId: existing.relatedId,
+              employeeUuid: existing.employeeUuid,
+            );
           }
         }
 

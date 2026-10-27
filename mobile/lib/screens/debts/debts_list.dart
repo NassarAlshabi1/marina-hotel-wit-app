@@ -36,6 +36,18 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   Timer? _debounceTimer;
   bool _isSendingWhatsApp = false;
 
+  /// ✅ طرق الدفع المتاحة عند تسجيل تسديد دين كدفعة حقيقية في جدول
+  /// payments — نفس القيم النصية المستخدمة في كل شاشات الدفع الأخرى
+  /// بالتطبيق (booking_payment_screen/payments_main_screen) لضمان توافق
+  /// التقارير وفرز طريقة الدفع.
+  static const List<String> _kDebtPaymentMethods = [
+    'نقدي',
+    'بطاقة',
+    'تحويل',
+    'شيك',
+    'تقسيط',
+  ];
+
   /// تنظيف وتنسيق رقم الهاتف
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
@@ -796,22 +808,71 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   Future<void> _markAsSettled(Debt debt) async {
+    // ✅ المبلغ الذي يُسدَّد الآن فعلياً هو المتبقي فقط (وليس الإجمالي) —
+    // أي دفعات جزئية سابقة سُجِّلت بالفعل كدفعات مستقلة عبر
+    // [_showPartialPaymentDialog] فلا نكرر عدّها هنا.
+    final amountNow = (debt.totalAmount - debt.paidAmount)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    var selectedMethod = _kDebtPaymentMethods.first;
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد السداد'),
-        content: Text('هل تريد تسجيل دين "${debt.guestName}" كمسدد؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop<bool>(context, false),
-            child: const Text('إلغاء'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('تأكيد السداد'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('هل تريد تسجيل دين "${debt.guestName}" كمسدد؟'),
+              if (amountNow > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'المبلغ المسدَّد الآن: '
+                  '${NumberFormat('#,##0', 'en_US').format(amountNow)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text('طريقة الدفع:', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedMethod,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                  ),
+                  items: _kDebtPaymentMethods
+                      .map(
+                        (m) =>
+                            DropdownMenuItem<String>(value: m, child: Text(m)),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedMethod = value);
+                    }
+                  },
+                ),
+              ],
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop<bool>(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('تأكيد السداد'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop<bool>(context, false),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop<bool>(context, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('تأكيد السداد'),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -825,6 +886,42 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           remainingAmount: 0,
           paymentDate: Time.nowDateString(),
         );
+
+        // ✅ إصلاح: تسجيل المبلغ المسدَّد كدفعة حقيقية في جدول payments
+        // حتى يظهر في مدفوعات اليوم الفندقي وفي الداشبورد (نفس الاستعلام
+        // الموحّد الذي تستخدمه كل الدفعات الأخرى) — بدل أن يبقى تحديثاً
+        // معزولاً داخل جدول debts فقط لا يراه أي تقرير أو شاشة أخرى.
+        if (amountNow > 0) {
+          try {
+            await ref
+                .read(paymentsRepoProvider)
+                .create(
+                  amount: amountNow,
+                  paymentDate: Time.nowIso(),
+                  paymentMethod: selectedMethod,
+                  revenueType: 'other',
+                  bookingLocalId: debt.bookingLocalId,
+                  notes: 'تسديد دين — ${debt.guestName}',
+                  linkedDebtUuid: debt.localUuid,
+                );
+          } catch (paymentError) {
+            // ✅ لا نفشل العملية كلها — الدين تم تسديده فعلاً في جدول
+            // debts، لكن ننبّه المستخدم بوضوح لأن المبلغ لن يظهر في
+            // مدفوعات اليوم الفندقي/الداشبورد حتى تُعاد المحاولة.
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'تم تسديد الدين، لكن فشل تسجيله كدفعة في اليوم '
+                    'الفندقي: $paymentError',
+                  ),
+                  backgroundColor: Colors.orange.shade900,
+                ),
+              );
+            }
+          }
+        }
+
         markDataChanged();
 
         if (mounted) {
@@ -990,6 +1087,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     );
     final noteController = TextEditingController();
     final fmt = NumberFormat('#,##0', 'en_US');
+    var selectedMethod = _kDebtPaymentMethods.first;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1049,6 +1147,39 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                         ),
                         prefixIcon: Icon(Icons.attach_money, size: 18),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'طريقة الدفع:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedMethod,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                      items: _kDebtPaymentMethods
+                          .map(
+                            (m) => DropdownMenuItem<String>(
+                              value: m,
+                              child: Text(m),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedMethod = value);
+                        }
+                      },
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -1180,6 +1311,60 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         paymentDate: DateFormat('yyyy-MM-dd').format(selectedDate),
         note: newNote,
       );
+
+      // ✅ إصلاح: تسجيل الدفعة الجزئية كدفعة حقيقية في جدول payments حتى
+      // تظهر في مدفوعات اليوم الفندقي وفي الداشبورد — بدل أن تبقى محصورة
+      // في سجل JSON داخل حقل note لا يراه أي تقرير أو شاشة أخرى.
+      //
+      // ✅ منتصف الليل الآمن: showDatePicker يُرجع تاريخاً بوقت 00:00:00
+      // بالضبط. حدود اليوم الفندقي عند 14:01 — فمنتصف الليل يقع فعلياً
+      // ضمن اليوم الفندقي السابق. لتجنّب هذا الالتباس عند تغيير التاريخ
+      // يدوياً، نثبّت الوقت على 15:00 (بعد الحد بساعة) بدل منتصف الليل؛
+      // التاريخ الافتراضي (DateTime.now() بلا تعديل) يحتفظ بوقته الحقيقي.
+      final isMidnight =
+          selectedDate.hour == 0 &&
+          selectedDate.minute == 0 &&
+          selectedDate.second == 0;
+      final paymentIso =
+          (isMidnight
+                  ? DateTime(
+                      selectedDate.year,
+                      selectedDate.month,
+                      selectedDate.day,
+                      15,
+                    )
+                  : selectedDate)
+              .toIso8601String();
+      try {
+        await ref
+            .read(paymentsRepoProvider)
+            .create(
+              amount: amount,
+              paymentDate: paymentIso,
+              paymentMethod: selectedMethod,
+              revenueType: 'other',
+              bookingLocalId: debt.bookingLocalId,
+              notes: noteController.text.trim().isEmpty
+                  ? 'سداد جزئي من دين — ${debt.guestName}'
+                  : 'سداد جزئي من دين — ${debt.guestName}: ${noteController.text.trim()}',
+              linkedDebtUuid: debt.localUuid,
+            );
+      } catch (paymentError) {
+        // ✅ لا نفشل العملية كلها — الدفعة الجزئية سُجِّلت فعلاً في جدول
+        // debts، لكن ننبّه المستخدم بوضوح لأن المبلغ لن يظهر في مدفوعات
+        // اليوم الفندقي/الداشبورد حتى تُعاد المحاولة.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'تم تسجيل الدفعة في الدين، لكن فشل تسجيلها في اليوم '
+                'الفندقي: $paymentError',
+              ),
+              backgroundColor: Colors.orange.shade900,
+            ),
+          );
+        }
+      }
 
       markDataChanged();
 

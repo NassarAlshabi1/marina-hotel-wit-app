@@ -50,7 +50,12 @@ class _ActiveBookingsReminderScreenState
     }
     try {
       final db = ref.read(databaseProvider);
-      await BookingDerivedFieldsService(db).refreshAllActiveBookings();
+      // هذا مسار قراءة/عرض فقط؛ لا يجب اعتبار إعادة حساب الحقول المشتقة
+      // تعديلاً من المستخدم أو إضافته إلى Outbox للمزامنة.
+      await BookingDerivedFieldsService(db).refreshAllActiveBookings(
+        enqueueOutbox: false,
+        promoteProvisional: false,
+      );
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }
@@ -252,9 +257,11 @@ class _ActiveBookingsReminderScreenState
             final scaffoldMessenger = ScaffoldMessenger.of(context);
             try {
               final db = ref.read(databaseProvider);
-              final refreshedCount = await BookingDerivedFieldsService(
-                db,
-              ).refreshAllActiveBookings();
+              final refreshedCount = await BookingDerivedFieldsService(db)
+                  .refreshAllActiveBookings(
+                    enqueueOutbox: false,
+                    promoteProvisional: false,
+                  );
               if (mounted) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(

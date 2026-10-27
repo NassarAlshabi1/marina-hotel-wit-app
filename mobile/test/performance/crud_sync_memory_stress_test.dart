@@ -21,6 +21,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
+import 'package:marina_hotel_mobile/services/auth_local_store.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
@@ -51,15 +52,24 @@ void main() {
     final paymentsRepository = PaymentsRepository(db);
     final outbox = OutboxDao(db, adapters);
 
-    // ✅ PaymentsRepository.create يتطلب جلسة مستخدم نشطة (guard حماية
-    // في الإنتاج — commit 5c267bf2). الاختبار يبدأ جلسة محلية كما تفعل
-    // بقية الاختبارات (payment_session_receipts_test.dart).
+    // إنشاء جلسة مدير كاملة كما يفعل مسار تسجيل الدخول؛ إنشاء payment session
+    // وحده لا يمنح صلاحية void التي تتحقق منها PaymentsRepository.delete.
+    await AuthLocalStore().saveCurrentUser({
+      'id': 1,
+      'username': 'stress-admin',
+      'full_name': 'Stress Tester',
+      'user_type': 'admin',
+      'permissions': const <String>['all'],
+    });
     PaymentSessionContext.start(
       userId: 1,
       userName: 'Stress Tester',
       sessionUuid: 'stress-session-1',
     );
-    addTearDown(PaymentSessionContext.clear);
+    addTearDown(() async {
+      PaymentSessionContext.clear();
+      await AuthLocalStore().clearSession();
+    });
 
     AppwriteSyncManager? syncManager;
     if (_runRemoteSync) {

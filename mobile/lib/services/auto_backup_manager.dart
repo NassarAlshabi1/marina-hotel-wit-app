@@ -683,7 +683,12 @@ class AutoBackupManager {
         return;
       }
       final service = BookingDerivedFieldsService(_database!);
-      final count = await service.refreshAllActiveBookings();
+      // التجديد التلقائي يعيد بناء حقول مشتقة محلياً فقط؛ ليس تعديلاً
+      // مباشراً من المستخدم ولا ينبغي أن ينشئ عمليات مزامنة في Outbox.
+      final count = await service.refreshAllActiveBookings(
+        enqueueOutbox: false,
+        promoteProvisional: false,
+      );
       _lastRenewedHotelDay = currentHotelDay;
       if (count > 0) {
         dlog(
@@ -712,9 +717,11 @@ class AutoBackupManager {
     dlog(() => '🔧 المزامنة التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
   }
 
+  /// 🚫 قرار منتج (2026-10-06): لا مزامنة تفاضلية عبر Google Drive —
+  /// Drive للنسخ الاحتياطي الكامل والاستعادة فقط. تُعيد دائماً false كي
+  /// تسلك جدولة النسخ مسار النسخة الكاملة حصراً.
   Future<bool> isGoogleDriveDeltaSyncEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_googleDriveDeltaSyncEnabledKey) ?? false;
+    return false;
   }
 
   Future<void> setGoogleDriveDeltaSyncEnabled(bool enabled) async {

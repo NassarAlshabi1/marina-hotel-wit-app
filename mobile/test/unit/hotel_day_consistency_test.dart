@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/hotel_time_engine.dart'
+    as services_engine;
 import 'package:marina_hotel_mobile/utils/hotel_time_engine.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
@@ -32,6 +34,25 @@ void main() {
       );
       expect(
         Time.nightsWithCutoff(checkin, checkout: DateTime(2026, 8, 13, 14, 1)),
+        2,
+      );
+    });
+
+    test('services import uses the canonical 14:01 night calculation', () {
+      final checkin = DateTime(2026, 8, 12, 14, 1);
+
+      expect(
+        services_engine.HotelTimeEngine.calculateDays(
+          checkin,
+          checkOut: DateTime(2026, 8, 13, 14, 0, 59),
+        ),
+        1,
+      );
+      expect(
+        services_engine.HotelTimeEngine.calculateDays(
+          checkin,
+          checkOut: DateTime(2026, 8, 13, 14, 1),
+        ),
         2,
       );
     });

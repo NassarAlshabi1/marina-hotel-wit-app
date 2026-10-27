@@ -8,13 +8,21 @@ import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 
 /// اختبار معالجة خطأ 404 في عملية الحذف
-/// ملاحظة: هذه اختبارات تكاملية تحتاج اتصال حقيقي بـ Appwrite
+/// ملاحظة: هذه اختبارات تكاملية تحتاج اتصال حقيقي بـ Appwrite.
+///
+/// ✅ (2026-10-04) الإصلاح: كانت المجموعة تُستثنى في CI فقط (isCI) لكنها
+/// كانت تنفَّذ محلياً/في بيئات بلا نفاذ إلى Appwrite فتفشل بمهلات
+/// 30ث × 3 محاولات × 5 اختبارات. أصبحت **opt-in**: تُشغَّل صراحةً بـ
+/// `RUN_APPWRITE_INTEGRATION=1 flutter test test/delete_404_handling_test.dart`
+/// — نفس سلوك التخطي في CI محفوظ.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final isCI =
       Platform.environment.containsKey('CI') ||
       Platform.environment.containsKey('GITHUB_ACTIONS');
+  final integrationEnabled =
+      Platform.environment['RUN_APPWRITE_INTEGRATION'] == '1';
 
   group(
     'Delete 404 Handling Tests',
@@ -92,7 +100,10 @@ void main() {
         timeout: const Timeout(Duration(seconds: 60)),
       );
     },
-    skip: isCI ? 'اختبارات تكاملية - تحتاج اتصال حقيقي بـ Appwrite' : null,
+    skip: (isCI || !integrationEnabled)
+        ? 'اختبارات تكاملية — تحتاج Appwrite حقيقياً '
+              '(شغّلها بـ RUN_APPWRITE_INTEGRATION=1)'
+        : null,
   );
 
   group('Sync Outbox with 404 Handling', () {

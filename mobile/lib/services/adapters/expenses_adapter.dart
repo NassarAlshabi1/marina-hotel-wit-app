@@ -122,13 +122,18 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       serverId: _vInt(json, 'serverId', src),
       expenseType: _vStr(json, 'expenseType', src, fallback: ''),
       // ✅ إصلاح: لمصروفات الرواتب، استخدم relatedId المحلول عبر UUID
-      // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق)
+      // لتوافق الأجهزة المختلفة (relatedId على جهاز آخر قد لا يتطابق).
+      // ⚠️ (المرحلة 0 — P0.4 / R8) عند فشل حل الـ UUID نُبقيه null صراحةً
+      // بدل الرجوع لـ relatedId البعيد الخام: الرقم الخام هو autoincrement
+      // جهاز المصدر ولا معنى له هنا — يربط المصروف بموظف آخر يحمل نفس
+      // الرقم (ويُحسب راتبه عليه). null يبقى قابلاً لإعادة الربط لاحقاً
+      // عبر employeeUuid (relink / قاعدة 6.1). أنواع غير الرواتب
+      // (حجز/روابط أخرى) تبقى كما هي: relatedId معاينه محلية فقط.
       relatedId:
-          (PayloadMapper.isSalaryExpenseType(
-                _asString(json, 'expenseType', src) ?? '',
-              ) &&
-              refs.employeeRelatedId != null)
-          ? d.Value(refs.employeeRelatedId)
+          PayloadMapper.isSalaryExpenseType(
+            _asString(json, 'expenseType', src) ?? '',
+          )
+          ? d.Value<int?>(refs.employeeRelatedId)
           : _vInt(json, 'relatedId', src),
       description: _vStr(json, 'description', src, fallback: ''),
       amount: _vDouble(json, 'amount', src),
@@ -172,7 +177,15 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
         src,
         altKey: 'idempotency_key',
       ),
-      employeeUuid: _vStr(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      employeeUuid: _vUuid(json, 'employeeUuid', src, altKey: 'employee_uuid'),
+      // ✅ (migration 68) uuid سحبة المرآة — الرابط العكسي الدائم
+      // (مصروف ← سحبة) الذي ينجو من إعادة ترقيم المعرفات عبر الأجهزة.
+      withdrawalUuid: _vUuid(
+        json,
+        'withdrawalUuid',
+        src,
+        altKey: 'withdrawal_uuid',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -209,6 +222,9 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       'idempotencyKey': model.idempotencyKey,
       'employeeUuid': model.employeeUuid,
+      // ✅ (migration 68) uuid سحبة المرآة — يُرسل دائماً؛ null للسجلات
+      // القديمة قبل الترحيل لا تضر (العمود السحابي optional).
+      'withdrawalUuid': model.withdrawalUuid,
       'deviceId': model.deviceId,
     };
 
@@ -219,6 +235,29 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
 
     return map;
   }
+}
+
+d.Value<String> _vUuid(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  final raw =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null);
+  if (raw == null || raw.trim().isEmpty) return const d.Value.absent();
+  final trimmed = raw.trim();
+  final compact = trimmed.replaceAll('-', '');
+  if (compact.length == 32 && RegExp(r'^[0-9a-fA-F]+$').hasMatch(compact)) {
+    return d.Value(
+      '${compact.substring(0, 8)}-${compact.substring(8, 12)}-'
+              '${compact.substring(12, 16)}-${compact.substring(16, 20)}-'
+              '${compact.substring(20)}'
+          .toLowerCase(),
+    );
+  }
+  return d.Value(trimmed.toLowerCase());
 }
 
 d.Value<int> _vInt(
