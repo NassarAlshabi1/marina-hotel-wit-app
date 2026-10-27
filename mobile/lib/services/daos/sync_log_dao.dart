@@ -97,7 +97,42 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       ),
     );
 
-    return into(syncLog).insert(entry);
+    // WAL + busy_timeout لا يعالجان SQLITE_BUSY_SNAPSHOT (517): إذا كانت
+    // العملية بدأت من لقطة قراءة قديمة، فلن يستطيع SQLite ترقيتها إلى كتابة
+    // حتى لو انتظر. يحدث ذلك أثناء pull عندما ينتهي تطبيق صفحة من الكتابة
+    // بالتزامن مع تسجيل حالة المزامنة. إعادة تنفيذ INSERT بعد انتهاء اللقطة
+    // هي المعالجة الصحيحة، وتبقى محصورة في سجل تشخيصي غير جوهري.
+    const maxAttempts = 5;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await into(syncLog).insert(entry);
+      } catch (error) {
+        if (!_isRetryableLockError(error) || attempt == maxAttempts) {
+          rethrow;
+        }
+
+        // 80, 160, 320, 640ms: نمنح معاملة السحب فرصة قصيرة للانتهاء
+        // دون إضافة تأخير محسوس في الحالة الطبيعية.
+        await Future<void>.delayed(
+          Duration(milliseconds: 80 * (1 << (attempt - 1))),
+        );
+      }
+    }
+
+    // لا يمكن الوصول إلى هذا السطر، لكنه يرضي محلل التدفق ويضمن عقد الدالة.
+    throw StateError('sync_log insert exhausted retry attempts');
+  }
+
+  /// SQLITE_BUSY (5) و SQLITE_BUSY_SNAPSHOT (517) قابلان لإعادة المحاولة.
+  /// نستخدم النص لأن Drift يمرر SqliteException من sqlite3 عبر طبقات مختلفة
+  /// على Android وiOS وDesktop، وقد يختلف النوع المرئي للمستدعي.
+  static bool _isRetryableLockError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('database is locked') ||
+        message.contains('sqlite_busy') ||
+        message.contains('sq lite busy') ||
+        RegExp(r'sqliteexception\((?:5|517)\)').hasMatch(message) ||
+        RegExp(r'\bcode\s*:?[\s(]*(?:5|517)\b').hasMatch(message);
   }
 
   /// الحصول على سجل المزامنة (مع pagination)
