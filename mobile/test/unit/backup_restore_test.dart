@@ -200,6 +200,10 @@ void main() {
           .into(db.guestInfos)
           .insert(
             GuestInfosCompanion.insert(
+              localUuid: 'backup-legacy-guest',
+              createdAt: 1,
+              updatedAt: 1,
+              lastModified: 1,
               roomNumber: '101',
               guestName: 'سجل قديم',
               nationality: 'يمني',
@@ -210,6 +214,10 @@ void main() {
           .into(db.guestInfos)
           .insert(
             GuestInfosCompanion.insert(
+              localUuid: 'backup-current-guest',
+              createdAt: 2,
+              updatedAt: 2,
+              lastModified: 2,
               roomNumber: '102',
               guestName: 'سجل جديد',
               nationality: 'يمني',
