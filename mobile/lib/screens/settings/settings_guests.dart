@@ -697,8 +697,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     if ((result ?? false) && mounted) {
       ref.invalidate(activeBookingsForGuestsProvider);
       ref.invalidate(bookingsListProvider);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحجز')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحجز')));
     }
   }
 
@@ -1216,8 +1217,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)),
     );
     if ((result ?? false) && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الضيف')));
     }
   }
 

@@ -740,8 +740,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                               ),
                             );
                             ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(snackBar);
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(snackBar);
                             // لا نوقف الحجز — نعرض التحذير فقط
                           }
 

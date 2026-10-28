@@ -842,8 +842,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// مزامنة فورية إلى Appwrite بعد كل عملية CRUD

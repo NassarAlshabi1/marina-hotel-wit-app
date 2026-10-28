@@ -37489,7 +37489,9 @@ class $GuestInfosTable extends GuestInfos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _entryDateMeta = const VerificationMeta('entryDate');
+  static const VerificationMeta _entryDateMeta = const VerificationMeta(
+    'entryDate',
+  );
   @override
   late final GeneratedColumn<String> entryDate = GeneratedColumn<String>(
     'entry_date',
@@ -38276,9 +38278,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ? data.governorate.value
           : this.governorate,
       notes: data.notes.present ? data.notes.value : this.notes,
-      entryDate: data.entryDate.present
-          ? data.entryDate.value
-          : this.entryDate,
+      entryDate: data.entryDate.present ? data.entryDate.value : this.entryDate,
       guestPhone: data.guestPhone.present
           ? data.guestPhone.value
           : this.guestPhone,
