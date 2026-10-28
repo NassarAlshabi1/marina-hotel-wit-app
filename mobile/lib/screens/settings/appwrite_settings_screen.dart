@@ -19,6 +19,7 @@ import '../../services/appwrite_xlsx_export_service.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
+import 'guest_entry_date_backfill_screen.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -884,6 +885,25 @@ class _AppwriteSettingsScreenState
               ],
               actionLabel: 'تصدير إلى Excel',
               onPressed: _exportDatabaseToXlsx,
+            ),
+            const SizedBox(height: 12),
+            _buildDataActionCard(
+              icon: Icons.event_available,
+              color: Colors.deepPurple,
+              title: 'تعبئة entryDate القديمة في Appwrite Cloud',
+              subtitle: 'استكمال entryDate الناقص في سجلات الضيوف القديمة',
+              details: const [
+                r'يُستخدم تاريخ الإنشاء الأصلي $createdAt بصيغة yyyy-mm-dd.',
+                'القيم الموجودة لا تُستبدل والسجلات المحذوفة تُستثنى.',
+              ],
+              actionLabel: 'فتح أداة التعبئة',
+              onPressed: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const GuestEntryDateBackfillScreen(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 12),
             _buildDataActionCard(
