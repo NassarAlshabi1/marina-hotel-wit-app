@@ -34,10 +34,16 @@ void main() {
     );
     final result = await service.uploadData(tables: [source]);
     expect(result.errors, isEmpty);
-    final sql = requests.join('\n');
-    expect(sql, contains('INSERT INTO "employees"'));
-    expect(sql, contains('ON CONFLICT DO NOTHING'));
-    expect(sql, isNot(contains('INSERT OR REPLACE INTO "employees"')));
-    expect(sql, isNot(contains('"id"')));
+    // ✅ عقد الهوية (من e1083c15): عبارات INSERT ترفع local_uuid فقط
+    // بلا id المحلي. أوامر DDL (CREATE TABLE) تنقل مخطط الجدول المحلي
+    // كما هو — وتعريف عمود id جزء مشروع من المخطط، لذلك نحصر
+    // التحقق على عبارات INSERT وحدها دون أوامر إنشاء المخطط.
+    final insertSql = requests
+        .where((s) => s.toUpperCase().contains('INSERT INTO'))
+        .join('\n');
+    expect(insertSql, contains('INSERT INTO "employees"'));
+    expect(insertSql, contains('ON CONFLICT DO NOTHING'));
+    expect(insertSql, isNot(contains('INSERT OR REPLACE INTO "employees"')));
+    expect(insertSql, isNot(contains('"id"')));
   });
 }
