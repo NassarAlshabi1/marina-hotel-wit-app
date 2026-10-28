@@ -788,7 +788,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 color: pdf.PdfColors.white,
                 fontSize: 10,
               ),
-              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
+              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
               cellAlignment: pw.Alignment.center,
               border: pw.TableBorder.all(
                 color: pdf.PdfColors.grey400,
