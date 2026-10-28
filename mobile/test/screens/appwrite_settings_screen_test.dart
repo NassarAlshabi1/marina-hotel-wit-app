@@ -74,7 +74,6 @@ void main() {
         .first;
     for (final label in const [
       'إنشاء النسخة',
-      'فتح أداة التعبئة',
       'بدء الرفع',
       'بدء السحب',
       'إعادة تعيين المزامنة',
@@ -89,7 +88,11 @@ void main() {
     }
 
     expect(find.text('إنشاء النسخة', skipOffstage: false), findsOneWidget);
-    expect(find.text('فتح أداة التعبئة', skipOffstage: false), findsOneWidget);
+    expect(
+      find.text('تعبئة entryDate القديمة في Appwrite Cloud'),
+      findsNothing,
+    );
+    expect(find.text('فتح أداة التعبئة'), findsNothing);
     expect(find.text('بدء الرفع', skipOffstage: false), findsOneWidget);
     expect(find.text('بدء السحب', skipOffstage: false), findsOneWidget);
     expect(
@@ -150,38 +153,6 @@ void main() {
     await tester.tap(find.text('إلغاء'));
     await tester.pump();
     expect(find.text('هل تريد إعادة تعيين حالة المزامنة؟'), findsNothing);
-  });
-
-  testWidgets('تعبئة entryDate تتطلب تأكيد المستخدم قبل التنفيذ', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_buildSettingsScreen());
-    await tester.pump();
-
-    final scrollable = find
-        .descendant(
-          of: find.byType(ListView).first,
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    await tester.scrollUntilVisible(
-      find.text('فتح أداة التعبئة'),
-      400,
-      scrollable: scrollable,
-    );
-    await tester.ensureVisible(find.text('فتح أداة التعبئة'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('فتح أداة التعبئة'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('تعبئة entryDate القديمة'), findsOneWidget);
-    await tester.tap(find.text('بدء تعبئة السجلات'));
-    await tester.pumpAndSettle();
-    expect(find.text('تأكيد تعبئة entryDate'), findsOneWidget);
-
-    await tester.tap(find.text('إلغاء'));
-    await tester.pumpAndSettle();
-    expect(find.text('تأكيد تعبئة entryDate'), findsNothing);
   });
 
   testWidgets('اختبار الاتصال يتحقق من المدخلات قبل أي طلب شبكي', (
