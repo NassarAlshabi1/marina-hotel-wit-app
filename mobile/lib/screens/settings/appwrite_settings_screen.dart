@@ -890,10 +890,12 @@ class _AppwriteSettingsScreenState
               icon: Icons.cloud_upload,
               color: Colors.blue,
               title: 'رفع البيانات إلى Appwrite',
-              subtitle: 'يرفع جميع البيانات المحلية إلى السحابة',
+              subtitle:
+                  'يرفع جميع سجلات الأعمال المحلية المتزامنة إلى Appwrite Cloud',
               details: const [
-                'الغرف والحجوزات والمدفوعات والديون',
-                'استخدام آخر نسخة محفوظة محلياً',
+                'يشمل الحجوزات والضيوف والمخزون والرواتب والسجلات المرتبطة',
+                'يستخدم معرّف السجل المحلي لتحديثه أو إنشائه دون تكرار',
+                'يشمل علامات الحذف المنطقي ويعرض عدد الأخطاء إن وجدت',
                 'قد يستغرق وقتاً حسب حجم البيانات',
               ],
               actionLabel: 'بدء الرفع',
@@ -1615,9 +1617,14 @@ class _AppwriteSettingsScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('سيتم رفع جميع البيانات المحلية إلى السحابة.'),
+            Text(
+              'سيتم إنشاء أو تحديث السجلات السحابية باستخدام بيانات هذا الجهاز المحلية.',
+            ),
             SizedBox(height: 8),
-            Text('• الغرف والحجوزات والمدفوعات والديون'),
+            Text(
+              '• يشمل السجلات المحذوفة منطقيًا والجداول المتزامنة مثل الضيوف والمخزون والرواتب',
+            ),
+            Text('• قد تستبدل النسخة المحلية بيانات السجل نفسه في السحابة'),
             Text('• قد يستغرق وقتاً حسب حجم البيانات'),
             Text('• يُفضل توفر اتصال مستقر بالإنترنت'),
           ],
@@ -1635,22 +1642,31 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed != true) {
+    if (confirmed != true || !mounted) {
       return;
     }
 
-    setState(() => _isLoading = true);
+    _safeSetState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
-      await manager.pushAllLocalData();
+      final stats = await manager.pushAllLocalData();
       if (mounted) {
+        ref.invalidate(ap.syncStatsProvider);
+        final errors = stats['errors'] ?? 0;
+        final uploaded = stats.entries
+            .where((entry) => entry.key != 'errors')
+            .fold<int>(0, (total, entry) => total + entry.value);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم رفع البيانات بنجاح'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              errors == 0
+                  ? 'اكتمل الرفع: أُرسل $uploaded سجل إلى Appwrite Cloud'
+                  : 'اكتمل الرفع جزئياً: أُرسل $uploaded سجل وتعذر رفع $errors',
+            ),
+            backgroundColor: errors == 0 ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 6),
           ),
         );
-        ref.invalidate(ap.syncStatsProvider);
       }
     } catch (e) {
       if (mounted) {

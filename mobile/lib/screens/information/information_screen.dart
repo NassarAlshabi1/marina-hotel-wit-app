@@ -788,7 +788,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 color: pdf.PdfColors.white,
                 fontSize: 10,
               ),
-              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
+              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
               cellAlignment: pw.Alignment.center,
               border: pw.TableBorder.all(
                 color: pdf.PdfColors.grey400,
@@ -796,15 +796,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               ),
               headerAlignments: {
                 0: pw.Alignment.center,
-                1: pw.Alignment.centerRight,
-                2: pw.Alignment.centerRight,
-                3: pw.Alignment.centerRight,
-                4: pw.Alignment.centerRight,
-                5: pw.Alignment.centerRight,
-                6: pw.Alignment.centerRight,
-                7: pw.Alignment.centerRight,
-                8: pw.Alignment.centerRight,
-                9: pw.Alignment.centerRight,
+                1: pw.Alignment.center,
+                2: pw.Alignment.center,
+                3: pw.Alignment.center,
+                4: pw.Alignment.center,
+                5: pw.Alignment.center,
+                6: pw.Alignment.center,
+                7: pw.Alignment.center,
+                8: pw.Alignment.center,
+                9: pw.Alignment.center,
                 10: pw.Alignment.center,
               },
             ),
@@ -842,8 +842,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// مزامنة فورية إلى Appwrite بعد كل عملية CRUD

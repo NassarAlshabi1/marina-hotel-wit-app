@@ -84,20 +84,23 @@ void main() {
     }
   });
 
-  test('legacy module permissions remain backward compatible for access and create', () {
-    // مفتاح الوحدة القديم يمنح دخول الوحدة والإضافة كما كان، لكنه لا يمنح
-    // التعديل أو الحذف وحده؛ يلزم الدور الإداري أو المفتاح الدقيق للفعل.
-    const user = AuthUser(
-      id: 11,
-      username: 'legacy-user',
-      fullName: 'مستخدم سابق',
-      userType: 'employee',
-      permissions: ['inventory'],
-    );
+  test(
+    'legacy module permissions remain backward compatible for access and create',
+    () {
+      // مفتاح الوحدة القديم يمنح دخول الوحدة والإضافة كما كان، لكنه لا يمنح
+      // التعديل أو الحذف وحده؛ يلزم الدور الإداري أو المفتاح الدقيق للفعل.
+      const user = AuthUser(
+        id: 11,
+        username: 'legacy-user',
+        fullName: 'مستخدم سابق',
+        userType: 'employee',
+        permissions: ['inventory'],
+      );
 
-    expect(user.canAccessModule('inventory'), isTrue);
-    expect(user.canPerform('inventory', 'create'), isTrue);
-    expect(user.canPerform('inventory', 'update'), isFalse);
-    expect(user.canPerform('inventory', 'delete'), isFalse);
-  });
+      expect(user.canAccessModule('inventory'), isTrue);
+      expect(user.canPerform('inventory', 'create'), isTrue);
+      expect(user.canPerform('inventory', 'update'), isFalse);
+      expect(user.canPerform('inventory', 'delete'), isFalse);
+    },
+  );
 }

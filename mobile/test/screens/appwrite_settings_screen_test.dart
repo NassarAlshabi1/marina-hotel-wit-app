@@ -88,6 +88,11 @@ void main() {
     }
 
     expect(find.text('إنشاء النسخة', skipOffstage: false), findsOneWidget);
+    expect(
+      find.text('تعبئة entryDate القديمة في Appwrite Cloud'),
+      findsNothing,
+    );
+    expect(find.text('فتح أداة التعبئة'), findsNothing);
     expect(find.text('بدء الرفع', skipOffstage: false), findsOneWidget);
     expect(find.text('بدء السحب', skipOffstage: false), findsOneWidget);
     expect(

@@ -87,6 +87,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   bool _probing = false;
   bool _loadingTables = false;
   bool _uploading = false;
+  bool _overwriteOnConflict = false;
 
   /// الافتراضي: جداول مزامنة Appwrite فقط (مطابقة للـ collections) —
   /// ويمكن إظهار جميع الجداول المحلية عبر المفتاح في بطاقة الجداول.
@@ -321,9 +322,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         title: const Text('تأكيد الرفع إلى Cloudflare D1'),
         content: Text(
           'سيتم رفع ${_selected.length} جدولاً ($totalRows صفاً) إلى قاعدة '
-          'D1 المحددة. سيتم تجاهل الصفوف الموجودة مسبقاً عند تعارض المفتاح الفريد؛ '
-          'لن تُحدّث أو تُستبدل.\n\n'
-          '• لا يُحذف أو يُستبدل أي سجل موجود في D1.\n'
+          'D1 المحددة. ${_overwriteOnConflict ? 'عند تعارض المفتاح الفريد (سجل مشابه موجود مسبقاً) ستتم الكتابة فوق السجل القديم بأحدث القيم من هذا الجهاز.' : 'سيتم تجاهل الصفوف الموجودة مسبقاً عند تعارض المفتاح الفريد؛ لن تُحدّث أو تُستبدل.'}\n\n'
+          '• لا يُحذف أي سجل موجود في D1 (لا حذف، فقط إضافة${_overwriteOnConflict ? ' أو تحديث المتطابق' : ''}).\n'
           '• لا يتم اختراع employee_uuid أو إعادة ربط سجل بموظف بالتخمين.\n'
           '• قد تظهر تحذيرات للسجلات التاريخية التي تحتاج مراجعة.',
         ),
@@ -395,6 +395,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       final result = await service.uploadData(
         tables: sources,
         deviceLabel: label.isEmpty ? null : label,
+        overwrite: _overwriteOnConflict,
         onProgress: (p) {
           if (!mounted) return;
           setState(() {
@@ -753,6 +754,21 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           ),
         ),
         const SizedBox(height: 16),
+
+        // ── خيار سياسة التعارض ──
+        SwitchListTile(
+          value: _overwriteOnConflict,
+          onChanged: _uploading
+              ? null
+              : (v) => setState(() => _overwriteOnConflict = v),
+          title: const Text('الكتابة فوق السجلات المتطابقة'),
+          subtitle: Text(
+            _overwriteOnConflict
+                ? 'عند تعارض المفتاح الفريد: يُحدّث السجل القديم في D1 بأحدث القيم من هذا الجهاز (ON CONFLICT DO UPDATE).'
+                : 'عند تعارض المفتاح الفريد: يُتخطى السجل الموجود في D1 كما هو (ON CONFLICT DO NOTHING).',
+          ),
+          secondary: Icon(_overwriteOnConflict ? Icons.publish : Icons.block),
+        ),
 
         // ── الرفع ──
         if (_uploading) ...[

@@ -485,6 +485,27 @@ attempt_booking_details() {
 log "cycle_start:credentials_mode=$CRED_MODE"
 
 # 1) تخطي شاشة onboarding الخاصة بـ Google Drive ثم الدخول/استعادة الجلسة
+# ✅ إصلاح flake (CI 40767958738): على محاكي 1GB قد يكون التطبيق ما
+# زال على SplashScreen/الإقلاع البارد عند أول فحص — فلا يظهر لا gdrive
+# ولا شاشة دخول ولا لوحة تحكم، فيُسجَّل «session_restored» زوراً وكل
+# أهداف التنقل not_found. ننتظر حتى تستقر الواجهة على شاشة معروفة قبل
+# اتخاذ القرار (سقف صغير لا يعطّل المقياس الزمني للدورة).
+wait_for_known_screen() {
+  local waited=0
+  local settle_max=30
+  while (( waited < settle_max )); do
+    if is_gdrive_prompt || is_login_screen || is_dashboard_visible; then
+      return 0
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+  # انتهى السقف بلا شاشة معروفة — سجّل واستمر (القرار كما كان)
+  event 'no_known_screen_after_wait' 'login' "waited=${settle_max}s"
+  return 1
+}
+wait_for_known_screen || true
+
 if is_gdrive_prompt; then
   if gdrive_prompt_skip; then
     log 'gdrive_prompt_handled'
@@ -500,8 +521,30 @@ if is_gdrive_prompt; then
 elif is_login_screen; then
   log 'login_screen_detected'
   attempt_login 'auto'
-else
+elif is_dashboard_visible; then
+  # جلسة فعلية مستعادة (لوحة التحكم ظاهرة) — الحالة النادعة
+  # الوحيدة لقرار «session_restored» الصادق
   event 'session_restored' 'login' "mode=$CRED_MODE"
+else
+  # الواجهة مجهولة بعد الانتظار: شاشة إقلاع/تحميل معلّقة. أعد
+  # الإقلاع ثم أعد الفحص قبل تسجيل الفشل كي لا تُهدر الدورة.
+  event 'unknown_screen_retry_relaunch' 'login' "mode=$CRED_MODE"
+  restore_app_state || true
+  if is_gdrive_prompt; then
+    if gdrive_prompt_skip; then
+      log 'gdrive_prompt_handled_after_relaunch'
+    else
+      event 'gdrive_prompt_blocking' 'login' 'skip_failed'
+    fi
+  fi
+  if is_login_screen; then
+    log 'login_screen_detected_after_relaunch'
+    attempt_login 'auto'
+  elif is_dashboard_visible; then
+    event 'session_restored' 'login' "mode=$CRED_MODE:relaunch"
+  else
+    event 'login_blocked' 'login' 'unknown_screen_persisted'
+  fi
 fi
 
 # 2) لوحة التحكم

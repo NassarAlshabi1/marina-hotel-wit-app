@@ -439,8 +439,9 @@ class _CompactBookingCard extends StatelessWidget {
 Widget _buildHeaderRow(BuildContext context) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    color: Theme.of(context).colorScheme.surfaceContainerHighest
-        .withValues(alpha: 0.5),
+    color: Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
     child: const Row(
       children: [
         SizedBox(width: 40, child: Text('#', textAlign: TextAlign.center)),

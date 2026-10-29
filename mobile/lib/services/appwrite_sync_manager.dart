@@ -6129,11 +6129,9 @@ class AppwriteSyncManager {
     }, timeout: const Duration(minutes: 5));
   }
 
-  /// رفع جميع البيانات المحلية
-  Future<void> pushAllLocalData() async {
-    _logger.info('Pushing all local data...', tag: 'SYNC');
-    await pushLocalChanges();
-  }
+  /// يرفع جميع سجلات الأعمال المحلية مباشرةً إلى Appwrite، لا Outbox فقط.
+  Future<Map<String, int>> pushAllLocalData() =>
+      pushAllLocalDataToAppwrite(skipDeleted: false);
 
   /// سحب جميع البيانات من Appwrite مع الحفاظ على Foreign Keys مفعّلة
   /// يُستخدم عند التثبيت الأول (المتابعة بدون مزامنة)
@@ -6199,6 +6197,12 @@ class AppwriteSyncManager {
       'shift_notes': 0,
       'booking_price_adjustments': 0,
       'guest_infos': 0,
+      'blacklist': 0,
+      'price_adjustments': 0,
+      'payment_voids': 0,
+      'audit_logs': 0,
+      'inventory_items': 0,
+      'inventory_transactions': 0,
       'salary_withdrawals': 0,
       'salary_carry_over_logs': 0,
       'errors': 0,
@@ -6268,6 +6272,23 @@ class AppwriteSyncManager {
         '✅ تم رفع ${stats['employees']} موظف من ${employees.length}',
         tag: 'SYNC',
       );
+
+      // رفع القائمة السوداء (مستقلة عن ترتيب الحجوزات).
+      final blacklistEntries = await database.select(database.blacklist).get();
+      for (final item in blacklistEntries) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _payloadMapper.blacklistToRemote(item);
+          await appwriteService.upsertBlacklist(
+            item.localUuid,
+            _filterPayload('blacklist', payload),
+          );
+          stats['blacklist'] = (stats['blacklist'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع سجل القائمة السوداء: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
 
       // رفع الحجوزات
       final bookings = await database.select(database.bookings).get();
@@ -6340,6 +6361,24 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
 
+      // رفع إلغاءات الدفع بعد السجلات الأصلية التي تشير إليها.
+      final paymentVoids = await database.select(database.paymentVoids).get();
+      for (final voidRecord in paymentVoids) {
+        if (skipDeleted && voidRecord.deletedAt != null) continue;
+        try {
+          final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.paymentVoidsCollectionId,
+            documentId: voidRecord.localUuid,
+            data: _filterPayload('payment_voids', payload),
+          );
+          stats['payment_voids'] = (stats['payment_voids'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع إلغاء دفع: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+
       // رفع الديون
       final debts = await database.select(database.debts).get();
       for (final debt in debts) {
@@ -6357,6 +6396,26 @@ class AppwriteSyncManager {
         }
       }
       _logger.info('✅ تم رفع ${stats['debts']} دين', tag: 'SYNC');
+
+      // رفع تعديلات الأسعار المستقلة عن تعديلات أسعار الحجوزات.
+      final priceAdjustments = await database
+          .select(database.priceAdjustments)
+          .get();
+      for (final adjustment in priceAdjustments) {
+        if (skipDeleted && adjustment.deletedAt != null) continue;
+        try {
+          final payload = _payloadMapper.priceAdjustmentToRemote(adjustment);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+            documentId: adjustment.localUuid,
+            data: _filterPayload('price_adjustments', payload),
+          );
+          stats['price_adjustments'] = (stats['price_adjustments'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع تعديل سعر: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
 
       // رفع ملاحظات الحجوزات
       final bookingUuidIndex = await _loadBookingUuidIndex();
@@ -6605,7 +6664,7 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
       for (final log in carryOverLogs) {
-        if (log.deletedAt != null) continue;
+        if (skipDeleted && log.deletedAt != null) continue;
         try {
           final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
           await appwriteService.upsertDocument(
@@ -6625,6 +6684,71 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
 
+      // رفع أصناف المخزون قبل حركاته لضمان وجود السجل الأب أولاً.
+      final inventoryItems = await database
+          .select(database.inventoryItems)
+          .get();
+      for (final item in inventoryItems) {
+        if (skipDeleted && item.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.inventoryItems.toJsonForSource(
+            item,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.inventoryItemsCollectionId,
+            documentId: item.localUuid,
+            data: _filterPayload('inventory_items', payload),
+          );
+          stats['inventory_items'] = (stats['inventory_items'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع صنف مخزون: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+
+      final inventoryTransactions = await database
+          .select(database.inventoryTransactions)
+          .get();
+      for (final transaction in inventoryTransactions) {
+        if (skipDeleted && transaction.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.inventoryTransactions
+              .toJsonForSource(transaction, src: Source.appwrite);
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+            documentId: transaction.localUuid,
+            data: _filterPayload('inventory_transactions', payload),
+          );
+          stats['inventory_transactions'] =
+              (stats['inventory_transactions'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع حركة مخزون: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+
+      // سجلات التدقيق أخيراً كي تكون الكيانات التي تشير إليها قد رُفعت أولاً.
+      final auditLogs = await database.select(database.auditLogs).get();
+      for (final log in auditLogs) {
+        if (skipDeleted && log.deletedAt != null) continue;
+        try {
+          final payload = _adapterRegistry.auditLogs.toJsonForSource(
+            log,
+            src: Source.appwrite,
+          );
+          await appwriteService.upsertDocument(
+            collectionId: AppwriteConfig.auditLogsCollectionId,
+            documentId: log.localUuid,
+            data: _filterPayload('audit_logs', payload),
+          );
+          stats['audit_logs'] = (stats['audit_logs'] ?? 0) + 1;
+        } catch (e) {
+          _logger.warning('خطأ في رفع سجل تدقيق: $e', tag: 'SYNC');
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+        }
+      }
+
       final totalRecords =
           stats['rooms']! +
           stats['bookings']! +
@@ -6640,6 +6764,12 @@ class AppwriteSyncManager {
           stats['shift_notes']! +
           (stats['booking_price_adjustments'] ?? 0) +
           (stats['guest_infos'] ?? 0) +
+          (stats['blacklist'] ?? 0) +
+          (stats['price_adjustments'] ?? 0) +
+          (stats['payment_voids'] ?? 0) +
+          (stats['inventory_items'] ?? 0) +
+          (stats['inventory_transactions'] ?? 0) +
+          (stats['audit_logs'] ?? 0) +
           (stats['salary_withdrawals'] ?? 0) +
           (stats['salary_carry_over_logs'] ?? 0);
 
