@@ -310,11 +310,19 @@ class CloudflareD1Service {
   //  الرفع
   // ════════════════════════════════════════════════════════════════
 
-  /// رفع الجداول المحددة إلى D1 (مخطط + بيانات) بأسلوب ON CONFLICT DO NOTHING:
-  /// التعارضات مع المفاتيح الفريدة تتخطى السجل الموجود ولا تستبدله.
+  /// رفع الجداول المحددة إلى D1 (مخطط + بيانات):
+  /// - [overwrite] == false (الافتراضي): ON CONFLICT DO NOTHING — التعارضات
+  ///   مع المفاتيح الفريدة تتخطى السجل الموجود ولا تستبدله.
+  /// - [overwrite] == true: ON CONFLICT DO UPDATE — التعارضات تكتب فوق
+  ///   السجل القديم بأحدث قيم من الجهاز (رفع يعلو القديم المتطابق)،
+  ///   لكل الجداول: ذات local_uuid الفريد (التعارض عليه) والجداول التي
+  ///   ترفع id (التعارض عليه). عمود id نفسه يبقى خارج SET دائماً.
+  ///   id المحلي autoincrement يُسكَت من الأعمدة عندما يكون local_uuid
+  ///   فريداً (D1 يملك تسلسله الخاص).
   Future<CloudflareD1UploadResult> uploadData({
     required List<CloudflareD1SourceTable> tables,
     String? deviceLabel,
+    bool overwrite = false,
     void Function(CloudflareD1Progress progress)? onProgress,
   }) async {
     _cancelled = false;
@@ -429,16 +437,32 @@ class CloudflareD1Service {
             offset += chunk.length;
             continue;
           }
-          // ON CONFLICT DO NOTHING يتخطى أي تعارض فريد (local_uuid أو id أو مفتاح
-          // مركّب) دون استبدال/تحديث الصف الموجود. هذا مسار نسخ احتياطي فقط؛
-          // لا يغيّر مزامنة Appwrite أو سجل outbox.
+          // ✅ سياسة التعارض حسب الطلب: DO NOTHING (الافتراضي) يتخطى أي
+          // تعارض فريد (local_uuid أو id أو مفتاح مركّب) دون تغيير الصف
+          // الموجود. DO UPDATE (overwrite) يكتب فوق الصف القديم المتطابق
+          // بأحدث قيم. SET يشمل كل عمود مُرسل ما عدا مفاتيح الهوية نفسها
+          // (id يبقى خارج SET: القيمة المتعارضة عليه متطابقة أصلاً،
+          // وتحديثه من excluded قد يصطدم بصف آخر يحمل نفس id في D1) —
+          // حتى للجداول التي ترفع id (غير ذات local_uuid الفريد) يتم
+          // التحديث فوق الصف المتعارض على id ببقية الأعمدة.
+          // هذا مسار نسخ احتياطي فقط؛ لا يغيّر مزامنة Appwrite أو outbox.
+          final setColumns = columns.where((c) => !_isIdentityKey(c)).toList();
+          final conflictAction = overwrite && setColumns.isNotEmpty
+              ? setColumns
+                    .map(
+                      (c) => '${_quotedIdent(c)}=excluded.${_quotedIdent(c)}',
+                    )
+                    .join(', ')
+              : null;
+          final conflictClause =
+              'ON CONFLICT ${conflictAction == null ? 'DO NOTHING' : 'DO UPDATE SET $conflictAction'}';
           final statements = <String>[];
           for (final row in chunk) {
             final values = columns.map((c) => _sqlLiteral(row[c])).join(',');
             statements.add(
               'INSERT INTO ${_quotedIdent(t.name)} '
               '(${columns.map(_quotedIdent).join(',')}) VALUES ($values) '
-              'ON CONFLICT DO NOTHING',
+              '$conflictClause',
             );
           }
           var bi = 0;
@@ -735,6 +759,12 @@ class CloudflareD1Service {
   static String _quoteIdent(String name) => name.replaceAll('"', '""');
 
   static String _quotedIdent(String name) => '"${_quoteIdent(name)}"';
+
+  /// أعمدة الهوية التي لا تدخل في SET الخاصة بـ DO UPDATE — تحديث id من
+  /// excluded غير ضروري عند التعارض على id نفسه (القيمة متطابقة أصلاً)،
+  /// وقد يصطدم بصف آخر في D1 يحمل نفس id عندما يكون التعارض على مفتاح
+  /// فريد آخر. id يبقى ضمن أعمدة INSERT كالمعتاد.
+  static bool _isIdentityKey(String column) => column == 'id';
 
   /// تحويل قيمة SQLite خام إلى literal آمن (للجداول العريضة فقط).
   static String _sqlLiteral(Object? v) {
