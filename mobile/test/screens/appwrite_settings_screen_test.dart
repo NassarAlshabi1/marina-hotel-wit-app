@@ -106,6 +106,32 @@ void main() {
     );
   });
 
+  testWidgets('يعرض اختيار الجدول عند بدء تصدير CSV', (tester) async {
+    await tester.pumpWidget(_buildSettingsScreen());
+    await tester.pump();
+    final scrollable = find
+        .descendant(
+          of: find.byType(ListView).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('اختيار الجدول والتصدير'),
+      400,
+      scrollable: scrollable,
+    );
+    await tester.tap(find.text('اختيار الجدول والتصدير'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('اختر الجدول للتصدير'), findsOneWidget);
+    expect(find.text('الحجوزات'), findsOneWidget);
+    expect(find.text('bookings'), findsOneWidget);
+
+    await tester.tap(find.text('إلغاء'));
+    await tester.pumpAndSettle();
+    expect(find.text('اختر الجدول للتصدير'), findsNothing);
+  });
+
   testWidgets('لا ينفذ إجراءات البيانات قبل تأكيد المستخدم', (tester) async {
     await tester.pumpWidget(_buildSettingsScreen());
     await tester.pump();

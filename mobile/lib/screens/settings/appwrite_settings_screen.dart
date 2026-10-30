@@ -13,6 +13,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
+import '../../services/appwrite_csv_export_service.dart';
 import '../../services/appwrite_logger.dart';
 import '../../services/appwrite_models.dart';
 import '../../services/appwrite_xlsx_export_service.dart';
@@ -887,6 +888,22 @@ class _AppwriteSettingsScreenState
             ),
             const SizedBox(height: 12),
             _buildDataActionCard(
+              icon: Icons.table_view,
+              color: Colors.deepPurple,
+              title: 'تصدير جدول إلى CSV',
+              subtitle:
+                  'اختر جدولًا واحدًا من Appwrite Cloud واحفظه في الذاكرة الخارجية',
+              details: const [
+                'ملف CSV مستقل للجدول المختار، بترميز UTF-8 داعم للعربية',
+                'يمكن اختيار مجلد الحفظ من نافذة النظام، مثل Downloads أو بطاقة SD',
+                'يشمل الجداول التجارية؛ يستثني devices وsync_logs التقنية',
+                'قراءة فقط من السحابة — لا تعدل أي بيانات',
+              ],
+              actionLabel: 'اختيار الجدول والتصدير',
+              onPressed: _exportSelectedTableCsv,
+            ),
+            const SizedBox(height: 12),
+            _buildDataActionCard(
               icon: Icons.cloud_upload,
               color: Colors.blue,
               title: 'رفع البيانات إلى Appwrite',
@@ -1456,6 +1473,171 @@ class _AppwriteSettingsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل تصدير قاعدة البيانات: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      _safeSetState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _exportSelectedTableCsv() async {
+    var selectedCollectionId = 'bookings';
+    final collectionId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('اختر الجدول للتصدير'),
+          content: SizedBox(
+            width: 420,
+            height: 380,
+            child: ListView(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'اختر جدولًا واحدًا. سيُحفظ كملف CSV مستقل ويمكنك تكرار العملية لجداول أخرى.',
+                  ),
+                ),
+                ...kExportableCollections.entries.map(
+                  (entry) => RadioListTile<String>(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: entry.key,
+                    groupValue: selectedCollectionId,
+                    title: Text(entry.value),
+                    subtitle: Text(entry.key),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => selectedCollectionId = value);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, selectedCollectionId),
+              child: const Text('متابعة'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (collectionId == null || !mounted) return;
+
+    final label = kExportableCollections[collectionId]!;
+    final suggestedName =
+        'marina_${collectionId}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
+    final chosenPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'اختر مكان حفظ CSV — $label',
+      fileName: suggestedName,
+      type: FileType.custom,
+      allowedExtensions: const ['csv'],
+    );
+    if (chosenPath == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إلغاء اختيار مسار الحفظ')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    final targetPath = chosenPath.toLowerCase().endsWith('.csv')
+        ? chosenPath
+        : '$chosenPath.csv';
+
+    setState(() => _isLoading = true);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    var progressDialogOpen = true;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('جاري تصدير CSV'),
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 14),
+              Flexible(child: Text('جاري سحب جدول $label من Appwrite...')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final service = AppwriteCsvExportService(
+        fetcher: AppwriteCsvExportService.fetcherOf(
+          ref.read(ap.appwriteServiceProvider),
+        ),
+      );
+      final result = await service.exportCollection(
+        collectionId: collectionId,
+        targetPath: targetPath,
+      );
+      navigator.pop();
+      progressDialogOpen = false;
+      if (!mounted) return;
+
+      final share = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('تم تصدير الجدول'),
+          content: Text(
+            'الجدول: ${result.collectionLabel}\n'
+            'عدد السجلات: ${result.recordCount}\n'
+            'المسار: ${result.file.path}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('إغلاق'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.share),
+              label: const Text('مشاركة'),
+            ),
+          ],
+        ),
+      );
+      if (share == true) {
+        try {
+          await Share.shareXFiles(
+            [XFile(result.file.path)],
+            text: 'تصدير CSV — ${result.collectionLabel}',
+          );
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('تم حفظ الملف، لكن تعذرت مشاركته: $error'),
+              ),
+            );
+          }
+        }
+      }
+    } catch (error) {
+      if (progressDialogOpen) navigator.pop();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل تصدير جدول $label إلى CSV: $error'),
           backgroundColor: Colors.red,
         ),
       );
