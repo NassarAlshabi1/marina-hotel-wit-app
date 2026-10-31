@@ -1700,9 +1700,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                Text(
+                  widget.booking.checkoutDate?.trim().isNotEmpty == true
+                      ? 'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة'
+                      : 'سيتم إضافة الليالي الجديدة دون تحديد مغادرة مخططة',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
@@ -1747,7 +1749,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         if (needsExtension) {
           await bookingsRepo.update(
             widget.booking.id,
-            checkoutDate: _formatDateTime(newCheckout ?? DateTime.now()),
+            // لا ننشئ checkout_date تلقائياً للحجز الذي تُرك بلا تاريخ
+            // مخطط. يبقى تاريخ المغادرة التلقائية المحسوب من المدفوعات
+            // منفصلاً عن الحقل اليدوي في الحجز.
+            checkoutDate: widget.booking.checkoutDate?.trim().isNotEmpty == true
+                ? _formatDateTime(newCheckout ?? DateTime.now())
+                : null,
             expectedNights: newExpectedNights,
             notes: widget.booking.notes != null
                 ? '${widget.booking.notes}\nتمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}'
@@ -4105,7 +4112,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final paymentsRepo = ref.read(paymentsRepoProvider);
 
-      // تحديث تاريخ المغادرة المخطط
+      // تحديث تاريخ المغادرة المخطط فقط إذا كان موجوداً يدوياً مسبقاً.
+      // الحجز بلا checkout_date يبقى بلا تاريخ مخطط؛ التمديد يظهر عبر
+      // حساب الليالي/المغادرة التلقائية وليس بكتابة حقل يدوي.
       final currentCheckout = widget.booking.checkoutDate != null
           ? DateTime.tryParse(widget.booking.checkoutDate!)
           : DateTime.now().add(const Duration(days: 1));
@@ -4120,7 +4129,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // تحديث الحجز
       await bookingsRepo.update(
         widget.booking.id,
-        checkoutDate: _formatDateTime(newCheckout),
+        checkoutDate: widget.booking.checkoutDate?.trim().isNotEmpty == true
+            ? _formatDateTime(newCheckout)
+            : null,
         expectedNights: newExpectedNights,
         notes: widget.booking.notes != null
             ? '${widget.booking.notes}\nتمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}'
