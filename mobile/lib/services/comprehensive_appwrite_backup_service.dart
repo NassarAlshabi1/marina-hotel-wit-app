@@ -351,16 +351,15 @@ class ComprehensiveAppwriteBackupService {
       await file.writeAsString(jsonEncode(payload));
 
       dlog(
-        () => '✅ حُفظت نسخة Appwrite الاحتياطية '
+        () =>
+            '✅ حُفظت نسخة Appwrite الاحتياطية '
             '${isExternal ? 'في التخزين الخارجي' : 'في مجلد التطبيق'}: '
             '${file.path}',
       );
 
       if (onProgress != null) {
         onProgress(
-          isExternal
-              ? 'تم إنشاء ملف النسخة في الذاكرة الخارجية'
-              : 'تم إنشاء ملف النسخة (مجلد التطبيق — لم تُمنح صلاحية التخزين الخارجي)',
+          isExternal ? 'تم إنشاء ملف النسخة في الذاكرة الخارجية' : 'تم إنشاء ملف النسخة (مجلد التطبيق — لم تُمنح صلاحية التخزين الخارجي)',
           1.0,
         );
       }

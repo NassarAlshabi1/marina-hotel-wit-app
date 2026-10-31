@@ -51,9 +51,8 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                 Expanded(
                   child: Text(
                     'رفع نسخة إلى Appwrite',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -146,7 +145,7 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                           _lastSavedToExternal
                               ? 'تم حفظ النسخة في الذاكرة الخارجية'
                               : 'حُفظت النسخة في مجلد التطبيق (لم تُمنح '
-                                  'صلاحية الوصول لجميع الملفات)',
+                                    'صلاحية الوصول لجميع الملفات)',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: _lastSavedToExternal
@@ -160,9 +159,8 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                   const SizedBox(height: 8),
                   SelectableText(
                     _lastExportedFile!.path,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(fontFamily: 'monospace'),
                   ),
                   if (_lastFileSize != null) ...[
                     const SizedBox(height: 4),

@@ -21,25 +21,30 @@ models.Document _doc(String id, {Map<String, dynamic> data = const {}}) {
 
 void main() {
   group('AppwriteCsvExportService.encodeTable', () {
-    test('escapes commas, quotes, and newlines while preserving Arabic text', () {
-      final csv = AppwriteCsvExportService.encodeTable(
-        const ExportTable(
-          columns: ['name', 'notes'],
-          rows: [
-            ['أحمد, "علي"', 'سطر 1\nسطر 2'],
-          ],
-        ),
-      );
+    test(
+      'escapes commas, quotes, and newlines while preserving Arabic text',
+      () {
+        final csv = AppwriteCsvExportService.encodeTable(
+          const ExportTable(
+            columns: ['name', 'notes'],
+            rows: [
+              ['أحمد, "علي"', 'سطر 1\nسطر 2'],
+            ],
+          ),
+        );
 
-      expect(
-        csv,
-        '"name","notes"\r\n"أحمد, ""علي""","سطر 1\nسطر 2"\r\n',
-      );
-    });
+        expect(csv, '"name","notes"\r\n"أحمد, ""علي""","سطر 1\nسطر 2"\r\n');
+      },
+    );
 
     test('neutralizes formula-like text when opened in spreadsheet apps', () {
       final csv = AppwriteCsvExportService.encodeTable(
-        const ExportTable(columns: ['note'], rows: [['=1+1']]),
+        const ExportTable(
+          columns: ['note'],
+          rows: [
+            ['=1+1'],
+          ],
+        ),
       );
 
       expect(csv, '"note"\r\n"\'=1+1"\r\n');
