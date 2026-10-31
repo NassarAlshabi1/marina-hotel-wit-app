@@ -473,22 +473,35 @@ class EnhancedPdfUtils {
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
         border: pw.Border.all(color: PdfColors.border, width: 0.5),
       ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      // ✅ (2026-11-01) إصلاح «Widget won't fit … height (Infinity)»:
+      // Row + crossAxisAlignment.stretch داخل MultiPage يفرض على الأبناء
+      // minHeight = maxHeight الوارد = ∞ (سلوك RenderFlex في حزمة pdf) —
+      // البطاقة كلها تصبح بارتفاع لا نهائي فيرتفع استثناء أثناء بناء
+      // المستند. البديل: جدول من صف واحد مع TableCellVerticalAlignment.full
+      // يمدّد الخليتين لارتفاع الصف بقيود محدودة — نفس الشكل البصري
+      // تماماً (شريط جانبي 4pt + المحتوى).
+      child: pw.Table(
+        columnWidths: const {
+          0: pw.FixedColumnWidth(4),
+          1: pw.FlexColumnWidth(),
+        },
         children: [
-          pw.Container(width: 4, color: color),
-          pw.Expanded(
-            child: pw.Padding(
-              padding: const pw.EdgeInsets.fromLTRB(10, 8, 10, 9),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(title, style: PdfTextStyles.sectionTitle(fonts)),
-                  pw.SizedBox(height: 5),
-                  ...content,
-                ],
+          pw.TableRow(
+            verticalAlignment: pw.TableCellVerticalAlignment.full,
+            children: [
+              pw.Container(width: 4, color: color),
+              pw.Padding(
+                padding: const pw.EdgeInsets.fromLTRB(10, 8, 10, 9),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(title, style: PdfTextStyles.sectionTitle(fonts)),
+                    pw.SizedBox(height: 5),
+                    ...content,
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),

@@ -226,12 +226,26 @@ class ReportPdfBuilder {
 
   /// توليد اسم ملف PDF منسّق
   ///
-  /// يُزيل المسافات من العنوان ويُضيف طابعاً زمنياً لضمان تفرد اسم الملف.
+  /// يُنظّف العنوان ويُضيف طابعاً زمنياً لضمان تفرد اسم الملف.
   /// مثال: `generateFileName('مدفوعات النزلاء')` → `مدفوعات-النزلاء-20250615_1430.pdf`
+  ///
+  /// ✅ (2026-11-01) تحصين «تصدير PDF لا يعمل»: كان التنظيف يستبدل
+  /// المسافات فقط، فأي اسم موظف/نزيل يحوي أحرفاً محظورة في أنظمة
+  /// الملفات (`/` `\` `:` `*` `?` `"` `<` `>` `|` أو أحرف تحكم) كان
+  /// يُنتج مساراً غير صالح داخل مجلد cache/share على أندرويد. حزمة
+  /// printing تلتقط IOException بصمت (printStackTrace فقط) وتُعيد
+  /// «النجاح» لطبقة Dart، فيبدو أن زر «تصدير PDF» لا يعمل بلا رسالة —
+  /// انظر PrintingJob.sharePdf. الخلل يظهر تحديداً في «سحبيات راتب
+  /// <موظف>» و«كشف-حساب-<نزيل>» لأنها التقارير الوحيدة التي تُضمّن
+  /// أسماءً مُدخلة يدوياً في اسم الملف.
   static String generateFileName(String title) {
     final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
-    final sanitizedTitle = title.replaceAll(RegExp(r'\s+'), '-');
-    return '$sanitizedTitle-$timestamp.pdf';
+    final sanitizedTitle = title
+        .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), ' ')
+        .replaceAll(RegExp(r'\s+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    final safeTitle = sanitizedTitle.isEmpty ? 'report' : sanitizedTitle;
+    return '$safeTitle-$timestamp.pdf';
   }
 
   // ======== طرق داخلية ========
