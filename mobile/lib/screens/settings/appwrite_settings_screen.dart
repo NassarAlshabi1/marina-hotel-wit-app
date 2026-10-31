@@ -1491,30 +1491,34 @@ class _AppwriteSettingsScreenState
           content: SizedBox(
             width: 420,
             height: 380,
-            child: ListView(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'اختر جدولًا واحدًا. سيُحفظ كملف CSV مستقل ويمكنك تكرار العملية لجداول أخرى.',
+            // RadioGroup يدير groupValue/onChanged لكل الراديات الفرعية
+            // (بديل groupValue/onChanged المُهمَلة على RadioListTile منذ 3.32).
+            child: RadioGroup<String>(
+              groupValue: selectedCollectionId,
+              onChanged: (value) {
+                if (value != null) {
+                  setDialogState(() => selectedCollectionId = value);
+                }
+              },
+              child: ListView(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'اختر جدولًا واحدًا. سيُحفظ كملف CSV مستقل ويمكنك تكرار العملية لجداول أخرى.',
+                    ),
                   ),
-                ),
-                ...kExportableCollections.entries.map(
-                  (entry) => RadioListTile<String>(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: entry.key,
-                    groupValue: selectedCollectionId,
-                    title: Text(entry.value),
-                    subtitle: Text(entry.key),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() => selectedCollectionId = value);
-                      }
-                    },
+                  ...kExportableCollections.entries.map(
+                    (entry) => RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: entry.key,
+                      title: Text(entry.value),
+                      subtitle: Text(entry.key),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
