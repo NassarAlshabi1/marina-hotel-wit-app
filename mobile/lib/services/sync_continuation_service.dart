@@ -139,10 +139,12 @@ class SyncContinuationService {
     }
   }
 
-  /// جدولة مهمة دورية للتأكد من إكمال المزامنات المعلّقة
+  /// جدولة مهمة دورية لإكمال المزامنات المعلّقة وفحص موعد pull الساعة
   ///
-  /// تُسجّل مرة واحدة عند بدء التطبيق لتفقد المزامنات المعلّقة
-  /// كل 15 دقيقة (الحد الأدنى لـ WorkManager على Android).
+  /// تُسجّل مرة واحدة عند بدء التطبيق لتفقد المزامنات المعلّقة ووقت آخر
+  /// pull كل 15 دقيقة (الحد الأدنى لـ WorkManager على Android). يظل العمل
+  /// مجدولاً بعد خروج عملية التطبيق، ويُنفّذ pull دلتا إذا تجاوز آخر pull
+  /// ساعة؛ توقيت النظام الفعلي best-effort وفق قيود Android/iOS.
   static Future<void> schedulePeriodicCheck() async {
     if (!Platform.isAndroid && !Platform.isIOS) return;
     if (!_initialized) return;
@@ -158,7 +160,7 @@ class SyncContinuationService {
       );
 
       developer.log(
-        '📅 SyncContinuation: تم تسجيل الفحص الدوري (كل 15 دقيقة)',
+        '📅 SyncContinuation: تم تسجيل فحص المزامنة وpull الساعة (كل 15 دقيقة)',
         name: 'SyncContinuation',
       );
     } catch (e) {

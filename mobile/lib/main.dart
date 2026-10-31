@@ -1363,10 +1363,10 @@ Future<bool> _executeSyncCompletionTask(
 
     if (!hasPendingPush && !hasPendingPull) {
       developer.log(
-        'ℹ️ [SyncContinuation] لا توجد عمليات معلّقة',
+        'ℹ️ [SyncContinuation] لا توجد عمليات معلّقة — فحص استحقاق السحب الدوري',
         name: 'SyncContinuation',
       );
-      return true;
+      return await UnifiedSyncOrchestrator.instance.pullIfStaleInBackground();
     }
 
     // ✅ فحص المدة — إذا تجاوزت kMaxSyncDuration، نُلغي (المزامنة الدورية ستلتقط لاحقاً)

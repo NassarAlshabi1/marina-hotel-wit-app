@@ -23,15 +23,20 @@ typedef AppOpenPullGateStatus = ({
 /// يبقى مسؤولية كل مسار (يختلفان: الإقلاع البارد سحب فقط، والعودة من
 /// الخلفية رفع دائماً + سحب مشروط).
 abstract final class AppOpenPullGate {
-  /// يفحص [SyncConstants.lastAppOpenPullKey] المخزَّن في [prefs] ويُعيد
-  /// القرار مع بيانات السجل التشخيصية. `shouldPull == true` دوماً إن لم
-  /// يُسجَّل أي سحب سابق.
+  /// يفحص وقت آخر pull المخزَّن في [prefs] ويُعيد القرار مع بيانات السجل
+  /// التشخيصية. يفضّل مفتاح وقت السحب المشترك، ويقرأ مفتاح app-open القديم
+  /// كترحيل. `shouldPull == true` إذا لم يُسجَّل أي سحب سابق.
   static AppOpenPullGateStatus check(
     SharedPreferences prefs, {
     DateTime? now,
   }) {
     final effectiveNow = now ?? DateTime.now();
-    final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
+    // Prefer the timestamp written by the pull engine itself so manual,
+    // foreground, realtime, and background pulls share one hourly window.
+    // Fall back to the legacy app-open key for existing installations.
+    final lastPullEpochMs =
+        prefs.getInt(SyncConstants.lastPullWallClockKey) ??
+        prefs.getInt(SyncConstants.lastAppOpenPullKey);
     if (lastPullEpochMs == null) {
       return (
         shouldPull: true,
@@ -54,10 +59,12 @@ abstract final class AppOpenPullGate {
   /// لا تستدعِ هذه الدالة عند تخطي السحب أو فشله (راجع تعليق
   /// [SyncConstants.lastAppOpenPullKey] — ختم غير مشروط يقمع أي سحب
   /// حقيقي لاحق حتى [SyncConstants.appOpenSyncInterval] كاملة).
-  static Future<void> markPulled(SharedPreferences prefs, {DateTime? now}) {
-    return prefs.setInt(
-      SyncConstants.lastAppOpenPullKey,
-      (now ?? DateTime.now()).millisecondsSinceEpoch,
-    );
+  static Future<void> markPulled(
+    SharedPreferences prefs, {
+    DateTime? now,
+  }) async {
+    final timestamp = (now ?? DateTime.now()).millisecondsSinceEpoch;
+    await prefs.setInt(SyncConstants.lastPullWallClockKey, timestamp);
+    await prefs.setInt(SyncConstants.lastAppOpenPullKey, timestamp);
   }
 }

@@ -420,6 +420,52 @@ class UnifiedSyncOrchestrator {
     }
   }
 
+  /// Background WorkManager entry point for the hourly Cloudflare pull.
+  /// Returns true for a not-due/offline/overlapping check so periodic work
+  /// remains scheduled; only a successful pull advances the shared timestamp.
+  Future<bool> pullIfStaleInBackground({
+    String reason = 'workmanager_hourly_pull',
+  }) async {
+    if (_syncing) return true;
+    _syncing = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!(prefs.getBool('sync_enabled') ?? true)) return true;
+
+      final gate = AppOpenPullGate.check(prefs);
+      if (!gate.shouldPull) return true;
+      if (!await ConnectivityService.instance.checkConnectivity()) return true;
+
+      final manager = await _ensureAppwriteManager();
+      if (manager == null) return false;
+
+      // Delta-only: never start a full bootstrap from a background isolate.
+      final result = await manager.sync(push: false, deltaOnly: true);
+      if (result.isSuccess) {
+        await AppOpenPullGate.markPulled(prefs);
+        _emit(
+          _state.copyWith(
+            phase: 'completing',
+            message: 'اكتمل السحب الدوري في الخلفية ($reason)',
+            timestamp: DateTime.now(),
+            lastPullAt: DateTime.now(),
+          ),
+        );
+        return true;
+      }
+
+      // Idle means disabled remotely or another manager operation owns the
+      // lock. Leave the timestamp untouched; the next periodic check retries.
+      return result.status == SyncStatus.idle;
+    } catch (e) {
+      dlog(() => '❌ Background stale pull failed: $e');
+      return false;
+    } finally {
+      _syncing = false;
+    }
+  }
+
   Future<bool> _syncAppwrite({required bool push, required bool pull}) async {
     final manager = await _ensureAppwriteManager();
     if (manager == null) {

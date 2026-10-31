@@ -27,6 +27,7 @@ import 'local_db.dart';
 import 'logging/log_models.dart' show LogLevel;
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
+import 'sync/app_open_pull_gate.dart';
 import 'sync/fk_rules.dart';
 import 'sync/payload_normalizer.dart';
 import 'sync/pull_apply_rules.dart';
@@ -2601,6 +2602,13 @@ class CloudflareSyncManager {
     // الصفوف السليمة المطبقة في دورة متدهورة تحتاج إعادة بناء أيضاً.
     if (pulledDerivedEntities.isNotEmpty && totalPulled > 0) {
       await _refreshDerivedAfterPull();
+    }
+
+    // Record wall-clock time only after a successful pull and checkpoint
+    // commit. This is shared by manual, realtime, foreground, and WorkManager
+    // pulls so the one-hour interval survives process death.
+    if (!hadError && pendingCursor <= maxSanePullCursorFuture) {
+      await AppOpenPullGate.markPulled(prefs);
     }
 
     return totalPulled;

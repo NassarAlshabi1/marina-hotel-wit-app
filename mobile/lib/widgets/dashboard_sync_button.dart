@@ -240,7 +240,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // ✅ الآن بعد اجتياز كل الفحوص — نكتب سجل in_progress
       final db = ref.read(databaseProvider);
       final syncLogDao = SyncLogDao(db);
-      await syncLogDao.logSync(
+      await _logSyncSafely(
+        syncLogDao,
         syncId: syncId,
         direction: 'pull',
         deviceId: deviceId,
@@ -282,7 +283,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // الآن: نُصدّق الحالة الفعلية ونُظهر الخطأ الحقيقي.
       if (pullResult.isSuccess) {
         // ✅ تسجيل نجاح العملية
-        await syncLogDao.logSync(
+        await _logSyncSafely(
+          syncLogDao,
           syncId: syncId,
           direction: 'pull',
           deviceId: deviceId,
@@ -328,17 +330,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       } else {
         // ❌ فشل حقيقي (أو تخطّي) — نُسجل ونُظهر السبب الفعلي
-        try {
-          await syncLogDao.logSync(
-            syncId: syncId,
-            direction: 'pull',
-            deviceId: deviceId,
-            target: 'Cloudflare',
-            status: 'failed',
-            errorMessage: pullResult.errorMessage,
-            durationMs: stopwatch.elapsedMilliseconds,
-          );
-        } catch (_) {}
+        await _logSyncSafely(
+          syncLogDao,
+          syncId: syncId,
+          direction: 'pull',
+          deviceId: deviceId,
+          target: 'Cloudflare',
+          status: 'failed',
+          errorMessage: pullResult.errorMessage,
+          durationMs: stopwatch.elapsedMilliseconds,
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -377,7 +378,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       try {
         final db = ref.read(databaseProvider);
         final syncLogDao = SyncLogDao(db);
-        await syncLogDao.logSync(
+        await _logSyncSafely(
+          syncLogDao,
           syncId: syncId,
           direction: 'pull',
           deviceId: deviceId,
@@ -459,6 +461,38 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
   }
 
+  /// sync_log is diagnostic only: exhausted SQLite lock retries must never
+  /// block a real pull/push or strand its button state.
+  Future<void> _logSyncSafely(
+    SyncLogDao? dao, {
+    required String syncId,
+    required String direction,
+    required String status,
+    required String? deviceId,
+    required String target,
+    int? recordsPushed,
+    int? recordsPulled,
+    String? errorMessage,
+    int? durationMs,
+  }) async {
+    if (dao == null) return;
+    try {
+      await dao.logSync(
+        syncId: syncId,
+        direction: direction,
+        deviceId: deviceId ?? 'unknown_device',
+        target: target,
+        status: status,
+        recordsPushed: recordsPushed,
+        recordsPulled: recordsPulled,
+        errorMessage: errorMessage,
+        durationMs: durationMs,
+      );
+    } catch (e) {
+      dlog(() => '⚠️ تعذر كتابة سجل المزامنة (غير حرج): $e');
+    }
+  }
+
   /// رفع التغييرات المحلية (Push فقط)
   ///
   /// ✅ P3-5 (Global SyncGate): العملية بالكامل محاطة بـ runGuarded.
@@ -509,45 +543,44 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       setState(() {});
     }
 
-    // ✅ P1-1 fix: كل الفحوص قبل كتابة سجل in_progress
-    // ✅ قراءة العدّاد مباشرة قبل القرار — الحالة المحلية تُحدّث كل
-    // 15 ثانية فقط (مؤقّت initState) فيُحتمل حجب رفع مطلوب بعدّاد قديم.
-    await _loadPendingChangesCount();
-    if (_pendingChangesCount == 0) {
-      _isPushing = false;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle_outline, color: Colors.white),
-                SizedBox(width: 8),
-                Text('✅ لا توجد تغييرات جديدة للرفع'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-      return;
-    }
-
-    // ✅ الآن بعد اجتياز الفحوص — نكتب سجل in_progress
-    final db = ref.read(databaseProvider);
-    final syncLogDao = SyncLogDao(db);
-    await syncLogDao.logSync(
-      syncId: syncId,
-      direction: 'push',
-      deviceId: deviceId,
-      target: 'Cloudflare',
-      status: 'in_progress',
-    );
-
-    unawaited(_pushAnimationController.repeat());
-    // _isPushing ضُبط بالفعل في الأعلى (P1-2 fix)
-
+    SyncLogDao? syncLogDao;
+    LoadingSnackBar? pushLoading;
     try {
+      // Read the live outbox count before creating an audit row. Keep this
+      // preflight under finally so any database error releases the button.
+      await _loadPendingChangesCount();
+      if (_pendingChangesCount == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('✅ لا توجد تغييرات جديدة للرفع'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      final db = ref.read(databaseProvider);
+      syncLogDao = SyncLogDao(db);
+      await _logSyncSafely(
+        syncLogDao,
+        syncId: syncId,
+        direction: 'push',
+        deviceId: deviceId,
+        target: 'Cloudflare',
+        status: 'in_progress',
+      );
+
+      unawaited(_pushAnimationController.repeat());
+
       // ✅ (2026-09-17) وجهة وحيدة حقيقية: Cloudflare D1 — أُزيل مسار
       // Google Drive/SmartSync كاملاً (طلب المستخدم). الإشعارات تعرض
       // النتيجة الفعلية للرفع الواحد الحقيقي فقط.
@@ -595,7 +628,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
-      LoadingSnackBar? pushLoading;
       if (mounted) {
         pushLoading = LoadingSnackBar.show(
           context,
@@ -620,7 +652,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ تسجيل نتيجة العملية الحقيقية الوحيدة
       stopwatch.stop();
-      await syncLogDao.logSync(
+      await _logSyncSafely(
+        syncLogDao,
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
@@ -707,7 +740,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
-      await syncLogDao.logSync(
+      await _logSyncSafely(
+        syncLogDao,
         syncId: syncId,
         direction: 'push',
         deviceId: deviceId,
