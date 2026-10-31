@@ -31,7 +31,7 @@ void main() {
       expect(optimizer.optimizationLevel, 0);
       expect(optimizer.maxListItemsBeforePagination, 500);
       expect(optimizer.syncFullPullPageSize, 500);
-      expect(optimizer.syncDeltaPullPageSize, 250);
+      expect(optimizer.syncDeltaPullPageSize, 300);
     });
   });
 

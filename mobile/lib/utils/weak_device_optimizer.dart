@@ -129,9 +129,9 @@ class WeakDeviceOptimizer {
       case 2:
         return 20;
       case 1:
-        return 50;
+        return 75;
       default:
-        return 100;
+        return 150;
     }
   }
 
@@ -239,9 +239,9 @@ class WeakDeviceOptimizer {
       case 2:
         return 100;
       case 1:
-        return 150;
+        return 200;
       default:
-        return 250;
+        return 300;
     }
   }
 

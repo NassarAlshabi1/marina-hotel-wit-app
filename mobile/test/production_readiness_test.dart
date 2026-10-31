@@ -36,22 +36,24 @@ void main() {
         expect(opt.syncConcurrency, equals(1));
       });
 
-      test('4GB RAM detected as mid-range (level 1)', () {
-        final opt = WeakDeviceOptimizer.instance;
-        unawaited(opt.initialize(processorCount: 4, memoryMB: 4096));
-        expect(opt.isWeakDevice, isFalse);
-        expect(opt.optimizationLevel, equals(1));
+    test('4GB RAM detected as mid-range (level 1)', () {
+      final opt = WeakDeviceOptimizer.instance;
+      unawaited(opt.initialize(processorCount: 4, memoryMB: 4096));
+      expect(opt.isWeakDevice, isFalse);
+      expect(opt.optimizationLevel, equals(1));
+      expect(opt.syncBatchSize, equals(75));
+      expect(opt.syncDeltaPullPageSize, equals(200));
       });
 
-      test('8GB RAM detected as high-end (level 0)', () {
-        final opt = WeakDeviceOptimizer.instance;
-        unawaited(opt.initialize(processorCount: 8, memoryMB: 8192));
-        expect(opt.isWeakDevice, isFalse);
-        expect(opt.optimizationLevel, equals(0));
-        expect(opt.syncConcurrency, equals(4));
-        expect(opt.maxListItemsBeforePagination, equals(500));
-        expect(opt.syncFullPullPageSize, equals(500));
-        expect(opt.syncDeltaPullPageSize, equals(250));
+    test('8GB RAM detected as high-end (level 0)', () {
+      final opt = WeakDeviceOptimizer.instance;
+      unawaited(opt.initialize(processorCount: 8, memoryMB: 8192));
+      expect(opt.isWeakDevice, isFalse);
+      expect(opt.optimizationLevel, equals(0));
+      expect(opt.syncConcurrency, equals(4));
+      expect(opt.maxListItemsBeforePagination, equals(500));
+      expect(opt.syncFullPullPageSize, equals(500));
+      expect(opt.syncDeltaPullPageSize, equals(300));
       });
 
       test('debounceDuration scales', () {

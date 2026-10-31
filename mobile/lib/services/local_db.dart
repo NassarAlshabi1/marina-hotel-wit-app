@@ -1012,6 +1012,10 @@ class Outbox extends Table {
       'idx_outbox_pending_primary_source_ts',
       "CREATE INDEX idx_outbox_pending_primary_source_ts ON outbox (source, client_ts) WHERE processing_status = 'pending' AND delivered_to_primary = 0",
     ),
+    Index(
+      'idx_outbox_push_status_delivery_ts',
+      'CREATE INDEX idx_outbox_push_status_delivery_ts ON outbox (processing_status, delivered_to_primary, client_ts)',
+    ),
   ];
 }
 
@@ -1395,6 +1399,10 @@ class AppDatabase extends _$AppDatabase {
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid '
         'ON salary_withdrawals (employee_uuid)',
+      );
+      await customStatement(
+        'CREATE INDEX IF NOT EXISTS idx_outbox_push_status_delivery_ts '
+        'ON outbox (processing_status, delivered_to_primary, client_ts)',
       );
       await customStatement(
         'CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid '
