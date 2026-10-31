@@ -660,7 +660,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ? '-'
             : info.entryDate!;
         return [
-          entryDate,
+          pw.Text(
+            entryDate,
+            style: pw.TextStyle(font: fonts.base, fontSize: 9),
+          ),
           safe(info.notes),
           safe(info.governorate),
           safe(info.issuePlace),
@@ -788,7 +791,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 color: pdf.PdfColors.white,
                 fontSize: 10,
               ),
-              // حجم خط التاريخ في التقرير 10 كما هو مطلوب.
+              // حجم خط بقية البيانات 10، بينما يُنسّق عمود تاريخ الدخول منفرداً بحجم 9.
               cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
               cellAlignment: pw.Alignment.center,
               border: pw.TableBorder.all(
@@ -797,15 +800,15 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
               ),
               headerAlignments: {
                 0: pw.Alignment.center,
-                1: pw.Alignment.centerRight,
-                2: pw.Alignment.centerRight,
-                3: pw.Alignment.centerRight,
-                4: pw.Alignment.centerRight,
-                5: pw.Alignment.centerRight,
-                6: pw.Alignment.centerRight,
-                7: pw.Alignment.centerRight,
-                8: pw.Alignment.centerRight,
-                9: pw.Alignment.centerRight,
+                1: pw.Alignment.center,
+                2: pw.Alignment.center,
+                3: pw.Alignment.center,
+                4: pw.Alignment.center,
+                5: pw.Alignment.center,
+                6: pw.Alignment.center,
+                7: pw.Alignment.center,
+                8: pw.Alignment.center,
+                9: pw.Alignment.center,
                 10: pw.Alignment.center,
               },
             ),
