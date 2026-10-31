@@ -1739,6 +1739,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // حساب التمديد (قراءة + حوار تأكيد) — قبل الـ transaction
       // ════════════════════════════════════════════════════════════════
       bool needsExtension = false;
+      DateTime? newCheckout;
       int? newExpectedNights;
       int? extraNights;
 
@@ -1809,16 +1810,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
-        // ✅ قاعدة العمل (2026-11-01): تاريخ المغادرة المخطط checkout_date
-        // اختياري ولا يجوز توليده أو تعديله تلقائياً — التمديد يضيف ليالٍ
-        // فقط، والمغادرة تُوقف بـ actual_checkout (زر «تسجيل المغادرة»).
-        // هذا التقدير للعرض في الحوار وفي رسالة واتساب فقط ولا يُحفظ.
-        final estimateBase = widget.booking.checkoutDate != null
-            ? DateTime.tryParse(widget.booking.checkoutDate!) ??
-                  DateTime.now().add(const Duration(days: 1))
-            : DateTime.now().add(const Duration(days: 1));
-        final estimatedCheckout = estimateBase.add(Duration(days: extraNights));
-
         // تأكيد التمديد من المستخدم
         final confirmed = await showDialog<bool>(
           context: context,
@@ -1848,18 +1839,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'تاريخ المغادرة التقديري: '
-                  '${estimatedCheckout.day}/'
-                  '${estimatedCheckout.month}/'
-                  '${estimatedCheckout.year}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                const SizedBox(height: 4),
                 const Text(
-                  'تاريخ المغادرة المخطط لا يُعدَّل تلقائياً — يُعدَّل من شاشة '
-                  'تعديل بيانات النزيل فقط، والحساب يستمر حتى تسجيل المغادرة '
-                  'الفعلية.',
+                  'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
@@ -1882,9 +1863,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
-        // ✅ التمديد يضيف ليالٍ فقط — لا يكتب checkout_date إطلاقاً (لا
-        // يولّده إذا كان NULL ولا يستبدله إذا كان قديماً). المصدر المالي
-        // للحساب: actual_checkout إن وجد، وإلا «الآن» مع حد 14:01.
+        // حساب بيانات التمديد
+        final currentCheckout = widget.booking.checkoutDate != null
+            ? DateTime.tryParse(widget.booking.checkoutDate!)
+            : DateTime.now().add(const Duration(days: 1));
+        newCheckout = (currentCheckout ?? DateTime.now()).add(
+          Duration(days: extraNights),
+        );
         newExpectedNights = widget.booking.expectedNights + extraNights;
         needsExtension = true;
       }
@@ -1897,14 +1882,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
       final database = ref.read(databaseProvider);
       await database.transaction(() async {
-        // 1) تمديد الحجز (إذا لزم) — ✅ قاعدة العمل (2026-11-01):
-        // لا نمرر checkout_date أبداً من مسار التمديد. تاريخ المغادرة
-        // المخطط حقل اختياري يدخله المستخدم من شاشة تعديل بيانات النزيل
-        // فقط، والليالي تنمو تلقائياً (حد 14:01) حتى تسجيل المغادرة
-        // الفعلية عبر actual_checkout.
+        // 1) تمديد الحجز (إذا لزم)
         if (needsExtension) {
           await bookingsRepo.update(
             widget.booking.id,
+            checkoutDate: _formatDateTime(newCheckout ?? DateTime.now()),
             expectedNights: newExpectedNights,
             notes: widget.booking.notes != null
                 ? '${widget.booking.notes}\nتمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}'
@@ -4380,24 +4362,22 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final paymentsRepo = ref.read(paymentsRepoProvider);
 
-      // ✅ قاعدة العمل (2026-11-01): التمديد لا يغيّر checkout_date إطلاقاً
-      // (لا توليد إذا كان NULL ولا استبدال إذا كان قديماً). هذا التقدير
-      // للعرض في رسالة واتساب فقط — الحساب المالي يستمر تلقائياً حتى
-      // actual_checkout أو حد 14:01.
-      final estimateBase = widget.booking.checkoutDate != null
-          ? DateTime.tryParse(widget.booking.checkoutDate!) ??
-                DateTime.now().add(const Duration(days: 1))
+      // تحديث تاريخ المغادرة المخطط
+      final currentCheckout = widget.booking.checkoutDate != null
+          ? DateTime.tryParse(widget.booking.checkoutDate!)
           : DateTime.now().add(const Duration(days: 1));
-      final estimatedCheckout = estimateBase.add(
+
+      final newCheckout = (currentCheckout ?? DateTime.now()).add(
         Duration(days: additionalNights),
       );
 
       final newExpectedNights =
           widget.booking.expectedNights + additionalNights;
 
-      // تحديث الحجز — ليالٍ وملاحظات فقط (بلا تاريخ مغادرة مخطط)
+      // تحديث الحجز
       await bookingsRepo.update(
         widget.booking.id,
+        checkoutDate: _formatDateTime(newCheckout),
         expectedNights: newExpectedNights,
         notes: widget.booking.notes != null
             ? '${widget.booking.notes}\nتمديد: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}'
@@ -4429,7 +4409,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         await _sendExtensionConfirmation(
           additionalNights,
           amount,
-          estimatedCheckout,
+          newCheckout,
           cleanedPhone,
         );
       }
@@ -4462,12 +4442,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   /// رسالة تأكيد تمديد الإقامة
-  /// [estimatedCheckout] تقدير للعرض فقط — لا يُحفظ في checkout_date
-  /// (قاعدة العمل 2026-11-01).
   Future<void> _sendExtensionConfirmation(
     int additionalNights,
     double amount,
-    DateTime estimatedCheckout,
+    DateTime newCheckout,
     String cleanedPhone,
   ) async {
     final whatsappService = ref.read(whatsappServiceProvider);
@@ -4478,7 +4456,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         'ليالي إضافية: $additionalNights ${additionalNights == 1 ? 'ليلة' : 'ليالي'}\n';
     message += 'المبلغ المدفوع: ${_formatAmountForMessage(amount)} ريال\n';
     message +=
-        'تاريخ المغادرة التقديري: ${estimatedCheckout.day}/${estimatedCheckout.month}/${estimatedCheckout.year}\n';
+        'تاريخ المغادرة الجديد: ${newCheckout.day}/${newCheckout.month}/${newCheckout.year}\n';
     message += 'شكراً لاختيارك فندق مارينا\n';
     message += 'للاستفسار: 9677734587456';
 
@@ -4510,6 +4488,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   String _formatAmountForMessage(num amount) {
     return _currencyFmt.format(amount);
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    return '$y-$m-$d $h:$min:$s';
   }
 }
 
