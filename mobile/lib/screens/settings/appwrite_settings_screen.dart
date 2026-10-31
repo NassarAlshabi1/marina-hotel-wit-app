@@ -891,7 +891,8 @@ class _AppwriteSettingsScreenState
               icon: Icons.table_view,
               color: Colors.deepPurple,
               title: 'تصدير جدول إلى CSV',
-              subtitle: 'اختر جدولًا واحدًا من Appwrite Cloud واحفظه في الذاكرة الخارجية',
+              subtitle:
+                  'اختر جدولًا واحدًا من Appwrite Cloud واحفظه في الذاكرة الخارجية',
               details: const [
                 'ملف CSV مستقل للجدول المختار، بترميز UTF-8 داعم للعربية',
                 'يمكن اختيار مجلد الحفظ من نافذة النظام، مثل Downloads أو بطاقة SD',
@@ -906,7 +907,8 @@ class _AppwriteSettingsScreenState
               icon: Icons.cloud_upload,
               color: Colors.blue,
               title: 'رفع البيانات إلى Appwrite',
-              subtitle: 'يرفع جميع سجلات الأعمال المحلية المتزامنة إلى Appwrite Cloud',
+              subtitle:
+                  'يرفع جميع سجلات الأعمال المحلية المتزامنة إلى Appwrite Cloud',
               details: const [
                 'يشمل الحجوزات والضيوف والمخزون والرواتب والسجلات المرتبطة',
                 'يستخدم معرّف السجل المحلي لتحديثه أو إنشائه دون تكرار',
@@ -1277,8 +1279,9 @@ class _AppwriteSettingsScreenState
       ref.read(ap.appwriteLoggerProvider).clearLogs();
       ref.invalidate(ap.logStatsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
       }
     }
   }
@@ -1912,7 +1915,9 @@ class _AppwriteSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              pulledChanges ? 'تم سحب التغييرات من السحابة بنجاح' : 'اكتمل الفحص دون تغييرات مطبقة؛ قد لا توجد تغييرات جديدة أو توجد تغييرات محلية غير مرفوعة',
+              pulledChanges
+                  ? 'تم سحب التغييرات من السحابة بنجاح'
+                  : 'اكتمل الفحص دون تغييرات مطبقة؛ قد لا توجد تغييرات جديدة أو توجد تغييرات محلية غير مرفوعة',
             ),
             backgroundColor: pulledChanges ? Colors.green : Colors.orange,
           ),
@@ -2004,8 +2009,9 @@ class _AppwriteSettingsScreenState
 
   Future<void> _testSync() async {
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
     }
     await _syncNow();
   }
