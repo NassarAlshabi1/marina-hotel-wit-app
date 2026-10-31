@@ -120,6 +120,12 @@ void main() {
       400,
       scrollable: scrollable,
     );
+    // ✅ مثل اختبار «لا ينفذ إجراءات البيانات قبل تأكيد المستخدم»:
+    // بطاقات قسم إدارة البيانات طويلة، وقد يبقى زر الإجراء أسفل حافة
+    // الشاشة بعد scrollUntilVisible فتفوت الضربة (hit-test خارج 800x600).
+    // ensureVisible تجلب الزر فعلياً إلى نطاق اللمس قبل الضغط.
+    await tester.ensureVisible(find.text('اختيار الجدول والتصدير'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('اختيار الجدول والتصدير'));
     await tester.pumpAndSettle();
 
