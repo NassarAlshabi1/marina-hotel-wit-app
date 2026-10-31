@@ -5,11 +5,14 @@ import 'dart:io';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/json_isolate.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
@@ -28,6 +31,125 @@ class ComprehensiveAppwriteBackupService {
 
   final AppwriteService _appwriteService = AppwriteService();
   final AppwriteLogger _logger = AppwriteLogger();
+
+  /// اسم مجلد النسخ الخارجي (مشترك مع LocalBackupService للاتساق).
+  static const String _externalBackupFolderName = 'MarinaHotelBackups';
+
+  /// المجلد الفرعي الخاص بنسخ Appwrite داخل مجلد النسخ الخارجي.
+  static const String _appwriteSubfolder = 'Appwrite';
+
+  /// مسار مجلد النسخ الخارجي على أندرويد:
+  /// /storage/emulated/0/Documents/MarinaHotelBackups/Appwrite
+  static String get _androidExternalPath =>
+      '/storage/emulated/0/Documents/$_externalBackupFolderName/$_appwriteSubfolder';
+
+  Directory? _cachedBackupDirectory;
+  bool _cachedIsExternal = false;
+
+  /// التحقق من أذونات التخزين الخارجي وطلبها عند الحاجة.
+  ///
+  /// ✅ على Android 11+ نطلب MANAGE_EXTERNAL_STORAGE (معلنة في Manifest)،
+  /// وعلى الأقدم نطلب WRITE/READ_EXTERNAL_STORAGE.
+  /// عند الرفض لا نفشل العملية — نرجع false ويتولى المُستدعي
+  /// استخدام المجلد الخاص بالتطبيق كبديل (نفس سياسة LocalBackupService).
+  Future<bool> _checkExternalStoragePermission() async {
+    try {
+      if (!Platform.isAndroid) {
+        return true; // iOS/سطح المكتب: نستخدم مجلد التطبيق
+      }
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+
+      if (androidInfo.version.sdkInt >= 30) {
+        final granted = await Permission.manageExternalStorage
+            .request()
+            .isGranted;
+        if (granted) {
+          dlog('✅ MANAGE_EXTERNAL_STORAGE granted (Appwrite backup)');
+          return true;
+        }
+        dlog(
+          '⚠️ MANAGE_EXTERNAL_STORAGE denied (Appwrite backup) — '
+          'falling back to app-private directory',
+        );
+        return false;
+      }
+
+      // Android < 11
+      final storagePermission = await Permission.storage.request();
+      return storagePermission.isGranted;
+    } catch (e) {
+      dlog(() => '❌ خطأ في التحقق من أذونات التخزين: $e');
+      return false;
+    }
+  }
+
+  /// مجلد حفظ نسخة Appwrite الاحتياطية.
+  ///
+  /// الأولوية للتخزين الخارجي المشترك على أندرويد حتى تبقى النسخة
+  /// محفوظة حتى لو أُلغي تثبيت التطبيق، ويستطيع المستخدم نسخها يدوياً.
+  /// عند رفض الإذن أو فشل الإنشاء نتراجع إلى مجلد التطبيق الخاص
+  /// (بنفس المسار القديم full_backups للتوافق مع النسخ السابقة).
+  ///
+  /// يُرجع (المجلد، هل هو تخزين خارجي مشترك؟)
+  Future<(Directory, bool)> getBackupDirectory() async {
+    if (_cachedBackupDirectory != null &&
+        _cachedBackupDirectory!.existsSync()) {
+      return (_cachedBackupDirectory!, _cachedIsExternal);
+    }
+
+    Directory backupDir;
+    bool isExternal = false;
+
+    if (Platform.isAndroid) {
+      final hasPermission = await _checkExternalStoragePermission();
+      if (hasPermission) {
+        final externalDir = Directory(_androidExternalPath);
+        try {
+          if (!externalDir.existsSync()) {
+            await externalDir.create(recursive: true);
+          }
+          // تأكيد قابلية الكتابة فعلياً (إذن ممنوح لا يعني دائماً كتابة ناجحة)
+          final probe = File('${externalDir.path}/.write_probe');
+          await probe.writeAsString('ok', flush: true);
+          if (probe.existsSync()) {
+            await probe.delete();
+          }
+          backupDir = externalDir;
+          isExternal = true;
+          dlog(() => '✅ مجلد نسخ Appwrite الخارجي: ${backupDir.path}');
+        } catch (e) {
+          dlog(
+            () =>
+                '⚠️ فشل الوصول للتخزين الخارجي ($e) — '
+                'الانتقال إلى مجلد التطبيق',
+          );
+          backupDir = await _appPrivateBackupDir();
+        }
+      } else {
+        backupDir = await _appPrivateBackupDir();
+      }
+    } else {
+      // iOS / سطح المكتب: مجلد مستندات التطبيق (الوصول لنظام الملفات
+      // المشترك يتطلب مسارات مختلفة لكل منصة)
+      backupDir = await _appPrivateBackupDir();
+    }
+
+    _cachedBackupDirectory = backupDir;
+    _cachedIsExternal = isExternal;
+
+    return (backupDir, isExternal);
+  }
+
+  /// مجلد النسخ داخل مساحة التطبيق الخاصة (السلوك القديم).
+  Future<Directory> _appPrivateBackupDir() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final backupDir = Directory('${dir.path}/full_backups');
+    if (!backupDir.existsSync()) {
+      await backupDir.create(recursive: true);
+    }
+    return backupDir;
+  }
 
   // قائمة المجموعات التي سيتم نسخها احتياطياً
   // ignore: unused_field
@@ -207,7 +329,7 @@ class ComprehensiveAppwriteBackupService {
 
       final payload = {
         'metadata': {
-          'version': '1.0',
+          'version': '1.1',
           'timestamp': timestamp.toIso8601String(),
           'projectId': AppwriteConfig.projectId,
           'databaseId': AppwriteConfig.databaseId,
@@ -218,11 +340,9 @@ class ComprehensiveAppwriteBackupService {
       };
 
       // حفظ الملف
-      final dir = await getApplicationDocumentsDirectory();
-      final backupDir = Directory('${dir.path}/full_backups');
-      if (!backupDir.existsSync()) {
-        await backupDir.create(recursive: true);
-      }
+      // ✅ (2026-10-31) الأولوية للتخزين الخارجي المشترك على أندرويد حتى تبقى
+      // النسخة محفوظة بعد إلغاء تثبيت التطبيق ويمكن للمستخدم نسخها يدوياً.
+      final (backupDir, isExternal) = await getBackupDirectory();
 
       final fileName =
           'marina_full_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.json';
@@ -230,8 +350,19 @@ class ComprehensiveAppwriteBackupService {
 
       await file.writeAsString(jsonEncode(payload));
 
+      dlog(
+        () => '✅ حُفظت نسخة Appwrite الاحتياطية '
+            '${isExternal ? 'في التخزين الخارجي' : 'في مجلد التطبيق'}: '
+            '${file.path}',
+      );
+
       if (onProgress != null) {
-        onProgress('تم إنشاء ملف النسخة الاحتياطية', 1.0);
+        onProgress(
+          isExternal
+              ? 'تم إنشاء ملف النسخة في الذاكرة الخارجية'
+              : 'تم إنشاء ملف النسخة (مجلد التطبيق — لم تُمنح صلاحية التخزين الخارجي)',
+          1.0,
+        );
       }
 
       return file;

@@ -12,6 +12,11 @@ import '../../../../services/daos/outbox_dao.dart';
 /// هذا الإجراء يدوي ومقصود للحالات الإدارية فقط. يمنع الرفع عندما توجد
 /// عمليات Outbox غير مُسلَّمة؛ يجب تفريغ الرفع الاعتيادي أولاً حتى لا
 /// تستبدل اللقطة بيانات بعيدة أحدث.
+///
+/// ✅ (2026-10-31) تُحفظ نسخة JSON في التخزين الخارجي المشترك على أندرويد
+/// (/storage/emulated/0/Documents/MarinaHotelBackups/Appwrite) حتى تبقى
+/// النسخة بعد إلغاء تثبيت التطبيق ويمكن نسخها يدوياً. عند رفض صلاحية
+/// «جميع الملفات» نتراجع لمجلد التطبيق ونوضح ذلك للمستخدم.
 class AppwriteBackupTab extends ConsumerStatefulWidget {
   const AppwriteBackupTab({super.key});
 
@@ -24,6 +29,8 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
   double _progress = 0;
   String _stage = 'جاهز لإنشاء نسخة ورفعها';
   File? _lastExportedFile;
+  bool _lastSavedToExternal = false;
+  String? _lastFileSize;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +54,38 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          color: colorScheme.secondaryContainer,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.sd_storage, color: colorScheme.secondary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'يُحفظ ملف النسخة في الذاكرة الخارجية',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'المسار: Documents/MarinaHotelBackups/Appwrite\n'
+                        'تبقى النسخة محفوظة حتى بعد حذف التطبيق، ويمكن '
+                        'نسخها إلى جهاز آخر أو Google Drive يدوياً.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -85,13 +124,54 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
         if (_lastExportedFile != null) ...[
           const SizedBox(height: 20),
           Card(
-            child: ListTile(
-              leading: const Icon(Icons.file_present),
-              title: const Text('تم الاحتفاظ بالنسخة المحلية'),
-              subtitle: Text(
-                _lastExportedFile!.path,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _lastSavedToExternal
+                            ? Icons.sd_card
+                            : Icons.folder_special,
+                        size: 20,
+                        color: _lastSavedToExternal
+                            ? Colors.green
+                            : Colors.orange,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _lastSavedToExternal
+                              ? 'تم حفظ النسخة في الذاكرة الخارجية'
+                              : 'حُفظت النسخة في مجلد التطبيق (لم تُمنح '
+                                  'صلاحية الوصول لجميع الملفات)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _lastSavedToExternal
+                                ? Colors.green
+                                : Colors.orange,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    _lastExportedFile!.path,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  if (_lastFileSize != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'الحجم: $_lastFileSize',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -123,9 +203,10 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('تأكيد رفع النسخة إلى Appwrite'),
         content: const Text(
-          'سيُنشأ ملف نسخة احتياطية من بيانات هذا الجهاز ثم يُرفع إلى '
-          'Appwrite. السجلات ذات UUID نفسه ستُحدَّث، ولن تُحذف السجلات '
-          'البعيدة الأخرى. هل تريد المتابعة؟',
+          'سيُنشأ ملف نسخة احتياطية من بيانات هذا الجهاز (يُحفظ في الذاكرة '
+          'الخارجية إن مُنحت الصلاحية) ثم يُرفع إلى Appwrite. السجلات ذات '
+          'UUID نفسه ستُحدَّث، ولن تُحذف السجلات البعيدة الأخرى. '
+          'هل تريد المتابعة؟',
         ),
         actions: [
           TextButton(
@@ -170,9 +251,14 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
         throw StateError('تعذر إنشاء ملف النسخة الاحتياطية');
       }
 
+      final (_, isExternal) = await backupService.getBackupDirectory();
+      final sizeBytes = await file.length();
+
       if (!mounted) return;
       setState(() {
         _lastExportedFile = file;
+        _lastSavedToExternal = isExternal;
+        _lastFileSize = _formatFileSize(sizeBytes);
         _stage = 'جاري رفع النسخة إلى Appwrite...';
         _progress = 0.35;
       });
@@ -194,9 +280,13 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
         _stage = 'اكتمل رفع النسخة إلى Appwrite';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم إنشاء النسخة ورفعها إلى Appwrite بنجاح'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(
+            isExternal
+                ? 'تم إنشاء النسخة في الذاكرة الخارجية ورفعها إلى Appwrite بنجاح'
+                : 'تم إنشاء النسخة (مجلد التطبيق) ورفعها إلى Appwrite بنجاح',
+          ),
+          backgroundColor: isExternal ? Colors.green : Colors.orange,
         ),
       );
     } catch (error) {
@@ -212,5 +302,11 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
         setState(() => _isUploading = false);
       }
     }
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes بايت';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} ك.ب';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} م.ب';
   }
 }
