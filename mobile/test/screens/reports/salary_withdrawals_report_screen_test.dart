@@ -15,6 +15,41 @@ import 'package:marina_hotel_mobile/services/salary_mirror_matcher.dart';
 /// اليتيمة (مثلاً: أكثر من مصروف راتب لنفس الموظف في نفس اليوم)، يبقى
 /// صفّان يمثّلان نفس مصروف الراتب ويُحسب المبلغ مرتين في هذا التقرير
 /// تحديداً. هذا الاختبار يثبت أن [dedupeMirrorDuplicates] يمنع ذلك.
+
+/// 🔬 (2026-11-01) فلتر «النشطون فقط» لقائمة الموظفين المنسدلة — طلب
+/// المستخدم: الكومبو في شاشة تقرير سحبيات الرواتب يجب أن يعرض الموظفين
+/// النشطين فقط بدل كل الموظفين (المحذوفين ناعمياً والمنتهية خدمتهم
+/// والمجمدون و«غير النشط»).
+Employee _emp(
+  int id,
+  String name, {
+  String localUuid = '',
+  String status = 'نشط',
+  int? deletedAt,
+}) {
+  return Employee(
+    localUuid: localUuid.isEmpty ? 'uuid-$id' : localUuid,
+    createdAt: 1000,
+    updatedAt: 1000,
+    deletedAt: deletedAt,
+    lastModified: 1000,
+    createdAtEpoch: 1000,
+    lastModifiedEpoch: 1000,
+    version: 1,
+    origin: 'local',
+    vectorClock: '{}',
+    deviceId: '',
+    syncTimestamp: 0,
+    id: id,
+    name: name,
+    basicSalary: 0,
+    position: 'موظف',
+    phone: '',
+    hireDate: '',
+    status: status,
+  );
+}
+
 void main() {
   const day = '2026-09-25';
 
@@ -258,5 +293,52 @@ void main() {
 
     expect(result, hasLength(1));
     expect(result.single.id, legacy.id);
+  });
+
+  group('activeEmployeesForPicker — الكومبو يعرض النشطين فقط', () {
+    test('النشط (نشط/active) يظهر، والمنتهية خدمتهم لا يظهرون', () {
+      final employees = [
+        _emp(1, 'أحمد', status: 'نشط'),
+        _emp(2, 'سارة', status: 'active'),
+        _emp(3, 'مفصول سابقاً', status: 'مفصول'),
+        _emp(4, 'مستقيل سابقاً', status: 'استقالة'),
+        _emp(5, 'مستغنى عنه سابقاً', status: 'استغناء'),
+        _emp(6, 'terminated بالإنجليزية', status: 'terminated'),
+        _emp(7, 'resigned بالإنجليزية', status: 'resigned'),
+        _emp(8, 'laid_off بالإنجليزية', status: 'laid_off'),
+      ];
+
+      final active = activeEmployeesForPicker(employees);
+
+      expect(active.map((e) => e.name), ['أحمد', 'سارة']);
+    });
+
+    test('المحذوف ناعمياً (deletedAt) لا يظهر حتى لو حالته نشط', () {
+      final employees = [
+        _emp(1, 'أحمد'),
+        _emp(2, 'محذوف ناعمياً', deletedAt: 1730000000),
+      ];
+
+      final active = activeEmployeesForPicker(employees);
+
+      expect(active.map((e) => e.name), ['أحمد']);
+    });
+
+    test('المجمد و«غير نشط» والحالة الفارغة لا تظهر — فقط نشط/active', () {
+      final employees = [
+        _emp(1, 'أحمد', status: 'نشط'),
+        _emp(2, 'مجمد سابقاً', status: 'مجمد'),
+        _emp(3, 'غير نشط', status: 'غير نشط'),
+        _emp(4, 'حالة فارغة قديمة', status: ''),
+      ];
+
+      final active = activeEmployeesForPicker(employees);
+
+      expect(active.map((e) => e.name), ['أحمد']);
+    });
+
+    test('قائمة فارغة → نتيجة فارغة بلا استثناءات', () {
+      expect(activeEmployeesForPicker(const []), isEmpty);
+    });
   });
 }

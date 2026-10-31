@@ -12,6 +12,7 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_mirror_matcher.dart';
 import '../../utils/device_attribution.dart';
+import '../../utils/status_utils.dart';
 import '../../mixins/pdf_export_guard_mixin.dart';
 import '../../src/pdf/report_templates/salary_withdrawals_report_pdf.dart';
 import '../../utils/hotel_time_engine.dart';
@@ -82,6 +83,21 @@ class _EmployeeSalaryGroup {
 String _employeeDisplayName(Employee? e, {String fallback = 'غير محدد'}) {
   if (e == null) return fallback;
   return e.deletedAt == null ? e.name : '${e.name} (محذوف)';
+}
+
+/// ✅ (2026-11-01) الموظفون النشطون فقط لقائمة الاختيار المنسدلة في هذه
+/// الشاشة: غير محذوفين ناعمياً (deletedAt == null) وحالتهم "نشط/active"
+/// عبر StatusUtils — أي يُستثنى المنتهية خدمتهم (مفصول/استقالة/استغناء)
+/// والمجمدون و"غير النشط" والمحذوفون.
+/// ⚠️ قائمة الموظفين الكاملة تبقى مستخدمة في حلّ أسماء السجلات التاريخية
+/// (انظر _loadSalaryData و _employeeDisplayName) — هذا الفلتر للعرض
+/// في الكومبو فقط ولا يمسّ تجميع البيانات.
+List<Employee> activeEmployeesForPicker(List<Employee> employees) {
+  return employees
+      .where(
+        (e) => e.deletedAt == null && StatusUtils.isEmployeeActive(e.status),
+      )
+      .toList();
 }
 
 /// يدمج سحوبات المرآة المكرّرة لنفس مصروف راتب واحد في سحبة تمثيلية
@@ -248,6 +264,17 @@ class _SalaryWithdrawalsReportScreenState
           _employeeGroups
             ..clear()
             ..addAll(result.groups);
+
+          // ✅ (2026-11-01) إذا لم يعد الموظف المحدد نشطاً (فُصل/حُذف بعد
+          // اختياره) نُعيد الاختيار إلى "الكل" — قيمة DropdownButton يجب
+          // أن تكون دائماً ضمن عناصره، والعناصر الآن نشطون فقط.
+          if (_selectedEmployeeUuid != null &&
+              !activeEmployeesForPicker(_allEmployees).any(
+                (e) =>
+                    e.localUuid.trim().toLowerCase() == _selectedEmployeeUuid,
+              )) {
+            _selectedEmployeeUuid = null;
+          }
         });
       }
     } finally {
@@ -564,7 +591,7 @@ class _SalaryWithdrawalsReportScreenState
             // القائمة المنسدلة للموظف + زر البحث
             Row(
               children: [
-                // القائمة المنسدلة
+                // القائمة المنسدلة — ✅ (2026-11-01) النشطون فقط
                 Expanded(
                   child: Container(
                     height: 40,
@@ -578,7 +605,7 @@ class _SalaryWithdrawalsReportScreenState
                         value: _selectedEmployeeUuid,
                         isExpanded: true,
                         hint: const Text(
-                          'عرض بحسب الموظف',
+                          'عرض بحسب الموظف (النشطون فقط)',
                           style: TextStyle(fontSize: 13),
                         ),
                         icon: const Icon(Icons.arrow_drop_down, size: 20),
@@ -599,7 +626,7 @@ class _SalaryWithdrawalsReportScreenState
                               ],
                             ),
                           ),
-                          ..._allEmployees.map((emp) {
+                          ...activeEmployeesForPicker(_allEmployees).map((emp) {
                             final uuid = emp.localUuid.trim().toLowerCase();
                             return DropdownMenuItem<String?>(
                               value: uuid.isEmpty ? null : uuid,
