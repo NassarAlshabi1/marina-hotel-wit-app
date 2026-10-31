@@ -11,12 +11,16 @@ class AppwriteConfig {
   );
 
   // Project ID - من لوحة تحكم Appwrite
-  // ✅ تم التغيير (2026-07-22): المشروع القديم (6a2b01d0) تجاوز حد Database Reads.
-  // المشروع الجديد (6a4408f3) هو نفسه الذي كان secondary — يعمل بدون مشاكل.
-  static const String projectId = '6a4408f300217885fd7b';
+  // ✅ تم التغيير (2026-10-31): الانتقال إلى المشروع الجديد بعد اكتمال ترحيل
+  // 8,708 سجلاً من المشروع السابق (6a4408f3) إلى المشروع الجديد (6ae118bc).
+  // ⚠️ هام: عند تغيير المشروع يجب تغيير Project + Database + API Key معاً
+  // (تغيير Database وحده يسبب 404 database_not_found لأن القاعدة تُبحث في
+  // المشروع الذي يصادق عليه الطلب).
+  // للحالية في التطبيق المثبّت: الإعدادات ← المزامنة ← Appwrite ← إعدادات الاتصال السحابي.
+  static const String projectId = '6ae118bc00263ddb1cd5';
 
   // Database ID - من لوحة تحكم Appwrite
-  static const String databaseId = '6a4409b50019dd39dde5';
+  static const String databaseId = '6ae119d7001046bbdb3e';
 
   // ═══════════════════════════════════════════════════════════════
   //  API Key — مفتاح افتراضي مُدمج في التطبيق
