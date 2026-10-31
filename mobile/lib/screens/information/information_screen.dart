@@ -660,10 +660,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
             ? '-'
             : info.entryDate!;
         return [
-          pw.Text(
-            entryDate,
-            style: pw.TextStyle(font: fonts.base, fontSize: 9),
-          ),
+          entryDate,
           safe(info.notes),
           safe(info.governorate),
           safe(info.issuePlace),
@@ -791,8 +788,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                 color: pdf.PdfColors.white,
                 fontSize: 10,
               ),
-              // حجم خط بقية البيانات 10، بينما يُنسّق عمود تاريخ الدخول منفرداً بحجم 9.
-              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 10),
+              cellStyle: pw.TextStyle(font: fonts.base, fontSize: 9),
               cellAlignment: pw.Alignment.center,
               border: pw.TableBorder.all(
                 color: pdf.PdfColors.grey400,
