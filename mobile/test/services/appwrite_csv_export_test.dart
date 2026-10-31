@@ -79,13 +79,17 @@ void main() {
         collectionId: 'bookings',
         targetPath: '${tempDir.path}/bookings.csv',
       );
-      final contents = utf8.decode(await result.file.readAsBytes());
+      final bytes = await result.file.readAsBytes();
+      final contents = utf8.decode(bytes);
 
       expect(fetchCalls, ['bookings']);
       expect(result.collectionLabel, 'الحجوزات');
       expect(result.recordCount, 1);
       expect(result.file.existsSync(), isTrue);
-      expect(contents.startsWith('\uFEFF'), isTrue);
+      // ✅ التحقق من UTF-8 BOM على مستوى البايتات (EF BB BF):
+      // utf8.decode في Dart الحديثة تزيل الـ BOM أثناء فك الترميز،
+      // لذا لا يمكن التحقق منه من النص المفكوك.
+      expect(bytes.take(3).toList(), const [0xEF, 0xBB, 0xBF]);
       expect(contents, contains('guestName'));
       expect(contents, contains('أحمد'));
       expect(contents, contains('150.5'));
