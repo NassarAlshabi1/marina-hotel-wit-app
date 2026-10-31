@@ -56,6 +56,46 @@ class SyncStats {
   final int averageDurationMs;
 }
 
+/// Retry policy for transient SQLite write locks. Kept separate from the DAO
+/// insert so the retry count, classification, and backoff ladder are testable.
+abstract final class SyncLogRetryPolicy {
+  static const int maxAttempts = 5;
+
+  static bool isRetryableLockError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('database is locked') ||
+        message.contains('sqlite_busy') ||
+        message.contains('sq lite busy') ||
+        RegExp(r'sqliteexception\((?:5|517)\)').hasMatch(message) ||
+        RegExp(r'\bcode\s*:?[\s(]*(?:5|517)\b').hasMatch(message);
+  }
+
+  static Duration delayForAttempt(int attempt) {
+    if (attempt < 1 || attempt >= maxAttempts) {
+      throw RangeError.range(attempt, 1, maxAttempts - 1, 'attempt');
+    }
+    return Duration(milliseconds: 80 * (1 << (attempt - 1)));
+  }
+
+  static Future<T> run<T>(
+    Future<T> Function() operation, {
+    Future<void> Function(Duration)? wait,
+  }) async {
+    final waitFor = wait ?? Future<void>.delayed;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (!isRetryableLockError(error) || attempt == maxAttempts) {
+          rethrow;
+        }
+        await waitFor(delayForAttempt(attempt));
+      }
+    }
+    throw StateError('sync_log insert exhausted retry attempts');
+  }
+}
+
 @DriftAccessor(tables: [SyncLog, SyncConflicts])
 class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   SyncLogDao(super.db);
@@ -102,37 +142,10 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     // حتى لو انتظر. يحدث ذلك أثناء pull عندما ينتهي تطبيق صفحة من الكتابة
     // بالتزامن مع تسجيل حالة المزامنة. إعادة تنفيذ INSERT بعد انتهاء اللقطة
     // هي المعالجة الصحيحة، وتبقى محصورة في سجل تشخيصي غير جوهري.
-    const maxAttempts = 5;
-    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        return await into(syncLog).insert(entry);
-      } catch (error) {
-        if (!_isRetryableLockError(error) || attempt == maxAttempts) {
-          rethrow;
-        }
-
-        // 80, 160, 320, 640ms: نمنح معاملة السحب فرصة قصيرة للانتهاء
-        // دون إضافة تأخير محسوس في الحالة الطبيعية.
-        await Future<void>.delayed(
-          Duration(milliseconds: 80 * (1 << (attempt - 1))),
-        );
-      }
-    }
-
-    // لا يمكن الوصول إلى هذا السطر، لكنه يرضي محلل التدفق ويضمن عقد الدالة.
-    throw StateError('sync_log insert exhausted retry attempts');
-  }
-
-  /// SQLITE_BUSY (5) و SQLITE_BUSY_SNAPSHOT (517) قابلان لإعادة المحاولة.
-  /// نستخدم النص لأن Drift يمرر SqliteException من sqlite3 عبر طبقات مختلفة
-  /// على Android وiOS وDesktop، وقد يختلف النوع المرئي للمستدعي.
-  static bool _isRetryableLockError(Object error) {
-    final message = error.toString().toLowerCase();
-    return message.contains('database is locked') ||
-        message.contains('sqlite_busy') ||
-        message.contains('sq lite busy') ||
-        RegExp(r'sqliteexception\((?:5|517)\)').hasMatch(message) ||
-        RegExp(r'\bcode\s*:?[\s(]*(?:5|517)\b').hasMatch(message);
+    // WAL + busy_timeout cannot resolve SQLITE_BUSY_SNAPSHOT (517) after a
+    // read snapshot becomes stale. Re-run this non-critical audit INSERT with
+    // a bounded backoff so pull-page writes can finish first.
+    return SyncLogRetryPolicy.run(() => into(syncLog).insert(entry));
   }
 
   /// الحصول على سجل المزامنة (مع pagination)
