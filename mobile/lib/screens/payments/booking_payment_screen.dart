@@ -20,7 +20,6 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
-import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
@@ -80,10 +79,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   // ✅ P1 (double-checkout): قفل تشغيلي — يمنع تسلسل مغادرة مزدوج أثناء
   // نفوذ طلب أول (قبل أن يُكتب actualCheckout إلى قاعدة البيانات).
   bool _checkoutOperationInFlight = false;
-
-  /// أقصى فائض يُمتص تلقائياً كتعديل سعر على الليالي (سعر متفاوض عليه).
-  /// أي فائض فوق هذا السقف يعود لمسار التمديد الحالي.
-  static const double _maxAutoRateSurplus = 5000;
 
   /// ✅ P1: هل الحجز مسجل مغادرته بالفعل؟ (يُقرأ من الحالة الحية).
   /// [source] قد يكون نسخة حية من liveBookingProvider أو نسخة widget —
@@ -1739,40 +1734,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     try {
       final totals = await _calculateCurrentTotals();
-      final double surplus = amount - totals.remaining;
-
-      // ══════════════════════════════════════════════════════════════
-      // المسار الجديد: فائض ≤ السقف → تعديل سعر تلقائي على الليالي
-      // (السعر المتفاوض عليه يُشتق من مبلغ الدفعة نفسه)
-      // ══════════════════════════════════════════════════════════════
-      if (!isPendingBalance && surplus > 0 && surplus <= _maxAutoRateSurplus) {
-        final absorbed = await _processSurplusAsRateAdjustment(
-          method: method,
-          amount: amount,
-          surplus: surplus,
-          remainingBefore: totals.remaining,
-          notes: notes,
-          reference: reference,
-          cardDigits: cardDigits,
-          bank: bank,
-        );
-        if (!absorbed) {
-          return; // ألغى المستخدم — لا يُكتب شيء
-        }
-        return; // اكتمل المسار الجديد بالكامل
-      }
 
       // ════════════════════════════════════════════════════════════════
       // حساب التمديد (قراءة + حوار تأكيد) — قبل الـ transaction
-      // (لم يتغير — يعمل فقط عندما يتجاوز الفائض السقف)
       // ════════════════════════════════════════════════════════════════
       bool needsExtension = false;
+      DateTime? newCheckout;
       int? newExpectedNights;
       int? extraNights;
 
       if (!isPendingBalance && amount > totals.remaining) {
         // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
-        final surplusExt = amount - totals.remaining;
+        final surplus = amount - totals.remaining;
 
         // ═══════════════════════════════════════════════════════════════
         /// نستخدم السعر الفعلي للليلة (effectiveNightlyRate) بدلاً من
@@ -1829,20 +1802,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
-        extraNights = (surplusExt / effectiveRate).ceil();
+        extraNights = (surplus / effectiveRate).ceil();
         if (extraNights <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
           );
           return;
         }
-
-        // ✅ قاعدة العمل (2026-11-01): checkout_date لا يُعدَّل تلقائياً.
-        final estimateBase = widget.booking.checkoutDate != null
-            ? DateTime.tryParse(widget.booking.checkoutDate!) ??
-                  DateTime.now().add(const Duration(days: 1))
-            : DateTime.now().add(const Duration(days: 1));
-        final estimatedCheckout = estimateBase.add(Duration(days: extraNights));
 
         // تأكيد التمديد من المستخدم
         final confirmed = await showDialog<bool>(
@@ -1864,7 +1830,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 Text(
                   'المبلغ المتبقي الحالي: ${_currencyFmt.format(totals.remaining)}',
                 ),
-                Text('المبلغ الفائض: ${_currencyFmt.format(surplusExt)}'),
+                Text('المبلغ الفائض: ${_currencyFmt.format(surplus)}'),
                 Text(
                   'سيتم إضافة: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'} قادمة',
                   style: const TextStyle(
@@ -1873,12 +1839,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'تاريخ المغادرة التقديري: '
-                  '${estimatedCheckout.day}/'
-                  '${estimatedCheckout.month}/'
-                  '${estimatedCheckout.year}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                const Text(
+                  'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
@@ -1900,24 +1863,30 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return;
         }
 
+        // حساب بيانات التمديد
+        final currentCheckout = widget.booking.checkoutDate != null
+            ? DateTime.tryParse(widget.booking.checkoutDate!)
+            : DateTime.now().add(const Duration(days: 1));
+        newCheckout = (currentCheckout ?? DateTime.now()).add(
+          Duration(days: extraNights),
+        );
         newExpectedNights = widget.booking.expectedNights + extraNights;
         needsExtension = true;
       }
 
       // ═══════════════════════════════════════════════════════
-      // Transaction واحد: تمديد (إن وجد) + هاتف + دفعة
+      // Transaction واحد يحمي من كارثة مالية:
+      // تمديد الحجز + تحديث الهاتف + إنشاء الدفعة
+      // لو التطبيق انهار في المنتصف → كل العمليات تتراجع معاً
       // ═══════════════════════════════════════════════════════
       final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
       final database = ref.read(databaseProvider);
       await database.transaction(() async {
-        // 1) تمديد الحجز (إذا لزم) — ✅ قاعدة العمل (2026-11-01):
-        // لا نمرر checkout_date أبداً من مسار التمديد. تاريخ المغادرة
-        // المخطط حقل اختياري يدخله المستخدم من شاشة تعديل بيانات النزيل
-        // فقط، والليالي تنمو تلقائياً (حد 14:01) حتى تسجيل المغادرة
-        // الفعلية عبر actual_checkout.
+        // 1) تمديد الحجز (إذا لزم)
         if (needsExtension) {
           await bookingsRepo.update(
             widget.booking.id,
+            checkoutDate: _formatDateTime(newCheckout ?? DateTime.now()),
             expectedNights: newExpectedNights,
             notes: widget.booking.notes != null
                 ? '${widget.booking.notes}\nتمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}'
@@ -2027,235 +1996,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         _isSavingPayment = false;
       }
     }
-  }
-
-  // ════════════════════════════════════════════════════════════════
-  // ✅ دوال جديدة: امتصاص الفائض كتعديل سعر (سعر متفاوض عليه)
-  // ════════════════════════════════════════════════════════════════
-
-  /// يعالج فائض الدفعة (≤ [_maxAutoRateSurplus]) كتعديل سعر على الليالي،
-  /// بحيث يصبح «السعر المتفاوض عليه» مشتقاً من مبلغ الدفعة نفسه:
-  /// غرفة قائمة بـ 15,000 ودُفع 18,000 → تُسجَّل إضافة 3,000 على الليالي.
-  ///
-  /// يعيد [true] إذا اكتمل التسجيل، أو [false] إذا ألغى المستخدم / الحجز
-  /// غير قابل للتعديل (مغادرة مسجلة).
-  Future<bool> _processSurplusAsRateAdjustment({
-    required PaymentMethod method,
-    required double amount,
-    required double surplus,
-    required double remainingBefore,
-    required String notes,
-    required String reference,
-    required String cardDigits,
-    required String bank,
-  }) async {
-    final bookingsRepo = ref.read(bookingsRepoProvider);
-
-    // ✅ حرس: لا تعديل سعر لحجز مسجل مغادرته
-    final current = await bookingsRepo.watchOne(widget.booking.id).first;
-    if (current == null) {
-      throw StateError('الحجز غير موجود — ربما حُذف');
-    }
-    if (_isAlreadyCheckedOut(current) ||
-        !StatusUtils.isBookingActive(current)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('لا يمكن تعديل سعر الليلة — الحجز مسجل مغادرته'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return false;
-    }
-
-    // ✅ حوار تأكيد صريح — الزيادة قابلة للاسترجاع عند المغادرة المبكرة
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.price_change, color: Colors.indigo),
-            SizedBox(width: 8),
-            Text('تعديل سعر الليلة'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'المبلغ يتجاوز المتبقي. سيتم احتساب الفارق كسعر '
-              'متفاوض عليه لليلة:',
-            ),
-            const SizedBox(height: 12),
-            Text('المتبقي قبل الدفعة: ${_currencyFmt.format(remainingBefore)}'),
-            Text(
-              'الفارق (إضافة على الليلة): ${_currencyFmt.format(surplus)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.indigo,
-              ),
-            ),
-            Text(
-              'إجمالي قيمة الإقامة الجديد: '
-              '${_currencyFmt.format(remainingBefore + surplus)}',
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '⚠️ المبلغ الإضافي يدخل ضمن قيمة الليالي ويُحتسب ضمن '
-              'المردود عند المغادرة المبكرة.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
-            child: const Text('تأكيد وتسجيل الدفعة'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) {
-      return false;
-    }
-
-    final database = ref.read(databaseProvider);
-    final paymentsRepo = ref.read(paymentsRepoProvider);
-    final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
-
-    // Transaction واحد: تعديل السعر + الهاتف + الدفعة — كلها أو لا شيء
-    await database.transaction(() async {
-      await _absorbSurplusAsSurcharge(surplus);
-
-      await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
-
-      await paymentsRepo.create(
-        bookingLocalId: widget.booking.id,
-        serverBookingId: widget.booking.serverBookingId,
-        roomNumber: widget.booking.roomNumber,
-        amount: amount,
-        paymentDate: Time.nowIso(),
-        notes:
-            '${notes.isEmpty ? '' : '$notes | '}سعر متفاوض عليه — إضافة ${_currencyFmt.format(surplus)} على الليلة',
-        paymentMethod: _mapUiMethodToDb(method),
-        revenueType: 'room',
-      );
-    });
-
-    unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
-
-    // بعد الامتصاص الدفعة تغطي كامل المستحق → المتبقي صفر
-    const double newRemaining = 0.0;
-
-    if (cleanedPhone.isNotEmpty) {
-      await _sendPaymentConfirmation(amount, newRemaining, cleanedPhone);
-    }
-
-    if (mounted) {
-      setState(() {
-        _currentGuestPhone = cleanedPhone;
-        _remainingAmount = newRemaining;
-      });
-    } else {
-      _currentGuestPhone = cleanedPhone;
-      _remainingAmount = newRemaining;
-    }
-
-    Navigator.pop(context); // إغلاق حوار إدخال الدفعة
-
-    _showReceiptDialog(
-      Payment(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        bookingId: widget.booking.localUuid,
-        amount: amount,
-        method: method,
-        status: PaymentStatus.completed,
-        paymentDate: DateTime.now(),
-        notes: notes.isNotEmpty ? notes : null,
-        referenceNumber: reference.isNotEmpty ? reference : null,
-        cardLastFourDigits: cardDigits.isNotEmpty ? cardDigits : null,
-        bankName: bank.isNotEmpty ? bank : null,
-        receivedBy: 'admin',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'تم تسجيل دفعة ${_currencyFmt.format(amount)} '
-            '(يشمل سعراً متفاوضاً عليه ${_currencyFmt.format(surplus)})',
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-    return true;
-  }
-
-  /// يطبّق الفائض كـ surcharge (adjustment > 0) على آخر ليلة مسجلة.
-  /// يرتفع `nightTotal` تلقائياً عبر `finalRate` في `_calculateStay`،
-  /// فيصبح السعر المتفاوض عليه هو أساس كل الحسابات اللاحقة (تمديد، مردود...).
-  ///
-  /// ⚠️ حلّ ملاحظتَي الرقعة (الأعمدة الإلزامية + الطابع الزمني):
-  /// سجلات `booking_nights` تُعاد تسعيرتها دائماً من جدول
-  /// `booking_price_adjustments` داخل
-  /// `EnhancedBookingCalculationService.updateNightlyRecords` — أي كتابة
-  /// يدوية مباشرة على صف الليلة تُمحى عند أول تحديث للحقول المشتقة.
-  /// لذلك يُسجَّل الفائض كتعديل سعر كنسي عبر `BookingPriceAdjustmentService`
-  /// الذي يملأ جميع الأعمدة الإلزامية (hotelDayKey/nightStart/nightEnd
-  /// وحقول SyncFields: createdAt/updatedAt/lastModified...) ويحدّث الطوابع
-  /// الزمنية وversion بشكل صحيح وينشئ entry في Outbox للمزامنة، ثم يرفع
-  /// adjustment/finalRate/nightlyRate لليلة المستهدفة عبر إعادة الحساب.
-  ///
-  /// وإذا لم تكن سجلات الليالي موجودة (المسار الاحتياطي) تولّدها أولاً
-  /// عبر تحديث الحقول المشتقة ثم تطبّق الفائض.
-  Future<void> _absorbSurplusAsSurcharge(double surplus) async {
-    final dbInstance = ref.read(databaseProvider);
-
-    Future<List<db.BookingNight>> fetchNights() =>
-        (dbInstance.select(dbInstance.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(widget.booking.id))
-              ..where((n) => n.deletedAt.isNull())
-              ..orderBy([(t) => OrderingTerm.asc(t.sequence)]))
-            .get();
-
-    var nights = await fetchNights();
-
-    if (nights.isEmpty) {
-      // توليد سجلات الليالي من المسار الكنسي قبل تطبيق الفائض
-      await BookingDerivedFieldsService(
-        dbInstance,
-      ).refreshForBookingId(widget.booking.id, enqueueOutbox: false);
-      nights = await fetchNights();
-    }
-
-    if (nights.isEmpty) {
-      throw StateError('تعذّر تجهيز سجلات الليالي لتعديل السعر');
-    }
-
-    // تطبيق الفائض على آخر ليلة (يزيد finalRate → يرتفع nightTotal)
-    final targetDay = nights.last.hotelDayKey;
-
-    await BookingPriceAdjustmentService(dbInstance).applyTemporaryAdjustment(
-      bookingLocalUuid: widget.booking.localUuid,
-      amount: surplus.round(),
-      type: AdjustmentType.surcharge,
-      effectiveHotelDay: targetDay,
-      endHotelDay: targetDay, // ليلة واحدة فقط — السعر المتفاوض عليه
-      reason: 'سعر متفاوض عليه — من فائض الدفعة',
-      appliedBy: 'admin',
-    );
   }
 
   void _showReceiptDialog(Payment payment) {
