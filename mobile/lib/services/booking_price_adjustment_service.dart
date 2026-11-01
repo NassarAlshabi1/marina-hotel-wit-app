@@ -131,6 +131,179 @@ class BookingPriceAdjustmentService {
   final AppDatabase db;
   final BookingDerivedFieldsService? derivedFieldsService;
 
+  // ════════════════════════════════════════════════════════════════
+  // ✅ التفاوض على سعر الغرفة من شاشة الدفع (قاعدة العمل 2026-11-01)
+  // ════════════════════════════════════════════════════════════════
+
+  /// أقصى زيادة تفاوضية فوق سعر الغرفة الأصلي لكل ليلة.
+  /// مثال: غرفة 20,000 → الحد الأقصى لليلة 25,000.
+  static const int maxNegotiatedPerNightIncrease = 5000;
+
+  /// علامة سبب موحّدة تميّز تعديلات التفاوض القادمة من شاشة الدفع
+  /// (تُستخدم لنافذة منع التكرار — لا تمسّ مسار شاشة إدارة الضيوف).
+  static const String negotiatedRateReason = 'تفاوض سعر الغرفة من شاشة الدفع';
+
+  /// نافذة (ثوانٍ) تعامَل فيها الطلبات المتطابقة كضغطة مكررة واحدة.
+  static const int _negotiationDedupeWindowSec = 10;
+
+  /// عمليات تفاوض جارية (قفل لكل حجز) — يمنع التسجيل المزدوج عند
+  /// الضغط المتكرر أو الاستدعاء المتزامن لنفس الحجز.
+  static final Map<String, Future<BookingPriceAdjustment>>
+  _negotiationInFlight = {};
+
+  /// يطبّق زيادة تفاوضية على سعر الليلة لكل ليالي الحجز — مسار
+  /// «التفاوض على سعر الغرفة» من شاشة الدفع.
+  ///
+  /// القواعد:
+  ///   • [amount] يدخله المستخدم المخوّل يدوياً (قيمة الزيادة المتفق
+  ///     عليها لكل ليلة) — ليس مشتقاً من مبلغ الدفعة.
+  ///   • سقف صارم: الزيادة + مجموع الزيادات النشطة (per_night) لا
+  ///     تتجاوز [maxNegotiatedPerNightIncrease] فوق السعر الأصلي/ليلة.
+  ///     للتعديلات الأكبر يبقى مسار شاشة إدارة الضيوف كما هو بلا سقف.
+  ///   • تسري من يوم الدخول الفندقي وبلا تاريخ نهاية → كل ليالي الحجز
+  ///     الحالية وأي ليلة تُضاف لاحقاً (بعد 14:01) تُسعَّر بالسعر المتفاوض.
+  ///   • التعديل مالي فقط: لا يمسّ تاريخ المغادرة ولا عدد الليالي ولا
+  ///     ينشئ دفعات — الدفعة تُسجّل منفصلة بمعاملة شاشة الدفع.
+  ///   • المصدر الكنوني للسعر هو هذا السجل (booking_price_adjustments)
+  ///     وليس قيم صفوف الليالي — لذا يصمد أمام أي إعادة تحديث لاحقة.
+  ///
+  /// يرمي [ArgumentError] عند قيمة خارج (0, 5000]، و[StateError] عند
+  /// تجاوز السقف المجمّع أو عدم وجود الحجز.
+  Future<BookingPriceAdjustment> applyNegotiatedRateIncrease({
+    required String bookingLocalUuid,
+    required int amount,
+    required String appliedBy,
+    String? reason,
+  }) {
+    // ضغطة متكررة/استدعاء متزامن لنفس الحجز → نفس النتيجة، بلا سجل مكرر
+    final inFlight = _negotiationInFlight[bookingLocalUuid];
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = _applyNegotiatedRateIncreaseImpl(
+      bookingLocalUuid: bookingLocalUuid,
+      amount: amount,
+      appliedBy: appliedBy,
+      reason: reason,
+    );
+    _negotiationInFlight[bookingLocalUuid] = future;
+    // ✅ تنظيف صامت لا يسرّب أخطاء التنفيذ إلى الـ zone كخطأ غير معالَج
+    // (المستدعي يرى الخطأ عبر future نفسه — expectLater/try-catch الشاشة).
+    // ⚠️ جسم الكتلة إلزامي: Map.remove يُعيد الـ Future المحذوف، ولو أُعيد
+    // من whenComplete كـ arrow لسلسلت خطأه على هذه السلسلة غير المنتظرة.
+    unawaited(
+      future.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
+        _negotiationInFlight.remove(bookingLocalUuid);
+      }),
+    );
+    return future;
+  }
+
+  /// @visibleForTesting — يفرّغ أقفال التفاوض الجارية بين الاختبارات
+  /// (الخريطة static وتُشارك عبر نسخ قاعدة البيانات المؤقتة).
+  static void debugClearNegotiationGuardsForTest() {
+    _negotiationInFlight.clear();
+  }
+
+  Future<BookingPriceAdjustment> _applyNegotiatedRateIncreaseImpl({
+    required String bookingLocalUuid,
+    required int amount,
+    required String appliedBy,
+    String? reason,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError('قيمة الزيادة يجب أن تكون أكبر من صفر');
+    }
+    if (amount > maxNegotiatedPerNightIncrease) {
+      throw ArgumentError(
+        'الزيادة التفاوضية لا يجوز أن تتجاوز $maxNegotiatedPerNightIncrease '
+        'ريال فوق سعر الغرفة الأصلي لكل ليلة (المُدخل: $amount)',
+      );
+    }
+
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.localUuid.equals(bookingLocalUuid))).getSingleOrNull();
+    if (booking == null) {
+      throw StateError('Booking not found: $bookingLocalUuid');
+    }
+
+    final now = Time.nowEpoch();
+
+    // ─── نافذة منع التكرار: نفس الزيادة لنفس الحجز خلال ثوانٍ قليلة
+    // تُعامَل كضغطة مكررة واحدة (تُعيد السجل الموجود نفسه).
+    final recentDuplicate =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
+              ..where(
+                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
+              )
+              ..where(
+                (a) => a.adjustmentMode.equals(AdjustmentMode.perNight.value),
+              )
+              ..where((a) => a.amount.equals(amount.toDouble()))
+              ..where((a) => a.reason.equals(negotiatedRateReason))
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull())
+              ..where(
+                (a) => a.createdAt.isBiggerOrEqualValue(
+                  now - _negotiationDedupeWindowSec,
+                ),
+              )
+              ..limit(1))
+            .get();
+    if (recentDuplicate.isNotEmpty) {
+      dlog(() => '♻️ تكرار تفاوض خلال النافذة — إعادة السجل الموجود');
+      return recentDuplicate.first;
+    }
+
+    // ─── سقف السعر الكلّي: (زيادات per_night النشطة + المُدخلة) ≤ 5000
+    // فوق السعر الأصلي — أي سعر الليلة النهائي لا يتجاوز الأصلي + 5000.
+    final activePerNightSurcharges =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
+              ..where(
+                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
+              )
+              ..where(
+                (a) => a.adjustmentMode.equals(AdjustmentMode.perNight.value),
+              )
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull()))
+            .get();
+    final existingPerNight = activePerNightSurcharges.fold<int>(
+      0,
+      (sum, a) => sum + a.amount.round(),
+    );
+    if (existingPerNight + amount > maxNegotiatedPerNightIncrease) {
+      throw StateError(
+        'سعر الليلة النهائي يتجاوز الحد — الزيادات النشطة '
+        '($existingPerNight) + المُدخل ($amount) = '
+        '${existingPerNight + amount} > $maxNegotiatedPerNightIncrease. '
+        'للتعديلات الأكبر استخدم شاشة إدارة الضيوف في الإعدادات',
+      );
+    }
+
+    // تسري من يوم الدخول الفندقي (أول ليلة) وبلا نهاية: كل ليالي الحجز
+    final checkin = DateTime.tryParse(booking.checkinDate);
+    final effectiveHotelDay = checkin != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: checkin)
+        : HotelTimeEngine.getHotelDayKey();
+
+    return _createAdjustment(
+      booking: booking,
+      amount: amount,
+      type: AdjustmentType.surcharge,
+      mode: AdjustmentMode.perNight,
+      effectiveHotelDay: effectiveHotelDay,
+      endHotelDay: null,
+      reason: reason ?? negotiatedRateReason,
+      appliedBy: appliedBy,
+      appliedAt: now,
+    );
+  }
+
   Future<AdjustmentPreview> previewAdjustment({
     required int bookingId,
     required int amount,
@@ -255,6 +428,34 @@ class BookingPriceAdjustmentService {
       throw StateError('Booking not found: $bookingLocalUuid');
     }
 
+    return _createAdjustment(
+      booking: booking,
+      amount: amount,
+      type: type,
+      mode: mode,
+      effectiveHotelDay: effectiveHotelDay,
+      endHotelDay: endHotelDay,
+      reason: reason,
+      appliedBy: appliedBy,
+    );
+  }
+
+  /// النواة المشتركة لإنشاء سجل تعديل سعر: تعبئة كل الأعمدة الإلزامية،
+  /// تسجيل Outbox للمزامنة، إعادة تسعير الليالي، والنسخ الاحتياطي.
+  /// يستخدمها مسار شاشة إدارة الضيوف (applyTemporaryAdjustment) ومسار
+  /// التفاوض من شاشة الدفع (applyNegotiatedRateIncrease) معاً.
+  Future<BookingPriceAdjustment> _createAdjustment({
+    required Booking booking,
+    required int amount,
+    required AdjustmentType type,
+    required AdjustmentMode mode,
+    required String effectiveHotelDay,
+    required String? endHotelDay,
+    required String? reason,
+    required String? appliedBy,
+    int? appliedAt,
+  }) async {
+    final bookingLocalUuid = booking.localUuid;
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
 
@@ -271,6 +472,7 @@ class BookingPriceAdjustmentService {
       isActive: const Value(true),
       reason: Value(reason),
       appliedBy: Value(appliedBy),
+      appliedAt: appliedAt != null ? Value(appliedAt) : const Value.absent(),
       createdAt: Value(now),
       updatedAt: Value(now),
       lastModified: Value(now),
@@ -296,6 +498,7 @@ class BookingPriceAdjustmentService {
         'isActive': true,
         'reason': reason,
         'appliedBy': appliedBy,
+        'appliedAt': appliedAt,
       },
       clientTs: now,
     );
