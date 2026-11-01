@@ -306,7 +306,7 @@ class EnhancedBookingCalculationService {
     Booking booking, {
     bool enqueueOutbox = true,
   }) async {
-    final nights =
+    var nights =
         await (db.select(db.bookingNights)
               ..where(
                 (n) =>
@@ -320,6 +320,59 @@ class EnhancedBookingCalculationService {
             .get();
     if (nights.isEmpty) {
       return null;
+    }
+
+    // ✅ (قاعدة 2026-11-01) اقتطاع ليالٍ ما بعد المغادرة الفعلية —
+    // المغادرة المبكرة تُسوّى بالليالي المستخدمة فقط (الليالي المستخدمة
+    // × السعر المعتمد لليلة). ليالٍ سبق توليدها مادياً لتخطيط أطول ثم
+    // تجاوزتها المغادرة الفعلية تُخفّى بـ deletedAt (حذف ناعم) مع دفع
+    // تحديثها عبر outbox كي تختفي أيضاً من الأجهزة الأخرى ولا تعود
+    // بالسحب. الليلة التي تبدأ قبل المغادرة تُحتسب مستخدمة ولو انتهت
+    // بعدها — مثل نزيل غادر صباحاً داخل مقطع ليلته الثانية (ليلتان).
+    final checkoutMoment = _parseDateTime(booking.actualCheckout);
+    if (checkoutMoment != null) {
+      final beyond = nights.where((n) {
+        final start = _parseDateTime(n.nightStart);
+        return start != null && !start.isBefore(checkoutMoment);
+      }).toList();
+      if (beyond.isNotEmpty) {
+        final cutUtc = DateTime.now().toUtc();
+        final cutStamp = cutUtc.millisecondsSinceEpoch ~/ 1000;
+        final cutStampIso = cutUtc.toIso8601String();
+        for (final night in beyond) {
+          await (db.update(
+            db.bookingNights,
+          )..where((n) => n.id.equals(night.id))).write(
+            BookingNightsCompanion(
+              deletedAt: d.Value(cutStamp),
+              deletedAtIso: d.Value(cutStampIso),
+              // lastModified يُرفع كي يفوز الإخفاء على أي نسخة أقدم عن بعد.
+              lastModified: enqueueOutbox
+                  ? d.Value(cutStamp)
+                  : const d.Value.absent(),
+              lastModifiedEpoch: enqueueOutbox
+                  ? d.Value(cutStamp)
+                  : const d.Value.absent(),
+            ),
+          );
+        }
+        if (enqueueOutbox) {
+          await _outboxDao.mergeBatch([
+            for (final night in beyond)
+              <String, dynamic>{
+                'entity': 'booking_nights',
+                'op': 'update',
+                'localUuid': night.localUuid,
+                'payload': <String, dynamic>{'localUuid': night.localUuid},
+                'clientTs': cutStamp,
+              },
+          ]);
+        }
+        nights = nights.where((n) => !beyond.contains(n)).toList();
+        if (nights.isEmpty) {
+          return null;
+        }
+      }
     }
 
     final adjustments = await _fetchActiveAdjustments(booking);
