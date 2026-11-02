@@ -415,3 +415,71 @@ throw StateError(
 2. مستند إعدادات تالف (`telegram_enabled: 'yes'`) يرفع `StateError`.
 3. تعديل سعر لغرفة موجودة بقيمة `newValue` نصية: الإدراج ينجح (سطر التعديل موجود) ثم تفشل إعادة الحساب ⇒ `StateError` وسعر الغرفة لا يتغيّر — أي أن الفشل من المسار المشتق لا من الإدراج.
 4. تعديل بلا هدف غرفة لا يرمي (لا إيجابيات كاذبة).
+
+---
+
+## 13) تدقيق مسار الرفع (outbox / push delta / زر «رفع التغييرات»)
+
+### 13.1 ما جرى التحقق منه — سليم بتصميم صحيح (بالدليل من الكود)
+
+| البند | الدليل |
+|---|---|
+| الرفع **دلتا فقط** (لا رفع كامل من الزر) | `_pushAllEntities` يستهلك دفعات من `outboxDao.takeBatch(batchSize, sources: ['local'])`. المسار الكامل `pushAllLocalDataToAppwrite` لا يُستدعى من الزر إطلاقاً (مواضعه: البذرة الأولى `_runInitialSeedIfNeeded`، شاشة إعدادات Appwrite، ونسخ Google Drive) |
+| الحجز ذرّي وبلا تكرار | `takeBatch` ينفّذ `UPDATE outbox SET processing_status='processing' … WHERE id IN (SELECT …) RETURNING *` في استعلام واحد (لا SELECT ثم UPDATE) |
+| ترتيب آمن لقواعد FK | `priorityCase`: rooms(1) ← employees(2) ← bookings(3) ← payments(4) ← expenses(5) ← debts(6) ← booking_notes(7) ← shift_notes(8) ← cash_transactions(9) ← الباقي(10) |
+| لا تسليم مزدوج | `delivered_to_primary = 0` شرط إلزامي في `takeBatch`؛ وبعد النجاح `markDeliveredToPrimary` يحذف السجل فوراً (الثانوي no-op ⇒ العلامتان مكتملتان دائماً) فلا يتراكم outbox |
+| لا فقدان لتغيير محلي عند فشل الرفع | `_processOutboxEntry` يلتفّ حول كل معالج: يعيد Vector Clock كما كان، ثم `setError(...)` + `markFailed([id])` |
+| الشفاء الذاتي من الانقطاع | `cleanupStuckEntries` (كل دقيقة في `sync()` + مؤقّت)، `reclaimForPush` للعالقة، `retryFailedWithBackoff` للفاشلة، ولا تُستخدم `markDead` في أي مسار (لا سجلات ميتة) |
+| لا رفع فوق تعارض معلّق | `OutboxPullPolicy.canPull` يمنع السحب ما دام هناك تغيير محلي غير مُسلَّم |
+| إعادة المحاولة آمنة | كل حمولة تحمل `idempotencyKey` والمعرّف = `localUuid` ⇒ upsert idempotent |
+| تنظيف outbox بعد السحب لا يحذف تغييراً غير مُرفوع | `_cleanupOutboxAfterPull` لا يحذف إلا بعد `_isEntryDeliveredToServer` (Fix C) |
+
+### 13.2 عيبان مُثبتان أُصلحا
+
+**(أ) زر «رفع التغييرات» كان يرى عدّاداً قديماً فيقول «لا توجد تغييرات جديدة» ويخرج بلا رفع**
+
+- **الكود قبل:** `_pushChangesInner` يبدأ بـ `if (_pendingChangesCount == 0) { … «✅ لا توجد تغييرات جديدة للرفع» … return; }`، والعدّاد يُحدَّث من `initState` ثم بمؤقّت كل **15 ثانية** وبعد كل عملية.
+- **الأثر:** تغيير أُنشئ قبل الضغط بأقل من 15 ثانية (أو قبل انتهاء أول تحميل) لا يُرى ⇒ الزر لا يفعل شيئاً ورسالته مضلّلة، والـ outbox ممتلئ فعلاً.
+- **الإصلاح:**
+```dart
+// ✅ تحديث العدّاد قبل الحكم — نفس نطاق takeBatch
+await _loadPendingChangesCount();
+if (_pendingChangesCount == 0) { ... }
+```
+والعدّاد نفسه `countUndeliveredToPrimary(sources: ['local'])` (pending + processing عالقة + failed، وغير مُسلَّمة للرئيسي) — أي أنه لا يُخفي السجلات العالقة.
+
+**(ب) سجلات تجاوزت سقف المحاولات كان الزر لا يستطيع رفعها أبداً**
+
+- **الكود قبل:** `_pushAllEntities` ينفّذ `outboxDao.reclaimForPush()` فقط، و`reclaimForPush(maxFailedAttempts: 5)` **يتعمّد** عدم إعادة `failed` التي تجاوزت 5 محاولات (تُترك لمؤقّت `retryFailedWithBackoff` الدوري المرتبط بـ `startAutoSync`).
+- **الأثر:** عند تعطيل المزامنة التلقائية (أو قبل انقضاء دورة المؤقّت) يبقى السجل في الشارة كـ«تغيير معلّق» إلى الأبد، ولا يلتقطه `takeBatch` (حالته `failed`) ولا يعيده `reclaimForPush` ⇒ **تغيير محلي لا يمكن رفعه بأي طريقة من الزر**.
+- **الإصلاح:** دالة جديدة في `OutboxDao`:
+```dart
+Future<int> prepareForManualPush({
+  Duration stuckAfter = const Duration(seconds: 30),
+  int maxFailedAttempts = 5,
+  int backoffMinutes = 30,
+}) async {
+  final reclaimed = await reclaimForPush(...);
+  final retried = await retryFailedWithBackoff(...); // يحترم مهلة التراجع
+  return reclaimed + retried;
+}
+```
+و`_pushAllEntities` يستخدمها بدل `reclaimForPush` وحده. التراجع الأسّي محفوظ: لا يُعاد سجل فشل قبل `backoffMinutes` من إنشائه، فلا إغراق للخادم.
+
+### 13.3 اختبارات الانحدار
+
+`mobile/test/unit/outbox_manual_push_test.dart` — خمس حالات على قاعدة in-memory:
+
+1. سجل عالق في `processing` ⇒ يعود `pending`.
+2. سجل `failed` بثلاث محاولات ⇒ يعود `pending`.
+3. سجل `failed` بـ 12 محاولة و`clientTs` قبل ساعتين ⇒ `reclaimForPush` وحده لا يلمسه (توثيق العيب) ثم `prepareForManualPush` يعيده `pending`.
+4. سجل `failed` بـ 12 محاولة أُنشئ الآن ⇒ يبقى `failed` (مهلة التراجع غير مخترقة).
+5. سجل مُسلَّم للرئيسي ⇒ لا يُلمس ولا يُحتسب في عدّاد الزر.
+
+بالإضافة إلى الحالة الخامسة في `sync_no_silent_loss_remaining_test.dart`: `config_json` تالف يُسجَّل فشلاً مع إبقاء التطبيق الجزئي (الحقول القديمة).
+
+### 13.4 ملاحظات مقصودة (ليست أعطالاً)
+
+- `_processAppUserEntry`: استجابة 404 (الحساب غير موجود سحابياً) ⇒ تُعامَل «مُسلَّمة» لأن التحديث غير ممكن أصلاً. موثّق في الكود.
+- عناصر `source = 'restore'` لا يرفعها هذا المسار (تخص استعادة النسخ) — نطاق `takeBatch` هو `['local']` عمداً.
+- بطء/فشل الشبكة لا يُسقط السجل: يُعاد إلى `failed` مع `attempts+1` ويبقى مرئياً في الشارة.

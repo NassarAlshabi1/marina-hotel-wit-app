@@ -12,6 +12,7 @@
 //
 // الإصلاح: `OutboxDao.prepareForManualPush()` = reclaimForPush +
 // retryFailedWithBackoff (والأخير يحترم مهلة التراجع بمدّة 30 دقيقة).
+// التفاصيل الكاملة: docs/reports/appwrite-sync-and-ci-fixes-full-report.md §13.
 
 // ignore_for_file: lines_longer_than_80_chars
 
