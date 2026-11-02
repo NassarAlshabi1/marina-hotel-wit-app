@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../services/appwrite_cache_manager.dart';
 import '../services/appwrite_logger.dart';
-import '../services/appwrite_sync_manager.dart';
+import '../services/cloudflare_sync_manager.dart';
 import '../services/cloudflare_config.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/providers.dart';

@@ -18,6 +18,7 @@ import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/bookings_repository.dart';
 import '../services/repositories/cash_repository.dart';
 import '../services/repositories/debts_repository.dart';
+import '../services/whatsapp_secure_config.dart';
 import '../services/repositories/employees_repository.dart';
 import '../services/repositories/expenses_repository.dart';
 import '../services/repositories/guest_infos_repository.dart';
@@ -173,7 +174,7 @@ final whatsappSettingsProvider = FutureProvider<Map<String, String>>((
         prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',
     'instanceId':
         prefs.getString('wa_api_instance_id') ?? Env.whatsappInstanceId,
-    'token': prefs.getString('wa_api_token') ?? Env.whatsappApiToken,
+    'token': await readWhatsAppToken() ?? Env.whatsappApiToken,
     'customUrlTemplate': prefs.getString('wa_custom_url_template') ?? '',
   };
 });

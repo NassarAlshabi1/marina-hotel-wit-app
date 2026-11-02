@@ -23,6 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_log.dart';
 import 'backup_serializers.dart';
 import 'local_db.dart';
+import 'whatsapp_secure_config.dart';
 
 /// صيغة النسخة الاحتياطية (نفس القيم التاريخية — توافق بيانات التركيبات).
 enum BackupFormat { json, sqlite }
@@ -188,14 +189,14 @@ class BackupDataService {
         deviceInfo: Platform.isAndroid ? 'Android' : 'iOS',
       );
 
-      // إعدادات الواتساب من SharedPreferences
+      // إعدادات الواتساب — الإعدادات غير الحساسة من prefs،
+      // والـ token من SecureStorage (✅ S4 FIX: لا يُضمَّن نصاً صريحاً في النسخة)
       final prefs = await SharedPreferences.getInstance();
       final whatsappSettings = <String, dynamic>{};
       const waKeys = [
         'wa_api_type',
         'wa_api_base_url',
         'wa_api_instance_id',
-        'wa_api_token',
         'wa_custom_url_template',
       ];
       for (final key in waKeys) {
@@ -203,6 +204,12 @@ class BackupDataService {
         if (value != null && value.isNotEmpty) {
           whatsappSettings[key] = value;
         }
+      }
+      // ✅ S4 FIX: الـ token يُقرأ من SecureStorage ولا يُضمَّن في النسخة
+      // الاحتياطية نصاً صريحاً — نُسجّل وجوده فقط (true/false) للأمان.
+      final waToken = await readWhatsAppToken();
+      if (waToken != null && waToken.isNotEmpty) {
+        whatsappSettings['wa_api_token_configured'] = true;
       }
 
       // JSON serialization + FK enrichment + SHA-256 hash داخل isolate واحد

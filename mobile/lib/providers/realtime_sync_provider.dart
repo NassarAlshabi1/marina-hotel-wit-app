@@ -5,7 +5,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/appwrite_realtime_sync.dart';
+import '../services/cloudflare_sync_manager.dart';
 
 /// مزود مزامنة Appwrite Realtime (Singleton)
 final appwriteRealtimeSyncProvider = Provider<AppwriteRealtimeSync>((ref) {

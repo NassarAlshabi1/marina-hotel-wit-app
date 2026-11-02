@@ -33,7 +33,7 @@ import 'package:intl/intl.dart';
 
 import '../../providers/appwrite_providers.dart';
 import '../../screens/auth/cloudflare_login_screen.dart';
-import '../../services/appwrite_sync_manager.dart'
+import '../../services/cloudflare_sync_manager.dart'
     show SyncPullProgress, SyncStatus;
 import '../../services/sync/sync_gate.dart';
 import 'full_pull_progress_sheet.dart';

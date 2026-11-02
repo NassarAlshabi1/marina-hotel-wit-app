@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
 import 'analytics_service.dart';
-import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
+import 'cloudflare_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'connectivity_service.dart';
 import 'local_db.dart';
 import 'sync/app_open_pull_gate.dart';

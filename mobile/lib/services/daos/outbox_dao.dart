@@ -8,7 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../utils/debug_log.dart';
 import '../adapters/adapter_registry.dart';
 import '../appwrite_logger.dart';
-import '../appwrite_sync_manager.dart';
+import '../cloudflare_sync_manager.dart';
 import '../crashlytics_service.dart';
 import '../local_db.dart';
 import '../vector_clock_service.dart';

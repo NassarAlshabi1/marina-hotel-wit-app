@@ -5,7 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/debug_log.dart';
 // ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
 // بالكامل. لا حاجة لاستيراده هنا.
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/sync_error_handler.dart';

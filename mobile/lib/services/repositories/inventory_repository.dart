@@ -2,7 +2,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../../utils/id.dart';
 import '../adapters/adapter_registry.dart';
-import '../appwrite_sync_manager.dart';
+import '../cloudflare_sync_manager.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 

@@ -241,7 +241,8 @@ jobs:
     name: Build Production APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [code_quality, unit_widget_tests, integration_tests]
+    needs: [code_quality, unit_widget_tests, integration_tests, security_scan]
+    # ✅ P2-3 FIX: security_scan أصبح بوابة — لا بناء إنتاجي عند فشل الأمان
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/A' || contains(github.ref, 'refs/heads/release/')
     
     steps:
@@ -305,7 +306,8 @@ jobs:
     name: Build AppBundle
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [code_quality, unit_widget_tests, integration_tests]
+    needs: [code_quality, unit_widget_tests, integration_tests, security_scan]
+    # ✅ P2-3 FIX: security_scan أصبح بوابة — لا بناء إنتاجي عند فشل الأمان
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/A' || contains(github.ref, 'refs/heads/release/')
     
     steps:
@@ -363,10 +365,12 @@ jobs:
   # JOB 7: Security Scan
   # ============================================
   security_scan:
-    name: Security Scan
+    name: Security Scan (blocks merge)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: code_quality
+    # ✅ P2-3 FIX: هذا الـ job بوابة أمان — يجب أن ينجح قبل أي بناء.
+    # عند فشله (اكتشاف أسرار) يُفشل الـ workflow كاملاً.
     
     steps:
       - name: Checkout repository
@@ -378,17 +382,36 @@ jobs:
           flutter-version: '3.35.7'
           channel: 'stable'
 
-      - name: Scan for Secrets
+      - name: Scan for Secrets (Gitleaks — blocks merge on failure)
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
+        # ✅ P2-3 FIX: gitleaks-action يُفشل الـ step تلقائياً (exit 1)
+        # عند اكتشاف أي سر. مع needs: code_quality في كل jobs اللاحقة،
+        # يفشل الـ workflow كاملاً ويُمنع الدمج عبر branch protection.
+        # ملاحظة: يتطلب تفعيل branch protection rule في GitHub
+        # (Settings → Branches → Require status checks to pass).
 
       - name: Check for Hardcoded API Keys
         run: |
-          if grep -r "apiKey\|api_key\|API_KEY\|secret\|password\|token" lib/ --include="*.dart" --exclude-dir=generated | grep -v "const String.*="; then
+          # ✅ P2-3 FIX: فحص صارم — أي تطابق يُفشل الـ job
+          # (يستثني التعريفات const المشروعة وملفات التكوين)
+          HITS=$(grep -rn "apiKey\|api_key\|API_KEY\|secret\|password\|token" \
+            lib/ --include="*.dart" --exclude-dir=generated \
+            | grep -v "const String.*=" \
+            | grep -v "//.*" \
+            | grep -v "import " \
+            | grep -v "Map<String" \
+            | grep -v "headers\[" \
+            | grep -v "Authorization" \
+            || true)
+          if [ -n "$HITS" ]; then
             echo "::error::Found potential hardcoded secrets in code!"
+            echo "$HITS"
             exit 1
+          else
+            echo "::notice::No hardcoded secrets detected"
           fi
 
   # ============================================

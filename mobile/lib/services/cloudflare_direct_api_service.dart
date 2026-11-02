@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../utils/app_logger.dart';
 import 'cloudflare_d1_service.dart';
+import 'resilient_http_client.dart';
 
 /// تسجيل الارتباط مع Cloudflare عبر **API المباشر** (api.cloudflare.com).
 ///
@@ -36,8 +37,11 @@ import 'cloudflare_d1_service.dart';
 ///   تُرجّع 200 مع `status: active`. لذلك لا يجوز عرض خطأ `/user`
 ///   وحده على المستخدم عند فشل المسارين: نقطة الحساب هي مصدر الحقيقة.
 class CloudflareDirectApiService {
+  /// ✅ P1-2 FIX: افتراضياً يُغلَّف بـ [ResilientHttpClient] ليعمل عبر
+  /// طبقة DoH/النفق على الشبكات المحجوبة. يبقى قابلاً للحقن بـ client
+  /// عادي للاختبارات.
   CloudflareDirectApiService(this._config, {http.Client? client})
-    : _client = client ?? http.Client();
+    : _client = client ?? ResilientHttpClient();
 
   static const String _baseUrl = 'https://api.cloudflare.com/client/v4';
 

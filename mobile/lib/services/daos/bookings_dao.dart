@@ -6,7 +6,7 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
-import '../appwrite_sync_manager.dart';
+import '../cloudflare_sync_manager.dart';
 import '../fcm_sender.dart';
 import '../local_db.dart';
 import '../sync_core/optimistic_lock_helper.dart';

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 
 /// تصنيف نتيجة تقييم «السحب الكامل بعد التخطي» — لتغطية اختبارية دقيقة
 /// لكل فرع من فروع السياسة دون الحاجة لمدير مزامنة حقيقي.

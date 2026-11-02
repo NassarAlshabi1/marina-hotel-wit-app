@@ -8,7 +8,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../utils/debug_log.dart';
 import '../utils/id.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'local_db.dart';
 
 /// يتتبع جلسات التطبيق ويسجّلها في قاعدة البيانات،

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/whatsapp_secure_config.dart';
 import '../../services/whatsapp_service.dart';
 import '../../utils/snackbar_helper.dart';
 
@@ -56,6 +57,8 @@ class _WhatsAppSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    // ✅ S4 FIX: قراءة الـ token من SecureStorage (مع هجرة تلقائية)
+    final token = await readWhatsAppToken() ?? _defaultToken;
     if (!mounted) {
       return;
     }
@@ -64,7 +67,7 @@ class _WhatsAppSettingsScreenState
           prefs.getString('wa_api_base_url') ?? _defaultBaseUrl;
       _instanceIdController.text =
           prefs.getString('wa_api_instance_id') ?? _defaultInstanceId;
-      _tokenController.text = prefs.getString('wa_api_token') ?? _defaultToken;
+      _tokenController.text = token;
       _customUrlController.text =
           prefs.getString('wa_custom_url_template') ?? '';
       final typeStr = prefs.getString('wa_api_type');
@@ -87,7 +90,8 @@ class _WhatsAppSettingsScreenState
       'wa_api_instance_id',
       _instanceIdController.text.trim(),
     );
-    await prefs.setString('wa_api_token', _tokenController.text.trim());
+    // ✅ S4 FIX: تخزين الـ token في SecureStorage بدل prefs
+    await writeWhatsAppToken(_tokenController.text.trim());
     await prefs.setString(
       'wa_custom_url_template',
       _customUrlController.text.trim(),
@@ -114,11 +118,13 @@ class _WhatsAppSettingsScreenState
     final prefs = await SharedPreferences.getInstance();
     // ✅ نتحقق من نجاح كل عملية حذف — إن فشل أي منها نُنبّه المستخدم بدل
     // إظهار "تمت الاستعادة" بينما بقيت بعض القيم القديمة مخزّنة.
+    // ✅ S4 FIX: wa_api_token محذوف من SecureStorage بشكل منفصل
+    // (يُعيد void لا bool، لذا لا يمكن دمجه في Future.wait<bool>)
+    await deleteWhatsAppToken();
     final results = await Future.wait<bool>([
       prefs.remove('wa_api_type'),
       prefs.remove('wa_api_base_url'),
       prefs.remove('wa_api_instance_id'),
-      prefs.remove('wa_api_token'),
       prefs.remove('wa_custom_url_template'),
     ]);
     final allRemoved = results.every((r) => r);

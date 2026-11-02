@@ -21,7 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
 import '../utils/debug_log.dart';
-import 'appwrite_sync_manager.dart' hide SyncStatus;
+import 'cloudflare_sync_manager.dart' hide SyncStatus;
 import 'local_db.dart';
 import 'sync_enums.dart' as cf;
 
