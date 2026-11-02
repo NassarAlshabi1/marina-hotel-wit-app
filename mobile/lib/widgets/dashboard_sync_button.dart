@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../services/appwrite_health_checker.dart';
+import '../services/appwrite_sync_manager.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 // ✅ Wave 5 (2026-08-12): secondary_sync_provider.dart و secondary_sync_manager.dart
@@ -263,15 +264,30 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
       loading?.close();
 
-      // ✅ تسجيل نجاح العملية
+      // ✅ (2026-11-02) إصلاح «النجاح الكاذب» في زر السحب: كان الزر يعرض
+      // «تم سحب التغييرات بنجاح» دائماً حتى لو حُجب السحب كلياً (Outbox
+      // غير مُسلَّم والعداد المحلي متأخر) أو فشلت مجموعات بعينها مثل
+      // bookings — فيظن المستخدم أن الحجوزات وصلت وهي لم تُسحب أصلاً.
+      // الآن كل حالة تُعرض بصدق وتُسجَّل في sync_logs بمستوى مطابق.
+      final wasBlocked =
+          pullResult.status == SyncStatus.idle &&
+          pullResult.errorMessage != null;
+      final wasPartial = pullResult.hasPullFailures;
+
+      // ✅ تسجيل العملية بمستوى يعكس النتيجة الفعلية (لا «success» أعمى)
       stopwatch.stop();
       await syncLogDao.logSync(
         syncId: syncId,
         direction: 'pull',
         deviceId: deviceId,
         target: 'Appwrite',
-        status: 'success',
+        status: wasBlocked ? 'blocked' : (wasPartial ? 'partial' : 'success'),
         recordsPulled: pulledCount,
+        errorMessage: wasBlocked
+            ? pullResult.errorMessage
+            : (wasPartial
+                  ? 'failed collections: ${pullResult.failedCollections.join(", ")}'
+                  : null),
         durationMs: stopwatch.elapsedMilliseconds,
       );
 
@@ -281,33 +297,94 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
         // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
         loading?.close();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.cloud_done, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      '✅ تم سحب التغييرات بنجاح!',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+
+        if (wasBlocked) {
+          // سياسة Offline-first: السحب مرفوض فوق تغييرات محلية لم تُسلّم —
+          // نفس رسالة الإجراء الوقائي أعلاه مع خيار الرفع المباشر.
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.cloud_upload, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      pullResult.errorMessage ??
+                          '⏸️ حُجب السحب — توجد تغييرات محلية لم تُرفع بعد',
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '⬇️ استُلِم: $pulledCount سجل',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              action: SnackBarAction(
+                label: 'رفع الآن',
+                textColor: Colors.white,
+                onPressed: () => _pushChanges(context),
+              ),
+              duration: const Duration(seconds: 5),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
+        } else if (wasPartial) {
+          // سحب جزئي: مجموعات فشلت (مثل bookings) وستُعاد محاولتها
+          // تلقائياً في الدورة التالية — مؤشراتها لم تتقدم.
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        '⚠️ سحب جزئي — بعض البيانات لم تصل',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'فشل سحب: ${pullResult.failedCollections.join("، ")}\n'
+                    '⬇️ استُلِم: $pulledCount سجل — '
+                    'ستُعاد المجموعات الفاشلة تلقائياً',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cloud_done, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        '✅ تم سحب التغييرات بنجاح!',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '⬇️ استُلِم: $pulledCount سجل',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       dlog(() => '❌ خطأ في سحب التغييرات: $e');

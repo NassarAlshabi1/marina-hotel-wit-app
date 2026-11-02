@@ -73,17 +73,25 @@ class SyncResult {
     this.recordsPulled = 0,
     this.conflicts = 0,
     this.errorMessage,
+    this.failedCollections = const [],
   });
   final SyncStatus status;
   final int recordsPushed;
   final int recordsPulled;
   final int conflicts;
   final String? errorMessage;
+
+  /// ✅ (2026-11-02) المجموعات التي فشل سحبها في آخر دورة (سحب جزئي).
+  /// مؤشر كل مجموعة منها لم يتقدّم وستُعاد محاولتها في الدورة التالية —
+  /// كان المستهلكون (زر السحب في لوحة التحكم مثلاً) يعرضون «نجاح» دون
+  /// الالتفات لها، فيظن المستخدم أن bookings وصلت وهي لم تُسحب أصلاً.
+  final List<String> failedCollections;
   final DateTime timestamp;
   final Duration duration;
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
+  bool get hasPullFailures => failedCollections.isNotEmpty;
 }
 
 /// أخطاء الشبكة المتوقعة التي لا تمثل عطلاً في التطبيق.
@@ -933,6 +941,10 @@ class AppwriteSyncManager {
         final phaseMs = <String, int>{};
         int recordsPushed = 0;
         int recordsPulled = 0;
+        // ✅ (2026-11-02): مرفوعة للنطاق الخارجي كي تصل إلى SyncResult النهائي
+        // (كانت تُعلن داخل كتلة pull فلا يراها المستهلكون — زر السحب يعرض
+        // «نجاح» رغم فشل مجموعات مثل bookings).
+        final failedCollections = <String>[];
         const int conflicts = 0;
         String? errorMessage;
         SyncStatus finalStatus = SyncStatus.success;
@@ -1085,7 +1097,6 @@ class AppwriteSyncManager {
             // ونمط التأجيل في _syncPayments/_syncDebts يعالج الحالات الاستثنائية
             try {
               _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
-              final failedCollections = <String>[];
 
               // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
               _maxUpdatedAtInPull = null;
@@ -1435,6 +1446,16 @@ class AppwriteSyncManager {
         final endTime = DateTime.now();
         final duration = endTime.difference(startTime);
 
+        // ✅ (2026-11-02): سحب جزئي — الدورة لم تنهار لكن بعض المجموعات
+        // (مثل bookings عند فشل تطبيق مستند) لم تُسحب. الحالة success كانت
+        // تخدع المستهلكين: زر السحب في لوحة التحكم يعرض «نجاح» بينما
+        // بيانات ناقصة لم تصل. partial + failedCollections يجعلان الفشل
+        // الجزئي مرئياً وقابلاً للتشخيص — ومؤشرات المجموعات الفاشلة لم
+        // تتقدم فتُعاد محاولتها تلقائياً في الدورة التالية.
+        if (finalStatus == SyncStatus.success && failedCollections.isNotEmpty) {
+          finalStatus = SyncStatus.partial;
+        }
+
         if (finalStatus == SyncStatus.success) {
           metrics.recordSuccess(recordsSynced: recordsPushed + recordsPulled);
         } else {
@@ -1482,6 +1503,7 @@ class AppwriteSyncManager {
           recordsPushed: recordsPushed,
           recordsPulled: recordsPulled,
           errorMessage: errorMessage,
+          failedCollections: failedCollections,
           timestamp: endTime,
           duration: duration,
         );
@@ -2201,149 +2223,209 @@ class AppwriteSyncManager {
     var processed = 0;
     final affectedRoomNumbers = <String>{};
 
-    for (final doc in documents) {
-      try {
-        final data = Map<String, dynamic>.from(doc.data);
-        data['localUuid'] ??= doc.$id;
+    // ✅ (2026-11-02) مواءمة مع نمط باقي الكيانات (payments/debts/nights/
+    // price_adjustments): تأجيل الحجوزات التي فشل تطبيقها بقيود FK/NOT NULL
+    // (غرفة/أب مفقود) وإعادة محاولتها بعد اكتمال الدفعة — كان الكيان الوحيد
+    // بلا هذا النمط، وفشلُ حجزٍ كان يُسجَّل تحذيراً فقط ثم يتقدّم مؤشر
+    // المجموعة فوقه فلا يُسحب مرة أخرى أبداً (فقدان صامت دائم).
+    final deferred = <models.Document>[];
+    final failed = <String>[];
 
-        // ✅ حفظ حالة الحجز القديمة قبل التحديث لمقارنتها
-        final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingBooking = await (database.select(
-          database.bookings,
-        )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
-        final oldStatus = existingBooking?.status;
-        final oldRoomNumber = existingBooking?.roomNumber;
+    // جسم تطبيق مستند حجز واحد — مشترك بين المرحلتين الأولى والثانية.
+    Future<void> applyBookingDoc(models.Document doc) async {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
 
-        // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
-        if (!(await _isRemoteDataNewer(
-          data,
-          existingBooking?.lastModified,
-          localDeletedAt: existingBooking?.deletedAt,
-          remoteUpdatedAtSec: _extractUpdatedAtSec(doc),
-          localVectorClock: existingBooking?.vectorClock,
-          entityName: 'bookings',
-          localUuid: localUuid,
-          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
-          localData: existingBooking?.toJson(),
-        )).shouldApplyRemote) {
-          continue; // البيانات مطابقة أو السجل محذوف محلياً
+      // ✅ حفظ حالة الحجز القديمة قبل التحديث لمقارنتها
+      final localUuid = (data['localUuid'] as String?) ?? '';
+      final existingBooking = await (database.select(
+        database.bookings,
+      )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
+      final oldStatus = existingBooking?.status;
+      final oldRoomNumber = existingBooking?.roomNumber;
+
+      // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
+      if (!(await _isRemoteDataNewer(
+        data,
+        existingBooking?.lastModified,
+        localDeletedAt: existingBooking?.deletedAt,
+        remoteUpdatedAtSec: _extractUpdatedAtSec(doc),
+        localVectorClock: existingBooking?.vectorClock,
+        entityName: 'bookings',
+        localUuid: localUuid,
+        // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+        localData: existingBooking?.toJson(),
+      )).shouldApplyRemote) {
+        return; // البيانات مطابقة أو السجل محذوف محلياً — تخطٍّ (ليس فشلاً)
+      }
+
+      // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة عند السحب من Appwrite
+      final remoteStatus = data['status']?.toString();
+      final remoteActualCheckout = data['actualCheckout']?.toString();
+      final remoteLastModified = data['lastModified'];
+      _logger.info(
+        '📥 Pull booking ${localUuid.substring(0, 8)}... '
+        'status=$remoteStatus '
+        'actualCheckout=$remoteActualCheckout '
+        'lastModified=$remoteLastModified '
+        'existing=${existingBooking != null ? 'yes(status=${existingBooking.status})' : 'no'}',
+        tag: 'SYNC',
+      );
+
+      await _adapterRegistry.bookings.upsertFromJson(
+        data,
+        src: Source.appwrite,
+      );
+
+      // TRIGGER POST-SYNC PROCESSING
+      // 1. Resolve local ID from UUID
+      final booking = await (database.select(
+        database.bookings,
+      )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
+
+      if (booking != null) {
+        // ✅ تسجيل تشخيصي بعد السحب: التحقق من حفظ الحقول الحرجة محلياً
+        if (remoteStatus != null && booking.status != remoteStatus) {
+          _logger.error(
+            '❌ بعد upsert: status محلي=${booking.status} ≠ بعيد=$remoteStatus '
+            'booking=${localUuid.substring(0, 8)}... — فقدان بيانات!',
+            tag: 'SYNC',
+          );
+        }
+        if (remoteActualCheckout != null &&
+            booking.actualCheckout != remoteActualCheckout) {
+          _logger.error(
+            '❌ بعد upsert: actualCheckout محلي=${booking.actualCheckout} ≠ بعيد=$remoteActualCheckout '
+            'booking=${localUuid.substring(0, 8)}... — فقدان بيانات!',
+            tag: 'SYNC',
+          );
         }
 
-        // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة عند السحب من Appwrite
-        final remoteStatus = data['status']?.toString();
-        final remoteActualCheckout = data['actualCheckout']?.toString();
-        final remoteLastModified = data['lastModified'];
-        _logger.info(
-          '📥 Pull booking ${localUuid.substring(0, 8)}... '
-          'status=$remoteStatus '
-          'actualCheckout=$remoteActualCheckout '
-          'lastModified=$remoteLastModified '
-          'existing=${existingBooking != null ? 'yes(status=${existingBooking.status})' : 'no'}',
-          tag: 'SYNC',
+        // 2. صيانة التخفيضات القديمة الناتجة من السحب؛ لا تتحول إلى Outbox.
+        await _bookingsRepository.syncLegacyDiscountToAdjustments(
+          booking.id,
+          enqueueOutbox: false,
         );
 
-        await _adapterRegistry.bookings.upsertFromJson(
-          data,
-          src: Source.appwrite,
+        // ✅ 3. Recalculate derived fields.
+        //
+        // الحجز المنتهي (actualCheckout مضى) يُعاد تجميع مستحقه من لياليه
+        // المحفوظة دون إعادة بنائها أو تسعيرها بسعر الغرفة الحالي — ضروري
+        // لأن الحقول المحسوبة لا تُسحب من Appwrite وتبدأ صفراً هنا، وإلا
+        // تظهر الإقامة "مدفوعة بالكامل". الحجوزات غير النشطة الأخرى (بلا
+        // actualCheckout) تبقى دون إعادة حساب حتى لا تُعاد بناء لياليها.
+        final isFrozenStay = BookingDerivedFieldsService.isFrozenCompletedStay(
+          booking,
         );
+        final isActive =
+            StatusUtils.isActiveBooking(booking.status) &&
+            (booking.actualCheckout == null || booking.actualCheckout!.isEmpty);
 
-        // TRIGGER POST-SYNC PROCESSING
-        // 1. Resolve local ID from UUID
-        final booking = await (database.select(
-          database.bookings,
-        )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
-
-        if (booking != null) {
-          // ✅ تسجيل تشخيصي بعد السحب: التحقق من حفظ الحقول الحرجة محلياً
-          if (remoteStatus != null && booking.status != remoteStatus) {
-            _logger.error(
-              '❌ بعد upsert: status محلي=${booking.status} ≠ بعيد=$remoteStatus '
-              'booking=${localUuid.substring(0, 8)}... — فقدان بيانات!',
-              tag: 'SYNC',
-            );
-          }
-          if (remoteActualCheckout != null &&
-              booking.actualCheckout != remoteActualCheckout) {
-            _logger.error(
-              '❌ بعد upsert: actualCheckout محلي=${booking.actualCheckout} ≠ بعيد=$remoteActualCheckout '
-              'booking=${localUuid.substring(0, 8)}... — فقدان بيانات!',
-              tag: 'SYNC',
-            );
-          }
-
-          // 2. صيانة التخفيضات القديمة الناتجة من السحب؛ لا تتحول إلى Outbox.
-          await _bookingsRepository.syncLegacyDiscountToAdjustments(
+        if (isFrozenStay || isActive) {
+          await _bookingsRepository.derivedFields.refreshForBookingId(
             booking.id,
             enqueueOutbox: false,
           );
-
-          // ✅ 3. Recalculate derived fields.
-          //
-          // الحجز المنتهي (actualCheckout مضى) يُعاد تجميع مستحقه من لياليه
-          // المحفوظة دون إعادة بنائها أو تسعيرها بسعر الغرفة الحالي — ضروري
-          // لأن الحقول المحسوبة لا تُسحب من Appwrite وتبدأ صفراً هنا، وإلا
-          // تظهر الإقامة "مدفوعة بالكامل". الحجوزات غير النشطة الأخرى (بلا
-          // actualCheckout) تبقى دون إعادة حساب حتى لا تُعاد بناء لياليها.
-          final isFrozenStay =
-              BookingDerivedFieldsService.isFrozenCompletedStay(booking);
-          final isActive =
-              StatusUtils.isActiveBooking(booking.status) &&
-              (booking.actualCheckout == null ||
-                  booking.actualCheckout!.isEmpty);
-
-          if (isFrozenStay || isActive) {
-            await _bookingsRepository.derivedFields.refreshForBookingId(
-              booking.id,
-              enqueueOutbox: false,
-            );
-          } else {
-            _logger.debug(
-              '⏭️ تخطي refreshForBookingId للحجز ${localUuid.substring(0, 8)}... '
-              '(status=${booking.status}, actualCheckout=${booking.actualCheckout})',
-              tag: 'SYNC',
-            );
-          }
-
-          // ✅ 4. تتبع الغرف المتأثرة بتغيير حالة الحجز
-          // إذا تغيرت الحالة من نشطة إلى غير نشطة (مثل تسجيل الخروج)
-          // نحتاج لإعادة حساب حالة الإشغال للغرفة
-          final newStatus = booking.status;
-          final newRoomNumber = booking.roomNumber;
-
-          final statusChanged = oldStatus != null && oldStatus != newStatus;
-          final wasActive =
-              oldStatus != null && StatusUtils.isActiveBooking(oldStatus);
-          final isNowActive = StatusUtils.isActiveBooking(newStatus);
-
-          if (statusChanged && wasActive != isNowActive) {
-            // الحالة تغيرت بين نشطة وغير نشطة - أضف الغرفة للقائمة
-            if (oldRoomNumber != null && oldRoomNumber.isNotEmpty) {
-              affectedRoomNumbers.add(oldRoomNumber);
-            }
-            if (newRoomNumber.isNotEmpty) {
-              affectedRoomNumbers.add(newRoomNumber);
-            }
-          } else if (existingBooking == null) {
-            // حجز جديد من المزامنة - أضف الغرفة للقائمة
-            if (newRoomNumber.isNotEmpty) {
-              affectedRoomNumbers.add(newRoomNumber);
-            }
-          }
+        } else {
+          _logger.debug(
+            '⏭️ تخطي refreshForBookingId للحجز ${localUuid.substring(0, 8)}... '
+            '(status=${booking.status}, actualCheckout=${booking.actualCheckout})',
+            tag: 'SYNC',
+          );
         }
 
-        // ✅ Wave 7 tighten: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'bookings',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
+        // ✅ 4. تتبع الغرف المتأثرة بتغيير حالة الحجز
+        // إذا تغيرت الحالة من نشطة إلى غير نشطة (مثل تسجيل الخروج)
+        // نحتاج لإعادة حساب حالة الإشغال للغرفة
+        final newStatus = booking.status;
+        final newRoomNumber = booking.roomNumber;
 
+        final statusChanged = oldStatus != null && oldStatus != newStatus;
+        final wasActive =
+            oldStatus != null && StatusUtils.isActiveBooking(oldStatus);
+        final isNowActive = StatusUtils.isActiveBooking(newStatus);
+
+        if (statusChanged && wasActive != isNowActive) {
+          // الحالة تغيرت بين نشطة وغير نشطة - أضف الغرفة للقائمة
+          if (oldRoomNumber != null && oldRoomNumber.isNotEmpty) {
+            affectedRoomNumbers.add(oldRoomNumber);
+          }
+          if (newRoomNumber.isNotEmpty) {
+            affectedRoomNumbers.add(newRoomNumber);
+          }
+        } else if (existingBooking == null) {
+          // حجز جديد من المزامنة - أضف الغرفة للقائمة
+          if (newRoomNumber.isNotEmpty) {
+            affectedRoomNumbers.add(newRoomNumber);
+          }
+        }
+      }
+
+      // ✅ Wave 7 tighten: notify remote change from another device
+      await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+        entity: 'bookings',
+        localUuid: (data['localUuid'] as String?) ?? '',
+        remoteDeviceId: (data['deviceId'] as String?) ?? '',
+        currentDeviceId: _currentDeviceId,
+        lastModified: _asIntNullable(data['lastModified']),
+      );
+    }
+
+    // المرحلة الأولى: معالجة الحجوزات مع تأجيل فشل FK/NOT NULL فقط.
+    for (final doc in documents) {
+      try {
+        await applyBookingDoc(doc);
         processed++;
       } catch (e) {
-        _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
+          _logger.debug(
+            'Deferring booking ${doc.$id}: FK/NOT NULL constraint (missing parent e.g. room)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning('Failed to sync booking ${doc.$id}: $e', tag: 'SYNC');
+          failed.add('${doc.$id}: $e');
+        }
       }
+    }
+
+    // المرحلة الثانية: إعادة محاولة المؤجلة بعد اكتمال الدفعة — قد يكون
+    // الأب وصل ضمن نفس الدفعة أو أُنشئ أثناء المرحلة الأولى.
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred bookings',
+        tag: 'SYNC',
+      );
+      for (final doc in deferred) {
+        try {
+          await applyBookingDoc(doc);
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred booking ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+          failed.add('${doc.$id}: $e');
+        }
+      }
+    }
+
+    // ✅ (2026-11-02) إصلاح فقدان صامت (السبب الجذري لتقرير «زر سحب
+    // التغييرات لم يسحب الحجوزات»): المحرك يثبّت مؤشر مجموعة bookings
+    // على أقصى $updatedAt للمستندات المُحضّرة — لا المطبّقة بنجاح. أي
+    // حجز فشل تطبيقه هنا كان يفلت من كل دلتا لاحقة ($updatedAt < المؤشر)
+    // إلى الأبد. الرمي أدناه يضع bookings في failedCollections → لا يتقدّم
+    // مؤشرها → تُعاد محاولة سحبها في الدورة التالية (عند وصول الأب
+    // المفقود — الغرفة غالباً لأن rooms تُسحب قبل bookings).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'bookings: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     // ✅ إعادة حساب حالة الإشغال للغرف المتأثرة فقط (تحسين الأداء)
@@ -2363,6 +2445,14 @@ class AppwriteSyncManager {
 
     return processed;
   }
+
+  /// ✅ (2026-11-02) جسر اختباري — نفس نمط [applyBookingNightsForTesting]:
+  /// الكود الإنتاجي نفسه بلا محاكاة، لاختبار عقد «فشل تطبيق حجز لا يتخطاه
+  /// المؤشر» (درع انحدار فقدان bookings الصامت — انظر
+  /// bookings_pull_checkpoint_regression_test.dart).
+  @visibleForTesting
+  Future<int> syncBookingsForTesting(List<models.Document> documents) =>
+      _syncBookings(documents);
 
   /// ✅ إعادة حساب حالة إشغال غرفة واحدة بناءً على الحجوزات النشطة
   /// يستخدم RoomsRepository لضمان تحديث version و lastModified
