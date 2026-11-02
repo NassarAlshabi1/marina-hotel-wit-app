@@ -43,12 +43,22 @@ Widget _buildListItem(_ListItem item) {
     elevation: 0.5,
     margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
     child: ListTile(
-      leading: CircleAvatar(backgroundColor: Colors.blue.shade100, child: Text('${item.id}')),
-      title: Text(item.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+      leading: CircleAvatar(
+        backgroundColor: Colors.blue.shade100,
+        child: Text('${item.id}'),
+      ),
+      title: Text(
+        item.title,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+      ),
       subtitle: Text(item.subtitle, style: const TextStyle(fontSize: 11)),
       trailing: Text(
         '${item.amount.toStringAsFixed(0)} ر.س',
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: Colors.green,
+        ),
       ),
       onTap: () {},
     ),
@@ -64,7 +74,12 @@ void main() {
     // إنشاء 250 عنصر (محاكاة قائمة طويلة)
     items = List.generate(
       250,
-      (i) => _ListItem(i, 'عنصر $i', 'وصف تفصيلي للعنصر رقم $i — يحتوي على نص متوسط الطول', (i + 1) * 10.5),
+      (i) => _ListItem(
+        i,
+        'عنصر $i',
+        'وصف تفصيلي للعنصر رقم $i — يحتوي على نص متوسط الطول',
+        (i + 1) * 10.5,
+      ),
     );
   });
 
@@ -98,12 +113,18 @@ void main() {
       final avgFrameMs = scrollStopwatch.elapsedMilliseconds / frameCount;
 
       debugPrint('✓ ListView.builder scroll (250 items):');
-      debugPrint('  Total scroll time: ${scrollStopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '  Total scroll time: ${scrollStopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Frames pumped: $frameCount');
       debugPrint('  Average frame time: ${avgFrameMs.toStringAsFixed(2)}ms');
       debugPrint('  Target: < 300ms/frame for acceptable UX');
 
-      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000), reason: 'scroll 250 عنصر يجب أن يكون < 3 ثواني');
+      expect(
+        scrollStopwatch.elapsedMilliseconds,
+        lessThan(3000),
+        reason: 'scroll 250 عنصر يجب أن يكون < 3 ثواني',
+      );
     });
   });
 
@@ -117,7 +138,9 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: ListView(children: items100.map(_buildListItem).toList())),
+          home: Scaffold(
+            body: ListView(children: items100.map(_buildListItem).toList()),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -134,11 +157,17 @@ void main() {
       final avgFrameMs = scrollStopwatch.elapsedMilliseconds / frameCount;
 
       debugPrint('✓ ListView(children:) scroll (100 items):');
-      debugPrint('  Total scroll time: ${scrollStopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '  Total scroll time: ${scrollStopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Frames pumped: $frameCount');
       debugPrint('  Average frame time: ${avgFrameMs.toStringAsFixed(2)}ms');
 
-      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000), reason: 'scroll 100 عنصر يجب أن يكون < 3 ثواني');
+      expect(
+        scrollStopwatch.elapsedMilliseconds,
+        lessThan(3000),
+        reason: 'scroll 100 عنصر يجب أن يكون < 3 ثواني',
+      );
     });
   });
 
@@ -170,7 +199,9 @@ void main() {
       final childrenStopwatch = Stopwatch()..start();
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: ListView(children: items200.map(_buildListItem).toList())),
+          home: Scaffold(
+            body: ListView(children: items200.map(_buildListItem).toList()),
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -182,12 +213,22 @@ void main() {
       debugPrint('  ListView.builder:    ${builderBuildMs}ms');
       debugPrint('  ListView(children:): ${childrenBuildMs}ms');
       if (childrenBuildMs > 0) {
-        debugPrint('  Ratio: ${(childrenBuildMs / builderBuildMs).toStringAsFixed(2)}x');
+        debugPrint(
+          '  Ratio: ${(childrenBuildMs / builderBuildMs).toStringAsFixed(2)}x',
+        );
       }
 
       // كلاهما يجب أن يكتمل خلال 1 ثانية
-      expect(builderBuildMs, lessThan(1000), reason: 'ListView.builder build < 1s');
-      expect(childrenBuildMs, lessThan(1000), reason: 'ListView(children:) build < 1s');
+      expect(
+        builderBuildMs,
+        lessThan(1000),
+        reason: 'ListView.builder build < 1s',
+      );
+      expect(
+        childrenBuildMs,
+        lessThan(1000),
+        reason: 'ListView(children:) build < 1s',
+      );
     });
   });
 }

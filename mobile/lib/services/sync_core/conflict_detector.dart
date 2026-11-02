@@ -58,7 +58,8 @@ class ConflictDetectionResult {
   /// جميع التعارضات تُحل تلقائياً — لا يوجد تصعيد يدوي
   /// ما عدا التعارضات المتزامنة التي تمس حقولاً مالية/حرجة
   bool get needsManualResolution =>
-      type == ConflictType.concurrentSameFields && conflictingFields.any(ConflictDetector.isCriticalField);
+      type == ConflictType.concurrentSameFields &&
+      conflictingFields.any(ConflictDetector.isCriticalField);
 
   /// جميع التعارضات قابلة للحل التلقائي
   bool get canAutoResolve => !needsManualResolution;
@@ -91,7 +92,11 @@ class ConflictDetector {
       return ConflictDetectionResult(
         type: ConflictType.deleteVsUpdate,
         localChangedFields: {'deletedAt'},
-        remoteChangedFields: _findChangedFields(remoteData, commonAncestor, other: localData),
+        remoteChangedFields: _findChangedFields(
+          remoteData,
+          commonAncestor,
+          other: localData,
+        ),
       );
     }
     if (!localDeleted && remoteDeleted) {
@@ -104,13 +109,23 @@ class ConflictDetector {
       // (لأن الـ delete أكثر حداثة عادةً) لكن مع تسجيل في audit trail.
       return ConflictDetectionResult(
         type: ConflictType.deleteVsUpdate,
-        localChangedFields: _findChangedFields(localData, commonAncestor, other: remoteData),
+        localChangedFields: _findChangedFields(
+          localData,
+          commonAncestor,
+          other: remoteData,
+        ),
         remoteChangedFields: {'deletedAt'},
       );
     }
 
-    final localVcStr = (localData['vectorClock'] as String?) ?? (localData['vector_clock'] as String?) ?? '{}';
-    final remoteVcStr = (remoteData['vectorClock'] as String?) ?? (remoteData['vector_clock'] as String?) ?? '{}';
+    final localVcStr =
+        (localData['vectorClock'] as String?) ??
+        (localData['vector_clock'] as String?) ??
+        '{}';
+    final remoteVcStr =
+        (remoteData['vectorClock'] as String?) ??
+        (remoteData['vector_clock'] as String?) ??
+        '{}';
 
     final localVc = VectorClock.fromString(localVcStr);
     final remoteVc = VectorClock.fromString(remoteVcStr);
@@ -121,12 +136,20 @@ class ConflictDetector {
       if (remoteTs > localTs) {
         return ConflictDetectionResult(
           type: ConflictType.noConflictRemoteNewer,
-          remoteChangedFields: _findChangedFields(remoteData, commonAncestor, other: localData),
+          remoteChangedFields: _findChangedFields(
+            remoteData,
+            commonAncestor,
+            other: localData,
+          ),
         );
       }
       return ConflictDetectionResult(
         type: ConflictType.noConflictLocalNewer,
-        localChangedFields: _findChangedFields(localData, commonAncestor, other: remoteData),
+        localChangedFields: _findChangedFields(
+          localData,
+          commonAncestor,
+          other: remoteData,
+        ),
       );
     }
 
@@ -134,14 +157,22 @@ class ConflictDetector {
 
     switch (comparison) {
       case VectorClockComparison.equal:
-        return ConflictDetectionResult(type: ConflictType.noConflictEqual, localVc: localVc, remoteVc: remoteVc);
+        return ConflictDetectionResult(
+          type: ConflictType.noConflictEqual,
+          localVc: localVc,
+          remoteVc: remoteVc,
+        );
 
       case VectorClockComparison.remoteNewer:
         return ConflictDetectionResult(
           type: ConflictType.noConflictRemoteNewer,
           localVc: localVc,
           remoteVc: remoteVc,
-          remoteChangedFields: _findChangedFields(remoteData, commonAncestor, other: localData),
+          remoteChangedFields: _findChangedFields(
+            remoteData,
+            commonAncestor,
+            other: localData,
+          ),
         );
 
       case VectorClockComparison.localNewer:
@@ -149,7 +180,11 @@ class ConflictDetector {
           type: ConflictType.noConflictLocalNewer,
           localVc: localVc,
           remoteVc: remoteVc,
-          localChangedFields: _findChangedFields(localData, commonAncestor, other: remoteData),
+          localChangedFields: _findChangedFields(
+            localData,
+            commonAncestor,
+            other: remoteData,
+          ),
         );
 
       case VectorClockComparison.concurrent:
@@ -170,12 +205,22 @@ class ConflictDetector {
     required VectorClock localVc,
     required VectorClock remoteVc,
   }) {
-    final localChanged = _findChangedFields(localData, commonAncestor, other: remoteData);
-    final remoteChanged = _findChangedFields(remoteData, commonAncestor, other: localData);
+    final localChanged = _findChangedFields(
+      localData,
+      commonAncestor,
+      other: remoteData,
+    );
+    final remoteChanged = _findChangedFields(
+      remoteData,
+      commonAncestor,
+      other: localData,
+    );
     final conflicting = localChanged.intersection(remoteChanged);
 
     return ConflictDetectionResult(
-      type: conflicting.isEmpty ? ConflictType.concurrentDifferentFields : ConflictType.concurrentSameFields,
+      type: conflicting.isEmpty
+          ? ConflictType.concurrentDifferentFields
+          : ConflictType.concurrentSameFields,
       localVc: localVc,
       remoteVc: remoteVc,
       localChangedFields: localChanged,
@@ -216,7 +261,10 @@ class ConflictDetector {
       if (_isDeviceLocalIdField(key)) continue;
       if (ancestor != null) {
         // ✅ 3-way: الحقل تغيّر فقط إذا اختلف عن السلف المشترك.
-        if (!const DeepCollectionEquality().equals(ancestor[key], current[key])) {
+        if (!const DeepCollectionEquality().equals(
+          ancestor[key],
+          current[key],
+        )) {
           changed.add(key);
         }
       } else if (other != null) {
@@ -259,7 +307,8 @@ class ConflictDetector {
   };
 
   /// هل الحقل معرّف رقمي محلي لجهاز بعينه؟
-  static bool _isDeviceLocalIdField(String key) => _deviceLocalIdFields.contains(key);
+  static bool _isDeviceLocalIdField(String key) =>
+      _deviceLocalIdFields.contains(key);
 
   static int _extractTs(Map<String, dynamic> data) {
     return (data['lastModified'] as int?) ??
@@ -281,5 +330,6 @@ class ConflictDetector {
   };
 
   /// هل الحقل [fieldName] حرج (مالي)؟
-  static bool isCriticalField(String fieldName) => _criticalFields.contains(fieldName);
+  static bool isCriticalField(String fieldName) =>
+      _criticalFields.contains(fieldName);
 }

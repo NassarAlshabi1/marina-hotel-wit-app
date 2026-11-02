@@ -33,11 +33,21 @@ class HotelDateHelper {
   /// مثال 1: 01/01 14:01 → 02/01 14:00 = 1 يوم ✅
   /// مثال 2: 01/01 14:01 → 02/01 14:01 = 2 يوم ✅
   static DateTime getHotelDay(DateTime dateTime) {
-    final cutoff = DateTime(dateTime.year, dateTime.month, dateTime.day, hotelStartHour, hotelStartMinute);
+    final cutoff = DateTime(
+      dateTime.year,
+      dateTime.month,
+      dateTime.day,
+      hotelStartHour,
+      hotelStartMinute,
+    );
     if (!dateTime.isBefore(cutoff)) {
       return DateTime(dateTime.year, dateTime.month, dateTime.day);
     } else {
-      return DateTime(dateTime.year, dateTime.month, dateTime.day).subtract(const Duration(days: 1));
+      return DateTime(
+        dateTime.year,
+        dateTime.month,
+        dateTime.day,
+      ).subtract(const Duration(days: 1));
     }
   }
 
@@ -53,7 +63,9 @@ class HotelDateHelper {
       return getHotelDayKey();
     }
     try {
-      final normalized = isoString.trim().contains('T') ? isoString.trim() : isoString.trim().replaceFirst(' ', 'T');
+      final normalized = isoString.trim().contains('T')
+          ? isoString.trim()
+          : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
     } catch (_) {
@@ -91,7 +103,9 @@ class HotelDateHelper {
       hotelStartHour,
       hotelStartMinute,
     );
-    final effectiveStart = discountDayStart.isAfter(checkIn) ? discountDayStart : checkIn;
+    final effectiveStart = discountDayStart.isAfter(checkIn)
+        ? discountDayStart
+        : checkIn;
     if (!checkOut.isAfter(effectiveStart)) {
       return 0;
     }
@@ -104,12 +118,15 @@ class HotelDateHelper {
   /// true إذا الوقت >= 14:01:00.
   static bool isNowAfterCutoff() {
     final now = DateTime.now();
-    return now.hour > hotelStartHour || (now.hour == hotelStartHour && now.minute >= hotelStartMinute);
+    return now.hour > hotelStartHour ||
+        (now.hour == hotelStartHour && now.minute >= hotelStartMinute);
   }
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
   static bool isAfterCutoff(DateTime dateTime) {
-    return dateTime.hour > hotelStartHour || (dateTime.hour == hotelStartHour && dateTime.minute >= hotelStartMinute);
+    return dateTime.hour > hotelStartHour ||
+        (dateTime.hour == hotelStartHour &&
+            dateTime.minute >= hotelStartMinute);
   }
 
   // ─── تحديث تلقائي ──────────────────────────────────────────────
@@ -117,7 +134,13 @@ class HotelDateHelper {
   /// الفترة المتبقية حتى بداية اليوم الفندقي التالي (14:01).
   static Duration timeUntilNextHotelDay() {
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, hotelStartHour, hotelStartMinute);
+    var next = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      hotelStartHour,
+      hotelStartMinute,
+    );
     if (!now.isBefore(next)) {
       next = next.add(const Duration(days: 1));
     }
@@ -187,7 +210,10 @@ class HotelDateHelper {
   /// تصفية بيانات الحجز من الحقول المحسوبة قبل الرفع إلى Appwrite.
   ///
   /// يُستدعى من `_sanitizePayload` في Delta Sync.
-  static Map<String, dynamic> stripComputedFieldsForEntity(String entity, Map<String, dynamic> payload) {
+  static Map<String, dynamic> stripComputedFieldsForEntity(
+    String entity,
+    Map<String, dynamic> payload,
+  ) {
     if (entity != 'bookings') {
       return payload;
     }

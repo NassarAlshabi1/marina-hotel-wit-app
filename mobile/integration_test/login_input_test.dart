@@ -10,7 +10,10 @@ void main() {
     await $.pumpWidgetAndSettle(
       const ProviderScope(
         child: MaterialApp(
-          home: Directionality(textDirection: TextDirection.rtl, child: LoginScreen()),
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: LoginScreen(),
+          ),
         ),
       ),
     );

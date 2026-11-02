@@ -58,10 +58,15 @@ void main() {
   final checkin = day(4);
   final actualCheckout = day(1);
 
-  Future<Booking> fetchBooking(int id) => (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
+  Future<Booking> fetchBooking(int id) =>
+      (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
 
   /// إدراج دفعة كما تصل من السحب: مرتبطة بـ UUID فقط بلا bookingLocalId.
-  Future<void> insertUuidOnlyPayment(String bookingUuid, double amount, String revenueType) async {
+  Future<void> insertUuidOnlyPayment(
+    String bookingUuid,
+    double amount,
+    String revenueType,
+  ) async {
     final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     await db
         .into(db.payments)
@@ -90,7 +95,12 @@ void main() {
 
     PaymentSessionContext.start(userId: 1, userName: 'اختبار');
 
-    await roomsRepo.create(roomNumber: '101', type: 'عادية', price: rate, status: 'شاغرة');
+    await roomsRepo.create(
+      roomNumber: '101',
+      type: 'عادية',
+      price: rate,
+      status: 'شاغرة',
+    );
   });
 
   tearDown(() async {
@@ -120,61 +130,84 @@ void main() {
   }
 
   group('B1+B2+B3 — الرصيد الفعلي يضم العرابون والخدمة والرصيد التراكمي', () {
-    test('deposit/service/room كلها تُخصم من المتبقي عبر المحرك الموحد', () async {
-      final bookingId = await seedCompletedBooking();
+    test(
+      'deposit/service/room كلها تُخصم من المتبقي عبر المحرك الموحد',
+      () async {
+        final bookingId = await seedCompletedBooking();
 
-      // العرابون — مسار شاشة تعديل الحجز (booking_edit).
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: 100,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'deposit',
-      );
+        // العرابون — مسار شاشة تعديل الحجز (booking_edit).
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: 100,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'deposit',
+        );
 
-      // خدمات إضافية — مسار شاشة الدفع عند المغادرة.
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: 50,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'service',
-      );
+        // خدمات إضافية — مسار شاشة الدفع عند المغادرة.
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: 50,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'service',
+        );
 
-      // رصيد تراكمي — مسار زر شاشة معالجة المدفوعات (post-dda160ee).
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: 200,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-      );
+        // رصيد تراكمي — مسار زر شاشة معالجة المدفوعات (post-dda160ee).
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: 200,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+        );
 
-      final booking = await fetchBooking(bookingId);
-      expect(booking.totalDueCached, 400, reason: 'إجمالي الاستحقاق: 4 ليالٍ × 100');
-      expect(booking.totalPaidCached, 350, reason: 'الرصيد الفعلي = 100 (عرابون) + 50 (خدمة) + 200 (رصيد تراكمي)');
-      expect(booking.remainingBalanceCached, 50, reason: 'المتبقي = 400 − 350');
-      expect(booking.isFullyPaid, false);
-    });
+        final booking = await fetchBooking(bookingId);
+        expect(
+          booking.totalDueCached,
+          400,
+          reason: 'إجمالي الاستحقاق: 4 ليالٍ × 100',
+        );
+        expect(
+          booking.totalPaidCached,
+          350,
+          reason:
+              'الرصيد الفعلي = 100 (عرابون) + 50 (خدمة) + 200 (رصيد تراكمي)',
+        );
+        expect(
+          booking.remainingBalanceCached,
+          50,
+          reason: 'المتبقي = 400 − 350',
+        );
+        expect(booking.isFullyPaid, false);
+      },
+    );
   });
 
   group('B4 — الدفعة المرتبطة بـ UUID فقط (سيناريو السحب) تُحتسب', () {
-    test('المحرك يطابق الدفعات بـ bookingLocalId أو bookingUuidCache', () async {
-      final bookingId = await seedCompletedBooking();
-      final booking = await fetchBooking(bookingId);
+    test(
+      'المحرك يطابق الدفعات بـ bookingLocalId أو bookingUuidCache',
+      () async {
+        final bookingId = await seedCompletedBooking();
+        final booking = await fetchBooking(bookingId);
 
-      await insertUuidOnlyPayment(booking.localUuid, 400, 'room');
+        await insertUuidOnlyPayment(booking.localUuid, 400, 'room');
 
-      await BookingDerivedFieldsService(db).refreshForBookingId(bookingId);
-      final after = await fetchBooking(bookingId);
+        await BookingDerivedFieldsService(db).refreshForBookingId(bookingId);
+        final after = await fetchBooking(bookingId);
 
-      expect(after.totalPaidCached, 400, reason: 'دفعة مزامنة بلا bookingLocalId يجب أن تُحتسب عبر uuid');
-      expect(after.remainingBalanceCached, 0);
-      expect(after.isFullyPaid, true);
-    });
+        expect(
+          after.totalPaidCached,
+          400,
+          reason: 'دفعة مزامنة بلا bookingLocalId يجب أن تُحتسب عبر uuid',
+        );
+        expect(after.remainingBalanceCached, 0);
+        expect(after.isFullyPaid, true);
+      },
+    );
   });
 
   group('B5 — الدفعة المعلّقة (isPendingBalance) لا تُحتسب', () {
@@ -193,7 +226,11 @@ void main() {
       );
 
       final booking = await fetchBooking(bookingId);
-      expect(booking.totalPaidCached, 0, reason: 'المعلّقة لا تدخل الرصيد الفعلي');
+      expect(
+        booking.totalPaidCached,
+        0,
+        reason: 'المعلّقة لا تدخل الرصيد الفعلي',
+      );
       expect(booking.remainingBalanceCached, 400);
 
       // معالجة الأرصدة المعلّقة (مسار settings_maintenance): تحويلها لفعلية.
@@ -235,7 +272,9 @@ void main() {
       expect(booking.isFullyPaid, true);
 
       // إلغاء دفعة الخدمة (مسار الإلغاء الإنتاجي بالكامل).
-      final servicePayment = await (db.select(db.payments)..where((p) => p.id.equals(servicePayId))).getSingle();
+      final servicePayment = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(servicePayId))).getSingle();
       final ok = await voidService.voidPayment(
         paymentUuid: servicePayment.localUuid,
         voidReason: 'اختبار: استبعاد الملغاة من الرصيد الفعلي',
@@ -245,7 +284,11 @@ void main() {
 
       // الخزائن محدثة داخل نفس معاملة الإلغاء — بلا تحديث يدوي لاحق.
       booking = await fetchBooking(bookingId);
-      expect(booking.totalPaidCached, 300, reason: 'الرصيد الفعلي بعد الإلغاء = دفعة الغرفة فقط');
+      expect(
+        booking.totalPaidCached,
+        300,
+        reason: 'الرصيد الفعلي بعد الإلغاء = دفعة الغرفة فقط',
+      );
       expect(booking.remainingBalanceCached, 100);
       expect(booking.isFullyPaid, false);
 
@@ -260,79 +303,100 @@ void main() {
       expect(booking.totalPaidCached, 300);
 
       // الدفعة الفعلية الباقية ما زالت محسوبة.
-      final roomPayment = await (db.select(db.payments)..where((p) => p.id.equals(roomPayId))).getSingle();
+      final roomPayment = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(roomPayId))).getSingle();
       expect(roomPayment.isVoided, false);
     });
   });
 
   group('B7 — الاتساق المتقاطع بين كل مستهلكي الرصيد', () {
-    test('المحرك == SQL القائمة == ComputedStream == GuestCalc == StayBalance', () async {
-      final bookingId = await seedCompletedBooking();
+    test(
+      'المحرك == SQL القائمة == ComputedStream == GuestCalc == StayBalance',
+      () async {
+        final bookingId = await seedCompletedBooking();
 
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: 100,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'deposit',
-      );
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: 250,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-      );
-      // معلّقة + ملغاة: لا تدخلان في أي حساب.
-      final voidMeId = await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: 999,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-      );
-      await paymentsRepo.create(
-        bookingLocalId: bookingId,
-        roomNumber: '101',
-        amount: 777,
-        paymentDate: checkin.toIso8601String(),
-        paymentMethod: 'نقدي',
-        revenueType: 'room',
-        isPendingBalance: true,
-      );
-      final voidMe = await (db.select(db.payments)..where((p) => p.id.equals(voidMeId))).getSingle();
-      await voidService.voidPayment(paymentUuid: voidMe.localUuid, voidReason: 'اختبار الاتساق', voidedBy: 'اختبار');
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: 100,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'deposit',
+        );
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: 250,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+        );
+        // معلّقة + ملغاة: لا تدخلان في أي حساب.
+        final voidMeId = await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: 999,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+        );
+        await paymentsRepo.create(
+          bookingLocalId: bookingId,
+          roomNumber: '101',
+          amount: 777,
+          paymentDate: checkin.toIso8601String(),
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+          isPendingBalance: true,
+        );
+        final voidMe = await (db.select(
+          db.payments,
+        )..where((p) => p.id.equals(voidMeId))).getSingle();
+        await voidService.voidPayment(
+          paymentUuid: voidMe.localUuid,
+          voidReason: 'اختبار الاتساق',
+          voidedBy: 'اختبار',
+        );
 
-      const int expectedPaid = 350; // 100 + 250 فقط
-      final booking = await fetchBooking(bookingId);
+        const int expectedPaid = 350; // 100 + 250 فقط
+        final booking = await fetchBooking(bookingId);
 
-      // ① الخزائن المخبأة (المحرك الموحد).
-      expect(booking.totalPaidCached, expectedPaid);
+        // ① الخزائن المخبأة (المحرك الموحد).
+        expect(booking.totalPaidCached, expectedPaid);
 
-      // ② SQL قائمة الحجوزات (bookingPaidAmountProvider).
-      final sqlPaid = await paymentsRepo.watchTotalPaidForBooking(bookingId).first;
-      expect(sqlPaid, expectedPaid.toDouble());
+        // ② SQL قائمة الحجوزات (bookingPaidAmountProvider).
+        final sqlPaid = await paymentsRepo
+            .watchTotalPaidForBooking(bookingId)
+            .first;
+        expect(sqlPaid, expectedPaid.toDouble());
 
-      // ③ BookingComputedStreamService (شبكة الغرف/اللوحة).
-      final computed = await BookingComputedStreamService(db).buildBookingWithPayments(bookingId);
-      expect(computed, isNotNull);
-      expect(computed!.totalPaid, expectedPaid);
-      expect(computed.remainingBalance, 400 - expectedPaid);
+        // ③ BookingComputedStreamService (شبكة الغرف/اللوحة).
+        final computed = await BookingComputedStreamService(
+          db,
+        ).buildBookingWithPayments(bookingId);
+        expect(computed, isNotNull);
+        expect(computed!.totalPaid, expectedPaid);
+        expect(computed.remainingBalance, 400 - expectedPaid);
 
-      // ④ GuestPaymentCalculationService (كشف حساب النزيل).
-      final guestCalc = await GuestPaymentCalculationService(db).calculateForBooking(booking);
-      expect(guestCalc.totalPaid, expectedPaid.toDouble());
-      expect(guestCalc.remainingBalance, (400 - expectedPaid).toDouble());
+        // ④ GuestPaymentCalculationService (كشف حساب النزيل).
+        final guestCalc = await GuestPaymentCalculationService(
+          db,
+        ).calculateForBooking(booking);
+        expect(guestCalc.totalPaid, expectedPaid.toDouble());
+        expect(guestCalc.remainingBalance, (400 - expectedPaid).toDouble());
 
-      // ⑤ StayBalanceCalculator (المغادرة التلقائية/الليالي المدفوعة).
-      final stay = StayBalanceCalculator.calculate(booking, roomRate: rate, now: today);
-      expect(stay.actualNightsSpent, 4);
-      expect(stay.consumedCost, 400);
-      expect(stay.totalPaid, expectedPaid.toDouble());
-      expect(stay.totalPaidNights, 3, reason: '350 يغطي 3 ليالٍ × 100');
-    });
+        // ⑤ StayBalanceCalculator (المغادرة التلقائية/الليالي المدفوعة).
+        final stay = StayBalanceCalculator.calculate(
+          booking,
+          roomRate: rate,
+          now: today,
+        );
+        expect(stay.actualNightsSpent, 4);
+        expect(stay.consumedCost, 400);
+        expect(stay.totalPaid, expectedPaid.toDouble());
+        expect(stay.totalPaidNights, 3, reason: '350 يغطي 3 ليالٍ × 100');
+      },
+    );
   });
 }

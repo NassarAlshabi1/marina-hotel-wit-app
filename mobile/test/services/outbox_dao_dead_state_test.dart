@@ -40,7 +40,11 @@ void main() {
 
       // 3) تحقّق أن countDead = 1
       final deadCount = await outboxDao.countDead();
-      expect(deadCount, 1, reason: 'بعد setDead على سجل واحد، countDead يجب أن يكون 1');
+      expect(
+        deadCount,
+        1,
+        reason: 'بعد setDead على سجل واحد، countDead يجب أن يكون 1',
+      );
 
       // 4) تحقّق أن listDead يُرجع السجل
       final deadList = await outboxDao.listDead();
@@ -52,7 +56,11 @@ void main() {
 
       // 5) تأكّد أن count لا يحسبه (لأنه لم يعد 'pending' أو 'failed')
       final pendingCount = await outboxDao.count(sources: const ['local']);
-      expect(pendingCount, 0, reason: 'السجل dead يجب ألا يُحسب ضمن pending/failed');
+      expect(
+        pendingCount,
+        0,
+        reason: 'السجل dead يجب ألا يُحسب ضمن pending/failed',
+      );
     });
 
     test('P0-2: reviveFromDead يُعيد السجل لحالة pending', () async {
@@ -72,7 +80,11 @@ void main() {
       await outboxDao.reviveFromDead(id);
 
       // يجب أن يختفي من dead
-      expect(await outboxDao.countDead(), 0, reason: 'بعد reviveFromDead، countDead يجب أن يكون 0');
+      expect(
+        await outboxDao.countDead(),
+        0,
+        reason: 'بعد reviveFromDead، countDead يجب أن يكون 0',
+      );
 
       // ويظهر في pending (لأن revive يضع processing_status='pending')
       // ✅ ملاحظة: count() يحسب 'pending'+'failed'، لذلك يجب أن يكون 1
@@ -87,115 +99,131 @@ void main() {
       );
     });
 
-    test('P0-1: السجلات الـ dead لا تُلتقط بواسطة _takeUndeliveredBatch', () async {
-      // أنشئ 3 سجلات: 1 pending، 1 failed، 1 dead
-      // ✅ ملاحظة: merge() يضع delivered_to_secondary=true افتراضياً إذا
-      // لم تكن SecondaryAppwriteConfig مهيّأة (SharedPreferences غير متاح
-      // في الاختبارات). لذلك نضعها يدوياً لـ 0 (false) لمحاكاة
-      // Secondary مُفعّل يحتاج للرفع.
-      final id1 = await outboxDao.merge(
-        entity: 'rooms',
-        op: 'create',
-        localUuid: 'room-pending',
-        payload: {},
-        clientTs: DateTime.now().millisecondsSinceEpoch,
-        source: 'local',
-      );
-      final id2 = await outboxDao.merge(
-        entity: 'rooms',
-        op: 'create',
-        localUuid: 'room-failed',
-        payload: {},
-        clientTs: DateTime.now().millisecondsSinceEpoch + 1,
-        source: 'local',
-      );
-      final id3 = await outboxDao.merge(
-        entity: 'rooms',
-        op: 'create',
-        localUuid: 'room-dead',
-        payload: {},
-        clientTs: DateTime.now().millisecondsSinceEpoch + 2,
-        source: 'local',
-      );
+    test(
+      'P0-1: السجلات الـ dead لا تُلتقط بواسطة _takeUndeliveredBatch',
+      () async {
+        // أنشئ 3 سجلات: 1 pending، 1 failed، 1 dead
+        // ✅ ملاحظة: merge() يضع delivered_to_secondary=true افتراضياً إذا
+        // لم تكن SecondaryAppwriteConfig مهيّأة (SharedPreferences غير متاح
+        // في الاختبارات). لذلك نضعها يدوياً لـ 0 (false) لمحاكاة
+        // Secondary مُفعّل يحتاج للرفع.
+        final id1 = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'room-pending',
+          payload: {},
+          clientTs: DateTime.now().millisecondsSinceEpoch,
+          source: 'local',
+        );
+        final id2 = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'room-failed',
+          payload: {},
+          clientTs: DateTime.now().millisecondsSinceEpoch + 1,
+          source: 'local',
+        );
+        final id3 = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'room-dead',
+          payload: {},
+          clientTs: DateTime.now().millisecondsSinceEpoch + 2,
+          source: 'local',
+        );
 
-      // محاكاة Secondary مُفعّل: ضع delivered_to_secondary=0 يدوياً
-      await db.customStatement('UPDATE outbox SET delivered_to_secondary = 0 WHERE id IN (?, ?, ?)', [id1, id2, id3]);
+        // محاكاة Secondary مُفعّل: ضع delivered_to_secondary=0 يدوياً
+        await db.customStatement(
+          'UPDATE outbox SET delivered_to_secondary = 0 WHERE id IN (?, ?, ?)',
+          [id1, id2, id3],
+        );
 
-      // ضع id2 في failed، id3 في dead
-      await outboxDao.setError(id2, 'Transient error', 1);
-      await outboxDao.setDead(id3, 'Permanent', 5);
+        // ضع id2 في failed، id3 في dead
+        await outboxDao.setError(id2, 'Transient error', 1);
+        await outboxDao.setDead(id3, 'Permanent', 5);
 
-      // ✅ الحالة المتوقّعة:
-      // - id1: pending (delivered_to_secondary=0)
-      // - id2: failed (attempts=1, delivered_to_secondary=0)
-      // - id3: dead (attempts=5, delivered_to_secondary=0)
+        // ✅ الحالة المتوقّعة:
+        // - id1: pending (delivered_to_secondary=0)
+        // - id2: failed (attempts=1, delivered_to_secondary=0)
+        // - id3: dead (attempts=5, delivered_to_secondary=0)
 
-      // ✅ تأكّد أن count(sources:['local']) = 2 (pending + failed)
-      // dead لا يُحسب
-      final liveCount = await outboxDao.count(sources: const ['local']);
-      expect(liveCount, 2, reason: 'pending + failed = 2 (dead مستبعد)');
+        // ✅ تأكّد أن count(sources:['local']) = 2 (pending + failed)
+        // dead لا يُحسب
+        final liveCount = await outboxDao.count(sources: const ['local']);
+        expect(liveCount, 2, reason: 'pending + failed = 2 (dead مستبعد)');
 
-      // ✅ تأكّد أن countDead = 1
-      expect(await outboxDao.countDead(), 1);
+        // ✅ تأكّد أن countDead = 1
+        expect(await outboxDao.countDead(), 1);
 
-      // ✅ محاكاة استعلام SecondarySyncManager._takeUndeliveredBatch:
-      // WHERE delivered_to_secondary=0 AND processing_status IN ('pending','failed')
-      //   AND attempts < 10
-      // يجب أن يلتقط id1 و id2 فقط، وليس id3 (dead)
-      final claimed = await db
-          .customSelect(
-            'SELECT id, processing_status, attempts FROM outbox '
-            'WHERE delivered_to_secondary = 0 '
-            "AND processing_status IN ('pending', 'failed') "
-            'AND attempts < 10 '
-            'ORDER BY client_ts ASC',
-            readsFrom: {db.outbox},
-          )
-          .get();
+        // ✅ محاكاة استعلام SecondarySyncManager._takeUndeliveredBatch:
+        // WHERE delivered_to_secondary=0 AND processing_status IN ('pending','failed')
+        //   AND attempts < 10
+        // يجب أن يلتقط id1 و id2 فقط، وليس id3 (dead)
+        final claimed = await db
+            .customSelect(
+              'SELECT id, processing_status, attempts FROM outbox '
+              'WHERE delivered_to_secondary = 0 '
+              "AND processing_status IN ('pending', 'failed') "
+              'AND attempts < 10 '
+              'ORDER BY client_ts ASC',
+              readsFrom: {db.outbox},
+            )
+            .get();
 
-      final claimedIds = claimed.map((r) => r.read<int>('id')).toSet();
-      expect(claimedIds, contains(id1), reason: 'pending يجب أن يُلتقط');
-      expect(claimedIds, contains(id2), reason: 'failed يجب أن يُلتقط');
-      expect(claimedIds, isNot(contains(id3)), reason: 'dead يجب ألا يُلتقط — هذا جوهر إصلاح P0-2');
-    });
+        final claimedIds = claimed.map((r) => r.read<int>('id')).toSet();
+        expect(claimedIds, contains(id1), reason: 'pending يجب أن يُلتقط');
+        expect(claimedIds, contains(id2), reason: 'failed يجب أن يُلتقط');
+        expect(
+          claimedIds,
+          isNot(contains(id3)),
+          reason: 'dead يجب ألا يُلتقط — هذا جوهر إصلاح P0-2',
+        );
+      },
+    );
 
-    test('P0-1: السجلات الـ failed مع attempts >= maxAttempts لا تُلتقط', () async {
-      // أنشئ سجل failed مع attempts = 10 (يساوي maxAttempts)
-      final id = await outboxDao.merge(
-        entity: 'rooms',
-        op: 'create',
-        localUuid: 'room-max-attempts',
-        payload: {},
-        clientTs: DateTime.now().millisecondsSinceEpoch,
-        source: 'local',
-      );
+    test(
+      'P0-1: السجلات الـ failed مع attempts >= maxAttempts لا تُلتقط',
+      () async {
+        // أنشئ سجل failed مع attempts = 10 (يساوي maxAttempts)
+        final id = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'room-max-attempts',
+          payload: {},
+          clientTs: DateTime.now().millisecondsSinceEpoch,
+          source: 'local',
+        );
 
-      // محاكاة Secondary مُفعّل
-      await db.customStatement('UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?', [id]);
+        // محاكاة Secondary مُفعّل
+        await db.customStatement(
+          'UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?',
+          [id],
+        );
 
-      // ضع attempts = 10 (يساوي maxAttempts في SecondarySyncManager)
-      await outboxDao.setError(id, 'Max attempts reached', 10);
+        // ضع attempts = 10 (يساوي maxAttempts في SecondarySyncManager)
+        await outboxDao.setError(id, 'Max attempts reached', 10);
 
-      // ✅ محاكاة استعلام _takeUndeliveredBatch مع فلتر attempts < 10
-      final claimed = await db
-          .customSelect(
-            'SELECT id FROM outbox '
-            'WHERE delivered_to_secondary = 0 '
-            "AND processing_status IN ('pending', 'failed') "
-            'AND attempts < 10 '
-            'ORDER BY client_ts ASC',
-            readsFrom: {db.outbox},
-          )
-          .get();
+        // ✅ محاكاة استعلام _takeUndeliveredBatch مع فلتر attempts < 10
+        final claimed = await db
+            .customSelect(
+              'SELECT id FROM outbox '
+              'WHERE delivered_to_secondary = 0 '
+              "AND processing_status IN ('pending', 'failed') "
+              'AND attempts < 10 '
+              'ORDER BY client_ts ASC',
+              readsFrom: {db.outbox},
+            )
+            .get();
 
-      final claimedIds = claimed.map((r) => r.read<int>('id')).toSet();
-      expect(
-        claimedIds,
-        isNot(contains(id)),
-        reason:
-            'السجل مع attempts=10 يجب ألا يُلتقط (filter: attempts<10) '
-            '— هذا جوهر إصلاح P0-2',
-      );
-    });
+        final claimedIds = claimed.map((r) => r.read<int>('id')).toSet();
+        expect(
+          claimedIds,
+          isNot(contains(id)),
+          reason:
+              'السجل مع attempts=10 يجب ألا يُلتقط (filter: attempts<10) '
+              '— هذا جوهر إصلاح P0-2',
+        );
+      },
+    );
   });
 }

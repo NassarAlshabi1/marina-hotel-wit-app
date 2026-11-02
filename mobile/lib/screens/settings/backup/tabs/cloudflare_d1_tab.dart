@@ -43,11 +43,13 @@ const Set<String> kD1SyntheticTables = <String>{};
 /// الهجرة 72 تنسخ صفوف created_by='blacklist' إلى جدول blacklist المستقل
 /// لكنها لا تحذفها من shift_notes — بدون هذا الفلتر ستُرفع مرتين
 /// (داخل shift_notes وداخل blacklist) وتتضخم المرآة المخصصة للملاحظات.
-const String kShiftNotesD1ExclusionWhere = "(created_by IS NULL OR created_by <> 'blacklist')";
+const String kShiftNotesD1ExclusionWhere =
+    "(created_by IS NULL OR created_by <> 'blacklist')";
 
 /// جداول تشغيل محلية لا تمثل بيانات الفندق ولا يجوز رفعها إلى D1 من شاشة
 /// النسخ الاحتياطي، حتى عند إيقاف مرشح Appwrite واختيار «كل الجداول».
-bool _isD1SyncInfrastructure(String name) => name == 'outbox' || name.startsWith('sync_');
+bool _isD1SyncInfrastructure(String name) =>
+    name == 'outbox' || name.startsWith('sync_');
 
 /// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
 ///
@@ -63,7 +65,11 @@ class CloudflareD1Tab extends ConsumerStatefulWidget {
 }
 
 class _LocalTableInfo {
-  _LocalTableInfo({required this.name, required this.rowCount, required this.createSqlList});
+  _LocalTableInfo({
+    required this.name,
+    required this.rowCount,
+    required this.createSqlList,
+  });
 
   final String name;
   final int rowCount;
@@ -150,7 +156,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       deviceLabel: _deviceLabelCtrl.text.trim(),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ إعدادات Cloudflare D1')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تم حفظ إعدادات Cloudflare D1')),
+    );
   }
 
   CloudflareD1Config get _config => CloudflareD1Config(
@@ -161,9 +169,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
   Future<void> _probe() async {
     if (!_config.isComplete) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('أكمل الحقول: معرف الحساب ومعرف القاعدة والتوكن')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('أكمل الحقول: معرف الحساب ومعرف القاعدة والتوكن'),
+        ),
+      );
       return;
     }
     setState(() {
@@ -187,7 +197,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     } on CloudflareD1Exception catch (e) {
       if (!mounted) return;
       setState(() => _probeResult = null);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الفحص: ${e.message}')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل الفحص: ${e.message}')));
     } finally {
       if (mounted) setState(() => _probing = false);
     }
@@ -201,9 +213,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           "name NOT LIKE 'sqlite_%' AND name != 'android_metadata' "
           "AND name != 'room_master_table' AND name NOT LIKE '_cf_%'";
       final rows = await db
-          .customSelect("SELECT name FROM sqlite_master WHERE type='table' AND $excluded ORDER BY name")
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type='table' AND $excluded ORDER BY name",
+          )
           .get();
-      final names = rows.map((r) => r.data['name']?.toString() ?? '').where((n) => n.isNotEmpty).toList();
+      final names = rows
+          .map((r) => r.data['name']?.toString() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
 
       // جلب DDL (جداول + فهارس) مرتبة: الجداول أولاً ثم فهارسها.
       final ddlRows = await db
@@ -224,12 +241,22 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       final tables = <_LocalTableInfo>[];
       for (final n in names) {
         // ✅ صفوف blacklist داخل shift_notes لا تُحسب ولا تُرفع (نفس فلتر readChunk أدناه).
-        final countWhere = n == 'shift_notes' ? 'WHERE $kShiftNotesD1ExclusionWhere' : '';
+        final countWhere = n == 'shift_notes'
+            ? 'WHERE $kShiftNotesD1ExclusionWhere'
+            : '';
         final countRows = await db
-            .customSelect('SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}" $countWhere')
+            .customSelect(
+              'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}" $countWhere',
+            )
             .get();
         final count = (countRows.first.data['n'] as int?) ?? 0;
-        tables.add(_LocalTableInfo(name: n, rowCount: count, createSqlList: ddlByTable[n] ?? const <String>[]));
+        tables.add(
+          _LocalTableInfo(
+            name: n,
+            rowCount: count,
+            createSqlList: ddlByTable[n] ?? const <String>[],
+          ),
+        );
       }
 
       // ✅ (migration 72) blacklist الآن جدول Drift حقيقي في sqlite_master —
@@ -245,7 +272,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر قراءة الجداول المحلية: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تعذر قراءة الجداول المحلية: $e')));
     } finally {
       if (mounted) setState(() => _loadingTables = false);
     }
@@ -256,10 +285,16 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   /// الجداول المتزامنة. app_users لا يُرفع إلى D1 إطلاقاً (عبر Appwrite مباشرة).
   List<_LocalTableInfo> get _visibleTables {
     if (!_appwriteOnly) {
-      return _localTables.where((t) => !_isD1SyncInfrastructure(t.name)).toList();
+      return _localTables
+          .where((t) => !_isD1SyncInfrastructure(t.name))
+          .toList();
     }
     return _localTables
-        .where((t) => kAppwriteSyncedTables.contains(t.name) || kD1SyntheticTables.contains(t.name))
+        .where(
+          (t) =>
+              kAppwriteSyncedTables.contains(t.name) ||
+              kD1SyntheticTables.contains(t.name),
+        )
         .toList();
   }
 
@@ -273,10 +308,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
   Future<void> _confirmAndUpload() async {
     if (_selected.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اختر جدولاً واحداً على الأقل')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اختر جدولاً واحداً على الأقل')),
+      );
       return;
     }
-    final totalRows = _localTables.where((t) => _selected.contains(t.name)).fold<int>(0, (a, t) => a + t.rowCount);
+    final totalRows = _localTables
+        .where((t) => _selected.contains(t.name))
+        .fold<int>(0, (a, t) => a + t.rowCount);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -289,8 +328,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           '• قد تظهر تحذيرات للسجلات التاريخية التي تحتاج مراجعة.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('رفع الآن')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('رفع الآن'),
+          ),
         ],
       ),
     );
@@ -312,7 +357,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       if (!_selected.contains(t.name)) continue;
       final table = t;
       // ✅ استبعاد صفوف blacklist القديمة من shift_notes (انظر تعريف الثابت أعلاه).
-      final uploadWhere = table.name == 'shift_notes' ? 'WHERE $kShiftNotesD1ExclusionWhere' : '';
+      final uploadWhere = table.name == 'shift_notes'
+          ? 'WHERE $kShiftNotesD1ExclusionWhere'
+          : '';
       sources.add(
         CloudflareD1SourceTable(
           name: table.name,
@@ -323,7 +370,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                 .customSelect(
                   'SELECT * FROM "${table.name.replaceAll('"', '""')}" $uploadWhere '
                   'LIMIT ? OFFSET ?',
-                  variables: [Variable.withInt(limit), Variable.withInt(offset)],
+                  variables: [
+                    Variable.withInt(limit),
+                    Variable.withInt(offset),
+                  ],
                 )
                 .get();
             return rows.map((r) => r.data).toList();
@@ -393,8 +443,12 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final d1Set = _d1Tables?.toSet();
-    final selectedRows = _localTables.where((t) => _selected.contains(t.name)).fold<int>(0, (a, t) => a + t.rowCount);
-    final missingInD1 = d1Set == null ? const <String>[] : _selected.where((n) => !d1Set.contains(n)).toList();
+    final selectedRows = _localTables
+        .where((t) => _selected.contains(t.name))
+        .fold<int>(0, (a, t) => a + t.rowCount);
+    final missingInD1 = d1Set == null
+        ? const <String>[]
+        : _selected.where((n) => !d1Set.contains(n)).toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -411,7 +465,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                 Expanded(
                   child: Text(
                     'رفع البيانات إلى Cloudflare D1',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -463,7 +519,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('إعدادات الاتصال', style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  'إعدادات الاتصال',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _accountIdCtrl,
@@ -491,8 +550,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                     border: const OutlineInputBorder(),
                     isDense: true,
                     suffixIcon: IconButton(
-                      icon: Icon(_obscureToken ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscureToken = !_obscureToken),
+                      icon: Icon(
+                        _obscureToken ? Icons.visibility_off : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureToken = !_obscureToken),
                     ),
                   ),
                 ),
@@ -510,14 +572,22 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   spacing: 10,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: (_probing || _uploading || _loadingSettings) ? null : _save,
+                      onPressed: (_probing || _uploading || _loadingSettings)
+                          ? null
+                          : _save,
                       icon: const Icon(Icons.save),
                       label: const Text('حفظ'),
                     ),
                     FilledButton.icon(
-                      onPressed: (_probing || _uploading || _loadingSettings) ? null : _probe,
+                      onPressed: (_probing || _uploading || _loadingSettings)
+                          ? null
+                          : _probe,
                       icon: _probing
-                          ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Icon(Icons.wifi_tethering),
                       label: const Text('فحص الاتصال والصلاحيات'),
                     ),
@@ -535,7 +605,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _probeRow(_probeResult!.tokenValid, 'التوكن صالح وفعّال', 'التوكن غير صالح'),
+                  _probeRow(
+                    _probeResult!.tokenValid,
+                    'التوكن صالح وفعّال',
+                    'التوكن غير صالح',
+                  ),
                   _probeRow(
                     _probeResult!.databaseReachable,
                     'القاعدة متاحة: ${_probeResult!.databaseName ?? _databaseIdCtrl.text}',
@@ -584,9 +658,16 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ),
-                    TextButton(onPressed: _visibleTables.isEmpty ? null : _selectAllVisible, child: const Text('الكل')),
                     TextButton(
-                      onPressed: _localTables.isEmpty ? null : () => setState(() => _selected.clear()),
+                      onPressed: _visibleTables.isEmpty
+                          ? null
+                          : _selectAllVisible,
+                      child: const Text('الكل'),
+                    ),
+                    TextButton(
+                      onPressed: _localTables.isEmpty
+                          ? null
+                          : () => setState(() => _selected.clear()),
                       child: const Text('لا شيء'),
                     ),
                   ],
@@ -638,7 +719,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                       itemCount: _visibleTables.length,
                       itemBuilder: (context, i) {
                         final t = _visibleTables[i];
-                        final existsInD1 = d1Set == null || d1Set.contains(t.name);
+                        final existsInD1 =
+                            d1Set == null || d1Set.contains(t.name);
                         return CheckboxListTile(
                           dense: true,
                           value: _selected.contains(t.name),
@@ -661,7 +743,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                     ),
                   ),
                 TextButton.icon(
-                  onPressed: (_loadingTables || _uploading) ? null : _loadLocalTables,
+                  onPressed: (_loadingTables || _uploading)
+                      ? null
+                      : _loadLocalTables,
                   icon: const Icon(Icons.refresh),
                   label: const Text('تحديث قائمة الجداول والأعداد'),
                 ),
@@ -674,7 +758,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         // ── خيار سياسة التعارض ──
         SwitchListTile(
           value: _overwriteOnConflict,
-          onChanged: _uploading ? null : (v) => setState(() => _overwriteOnConflict = v),
+          onChanged: _uploading
+              ? null
+              : (v) => setState(() => _overwriteOnConflict = v),
           title: const Text('الكتابة فوق السجلات المتطابقة'),
           subtitle: Text(
             _overwriteOnConflict
@@ -695,13 +781,22 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
           children: [
             Expanded(
               child: FilledButton.icon(
-                onPressed: (_uploading || _localTables.isEmpty || !(_probeResult?.dmlAllowed ?? false))
+                onPressed:
+                    (_uploading ||
+                        _localTables.isEmpty ||
+                        !(_probeResult?.dmlAllowed ?? false))
                     ? null
                     : _confirmAndUpload,
                 icon: _uploading
-                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.cloud_upload),
-                label: Text(_uploading ? 'جاري الرفع...' : 'رفع البيانات المحددة الآن'),
+                label: Text(
+                  _uploading ? 'جاري الرفع...' : 'رفع البيانات المحددة الآن',
+                ),
               ),
             ),
             if (_uploading) ...[
@@ -716,7 +811,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         ),
         if (!(_probeResult?.dmlAllowed ?? false) && _probeResult != null) ...[
           const SizedBox(height: 8),
-          Text('لا يمكن الرفع: صلاحية الكتابة غير متاحة بالتوكن الحالي.', style: TextStyle(color: colorScheme.error)),
+          Text(
+            'لا يمكن الرفع: صلاحية الكتابة غير متاحة بالتوكن الحالي.',
+            style: TextStyle(color: colorScheme.error),
+          ),
         ],
         if (_result != null) ...[
           const SizedBox(height: 16),
@@ -744,12 +842,18 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   for (final w in _result!.warnings.take(3))
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(w, style: TextStyle(color: Colors.orange.shade800)),
+                      child: Text(
+                        w,
+                        style: TextStyle(color: Colors.orange.shade800),
+                      ),
                     ),
                   for (final e in _result!.errors.take(5))
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(e, style: TextStyle(color: colorScheme.error)),
+                      child: Text(
+                        e,
+                        style: TextStyle(color: colorScheme.error),
+                      ),
                     ),
                 ],
               ),
@@ -767,7 +871,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   for (final line in _logs)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(line, style: Theme.of(context).textTheme.bodySmall),
+                      child: Text(
+                        line,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ),
                 ],
               ),
@@ -785,7 +892,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(ok ? Icons.check_circle : Icons.cancel, size: 18, color: ok ? Colors.green : Colors.red),
+          Icon(
+            ok ? Icons.check_circle : Icons.cancel,
+            size: 18,
+            color: ok ? Colors.green : Colors.red,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(

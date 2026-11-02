@@ -61,13 +61,18 @@ void main() {
     await db.close();
   });
 
-  Future<GuestInfo> findByUuid(String uuid) =>
-      (db.select(db.guestInfos)..where((t) => t.localUuid.equals(uuid))).getSingle();
+  Future<GuestInfo> findByUuid(String uuid) => (db.select(
+    db.guestInfos,
+  )..where((t) => t.localUuid.equals(uuid))).getSingle();
 
   Future<List<OutboxData>> outboxFor(String uuid) =>
-      (db.select(db.outbox)..where((t) => t.entity.equals('guest_infos') & t.localUuid.equals(uuid))).get();
+      (db.select(db.outbox)..where(
+            (t) => t.entity.equals('guest_infos') & t.localUuid.equals(uuid),
+          ))
+          .get();
 
-  Map<String, dynamic> outboxPayload(OutboxData entry) => Map<String, dynamic>.from(jsonDecode(entry.payload) as Map);
+  Map<String, dynamic> outboxPayload(OutboxData entry) =>
+      Map<String, dynamic>.from(jsonDecode(entry.payload) as Map);
 
   /// مستند بعيد بالشكل الذي يُخزَّن به في Appwrite (ناتج guestInfoToRemote
   /// بعد filterPayloadForCollection على الجهاز المرسل).
@@ -131,7 +136,9 @@ void main() {
         entryDate: '2025-06-10',
       );
 
-      final row = await (db.select(db.guestInfos)..where((t) => t.guestName.equals('سالم ناصر'))).getSingle();
+      final row = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('سالم ناصر'))).getSingle();
       expect(row.localUuid, isNotEmpty);
       expect(row.roomNumber, '202');
       expect(row.deletedAt, isNull);
@@ -166,7 +173,9 @@ void main() {
         notes: 'إقامة قصيرة',
         entryDate: '2024-03-12',
       );
-      final row = await (db.select(db.guestInfos)..where((t) => t.guestName.equals('فهد علي'))).getSingle();
+      final row = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('فهد علي'))).getSingle();
 
       final payload = mapper.guestInfoToRemote(row);
       for (final f in kGuestDataFields) {
@@ -174,16 +183,26 @@ void main() {
       }
 
       // ⚠️ الفحص الحرج: التصفية قبل الإرسال يجب ألا تُسقط أي حقل بيانات
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('guest_infos', payload);
+      final filtered = AppwriteSyncUtils.filterPayloadForCollection(
+        'guest_infos',
+        payload,
+      );
       for (final f in kGuestDataFields) {
         expect(filtered[f], payload[f], reason: 'التصفية أسقطت/غيّرت $f');
       }
       expect(filtered['entryDate'], '2024-03-12');
       // لا مفاتيح خارج مخطط Appwrite (يمنع خطأ Unknown attribute)
       for (final k in filtered.keys) {
-        expect(k == 'idempotencyKey' || k.startsWith('\$') ? false : true, isTrue);
+        expect(
+          k == 'idempotencyKey' || k.startsWith('\$') ? false : true,
+          isTrue,
+        );
       }
-      expect(filtered.containsKey('id'), isFalse, reason: 'حقل id المحلي لا يُرفع');
+      expect(
+        filtered.containsKey('id'),
+        isFalse,
+        reason: 'حقل id المحلي لا يُرفع',
+      );
     });
 
     test('update يرفع version ويُوحِّد عناصر outbox لنفس السجل', () async {
@@ -195,7 +214,9 @@ void main() {
         notes: 'قبل التعديل',
         entryDate: '2026-04-15',
       );
-      final created = await (db.select(db.guestInfos)..where((t) => t.guestName.equals('ماجد حسن'))).getSingle();
+      final created = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('ماجد حسن'))).getSingle();
 
       await repo.update(
         created.id,
@@ -212,7 +233,9 @@ void main() {
 
       final entries = await outboxFor(created.localUuid);
       // coalescing: عنصر واحد pending فقط بعد create ثم update
-      final pending = entries.where((e) => e.processingStatus == 'pending').toList();
+      final pending = entries
+          .where((e) => e.processingStatus == 'pending')
+          .toList();
       expect(pending, hasLength(1));
       expect(pending.single.op, 'update');
       expect(outboxPayload(pending.single)['roomNumber'], '405');
@@ -228,7 +251,9 @@ void main() {
         idNumber: '6677889900',
         notes: 'سيُحذف',
       );
-      final row = await (db.select(db.guestInfos)..where((t) => t.guestName.equals('وليد عبده'))).getSingle();
+      final row = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('وليد عبده'))).getSingle();
 
       await repo.delete(row.id);
 
@@ -237,8 +262,15 @@ void main() {
 
       // محاكاة _processGuestInfoEntry: يقرأ الصف كاملاً من المحلي ثم يرفعه
       final payload = mapper.guestInfoToRemote(deleted);
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('guest_infos', payload);
-      expect(filtered['deletedAt'], deleted.deletedAt, reason: 'tombstone يجب أن يصل للسحابة');
+      final filtered = AppwriteSyncUtils.filterPayloadForCollection(
+        'guest_infos',
+        payload,
+      );
+      expect(
+        filtered['deletedAt'],
+        deleted.deletedAt,
+        reason: 'tombstone يجب أن يصل للسحابة',
+      );
       // العنصر الموجود في outbox بعد الحذف op='update' (وليس create)
       final entries = await outboxFor(row.localUuid);
       expect(entries, isNotEmpty);
@@ -253,7 +285,10 @@ void main() {
       const uuid = 'gi-pull-new-1';
       final doc = remoteDoc(uuid: uuid);
 
-      final rowId = await registry.guestInfos.upsertFromJson(doc, src: Source.appwrite);
+      final rowId = await registry.guestInfos.upsertFromJson(
+        doc,
+        src: Source.appwrite,
+      );
       expect(rowId, greaterThan(0));
 
       final row = await findByUuid(uuid);
@@ -276,19 +311,36 @@ void main() {
 
     test('سحب نفس المستند مرتين لا يُنشئ تكراراً', () async {
       const uuid = 'gi-pull-idem-1';
-      await registry.guestInfos.upsertFromJson(remoteDoc(uuid: uuid), src: Source.appwrite);
-      await registry.guestInfos.upsertFromJson(remoteDoc(uuid: uuid), src: Source.appwrite);
+      await registry.guestInfos.upsertFromJson(
+        remoteDoc(uuid: uuid),
+        src: Source.appwrite,
+      );
+      await registry.guestInfos.upsertFromJson(
+        remoteDoc(uuid: uuid),
+        src: Source.appwrite,
+      );
 
-      final rows = await (db.select(db.guestInfos)..where((t) => t.localUuid.equals(uuid))).get();
+      final rows = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.localUuid.equals(uuid))).get();
       expect(rows, hasLength(1));
     });
 
     test('نسخة بعيدة أحدث تُحدَّث في المكان (نفس الصف)', () async {
       const uuid = 'gi-pull-upd-1';
-      final firstId = await registry.guestInfos.upsertFromJson(remoteDoc(uuid: uuid, version: 1), src: Source.appwrite);
+      final firstId = await registry.guestInfos.upsertFromJson(
+        remoteDoc(uuid: uuid, version: 1),
+        src: Source.appwrite,
+      );
 
       final newerId = await registry.guestInfos.upsertFromJson(
-        remoteDoc(uuid: uuid, lastModified: kBaseEpoch + 500, room: '102', notes: 'تحديث من جهاز آخر', version: 2),
+        remoteDoc(
+          uuid: uuid,
+          lastModified: kBaseEpoch + 500,
+          room: '102',
+          notes: 'تحديث من جهاز آخر',
+          version: 2,
+        ),
         src: Source.appwrite,
       );
 
@@ -302,10 +354,17 @@ void main() {
 
     test('tombstone بعيد يُطبَّق محلياً ويُستبعد من listAll', () async {
       const uuid = 'gi-pull-del-1';
-      await registry.guestInfos.upsertFromJson(remoteDoc(uuid: uuid), src: Source.appwrite);
+      await registry.guestInfos.upsertFromJson(
+        remoteDoc(uuid: uuid),
+        src: Source.appwrite,
+      );
 
       await registry.guestInfos.upsertFromJson(
-        remoteDoc(uuid: uuid, lastModified: kBaseEpoch + 900, deletedAt: kBaseEpoch + 900),
+        remoteDoc(
+          uuid: uuid,
+          lastModified: kBaseEpoch + 900,
+          deletedAt: kBaseEpoch + 900,
+        ),
         src: Source.appwrite,
       );
 
@@ -313,7 +372,11 @@ void main() {
       expect(row.deletedAt, kBaseEpoch + 900);
 
       final visible = await repo.listAll();
-      expect(visible.any((g) => g.localUuid == uuid), isFalse, reason: 'المحذوف يجب ألا يظهر في القائمة');
+      expect(
+        visible.any((g) => g.localUuid == uuid),
+        isFalse,
+        reason: 'المحذوف يجب ألا يظهر في القائمة',
+      );
     });
   });
 
@@ -335,12 +398,20 @@ void main() {
         notes: 'إقامة عائلية',
         entryDate: '2023-11-10',
       );
-      final rowA = await (db.select(db.guestInfos)..where((t) => t.guestName.equals('عمر الخطيب'))).getSingle();
-      final wirePayloadA = AppwriteSyncUtils.filterPayloadForCollection('guest_infos', mapper.guestInfoToRemote(rowA));
+      final rowA = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('عمر الخطيب'))).getSingle();
+      final wirePayloadA = AppwriteSyncUtils.filterPayloadForCollection(
+        'guest_infos',
+        mapper.guestInfoToRemote(rowA),
+      );
 
       // ── الجهاز B: سحب المستند كما وصل عبر Appwrite
       final uuidB = rowA.localUuid;
-      await registry.guestInfos.upsertFromJson(wirePayloadA, src: Source.appwrite);
+      await registry.guestInfos.upsertFromJson(
+        wirePayloadA,
+        src: Source.appwrite,
+      );
       final rowB = await findByUuid(uuidB);
 
       // حقول البيانات مطابقة تماماً لدى B
@@ -356,11 +427,18 @@ void main() {
       expect(rowB.entryDate, rowA.entryDate);
 
       // ── الجهاز B يرفع نسخته (بعد أن أصبحت origin=server)
-      final wirePayloadB = AppwriteSyncUtils.filterPayloadForCollection('guest_infos', mapper.guestInfoToRemote(rowB));
+      final wirePayloadB = AppwriteSyncUtils.filterPayloadForCollection(
+        'guest_infos',
+        mapper.guestInfoToRemote(rowB),
+      );
 
       // لا انحراف في حقول البيانات بين حمولة A وحمولة B
       for (final f in kGuestDataFields) {
-        expect(wirePayloadB[f], wirePayloadA[f], reason: 'انحراف بيانات في $f أثناء رحلة الذهاب والعودة');
+        expect(
+          wirePayloadB[f],
+          wirePayloadA[f],
+          reason: 'انحراف بيانات في $f أثناء رحلة الذهاب والعودة',
+        );
       }
       // حقول المزامنة الحرجة تنتقل سليمة
       expect(wirePayloadB['localUuid'], uuidB);

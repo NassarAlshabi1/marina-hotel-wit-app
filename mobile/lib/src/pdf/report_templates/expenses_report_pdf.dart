@@ -91,8 +91,12 @@ class ExpensesReportPdf {
   /// مشاركة تقرير المصروفات.
   static Future<void> share(ExpensesReportData data) async {
     final labels = data.labels;
-    final fromLabel = data.fromDate != null ? DateFormat('yyyy-MM-dd').format(data.fromDate!) : 'غير محدد';
-    final toLabel = data.toDate != null ? DateFormat('yyyy-MM-dd').format(data.toDate!) : 'غير محدد';
+    final fromLabel = data.fromDate != null
+        ? DateFormat('yyyy-MM-dd').format(data.fromDate!)
+        : 'غير محدد';
+    final toLabel = data.toDate != null
+        ? DateFormat('yyyy-MM-dd').format(data.toDate!)
+        : 'غير محدد';
 
     // عرض عمود الموظف تلقائياً عند وجود بيانات رواتب.
     final showEmployeeCol = data.hasSalaryData;
@@ -111,12 +115,19 @@ class ExpensesReportPdf {
         if (row.description.isNotEmpty) row.description else '-',
       ];
       if (showEmployeeCol) {
-        cells.add(row.employeeName ?? (row.isSalaryWithdrawal ? 'غير محدد' : '-'));
+        cells.add(
+          row.employeeName ?? (row.isSalaryWithdrawal ? 'غير محدد' : '-'),
+        );
       }
       dataRows.add(cells);
     }
 
-    final totalRow = [labels.totalRowLabel, EnhancedPdfUtils.formatNumber(data.totalAmount), '', ''];
+    final totalRow = [
+      labels.totalRowLabel,
+      EnhancedPdfUtils.formatNumber(data.totalAmount),
+      '',
+      '',
+    ];
     if (showEmployeeCol) {
       totalRow.add('');
     }
@@ -132,9 +143,21 @@ class ExpensesReportPdf {
             title: labels.title,
             fonts: fonts,
             content: [
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'الفترة', value: 'من $fromLabel إلى $toLabel'),
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: labels.typeLabel, value: data.selectedTypeLabel),
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'عدد السجلات', value: data.rows.length.toString()),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'الفترة',
+                value: 'من $fromLabel إلى $toLabel',
+              ),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: labels.typeLabel,
+                value: data.selectedTypeLabel,
+              ),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'عدد السجلات',
+                value: data.rows.length.toString(),
+              ),
               if (data.hasSalaryData)
                 EnhancedPdfUtils.buildKeyValueRow(
                   fonts: fonts,
@@ -148,7 +171,11 @@ class ExpensesReportPdf {
             pw.SizedBox(height: 16),
             metaInfoCard,
             pw.SizedBox(height: 12),
-            ...EnhancedPdfUtils.buildChunkedTable(headers: headers, data: dataRows, fonts: fonts),
+            ...EnhancedPdfUtils.buildChunkedTable(
+              headers: headers,
+              data: dataRows,
+              fonts: fonts,
+            ),
             pw.SizedBox(height: 12),
             _buildTotalsSummary(fonts, data),
           ];
@@ -159,7 +186,10 @@ class ExpensesReportPdf {
   }
 
   /// بطاقة ملخص الإجماليات (إجمالي + عدد السجلات + سحوبات/تشغيلية).
-  static pw.Widget _buildTotalsSummary(ArabicPdfFonts fonts, ExpensesReportData data) {
+  static pw.Widget _buildTotalsSummary(
+    ArabicPdfFonts fonts,
+    ExpensesReportData data,
+  ) {
     pw.Widget summaryItem(String title, String value, PdfColor accent) {
       return pw.Container(
         padding: const pw.EdgeInsets.all(10),
@@ -172,12 +202,20 @@ class ExpensesReportPdf {
           children: [
             pw.Text(
               title,
-              style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textDark),
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 11,
+                color: PdfColors.textDark,
+              ),
             ),
             pw.SizedBox(height: 4),
             pw.Text(
               value,
-              style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: accent),
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 16,
+                color: accent,
+              ),
             ),
           ],
         ),
@@ -204,7 +242,13 @@ class ExpensesReportPdf {
                 ),
               ),
               pw.SizedBox(width: 8),
-              pw.Expanded(child: summaryItem('عدد السجلات', data.rows.length.toString(), PdfColors.info)),
+              pw.Expanded(
+                child: summaryItem(
+                  'عدد السجلات',
+                  data.rows.length.toString(),
+                  PdfColors.info,
+                ),
+              ),
             ],
           ),
           if (data.hasSalaryData) ...[

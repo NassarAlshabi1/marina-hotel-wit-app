@@ -66,12 +66,15 @@ class SalaryCycleCalculator {
     final deductions = _money(input.deductions);
     final carriedOver = _money(input.carriedOverFromPrevious);
 
-    final totalBeforeCarryOver = withdrawals + advances + deductions + carriedOver;
+    final totalBeforeCarryOver =
+        withdrawals + advances + deductions + carriedOver;
     final signedRemaining = basicSalary - totalBeforeCarryOver;
     final remainingBalance = signedRemaining > 0 ? signedRemaining : 0;
     final carryOverToNext = signedRemaining < 0 ? -signedRemaining : 0;
 
-    final advanceBalance = (advances - installmentsPaid).clamp(0, advances).toInt();
+    final advanceBalance = (advances - installmentsPaid)
+        .clamp(0, advances)
+        .toInt();
 
     return SalaryCycleResult(
       basicSalary: basicSalary,

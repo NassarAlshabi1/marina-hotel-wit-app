@@ -8,7 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompanion> {
+class SalaryCyclesAdapter
+    extends EntityAdapter<SalaryCycle, SalaryCyclesCompanion> {
   SalaryCyclesAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -22,7 +23,11 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
   String get tableName => 'salary_cycles';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     // ✅ حل FK الموظف عبر IdResolver: UUID → serverId → (id المحلي للمصدر
     // المحلي فقط).
     //
@@ -36,7 +41,8 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
         _asString(json, 'employee_uuid', src) ??
         _asString(json, 'employeeLocalUuid', src) ??
         _asString(json, 'employee_local_uuid', src);
-    final remoteEmployeeId = _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final remoteEmployeeId =
+        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
 
     final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedEmployeeId = await resolver.resolveEmployee(
@@ -51,7 +57,9 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
 
     // ✅ إصلاح حرج: إذا لم يتم العثور على الموظف المرتبط، نُعلم السجل للتخطي
     // لأن employeeId حقل مطلوب (NOT NULL FK) في جدول salary_cycles
-    final shouldSkip = resolvedEmployeeId == null && (src == Source.appwrite || src == Source.drive);
+    final shouldSkip =
+        resolvedEmployeeId == null &&
+        (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'salary_cycle: لا يمكن العثور على الموظف المرتبط '
               '(uuid=$remoteEmployeeUuid, originEmployeeId=$remoteEmployeeId, '
@@ -69,13 +77,25 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
   }
 
   @override
-  SalaryCyclesCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  SalaryCyclesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return SalaryCyclesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
       // ✅ إصلاح دقيق: استخدام employeeLocalId المحلول بدل القيمة الخامة
       // إذا لم يتم حل الموظف (لا يوجد محلياً — يتيم)، نتخطى الحقل بـ absent()
@@ -88,11 +108,33 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
       // ✅ (2026-09-19) تخزين UUID الموظف — الربط الدائم عبر الأجهزة
       employeeUuid: _vUuid(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       cycleKey: _vStr(json, 'cycleKey', src, altKey: 'cycle_key', fallback: ''),
-      hotelDayStart: _vStr(json, 'hotelDayStart', src, altKey: 'hotel_day_start', fallback: ''),
-      hotelDayEnd: _vStr(json, 'hotelDayEnd', src, altKey: 'hotel_day_end', fallback: ''),
-      expectedAmount: _vInt(json, 'expectedAmount', src, altKey: 'expected_amount'),
+      hotelDayStart: _vStr(
+        json,
+        'hotelDayStart',
+        src,
+        altKey: 'hotel_day_start',
+        fallback: '',
+      ),
+      hotelDayEnd: _vStr(
+        json,
+        'hotelDayEnd',
+        src,
+        altKey: 'hotel_day_end',
+        fallback: '',
+      ),
+      expectedAmount: _vInt(
+        json,
+        'expectedAmount',
+        src,
+        altKey: 'expected_amount',
+      ),
       actualPaid: _vInt(json, 'actualPaid', src, altKey: 'actual_paid'),
-      remainingAmount: _vInt(json, 'remainingAmount', src, altKey: 'remaining_amount'),
+      remainingAmount: _vInt(
+        json,
+        'remainingAmount',
+        src,
+        altKey: 'remaining_amount',
+      ),
       status: _vStr(json, 'status', src, fallback: 'draft'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
@@ -102,7 +144,12 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -110,8 +157,19 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -139,7 +197,8 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -149,8 +208,15 @@ class SalaryCyclesAdapter extends EntityAdapter<SalaryCycle, SalaryCyclesCompani
   }
 }
 
-d.Value<String> _vUuid(Map<String, dynamic> json, String key, Source src, {String? altKey}) {
-  final raw = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null);
+d.Value<String> _vUuid(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  final raw =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null);
   if (raw == null || raw.trim().isEmpty) return const d.Value.absent();
   final trimmed = raw.trim();
   final compact = trimmed.replaceAll('-', '');
@@ -165,13 +231,31 @@ d.Value<String> _vUuid(Map<String, dynamic> json, String key, Source src, {Strin
   return d.Value(trimmed.toLowerCase());
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -226,7 +310,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

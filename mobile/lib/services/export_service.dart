@@ -45,7 +45,12 @@ class SalaryExportData {
 
 /// نموذج بيانات مصروف للتصدير
 class ExpenseExportData {
-  const ExpenseExportData({required this.date, required this.type, required this.description, required this.amount});
+  const ExpenseExportData({
+    required this.date,
+    required this.type,
+    required this.description,
+    required this.amount,
+  });
 
   final DateTime date;
   final String type;
@@ -89,7 +94,12 @@ class InvoiceExportData {
 }
 
 class InvoiceItem {
-  const InvoiceItem({required this.description, required this.qty, required this.unitPrice, required this.total});
+  const InvoiceItem({
+    required this.description,
+    required this.qty,
+    required this.unitPrice,
+    required this.total,
+  });
 
   final String description;
   final int qty;
@@ -136,12 +146,17 @@ class ExportService {
       );
 
     // Merge title row
-    summarySheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('D1'));
+    summarySheet.merge(
+      CellIndex.indexByString('A1'),
+      CellIndex.indexByString('D1'),
+    );
 
     // Headers
     final headers = ['البند', 'العدد', 'المبلغ الإجمالي (ريال)', 'ملاحظات'];
     for (var i = 0; i < headers.length; i++) {
-      final cell = summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 3));
+      final cell = summarySheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 3),
+      );
       cell.value = TextCellValue(headers[i]);
       cell.cellStyle = CellStyle(
         bold: true,
@@ -159,9 +174,24 @@ class ExportService {
 
     // Summary data
     final summaryRows = [
-      ('سحوبات الرواتب', salaries.length, totalSalaries, 'يشمل الرواتب + السلف + الخصومات'),
-      ('المصروفات التشغيلية', expenses.length, totalExpenses, 'ديزل + صيانة + فواتير + مستلزمات'),
-      ('إجمالي المصروفات', salaries.length + expenses.length, grandTotal, 'إجمالي ما صُرف هذا الشهر'),
+      (
+        'سحوبات الرواتب',
+        salaries.length,
+        totalSalaries,
+        'يشمل الرواتب + السلف + الخصومات',
+      ),
+      (
+        'المصروفات التشغيلية',
+        expenses.length,
+        totalExpenses,
+        'ديزل + صيانة + فواتير + مستلزمات',
+      ),
+      (
+        'إجمالي المصروفات',
+        salaries.length + expenses.length,
+        grandTotal,
+        'إجمالي ما صُرف هذا الشهر',
+      ),
     ];
 
     for (var i = 0; i < summaryRows.length; i++) {
@@ -169,37 +199,55 @@ class ExportService {
       final rowIndex = 4 + i;
       final isTotal = i == 2;
 
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
+      summarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(row.$1)
         ..cellStyle = CellStyle(
           bold: true,
           fontSize: 10,
-          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
+          backgroundColorHex: isTotal
+              ? ExcelColor.fromHexString('FFF0F0F0')
+              : ExcelColor.fromHexString('FFFFF8E7'),
         );
 
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
+      summarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
+        )
         ..value = IntCellValue(row.$2)
         ..cellStyle = CellStyle(
           fontSize: 10,
-          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
+          backgroundColorHex: isTotal
+              ? ExcelColor.fromHexString('FFF0F0F0')
+              : ExcelColor.fromHexString('FFFFF8E7'),
         );
 
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex))
+      summarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex),
+        )
         ..value = DoubleCellValue(row.$3)
         ..cellStyle = CellStyle(
           bold: isTotal,
           fontSize: isTotal ? 11 : 10,
-          fontColorHex: isTotal ? ExcelColor.fromHexString('FFB46B00') : ExcelColor.fromHexString('FF333333'),
-          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
+          fontColorHex: isTotal
+              ? ExcelColor.fromHexString('FFB46B00')
+              : ExcelColor.fromHexString('FF333333'),
+          backgroundColorHex: isTotal
+              ? ExcelColor.fromHexString('FFF0F0F0')
+              : ExcelColor.fromHexString('FFFFF8E7'),
           horizontalAlign: HorizontalAlign.Right,
         );
 
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex))
+      summarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(row.$4)
         ..cellStyle = CellStyle(
           fontSize: 9,
           fontColorHex: ExcelColor.fromHexString('FF666666'),
-          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
+          backgroundColorHex: isTotal
+              ? ExcelColor.fromHexString('FFF0F0F0')
+              : ExcelColor.fromHexString('FFFFF8E7'),
         );
     }
 
@@ -216,12 +264,24 @@ class ExportService {
         fontColorHex: ExcelColor.fromHexString('FFB46B00'),
         horizontalAlign: HorizontalAlign.Center,
       );
-    salarySheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('F1'));
+    salarySheet.merge(
+      CellIndex.indexByString('A1'),
+      CellIndex.indexByString('F1'),
+    );
 
     // Headers
-    final salaryHeaders = ['#', 'التاريخ', 'الموظف', 'الوظيفة', 'النوع', 'المبلغ (ريال)'];
+    final salaryHeaders = [
+      '#',
+      'التاريخ',
+      'الموظف',
+      'الوظيفة',
+      'النوع',
+      'المبلغ (ريال)',
+    ];
     for (var i = 0; i < salaryHeaders.length; i++) {
-      final cell = salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2));
+      final cell = salarySheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2),
+      );
       cell.value = TextCellValue(salaryHeaders[i]);
       cell.cellStyle = CellStyle(
         bold: true,
@@ -237,33 +297,49 @@ class ExportService {
       final s = salaries[i];
       final rowIndex = 3 + i;
       final isNegative = s.amount < 0;
-      final bgColor = isNegative ? ExcelColor.fromHexString('FFFFEBEE') : ExcelColor.fromHexString('FFFFFFFF');
+      final bgColor = isNegative
+          ? ExcelColor.fromHexString('FFFFEBEE')
+          : ExcelColor.fromHexString('FFFFFFFF');
 
-      salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
+      salarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
+        )
         ..value = IntCellValue(i + 1)
         ..cellStyle = CellStyle(fontSize: 10, backgroundColorHex: bgColor);
 
-      salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
+      salarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(DateFormat('yyyy-MM-dd').format(s.date))
         ..cellStyle = CellStyle(fontSize: 10, backgroundColorHex: bgColor);
 
-      salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex))
+      salarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(s.employeeName)
         ..cellStyle = CellStyle(fontSize: 10, backgroundColorHex: bgColor);
 
-      salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex))
+      salarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(s.role)
         ..cellStyle = CellStyle(fontSize: 10, backgroundColorHex: bgColor);
 
-      salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex))
+      salarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(s.type)
         ..cellStyle = CellStyle(fontSize: 10, backgroundColorHex: bgColor);
 
-      salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex))
+      salarySheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex),
+        )
         ..value = DoubleCellValue(s.amount)
         ..cellStyle = CellStyle(
           fontSize: 10,
-          fontColorHex: isNegative ? ExcelColor.fromHexString('FFC0392B') : ExcelColor.fromHexString('FF333333'),
+          fontColorHex: isNegative
+              ? ExcelColor.fromHexString('FFC0392B')
+              : ExcelColor.fromHexString('FF333333'),
           backgroundColorHex: bgColor,
           horizontalAlign: HorizontalAlign.Right,
         );
@@ -271,7 +347,9 @@ class ExportService {
 
     // Total row for salaries
     final salaryTotalRow = 3 + salaries.length;
-    salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: salaryTotalRow))
+    salarySheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: salaryTotalRow),
+      )
       ..value = TextCellValue('الإجمالي')
       ..cellStyle = CellStyle(
         bold: true,
@@ -286,7 +364,9 @@ class ExportService {
         CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: salaryTotalRow),
       );
     }
-    salarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: salaryTotalRow))
+    salarySheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: salaryTotalRow),
+      )
       ..value = DoubleCellValue(totalSalaries)
       ..cellStyle = CellStyle(
         bold: true,
@@ -309,12 +389,17 @@ class ExportService {
         fontColorHex: ExcelColor.fromHexString('FFB46B00'),
         horizontalAlign: HorizontalAlign.Center,
       );
-    expenseSheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('E1'));
+    expenseSheet.merge(
+      CellIndex.indexByString('A1'),
+      CellIndex.indexByString('E1'),
+    );
 
     // Headers
     final expenseHeaders = ['#', 'التاريخ', 'النوع', 'الوصف', 'المبلغ (ريال)'];
     for (var i = 0; i < expenseHeaders.length; i++) {
-      final cell = expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2));
+      final cell = expenseSheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2),
+      );
       cell.value = TextCellValue(expenseHeaders[i]);
       cell.cellStyle = CellStyle(
         bold: true,
@@ -330,30 +415,45 @@ class ExportService {
       final e = expenses[i];
       final rowIndex = 3 + i;
 
-      expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex))
+      expenseSheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
+        )
         ..value = IntCellValue(i + 1)
         ..cellStyle = CellStyle(fontSize: 10);
 
-      expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex))
+      expenseSheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(DateFormat('yyyy-MM-dd').format(e.date))
         ..cellStyle = CellStyle(fontSize: 10);
 
-      expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex))
+      expenseSheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(e.type)
         ..cellStyle = CellStyle(fontSize: 10);
 
-      expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex))
+      expenseSheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex),
+        )
         ..value = TextCellValue(e.description)
         ..cellStyle = CellStyle(fontSize: 10);
 
-      expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex))
+      expenseSheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex),
+        )
         ..value = DoubleCellValue(e.amount)
-        ..cellStyle = CellStyle(fontSize: 10, horizontalAlign: HorizontalAlign.Right);
+        ..cellStyle = CellStyle(
+          fontSize: 10,
+          horizontalAlign: HorizontalAlign.Right,
+        );
     }
 
     // Total row for expenses
     final expenseTotalRow = 3 + expenses.length;
-    expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: expenseTotalRow))
+    expenseSheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: expenseTotalRow),
+      )
       ..value = TextCellValue('الإجمالي')
       ..cellStyle = CellStyle(
         bold: true,
@@ -368,7 +468,9 @@ class ExportService {
         CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: expenseTotalRow),
       );
     }
-    expenseSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: expenseTotalRow))
+    expenseSheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: expenseTotalRow),
+      )
       ..value = DoubleCellValue(totalExpenses)
       ..cellStyle = CellStyle(
         bold: true,
@@ -399,7 +501,9 @@ class ExportService {
 
   /// مشاركة ملف عبر نظام المشاركة في الجهاز
   Future<void> shareFile(File file, {String? subject}) async {
-    await Share.shareXFiles([XFile(file.path)], subject: subject ?? 'Marina Hotel Export');
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], subject: subject ?? 'Marina Hotel Export');
   }
 
   /// حفظ الملف في مجلد التحميلات (إن أمكن)

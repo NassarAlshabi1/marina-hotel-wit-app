@@ -70,56 +70,64 @@ void main() {
   }
 
   group('BookingsDao.updateById — إصلاح InvalidDataException', () {
-    test('EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException', () async {
-      // Arrange
-      await seedRoom('101');
-      final bookingId = await seedBooking(roomNumber: '101');
+    test(
+      'EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException',
+      () async {
+        // Arrange
+        await seedRoom('101');
+        final bookingId = await seedBooking(roomNumber: '101');
 
-      // Act: تحديث status فقط — هذا السيناريو كان يفشل قبل الإصلاح
-      // لأن replace يتطلب localUuid, createdAt, roomNumber, guestName, guestPhone
-      // في Companion، لكن BookingsRepository.update يُنشأ Companion جزئي.
-      final result = await bookingsDao.updateById(
-        bookingId,
-        BookingsCompanion(
-          status: const d.Value('مكتمل'),
-          actualCheckout: d.Value(DateTime.now().toIso8601String()),
-          calculatedNights: const d.Value(3),
-        ),
-      );
+        // Act: تحديث status فقط — هذا السيناريو كان يفشل قبل الإصلاح
+        // لأن replace يتطلب localUuid, createdAt, roomNumber, guestName, guestPhone
+        // في Companion، لكن BookingsRepository.update يُنشأ Companion جزئي.
+        final result = await bookingsDao.updateById(
+          bookingId,
+          BookingsCompanion(
+            status: const d.Value('مكتمل'),
+            actualCheckout: d.Value(DateTime.now().toIso8601String()),
+            calculatedNights: const d.Value(3),
+          ),
+        );
 
-      // Assert
-      expect(result, 1, reason: 'يجب أن يُحدِّث صفّاً واحداً');
-      final updated = await bookingsDao.getById(bookingId);
-      expect(updated, isNotNull);
-      expect(updated!.status, 'مكتمل');
-      expect(updated.calculatedNights, 3);
-      expect(updated.actualCheckout, isNotNull);
-      // الحقول required يجب أن تبقى كما هي (لم تُمَس)
-      expect(updated.localUuid, 'booking-test-uuid');
-      expect(updated.guestName, 'أحمد');
-      expect(updated.guestPhone, '0501234567');
-      expect(updated.roomNumber, '101');
-    });
+        // Assert
+        expect(result, 1, reason: 'يجب أن يُحدِّث صفّاً واحداً');
+        final updated = await bookingsDao.getById(bookingId);
+        expect(updated, isNotNull);
+        expect(updated!.status, 'مكتمل');
+        expect(updated.calculatedNights, 3);
+        expect(updated.actualCheckout, isNotNull);
+        // الحقول required يجب أن تبقى كما هي (لم تُمَس)
+        expect(updated.localUuid, 'booking-test-uuid');
+        expect(updated.guestName, 'أحمد');
+        expect(updated.guestPhone, '0501234567');
+        expect(updated.roomNumber, '101');
+      },
+    );
 
-    test('EC-2: تحديث بـ Companion شبه فارغ (فقط actualCheckout) يعمل', () async {
-      // Arrange
-      await seedRoom('102');
-      final bookingId = await seedBooking(roomNumber: '102');
+    test(
+      'EC-2: تحديث بـ Companion شبه فارغ (فقط actualCheckout) يعمل',
+      () async {
+        // Arrange
+        await seedRoom('102');
+        final bookingId = await seedBooking(roomNumber: '102');
 
-      // Act: تحديث actualCheckout فقط — الحالة الكلاسيكية لتسجيل المغادرة
-      final result = await bookingsDao.updateById(
-        bookingId,
-        BookingsCompanion(actualCheckout: d.Value(DateTime.now().toIso8601String())),
-      );
+        // Act: تحديث actualCheckout فقط — الحالة الكلاسيكية لتسجيل المغادرة
+        final result = await bookingsDao.updateById(
+          bookingId,
+          BookingsCompanion(
+            actualCheckout: d.Value(DateTime.now().toIso8601String()),
+          ),
+        );
 
-      // Assert
-      expect(result, 1);
-      final updated = await bookingsDao.getById(bookingId);
-      expect(updated, isNotNull);
-      expect(updated!.actualCheckout, isNotNull);
-      // version يجب أن يزداد بمقدار 1 (يُعين في copyWith داخل updateById)
-      expect(updated.version, greaterThan(1));
-    });
+        // Assert
+        expect(result, 1);
+        final updated = await bookingsDao.getById(bookingId);
+        expect(updated, isNotNull);
+        expect(updated!.actualCheckout, isNotNull);
+        // version يجب أن يزداد بمقدار 1 (يُعين في copyWith داخل updateById)
+        expect(updated.version, greaterThan(1));
+      },
+    );
 
     test('EC-3: تحديث بـ Companion فارغ تماماً لا يكسر البيانات', () async {
       // Arrange
@@ -131,7 +139,10 @@ void main() {
 
       // Act: Companion فارغ — write() يرجع 0 (لا حقول للتحديث)
       // لكن updateById يُضيف updatedAt + lastModified + version عبر copyWith
-      final result = await bookingsDao.updateById(bookingId, const BookingsCompanion());
+      final result = await bookingsDao.updateById(
+        bookingId,
+        const BookingsCompanion(),
+      );
 
       // Assert: يجب أن ينجح التحديث (يحدّث version و updatedAt)
       expect(result, 1);
@@ -146,32 +157,38 @@ void main() {
 
     test('EC-4: updateById على ID غير موجود يرجع 0 بدون استثناء', () async {
       // Act: ID غير موجود
-      final result = await bookingsDao.updateById(99999, const BookingsCompanion(status: d.Value('مكتمل')));
+      final result = await bookingsDao.updateById(
+        99999,
+        const BookingsCompanion(status: d.Value('مكتمل')),
+      );
 
       // Assert
       expect(result, 0);
     });
 
-    test('EC-5: تحديث guestPhone فقط (سيناريو شائع في booking_payment_screen)', () async {
-      // Arrange
-      await seedRoom('104');
-      final bookingId = await seedBooking(roomNumber: '104');
+    test(
+      'EC-5: تحديث guestPhone فقط (سيناريو شائع في booking_payment_screen)',
+      () async {
+        // Arrange
+        await seedRoom('104');
+        final bookingId = await seedBooking(roomNumber: '104');
 
-      // Act: تحديث رقم الهاتف فقط — سيناريو booking_payment_screen.dart:2104
-      final result = await bookingsDao.updateById(
-        bookingId,
-        const BookingsCompanion(guestPhone: d.Value('0509876543')),
-      );
+        // Act: تحديث رقم الهاتف فقط — سيناريو booking_payment_screen.dart:2104
+        final result = await bookingsDao.updateById(
+          bookingId,
+          const BookingsCompanion(guestPhone: d.Value('0509876543')),
+        );
 
-      // Assert
-      expect(result, 1);
-      final updated = await bookingsDao.getById(bookingId);
-      expect(updated, isNotNull);
-      expect(updated!.guestPhone, '0509876543');
-      // الحقول الأخرى يجب أن تبقى
-      expect(updated.guestName, 'أحمد');
-      expect(updated.roomNumber, '104');
-    });
+        // Assert
+        expect(result, 1);
+        final updated = await bookingsDao.getById(bookingId);
+        expect(updated, isNotNull);
+        expect(updated!.guestPhone, '0509876543');
+        // الحقول الأخرى يجب أن تبقى
+        expect(updated.guestName, 'أحمد');
+        expect(updated.roomNumber, '104');
+      },
+    );
 
     test('EC-6: تحديث discount و discountType معاً', () async {
       // Arrange
@@ -181,7 +198,10 @@ void main() {
       // Act: سيناريو booking_payment_screen.dart:2909
       final result = await bookingsDao.updateById(
         bookingId,
-        const BookingsCompanion(discount: d.Value(50.0), discountType: d.Value('total')),
+        const BookingsCompanion(
+          discount: d.Value(50.0),
+          discountType: d.Value('total'),
+        ),
       );
 
       // Assert

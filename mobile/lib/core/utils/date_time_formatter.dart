@@ -10,9 +10,14 @@ class DateTimeFormatter {
   static final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   static final DateFormat _timeFormat = DateFormat('HH:mm');
   static final DateFormat _dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
-  static final DateFormat _dateTimeFullFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+  static final DateFormat _dateTimeFullFormat = DateFormat(
+    'yyyy-MM-dd HH:mm:ss',
+  );
   static final DateFormat _arabicDateFormat = DateFormat('d MMMM yyyy', 'ar');
-  static final DateFormat _arabicDateTimeFormat = DateFormat('d MMMM yyyy - h:mm a', 'ar');
+  static final DateFormat _arabicDateTimeFormat = DateFormat(
+    'd MMMM yyyy - h:mm a',
+    'ar',
+  );
 
   /// Format ISO string to date and time (2024-01-29 18:30)
   static String formatDateTime(String? isoString) {
@@ -176,7 +181,9 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       final now = DateTime.now();
-      return date.year == now.year && date.month == now.month && date.day == now.day;
+      return date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
     } catch (e) {
       return false;
     }
@@ -191,7 +198,9 @@ class DateTimeFormatter {
     try {
       final date = DateTime.parse(isoString);
       final yesterday = DateTime.now().subtract(const Duration(days: 1));
-      return date.year == yesterday.year && date.month == yesterday.month && date.day == yesterday.day;
+      return date.year == yesterday.year &&
+          date.month == yesterday.month &&
+          date.day == yesterday.day;
     } catch (e) {
       return false;
     }

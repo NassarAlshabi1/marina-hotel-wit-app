@@ -89,18 +89,28 @@ void main() {
     final row = (await db.select(db.bookingNights).get()).single;
     expect(row.bookingLocalId, localBookingId);
     expect(row.bookingUuidCache, bookingUuid);
-    expect(adapters.nights.adapter.toJson(row, src: Source.drive)['booking_uuid_cache'], bookingUuid);
+    expect(
+      adapters.nights.adapter.toJson(
+        row,
+        src: Source.drive,
+      )['booking_uuid_cache'],
+      bookingUuid,
+    );
   });
 
   test('debts: appwrite برقم محلي فقط → لا ربط', () async {
-    final refs = await adapters.debts.adapter.resolveRefs(db, {'bookingLocalId': localBookingId}, src: Source.appwrite);
+    final refs = await adapters.debts.adapter.resolveRefs(db, {
+      'bookingLocalId': localBookingId,
+    }, src: Source.appwrite);
     expect(refs.bookingLocalId, isNull);
   });
 
   test('booking_price_adjustments: appwrite برقم محلي فقط → تخطٍّ', () async {
-    final refs = await adapters.bookingPriceAdjustments.adapter.resolveRefs(db, {
-      'bookingLocalId': localBookingId,
-    }, src: Source.appwrite);
+    final refs = await adapters.bookingPriceAdjustments.adapter.resolveRefs(
+      db,
+      {'bookingLocalId': localBookingId},
+      src: Source.appwrite,
+    );
     expect(refs.shouldSkip, isTrue);
     expect(refs.bookingLocalId, isNull);
   });
@@ -114,9 +124,16 @@ void main() {
         'createdAt': 1,
         'lastModified': 1,
       };
-      final refs = await adapters.bookingNotes.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.bookingNotes.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
       expect(refs.shouldSkip, isTrue);
-      expect(await adapters.bookingNotes.upsertFromJson(json, src: Source.appwrite), -1);
+      expect(
+        await adapters.bookingNotes.upsertFromJson(json, src: Source.appwrite),
+        -1,
+      );
       expect(await db.select(db.bookingNotes).get(), isEmpty);
     });
 

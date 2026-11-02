@@ -81,7 +81,8 @@ class RemoteChangeNotificationService {
   RemoteChangeNotificationService._();
   static RemoteChangeNotificationService? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static RemoteChangeNotificationService get instance => _instance ??= RemoteChangeNotificationService._();
+  static RemoteChangeNotificationService get instance =>
+      _instance ??= RemoteChangeNotificationService._();
 
   /// Dedup key prefix in SharedPreferences.
   static const String _dedupKeyPrefix = 'remote_notif_dedup_';
@@ -133,7 +134,9 @@ class RemoteChangeNotificationService {
     final pendingGeneration = _pendingGeneration;
 
     // ✅ Filter: skip if change is from this device
-    if (currentDeviceId != null && currentDeviceId.isNotEmpty && remoteDeviceId == currentDeviceId) {
+    if (currentDeviceId != null &&
+        currentDeviceId.isNotEmpty &&
+        remoteDeviceId == currentDeviceId) {
       return; // Same device — no notification
     }
 
@@ -144,7 +147,8 @@ class RemoteChangeNotificationService {
     }
 
     // ✅ Dedup: check if we already notified about this exact change
-    final fingerprint = '$entity:$localUuid:$remoteDeviceId:${lastModified ?? 0}';
+    final fingerprint =
+        '$entity:$localUuid:$remoteDeviceId:${lastModified ?? 0}';
 
     // Check session dedup first (fast path)
     if (_sessionNotified.contains(fingerprint)) {
@@ -178,7 +182,8 @@ class RemoteChangeNotificationService {
     // ✅ Batch: collect change, don't show immediately. If clearPending()
     // ran while the async dedup work was in flight, discard this stale event.
     if (pendingGeneration != _pendingGeneration) return;
-    _pendingChanges[remoteDeviceId] = (_pendingChanges[remoteDeviceId] ?? 0) + 1;
+    _pendingChanges[remoteDeviceId] =
+        (_pendingChanges[remoteDeviceId] ?? 0) + 1;
     _pendingEntities.add(entity);
   }
 
@@ -199,18 +204,23 @@ class RemoteChangeNotificationService {
   ///      نادرة والتطبيق idempotent).
   ///   4. عدّ _pendingChanges كالمعتاد — [flushPendingNotifications] تعرض
   ///      إشعاراً واحداً مجمّعاً في نهاية الدورة (سلوك غير مُغيَّر).
-  Future<void> onRemoteRecordsAppliedBatch(List<RemoteRecordApplied> records) async {
+  Future<void> onRemoteRecordsAppliedBatch(
+    List<RemoteRecordApplied> records,
+  ) async {
     if (records.isEmpty) return;
     final pendingGeneration = _pendingGeneration;
 
     // 1) ترشيح + dedup جلسة في الذاكرة.
     final surviving = <RemoteRecordApplied>[];
     for (final r in records) {
-      if (r.currentDeviceId != null && r.currentDeviceId!.isNotEmpty && r.remoteDeviceId == r.currentDeviceId) {
+      if (r.currentDeviceId != null &&
+          r.currentDeviceId!.isNotEmpty &&
+          r.remoteDeviceId == r.currentDeviceId) {
         continue; // نفس الجهاز — لا إشعار.
       }
       if (r.remoteDeviceId.isEmpty) continue; // مصدر غير معروف — تخطٍّ آمن.
-      final fingerprint = '${r.entity}:${r.localUuid}:${r.remoteDeviceId}:${r.lastModified ?? 0}';
+      final fingerprint =
+          '${r.entity}:${r.localUuid}:${r.remoteDeviceId}:${r.lastModified ?? 0}';
       if (_sessionNotified.contains(fingerprint)) continue;
       _sessionNotified.add(fingerprint);
       surviving.add(r);
@@ -228,8 +238,11 @@ class RemoteChangeNotificationService {
         groups.putIfAbsent('${r.entity}:${r.remoteDeviceId}', () => []).add(r);
       }
       for (final entry in groups.entries) {
-        final maxLastModified = entry.value.map((r) => r.lastModified ?? 0).fold<int>(0, (a, b) => a > b ? a : b);
-        final fingerprint = '${entry.key}:$maxLastModified'; // entity:deviceId:maxLastModified
+        final maxLastModified = entry.value
+            .map((r) => r.lastModified ?? 0)
+            .fold<int>(0, (a, b) => a > b ? a : b);
+        final fingerprint =
+            '${entry.key}:$maxLastModified'; // entity:deviceId:maxLastModified
         if (prefs.getBool('$_dedupKeyPrefix$fingerprint') == true) {
           continue; // سبق الإشعار عن هذه الدفعة المجمّعة.
         }
@@ -240,7 +253,9 @@ class RemoteChangeNotificationService {
         // ✅ كتابة فهرس LRU واحدة لكل الدفعة (بدل كتابة لكل سجل).
         try {
           final indexJson = prefs.getString(_dedupIndexKey) ?? '{}';
-          final index = Map<String, dynamic>.from(jsonDecode(indexJson) as Map<String, dynamic>);
+          final index = Map<String, dynamic>.from(
+            jsonDecode(indexJson) as Map<String, dynamic>,
+          );
           index.addAll(indexUpdates);
           await prefs.setString(_dedupIndexKey, jsonEncode(index));
         } catch (_) {
@@ -256,7 +271,8 @@ class RemoteChangeNotificationService {
     // 3) عدّ الإشعارات المعلقة (نفس منطق onRemoteRecordApplied).
     if (pendingGeneration != _pendingGeneration) return;
     for (final r in surviving) {
-      _pendingChanges[r.remoteDeviceId] = (_pendingChanges[r.remoteDeviceId] ?? 0) + 1;
+      _pendingChanges[r.remoteDeviceId] =
+          (_pendingChanges[r.remoteDeviceId] ?? 0) + 1;
       _pendingEntities.add(r.entity);
     }
   }
@@ -282,9 +298,13 @@ class RemoteChangeNotificationService {
     if (deviceCount == 1) {
       final deviceId = _pendingChanges.keys.first;
       // Mask deviceId for privacy (show last 4 chars)
-      final maskedId = deviceId.length > 4 ? '****${deviceId.substring(deviceId.length - 4)}' : deviceId;
+      final maskedId = deviceId.length > 4
+          ? '****${deviceId.substring(deviceId.length - 4)}'
+          : deviceId;
 
-      title = totalChanges == 1 ? 'تم تحديث بيانات من جهاز آخر 📱' : 'تم تحديث $totalChanges سجلات من جهاز آخر 📱';
+      title = totalChanges == 1
+          ? 'تم تحديث بيانات من جهاز آخر 📱'
+          : 'تم تحديث $totalChanges سجلات من جهاز آخر 📱';
       body = totalChanges == 1
           ? 'تمت مزامنة تغيير واحد من جهاز $maskedId'
           : 'تمت مزامنة $totalChanges تغيير من جهاز $maskedId';
@@ -296,7 +316,9 @@ class RemoteChangeNotificationService {
     // ✅ Wave 7 tighten: Add entity breakdown to body for operational usefulness.
     if (_pendingEntities.isNotEmpty) {
       final entityList = _pendingEntities.take(5).join('، ');
-      final extra = _pendingEntities.length > 5 ? ' +${_pendingEntities.length - 5}' : '';
+      final extra = _pendingEntities.length > 5
+          ? ' +${_pendingEntities.length - 5}'
+          : '';
       body += '\nالكيانات: $entityList$extra';
     }
 
@@ -321,7 +343,9 @@ class RemoteChangeNotificationService {
     } catch (e) {
       // Non-critical — notification is best-effort. The data was already
       // applied locally; the notification is just a UX enhancement.
-      dlog(() => '⚠️ RemoteChangeNotification: failed to show notification: $e');
+      dlog(
+        () => '⚠️ RemoteChangeNotification: failed to show notification: $e',
+      );
     }
   }
 
@@ -358,10 +382,15 @@ class RemoteChangeNotificationService {
   /// ✅ Wave 7 tighten: Update the dedup timestamp index.
   /// Stores a JSON map of `fingerprint → epoch_ms` in SharedPreferences.
   /// Used by `_cleanupOldDedupKeys` to evict oldest entries (true LRU).
-  Future<void> _updateDedupIndex(SharedPreferences prefs, String fingerprint) async {
+  Future<void> _updateDedupIndex(
+    SharedPreferences prefs,
+    String fingerprint,
+  ) async {
     try {
       final indexJson = prefs.getString(_dedupIndexKey) ?? '{}';
-      final index = Map<String, dynamic>.from(jsonDecode(indexJson) as Map<String, dynamic>);
+      final index = Map<String, dynamic>.from(
+        jsonDecode(indexJson) as Map<String, dynamic>,
+      );
       index[fingerprint] = DateTime.now().millisecondsSinceEpoch;
       await prefs.setString(_dedupIndexKey, jsonEncode(index));
     } catch (e) {
@@ -376,7 +405,9 @@ class RemoteChangeNotificationService {
     try {
       // Read the timestamp index
       final indexJson = prefs.getString(_dedupIndexKey) ?? '{}';
-      final index = Map<String, dynamic>.from(jsonDecode(indexJson) as Map<String, dynamic>);
+      final index = Map<String, dynamic>.from(
+        jsonDecode(indexJson) as Map<String, dynamic>,
+      );
 
       if (index.length <= _maxDedupKeys) {
         return; // Under limit — no cleanup needed
@@ -405,7 +436,10 @@ class RemoteChangeNotificationService {
       await prefs.setString(_dedupIndexKey, jsonEncode(index));
 
       if (removed > 0) {
-        dlog(() => '🧹 RemoteChangeNotification: LRU cleanup removed $removed oldest dedup keys');
+        dlog(
+          () =>
+              '🧹 RemoteChangeNotification: LRU cleanup removed $removed oldest dedup keys',
+        );
       }
     } catch (e) {
       // Non-critical — don't fail the notification

@@ -25,7 +25,12 @@ class SyncErrorService {
   }
 
   /// تسجيل تحذير
-  void warning(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? context}) {
+  void warning(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? context,
+  }) {
     _logger.warning(message, error: error, stackTrace: stackTrace, tag: tag);
   }
 
@@ -57,16 +62,34 @@ class SyncErrorService {
   }
 
   /// معالجة خطأ Appwrite وإرجاع الرسالة المنسقة
-  AppwriteErrorResult handleAppwriteError(Object error, {String? context, StackTrace? stackTrace}) {
-    final appwriteError = _errorHandler.handleError(error, context: context ?? tag, stackTrace: stackTrace);
-    _logger.warning(appwriteError.message, error: error, stackTrace: stackTrace, tag: tag);
-    return AppwriteErrorResult(message: appwriteError.message, isRetryable: appwriteError.isRecoverable);
+  AppwriteErrorResult handleAppwriteError(
+    Object error, {
+    String? context,
+    StackTrace? stackTrace,
+  }) {
+    final appwriteError = _errorHandler.handleError(
+      error,
+      context: context ?? tag,
+      stackTrace: stackTrace,
+    );
+    _logger.warning(
+      appwriteError.message,
+      error: error,
+      stackTrace: stackTrace,
+      tag: tag,
+    );
+    return AppwriteErrorResult(
+      message: appwriteError.message,
+      isRetryable: appwriteError.isRecoverable,
+    );
   }
 
   /// إظهار SnackBar للمستخدم مع رسالة الخطأ
   void showError(BuildContext context, String message) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     }
   }
 }

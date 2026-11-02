@@ -110,7 +110,8 @@ models.Document _nightDoc(int i) {
   );
 }
 
-Future<int> _countNights(AppDatabase db) async => db.bookingNights.count().getSingle();
+Future<int> _countNights(AppDatabase db) async =>
+    db.bookingNights.count().getSingle();
 
 void _writeMetricsFile(String body) {
   try {
@@ -143,25 +144,40 @@ class _QueryCounter extends d.QueryInterceptor {
   }
 
   @override
-  Future<List<Map<String, Object?>>> runSelect(d.QueryExecutor executor, String statement, List<Object?> args) {
+  Future<List<Map<String, Object?>>> runSelect(
+    d.QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) {
     selects++;
     return executor.runSelect(statement, args);
   }
 
   @override
-  Future<int> runInsert(d.QueryExecutor executor, String statement, List<Object?> args) {
+  Future<int> runInsert(
+    d.QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) {
     inserts++;
     return executor.runInsert(statement, args);
   }
 
   @override
-  Future<int> runUpdate(d.QueryExecutor executor, String statement, List<Object?> args) {
+  Future<int> runUpdate(
+    d.QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) {
     updates++;
     return executor.runUpdate(statement, args);
   }
 
   @override
-  Future<void> runBatched(d.QueryExecutor executor, d.BatchedStatements statements) {
+  Future<void> runBatched(
+    d.QueryExecutor executor,
+    d.BatchedStatements statements,
+  ) {
     batches++;
     return executor.runBatched(statements);
   }
@@ -173,213 +189,234 @@ void main() {
   // عدّاد الاستعلامات — حارس ارتداد N+1 (مستقل عن سرعة الآلة).
   final queryCounter = _QueryCounter();
 
-  test('booking_nights full-pull: 7000 docs applied lossless, bounded and fast', () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
+  test(
+    'booking_nights full-pull: 7000 docs applied lossless, bounded and fast',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
 
-    final db = AppDatabase.forTesting(NativeDatabase.memory().interceptWith(queryCounter));
-    addTearDown(db.close);
-
-    // ── البذر: غرف + حجوزات فقط (جدول الليالي فارغ — تثبيت جديد) ────
-    AdapterRegistry.initialize(db);
-    final rooms = <RoomsCompanion>[];
-    for (var r = 0; r < _kRoomCount; r++) {
-      final roomNo = '2${(r % 5) + 1}${(r ~/ 5) + 1}';
-      rooms.add(
-        RoomsCompanion(
-          roomNumber: d.Value(roomNo),
-          type: const d.Value('عادية'),
-          price: d.Value(120.0 + (r % 4) * 30),
-          status: const d.Value('شاغرة'),
-          localUuid: d.Value('room-uuid-$r'),
-          createdAt: const d.Value(_kBaseEpochSec),
-          updatedAt: const d.Value(_kBaseEpochSec),
-          lastModified: const d.Value(_kBaseEpochSec),
-        ),
+      final db = AppDatabase.forTesting(
+        NativeDatabase.memory().interceptWith(queryCounter),
       );
-    }
-    final bookings = <BookingsCompanion>[];
-    for (var b = 0; b < _kBookings; b++) {
-      final roomNo = '2${(b % 5) + 1}${(b ~/ 70) + 1}';
-      final day = DateTime.utc(2026, 1, 1).add(Duration(days: b % 330));
-      bookings.add(
-        BookingsCompanion(
-          roomNumber: d.Value(roomNo),
-          guestName: d.Value('ضيف $b'),
-          guestPhone: d.Value('05000$b'),
-          guestNationality: const d.Value('يمني'),
-          checkinDate: d.Value(day.toIso8601String()),
-          status: const d.Value('نشط'),
-          localUuid: d.Value('booking-uuid-$b'),
-          createdAt: const d.Value(_kBaseEpochSec),
-          updatedAt: const d.Value(_kBaseEpochSec),
-          lastModified: const d.Value(_kBaseEpochSec),
-          expectedNights: const d.Value(20),
-        ),
+      addTearDown(db.close);
+
+      // ── البذر: غرف + حجوزات فقط (جدول الليالي فارغ — تثبيت جديد) ────
+      AdapterRegistry.initialize(db);
+      final rooms = <RoomsCompanion>[];
+      for (var r = 0; r < _kRoomCount; r++) {
+        final roomNo = '2${(r % 5) + 1}${(r ~/ 5) + 1}';
+        rooms.add(
+          RoomsCompanion(
+            roomNumber: d.Value(roomNo),
+            type: const d.Value('عادية'),
+            price: d.Value(120.0 + (r % 4) * 30),
+            status: const d.Value('شاغرة'),
+            localUuid: d.Value('room-uuid-$r'),
+            createdAt: const d.Value(_kBaseEpochSec),
+            updatedAt: const d.Value(_kBaseEpochSec),
+            lastModified: const d.Value(_kBaseEpochSec),
+          ),
+        );
+      }
+      final bookings = <BookingsCompanion>[];
+      for (var b = 0; b < _kBookings; b++) {
+        final roomNo = '2${(b % 5) + 1}${(b ~/ 70) + 1}';
+        final day = DateTime.utc(2026, 1, 1).add(Duration(days: b % 330));
+        bookings.add(
+          BookingsCompanion(
+            roomNumber: d.Value(roomNo),
+            guestName: d.Value('ضيف $b'),
+            guestPhone: d.Value('05000$b'),
+            guestNationality: const d.Value('يمني'),
+            checkinDate: d.Value(day.toIso8601String()),
+            status: const d.Value('نشط'),
+            localUuid: d.Value('booking-uuid-$b'),
+            createdAt: const d.Value(_kBaseEpochSec),
+            updatedAt: const d.Value(_kBaseEpochSec),
+            lastModified: const d.Value(_kBaseEpochSec),
+            expectedNights: const d.Value(20),
+          ),
+        );
+      }
+      await db.batch((batch) {
+        batch.insertAll(db.rooms, rooms);
+        batch.insertAll(db.bookings, bookings);
+      });
+
+      // ── المدير الحقيقي (مُنشئ بلا شبكة — تعيينات حقول فقط) ──────────
+      final manager = AppwriteSyncManager(
+        appwriteService: AppwriteService(),
+        database: db,
       );
-    }
-    await db.batch((batch) {
-      batch.insertAll(db.rooms, rooms);
-      batch.insertAll(db.bookings, bookings);
-    });
 
-    // ── المدير الحقيقي (مُنشئ بلا شبكة — تعيينات حقول فقط) ──────────
-    final manager = AppwriteSyncManager(appwriteService: AppwriteService(), database: db);
+      final docs = List<models.Document>.generate(
+        _kTotalNights,
+        _nightDoc,
+        growable: false,
+      );
 
-    final docs = List<models.Document>.generate(_kTotalNights, _nightDoc, growable: false);
+      // ── السيناريو A: السحب الأول (70 صفحة × 100) ─────────────────────
+      queryCounter.reset();
+      final rssBefore = ProcessInfo.currentRss;
+      final sw = Stopwatch()..start();
+      var processed = 0;
+      for (var p = 0; p < docs.length; p += _kPageSize) {
+        final page = docs.skip(p).take(_kPageSize).toList(growable: false);
+        processed += await manager.applyBookingNightsForTesting(page);
+      }
+      sw.stop();
+      final firstPullMs = sw.elapsedMilliseconds;
+      final firstSelects = queryCounter.selects;
+      final firstInserts = queryCounter.inserts;
+      final firstBatches = queryCounter.batches;
+      final rssAfter = ProcessInfo.currentRss;
+      final rowCount = await _countNights(db);
 
-    // ── السيناريو A: السحب الأول (70 صفحة × 100) ─────────────────────
-    queryCounter.reset();
-    final rssBefore = ProcessInfo.currentRss;
-    final sw = Stopwatch()..start();
-    var processed = 0;
-    for (var p = 0; p < docs.length; p += _kPageSize) {
-      final page = docs.skip(p).take(_kPageSize).toList(growable: false);
-      processed += await manager.applyBookingNightsForTesting(page);
-    }
-    sw.stop();
-    final firstPullMs = sw.elapsedMilliseconds;
-    final firstSelects = queryCounter.selects;
-    final firstInserts = queryCounter.inserts;
-    final firstBatches = queryCounter.batches;
-    final rssAfter = ProcessInfo.currentRss;
-    final rowCount = await _countNights(db);
+      expect(
+        processed,
+        _kTotalNights,
+        reason:
+            'حارس فقدان البيانات: كل 7000 ليلة يجب أن تُطبَّق — '
+            'السقف القديم (1000) كان يفقد الباقي صامتاً',
+      );
+      expect(
+        rowCount,
+        _kTotalNights,
+        reason: 'كل ليلة يجب أن تكون صفاً فعلياً في الجدول',
+      );
+      expect(
+        firstPullMs,
+        lessThan(_kFirstPullMax.inMilliseconds),
+        reason:
+            'مسار التطبيق المجمّع (bulk state + فهرس + db.batch) يجب '
+            'ألا يرجع لنمط N+1 (كان ~5-7 عملية DB/ليلة)',
+      );
+      expect(
+        rssAfter - rssBefore,
+        lessThan(_kMaxRssDeltaBytes),
+        reason: 'الذاكرة محدودة بحجم الصفحة (100 مستند) — ليست 7000',
+      );
+      // ✅ حارس N+1 القاطع: عدّ SELECTs مستقل عن سرعة الآلة.
+      // المتوقع: ~2 لكل صفحة (bulk state + فهرس) ≈ 140 لـ 70 صفحة؛
+      // N+1 (SELECT لكل ليلة + resolveBooking SQL) = 7000-35000+.
+      expect(
+        firstSelects,
+        lessThan(_kMaxSelectsPerPull),
+        reason:
+            'ارتداد N+1: عدد SELECTs ($firstSelects) خلال السحب الأول '
+            'تجاوز الحد — المسار المجمّع يتطلب ~2 استعلام/صفحة لا استعلام/ليلة',
+      );
+      expect(
+        firstBatches,
+        greaterThan(0),
+        reason:
+            'الكتابة يجب أن تمر عبر db.batch (الإصلاح P0-2) — '
+            'لا INSERT منفصل لكل سجل',
+      );
 
-    expect(
-      processed,
-      _kTotalNights,
-      reason:
-          'حارس فقدان البيانات: كل 7000 ليلة يجب أن تُطبَّق — '
-          'السقف القديم (1000) كان يفقد الباقي صامتاً',
-    );
-    expect(rowCount, _kTotalNights, reason: 'كل ليلة يجب أن تكون صفاً فعلياً في الجدول');
-    expect(
-      firstPullMs,
-      lessThan(_kFirstPullMax.inMilliseconds),
-      reason:
-          'مسار التطبيق المجمّع (bulk state + فهرس + db.batch) يجب '
-          'ألا يرجع لنمط N+1 (كان ~5-7 عملية DB/ليلة)',
-    );
-    expect(
-      rssAfter - rssBefore,
-      lessThan(_kMaxRssDeltaBytes),
-      reason: 'الذاكرة محدودة بحجم الصفحة (100 مستند) — ليست 7000',
-    );
-    // ✅ حارس N+1 القاطع: عدّ SELECTs مستقل عن سرعة الآلة.
-    // المتوقع: ~2 لكل صفحة (bulk state + فهرس) ≈ 140 لـ 70 صفحة؛
-    // N+1 (SELECT لكل ليلة + resolveBooking SQL) = 7000-35000+.
-    expect(
-      firstSelects,
-      lessThan(_kMaxSelectsPerPull),
-      reason:
-          'ارتداد N+1: عدد SELECTs ($firstSelects) خلال السحب الأول '
-          'تجاوز الحد — المسار المجمّع يتطلب ~2 استعلام/صفحة لا استعلام/ليلة',
-    );
-    expect(
-      firstBatches,
-      greaterThan(0),
-      reason:
-          'الكتابة يجب أن تمر عبر db.batch (الإصلاح P0-2) — '
-          'لا INSERT منفصل لكل سجل',
-    );
+      // ── السيناريو B: إعادة سحب نفس المستندات (idempotent) ───────────
+      queryCounter.reset();
+      final swRe = Stopwatch()..start();
+      final reProcessed = await manager.applyBookingNightsForTesting(docs);
+      swRe.stop();
+      final rePullMs = swRe.elapsedMilliseconds;
+      final reSelects = queryCounter.selects;
+      final reWrites =
+          queryCounter.inserts + queryCounter.updates + queryCounter.batches;
+      final rowCountAfterRe = await _countNights(db);
 
-    // ── السيناريو B: إعادة سحب نفس المستندات (idempotent) ───────────
-    queryCounter.reset();
-    final swRe = Stopwatch()..start();
-    final reProcessed = await manager.applyBookingNightsForTesting(docs);
-    swRe.stop();
-    final rePullMs = swRe.elapsedMilliseconds;
-    final reSelects = queryCounter.selects;
-    final reWrites = queryCounter.inserts + queryCounter.updates + queryCounter.batches;
-    final rowCountAfterRe = await _countNights(db);
+      expect(
+        reProcessed,
+        0,
+        reason:
+            'إعادة سحب بلا تغييرات يجب أن تتخطى الكل (فحص الأحدثية '
+            'صف-بصف على 7000 — لا كتابات)',
+      );
+      expect(rowCountAfterRe, _kTotalNights, reason: 'لا تغيير في الصفوف');
+      expect(
+        rePullMs,
+        lessThan(_kRePullMax.inMilliseconds),
+        reason: 'فحص الأحدثية الكمي يجب أن يبقى رخيصاً (CPU + استعلامان)',
+      );
+      expect(
+        reWrites,
+        0,
+        reason:
+            'إعادة السحب بلا تغييرات يجب ألا تكتب شيئاً إطلاقاً '
+            '(الاستبعاد في فحص الأحدثية — لا INSERT/UPDATE/batch)',
+      );
+      expect(
+        reSelects,
+        lessThan(_kMaxSelectsPerPull),
+        reason:
+            'فحص الأحدثية الكمي: bulk state (7000 uuid → 14 chunk) + '
+            'فهرس واحد — ليس استعلاماً لكل ليلة',
+      );
 
-    expect(
-      reProcessed,
-      0,
-      reason:
-          'إعادة سحب بلا تغييرات يجب أن تتخطى الكل (فحص الأحدثية '
-          'صف-بصف على 7000 — لا كتابات)',
-    );
-    expect(rowCountAfterRe, _kTotalNights, reason: 'لا تغيير في الصفوف');
-    expect(
-      rePullMs,
-      lessThan(_kRePullMax.inMilliseconds),
-      reason: 'فحص الأحدثية الكمي يجب أن يبقى رخيصاً (CPU + استعلامان)',
-    );
-    expect(
-      reWrites,
-      0,
-      reason:
-          'إعادة السحب بلا تغييرات يجب ألا تكتب شيئاً إطلاقاً '
-          '(الاستبعاد في فحص الأحدثية — لا INSERT/UPDATE/batch)',
-    );
-    expect(
-      reSelects,
-      lessThan(_kMaxSelectsPerPull),
-      reason:
-          'فحص الأحدثية الكمي: bulk state (7000 uuid → 14 chunk) + '
-          'فهرس واحد — ليس استعلاماً لكل ليلة',
-    );
+      // ── السيناريو C (log-only): مقارنة المسار القديم صف-بصف ─────────
+      // 300 مستند جديدة (بادئة old-) عبر upsertFromJson — نفس ما كان
+      // يحدث لكل ليلة قبل الإصلاح (SELECT + resolveRefs بلا فهرس + INSERT
+      // + إشعار لكل سجل).
+      final oldDocs = List<models.Document>.generate(
+        _kOldPathSampleSize,
+        (i) => _nightDoc(_kTotalNights + i),
+        growable: false,
+      );
+      final swOld = Stopwatch()..start();
+      for (final doc in oldDocs) {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        await AdapterRegistry.instance.nights.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+      }
+      swOld.stop();
+      final oldPathMs = swOld.elapsedMilliseconds;
 
-    // ── السيناريو C (log-only): مقارنة المسار القديم صف-بصف ─────────
-    // 300 مستند جديدة (بادئة old-) عبر upsertFromJson — نفس ما كان
-    // يحدث لكل ليلة قبل الإصلاح (SELECT + resolveRefs بلا فهرس + INSERT
-    // + إشعار لكل سجل).
-    final oldDocs = List<models.Document>.generate(
-      _kOldPathSampleSize,
-      (i) => _nightDoc(_kTotalNights + i),
-      growable: false,
-    );
-    final swOld = Stopwatch()..start();
-    for (final doc in oldDocs) {
-      final data = Map<String, dynamic>.from(doc.data);
-      data['localUuid'] ??= doc.$id;
-      await AdapterRegistry.instance.nights.upsertFromJson(data, src: Source.appwrite);
-    }
-    swOld.stop();
-    final oldPathMs = swOld.elapsedMilliseconds;
-
-    // ── ملف المقاييس (تنشره خطوة CI في ملخص التشغيل) ─────────────────
-    final perDocNew = firstPullMs / _kTotalNights;
-    final perDocOld = oldPathMs / _kOldPathSampleSize;
-    final ratio = perDocOld / perDocNew;
-    final metrics = StringBuffer()
-      ..writeln('booking_nights full-pull scale (P1 CI coverage)')
-      ..writeln(
-        'docs=$_kTotalNights pages=${_kTotalNights ~/ _kPageSize} '
-        'page_size=$_kPageSize bookings=$_kBookings rooms=$_kRoomCount',
-      )
-      ..writeln(
-        'first_pull_ms=$firstPullMs '
-        '(${(1000 / perDocNew).toStringAsFixed(0)} docs/sec) '
-        'selects=$firstSelects batches=$firstBatches '
-        'inserts_nonbatch=$firstInserts',
-      )
-      ..writeln(
-        're_pull_ms=$rePullMs skipped=$_kTotalNights '
-        'selects=$reSelects writes=$reWrites',
-      )
-      ..writeln(
-        'old_path_${_kOldPathSampleSize}docs_ms=$oldPathMs '
-        '(${perDocOld.toStringAsFixed(2)} ms/doc)',
-      )
-      ..writeln(
-        'new_path_ms_per_doc=${perDocNew.toStringAsFixed(4)} '
-        'speedup=${ratio.isFinite ? '${ratio.toStringAsFixed(1)}x' : 'n/a'}',
-      )
-      ..writeln(
-        'rss_before_mb=${(rssBefore / 1048576).toStringAsFixed(1)} '
-        'rss_after_mb=${(rssAfter / 1048576).toStringAsFixed(1)} '
-        'rss_delta_mb=${((rssAfter - rssBefore) / 1048576).toStringAsFixed(1)}',
-      )
-      ..writeln('db_rows=$_kTotalNights (+$_kOldPathSampleSize old-path)')
-      ..writeln(
-        'thresholds: first<${_kFirstPullMax.inSeconds}s '
-        're<${_kRePullMax.inSeconds}s '
-        'rss_delta<${_kMaxRssDeltaBytes ~/ 1048576}MB',
-      )
-      ..writeln('verdict=PASS');
-    _writeMetricsFile(metrics.toString());
-    // ignore: avoid_print
-    print(metrics.toString());
-  }, timeout: const Timeout(Duration(minutes: 10)));
+      // ── ملف المقاييس (تنشره خطوة CI في ملخص التشغيل) ─────────────────
+      final perDocNew = firstPullMs / _kTotalNights;
+      final perDocOld = oldPathMs / _kOldPathSampleSize;
+      final ratio = perDocOld / perDocNew;
+      final metrics = StringBuffer()
+        ..writeln('booking_nights full-pull scale (P1 CI coverage)')
+        ..writeln(
+          'docs=$_kTotalNights pages=${_kTotalNights ~/ _kPageSize} '
+          'page_size=$_kPageSize bookings=$_kBookings rooms=$_kRoomCount',
+        )
+        ..writeln(
+          'first_pull_ms=$firstPullMs '
+          '(${(1000 / perDocNew).toStringAsFixed(0)} docs/sec) '
+          'selects=$firstSelects batches=$firstBatches '
+          'inserts_nonbatch=$firstInserts',
+        )
+        ..writeln(
+          're_pull_ms=$rePullMs skipped=$_kTotalNights '
+          'selects=$reSelects writes=$reWrites',
+        )
+        ..writeln(
+          'old_path_${_kOldPathSampleSize}docs_ms=$oldPathMs '
+          '(${perDocOld.toStringAsFixed(2)} ms/doc)',
+        )
+        ..writeln(
+          'new_path_ms_per_doc=${perDocNew.toStringAsFixed(4)} '
+          'speedup=${ratio.isFinite ? '${ratio.toStringAsFixed(1)}x' : 'n/a'}',
+        )
+        ..writeln(
+          'rss_before_mb=${(rssBefore / 1048576).toStringAsFixed(1)} '
+          'rss_after_mb=${(rssAfter / 1048576).toStringAsFixed(1)} '
+          'rss_delta_mb=${((rssAfter - rssBefore) / 1048576).toStringAsFixed(1)}',
+        )
+        ..writeln('db_rows=$_kTotalNights (+$_kOldPathSampleSize old-path)')
+        ..writeln(
+          'thresholds: first<${_kFirstPullMax.inSeconds}s '
+          're<${_kRePullMax.inSeconds}s '
+          'rss_delta<${_kMaxRssDeltaBytes ~/ 1048576}MB',
+        )
+        ..writeln('verdict=PASS');
+      _writeMetricsFile(metrics.toString());
+      // ignore: avoid_print
+      print(metrics.toString());
+    },
+    timeout: const Timeout(Duration(minutes: 10)),
+  );
 }

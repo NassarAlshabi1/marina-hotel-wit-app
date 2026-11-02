@@ -6,7 +6,11 @@ import 'appwrite_logger.dart';
 import 'local_db.dart';
 
 typedef DocumentMapper<T extends d.Insertable> =
-    T? Function(Map<String, dynamic> data, String localUuid, SyncFieldsHelper helper);
+    T? Function(
+      Map<String, dynamic> data,
+      String localUuid,
+      SyncFieldsHelper helper,
+    );
 
 typedef DocumentValidator = bool Function(Map<String, dynamic> data);
 
@@ -121,7 +125,12 @@ class SyncFieldsHelper {
 }
 
 class SyncResult {
-  SyncResult({required this.processed, required this.skipped, required this.failed, required this.errors});
+  SyncResult({
+    required this.processed,
+    required this.skipped,
+    required this.failed,
+    required this.errors,
+  });
   final int processed;
   final int skipped;
   final int failed;
@@ -131,13 +140,17 @@ class SyncResult {
   bool get hasErrors => errors.isNotEmpty;
 
   @override
-  String toString() => 'SyncResult(processed: $processed, skipped: $skipped, failed: $failed)';
+  String toString() =>
+      'SyncResult(processed: $processed, skipped: $skipped, failed: $failed)';
 }
 
 class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
-  GenericSyncProcessor({required this.database, required this.tableName, required this.table})
-    : helper = SyncFieldsHelper(database),
-      _logger = AppwriteLogger();
+  GenericSyncProcessor({
+    required this.database,
+    required this.tableName,
+    required this.table,
+  }) : helper = SyncFieldsHelper(database),
+       _logger = AppwriteLogger();
   final AppDatabase database;
   final SyncFieldsHelper helper;
   final AppwriteLogger _logger;
@@ -191,7 +204,9 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
           continue;
         }
 
-        await database.into(table).insert(companion, mode: d.InsertMode.insertOrReplace);
+        await database
+            .into(table)
+            .insert(companion, mode: d.InsertMode.insertOrReplace);
         processed++;
       } catch (e) {
         failed++;
@@ -201,7 +216,12 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
       }
     }
 
-    return SyncResult(processed: processed, skipped: skipped, failed: failed, errors: errors);
+    return SyncResult(
+      processed: processed,
+      skipped: skipped,
+      failed: failed,
+      errors: errors,
+    );
   }
 
   Future<SyncResult> _syncWithBatch({
@@ -249,7 +269,12 @@ class GenericSyncProcessor<T extends d.Table, C extends d.Insertable<dynamic>> {
       });
     });
 
-    return SyncResult(processed: processed, skipped: skipped, failed: failed, errors: errors);
+    return SyncResult(
+      processed: processed,
+      skipped: skipped,
+      failed: failed,
+      errors: errors,
+    );
   }
 }
 
@@ -258,7 +283,11 @@ class SyncProcessorFactory {
   final AppDatabase database;
 
   GenericSyncProcessor<Rooms, RoomsCompanion> rooms() {
-    return GenericSyncProcessor<Rooms, RoomsCompanion>(database: database, tableName: 'rooms', table: database.rooms);
+    return GenericSyncProcessor<Rooms, RoomsCompanion>(
+      database: database,
+      tableName: 'rooms',
+      table: database.rooms,
+    );
   }
 
   GenericSyncProcessor<Employees, EmployeesCompanion> employees() {
@@ -294,11 +323,19 @@ class SyncProcessorFactory {
   }
 
   GenericSyncProcessor<Debts, DebtsCompanion> debts() {
-    return GenericSyncProcessor<Debts, DebtsCompanion>(database: database, tableName: 'debts', table: database.debts);
+    return GenericSyncProcessor<Debts, DebtsCompanion>(
+      database: database,
+      tableName: 'debts',
+      table: database.debts,
+    );
   }
 }
 
-RoomsCompanion mapRoom(Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+RoomsCompanion mapRoom(
+  Map<String, dynamic> data,
+  String localUuid,
+  SyncFieldsHelper h,
+) {
   final roomNumber = h.asString(data['roomNumber']);
   if (roomNumber == null || roomNumber.isEmpty) {
     throw ArgumentError('roomNumber is required');
@@ -321,7 +358,11 @@ RoomsCompanion mapRoom(Map<String, dynamic> data, String localUuid, SyncFieldsHe
   );
 }
 
-EmployeesCompanion mapEmployee(Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+EmployeesCompanion mapEmployee(
+  Map<String, dynamic> data,
+  String localUuid,
+  SyncFieldsHelper h,
+) {
   final name = h.asString(data['name']);
   if (name == null || name.isEmpty) {
     throw ArgumentError('name is required');
@@ -345,7 +386,11 @@ EmployeesCompanion mapEmployee(Map<String, dynamic> data, String localUuid, Sync
   );
 }
 
-ExpensesCompanion mapExpense(Map<String, dynamic> data, String localUuid, SyncFieldsHelper h) {
+ExpensesCompanion mapExpense(
+  Map<String, dynamic> data,
+  String localUuid,
+  SyncFieldsHelper h,
+) {
   final expenseType = h.asString(data['expenseType']);
   if (expenseType == null || expenseType.isEmpty) {
     throw ArgumentError('expenseType is required');
@@ -365,7 +410,9 @@ ExpensesCompanion mapExpense(Map<String, dynamic> data, String localUuid, SyncFi
     description: d.Value(h.asStringRequired(data['description'])),
     amount: d.Value(h.asDouble(data['amount'])),
     date: d.Value(h.asStringRequired(data['date'])),
-    cashTransactionId: h.nullableValue(h.asIntNullable(data['cashTransactionId'])),
+    cashTransactionId: h.nullableValue(
+      h.asIntNullable(data['cashTransactionId']),
+    ),
   );
 }
 

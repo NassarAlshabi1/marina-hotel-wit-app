@@ -16,7 +16,10 @@ import 'package:marina_hotel_mobile/utils/app_logger.dart';
 void main() {
   group('AppLogger.debug', () {
     test('لا يُطلق استثناء عند تسجيل رسالة debug', () {
-      expect(() => AppLogger.debug('test debug message', tag: 'TEST'), returnsNormally);
+      expect(
+        () => AppLogger.debug('test debug message', tag: 'TEST'),
+        returnsNormally,
+      );
     });
 
     test('يدعم tag و error و stackTrace', () {
@@ -34,23 +37,39 @@ void main() {
 
   group('AppLogger.info', () {
     test('لا يُطلق استثناء', () {
-      expect(() => AppLogger.info('test info message', tag: 'TEST'), returnsNormally);
+      expect(
+        () => AppLogger.info('test info message', tag: 'TEST'),
+        returnsNormally,
+      );
     });
   });
 
   group('AppLogger.warning', () {
     test('لا يُطلق استثناء', () {
-      expect(() => AppLogger.warning('test warning message', tag: 'TEST'), returnsNormally);
+      expect(
+        () => AppLogger.warning('test warning message', tag: 'TEST'),
+        returnsNormally,
+      );
     });
 
     test('يدعم error parameter', () {
-      expect(() => AppLogger.warning('test warning with error', tag: 'TEST', error: 'some error'), returnsNormally);
+      expect(
+        () => AppLogger.warning(
+          'test warning with error',
+          tag: 'TEST',
+          error: 'some error',
+        ),
+        returnsNormally,
+      );
     });
   });
 
   group('AppLogger.error', () {
     test('لا يُطلق استثناء', () {
-      expect(() => AppLogger.error('test error message', tag: 'TEST'), returnsNormally);
+      expect(
+        () => AppLogger.error('test error message', tag: 'TEST'),
+        returnsNormally,
+      );
     });
 
     test('يدعم error و stackTrace parameters', () {

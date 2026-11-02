@@ -22,11 +22,17 @@ void main() {
 
   group('deviceHintFromVectorClock', () {
     test('مفتاح كامل marina_model_short يُعرض model (short)', () {
-      expect(deviceHintFromVectorClock('{"marina_HNBRC-M1_be06acca":1}'), 'HNBRC-M1 (be06acca)');
+      expect(
+        deviceHintFromVectorClock('{"marina_HNBRC-M1_be06acca":1}'),
+        'HNBRC-M1 (be06acca)',
+      );
     });
 
     test('مفتاح بلا بادئة marina_ يُعرض كما هو مع القصور', () {
-      expect(deviceHintFromVectorClock('{"dandelion_308df672":2}'), 'dandelion (308df672)');
+      expect(
+        deviceHintFromVectorClock('{"dandelion_308df672":2}'),
+        'dandelion (308df672)',
+      );
     });
 
     test('ساعة اتجاهية فارغة/null/فاسدة → null', () {
@@ -70,31 +76,38 @@ void main() {
       await db.close();
     });
 
-    test('السحب المباشر يخزن recorderName + deviceId محلياً وin outbox', () async {
-      final id = await repo.createFromExpense(
-        expenseId: 0, // سحب مباشر
-        employeeId: employeeId,
-        reason: 'direct_withdrawal_4d5b6752-e6c5-4500-a2f2-d1d62f77e49e',
-        amount: 19000,
-        date: '2026-09-13',
-        hotelDayKey: '2026-09-13',
-        withdrawalType: 'سحب راتب',
-        recorderName: 'المدير',
-      );
+    test(
+      'السحب المباشر يخزن recorderName + deviceId محلياً وin outbox',
+      () async {
+        final id = await repo.createFromExpense(
+          expenseId: 0, // سحب مباشر
+          employeeId: employeeId,
+          reason: 'direct_withdrawal_4d5b6752-e6c5-4500-a2f2-d1d62f77e49e',
+          amount: 19000,
+          date: '2026-09-13',
+          hotelDayKey: '2026-09-13',
+          withdrawalType: 'سحب راتب',
+          recorderName: 'المدير',
+        );
 
-      final row = await (db.select(db.salaryWithdrawals)..where((t) => t.id.equals(id))).getSingle();
-      expect(row.recorderName, 'المدير');
-      // هوية الجهاز غير مهيأة في الاختبار → سلسلة فارغة (وليس crash)
-      expect(row.deviceId, '');
+        final row = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(row.recorderName, 'المدير');
+        // هوية الجهاز غير مهيأة في الاختبار → سلسلة فارغة (وليس crash)
+        expect(row.deviceId, '');
 
-      // عنصر الـ outbox يحمل الإسناد ليصل للسحابة في حقل name
-      final outboxRow = await (db.select(db.outbox)..where((t) => t.localUuid.equals(row.localUuid))).getSingle();
-      expect(outboxRow.entity, 'salary_withdrawals');
-      expect(outboxRow.op, 'create');
-      expect(outboxRow.payload, contains('recorderName'));
-      expect(outboxRow.payload, contains('المدير'));
-      expect(outboxRow.payload, contains('deviceId'));
-    });
+        // عنصر الـ outbox يحمل الإسناد ليصل للسحابة في حقل name
+        final outboxRow = await (db.select(
+          db.outbox,
+        )..where((t) => t.localUuid.equals(row.localUuid))).getSingle();
+        expect(outboxRow.entity, 'salary_withdrawals');
+        expect(outboxRow.op, 'create');
+        expect(outboxRow.payload, contains('recorderName'));
+        expect(outboxRow.payload, contains('المدير'));
+        expect(outboxRow.payload, contains('deviceId'));
+      },
+    );
 
     test('بلا recorderName → العمود null وبلا مفتاح في الحمولة', () async {
       final id = await repo.createFromExpense(
@@ -106,10 +119,14 @@ void main() {
         withdrawalType: 'سحب راتب',
       );
 
-      final row = await (db.select(db.salaryWithdrawals)..where((t) => t.id.equals(id))).getSingle();
+      final row = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(row.recorderName, isNull);
 
-      final outboxRow = await (db.select(db.outbox)..where((t) => t.localUuid.equals(row.localUuid))).getSingle();
+      final outboxRow = await (db.select(
+        db.outbox,
+      )..where((t) => t.localUuid.equals(row.localUuid))).getSingle();
       expect(outboxRow.payload, isNot(contains('recorderName')));
     });
 
@@ -123,7 +140,9 @@ void main() {
         hotelDayKey: '2026-09-13',
       );
 
-      final row = await (db.select(db.salaryWithdrawals)..where((t) => t.reason.equals('exp_77'))).getSingle();
+      final row = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.reason.equals('exp_77'))).getSingle();
       expect(row.deviceId, '');
       expect(row.reason, 'exp_77');
     });
@@ -156,7 +175,9 @@ void main() {
         "'2026-09-13', 1789329587, 1789329587, 1789329587, "
         "'marina_HNBRC-M1_be06acca', 'المدير')",
       );
-      final row = await (db.select(db.salaryWithdrawals)..where((t) => t.localUuid.equals('wd-rec-1'))).getSingle();
+      final row = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.localUuid.equals('wd-rec-1'))).getSingle();
       expect(row.recorderName, 'المدير');
       expect(row.deviceId, 'marina_HNBRC-M1_be06acca');
     });

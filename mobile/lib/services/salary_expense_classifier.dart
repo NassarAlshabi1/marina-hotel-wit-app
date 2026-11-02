@@ -27,10 +27,20 @@ class SalaryExpenseClassifier {
   SalaryExpenseClassifier._();
 
   /// أنواع التدفق النقدي للموظف (سحب + سلفة).
-  static const List<String> _cashOutTypes = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'سلفة'];
+  static const List<String> _cashOutTypes = [
+    'رواتب',
+    'سحب راتب',
+    'سحب من الراتب',
+    'سلفة',
+  ];
 
   /// أنواع تسويات الاستحقاق (خصوم بلا تدفق نقدي).
-  static const List<String> _deductionTypes = ['خصم من الراتب', 'خصم راتب', 'خصم', 'غياب'];
+  static const List<String> _deductionTypes = [
+    'خصم من الراتب',
+    'خصم راتب',
+    'خصم',
+    'غياب',
+  ];
 
   /// هل النوع يمثل نقداً خرج للموظف فعلاً (سحب راتب أو سلفة)؟
   ///
@@ -59,7 +69,8 @@ class SalaryExpenseClassifier {
 
   /// هل النوع مرتبط بالرواتب بأي شكل (نقدي أو تسوية)؟
   /// مفيد لعرض عمود الموظف ولمطابقة السجلات اليتيمة — وليس للتجميع النقدي.
-  static bool isSalaryRelated(String type) => isSalaryCashOut(type) || isSalaryDeduction(type);
+  static bool isSalaryRelated(String type) =>
+      isSalaryCashOut(type) || isSalaryDeduction(type);
 
   /// هل السحب من نوع سلفة (يُحسب ضمن السلف لا ضمن السحبيات)؟
   static bool isAdvanceWithdrawal(String? withdrawalType) {

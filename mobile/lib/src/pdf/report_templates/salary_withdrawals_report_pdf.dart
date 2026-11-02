@@ -37,7 +37,12 @@ class SalaryWithdrawalsReportRow {
 
 /// بيانات تقرير سحبيات الرواتب.
 class SalaryWithdrawalsReportData {
-  SalaryWithdrawalsReportData({required this.rows, this.fromDate, this.toDate, this.selectedEmployeeName});
+  SalaryWithdrawalsReportData({
+    required this.rows,
+    this.fromDate,
+    this.toDate,
+    this.selectedEmployeeName,
+  });
 
   /// الصفوف مرتبة نهائياً (الأحدث أولاً) — القالب لا يعيد الترتيب.
   final List<SalaryWithdrawalsReportRow> rows;
@@ -48,7 +53,8 @@ class SalaryWithdrawalsReportData {
   final String? selectedEmployeeName;
 
   double get totalAmount => rows.fold<double>(0, (sum, r) => sum + r.amount);
-  bool get showEmployeeColumn => selectedEmployeeName == null || selectedEmployeeName!.isEmpty;
+  bool get showEmployeeColumn =>
+      selectedEmployeeName == null || selectedEmployeeName!.isEmpty;
 }
 
 /// قالب تقرير سحبيات الرواتب.
@@ -57,8 +63,12 @@ class SalaryWithdrawalsReportPdf {
 
   /// مشاركة تقرير سحبيات الرواتب.
   static Future<void> share(SalaryWithdrawalsReportData data) async {
-    final fromLabel = data.fromDate != null ? DateFormat('yyyy-MM-dd').format(data.fromDate!) : 'غير محدد';
-    final toLabel = data.toDate != null ? DateFormat('yyyy-MM-dd').format(data.toDate!) : 'غير محدد';
+    final fromLabel = data.fromDate != null
+        ? DateFormat('yyyy-MM-dd').format(data.fromDate!)
+        : 'غير محدد';
+    final toLabel = data.toDate != null
+        ? DateFormat('yyyy-MM-dd').format(data.toDate!)
+        : 'غير محدد';
     final selectedEmpName = data.selectedEmployeeName;
 
     final headers = data.showEmployeeColumn
@@ -81,7 +91,11 @@ class SalaryWithdrawalsReportPdf {
     }
 
     final emptyCells = List.filled(headers.length, '');
-    dataRows.add(['الإجمالي', EnhancedPdfUtils.formatNumber(data.totalAmount), ...emptyCells.sublist(2)]);
+    dataRows.add([
+      'الإجمالي',
+      EnhancedPdfUtils.formatNumber(data.totalAmount),
+      ...emptyCells.sublist(2),
+    ]);
 
     await ReportPdfBuilder.buildAndShare(
       ReportPdfConfig(
@@ -95,11 +109,17 @@ class SalaryWithdrawalsReportPdf {
               title: 'تقرير سحبيات الرواتب',
               fonts: fonts,
               content: [
-                EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'الفترة', value: 'من $fromLabel إلى $toLabel'),
+                EnhancedPdfUtils.buildKeyValueRow(
+                  fonts: fonts,
+                  label: 'الفترة',
+                  value: 'من $fromLabel إلى $toLabel',
+                ),
                 EnhancedPdfUtils.buildKeyValueRow(
                   fonts: fonts,
                   label: 'الموظف',
-                  value: (selectedEmpName == null || selectedEmpName.isEmpty) ? 'الكل' : selectedEmpName,
+                  value: (selectedEmpName == null || selectedEmpName.isEmpty)
+                      ? 'الكل'
+                      : selectedEmpName,
                 ),
                 EnhancedPdfUtils.buildKeyValueRow(
                   fonts: fonts,
@@ -109,7 +129,11 @@ class SalaryWithdrawalsReportPdf {
               ],
             ),
             pw.SizedBox(height: 12),
-            ...EnhancedPdfUtils.buildChunkedTable(headers: headers, data: dataRows, fonts: fonts),
+            ...EnhancedPdfUtils.buildChunkedTable(
+              headers: headers,
+              data: dataRows,
+              fonts: fonts,
+            ),
           ];
         },
         fileName: ReportPdfBuilder.generateFileName(

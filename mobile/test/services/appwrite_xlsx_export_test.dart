@@ -62,7 +62,16 @@ void main() {
 
       final table = AppwriteXlsxExportService.buildTable(docs);
 
-      expect(table.columns, const ['\$id', '\$createdAt', '\$updatedAt', 'name', 'price', 'meta', 'tags', 'extra']);
+      expect(table.columns, const [
+        '\$id',
+        '\$createdAt',
+        '\$updatedAt',
+        'name',
+        'price',
+        'meta',
+        'tags',
+        'extra',
+      ]);
       expect(table.rows, hasLength(2));
       expect(table.rows[0][0], 'a');
       expect(table.rows[1][7], true);
@@ -117,7 +126,10 @@ void main() {
       );
 
       final progressLog = <XlsxExportProgress>[];
-      final result = await service.export(targetPath: '${tempDir.path}/out.xlsx', onProgress: progressLog.add);
+      final result = await service.export(
+        targetPath: '${tempDir.path}/out.xlsx',
+        onProgress: progressLog.add,
+      );
 
       // سحب كل الجداول القابلة للتصدير مرة واحدة لكل منها
       expect(fetchCalls.length, kExportableCollections.length);
@@ -151,7 +163,10 @@ void main() {
 
       // ورقة الملخص: عنوان + رأس + صف إجمالي بعدد سجلين
       final summary = book.tables['الملخص']!;
-      expect(_cellText(summary.rows[0][0]), 'فندق مارينا — تصدير قاعدة بيانات Appwrite');
+      expect(
+        _cellText(summary.rows[0][0]),
+        'فندق مارينا — تصدير قاعدة بيانات Appwrite',
+      );
       expect(_cellText(summary.rows[3][0]), 'الجدول');
       expect(_cellText(summary.rows.last[0]), 'الإجمالي');
       expect(_cellNumber(summary.rows.last[1]), 2);

@@ -10,7 +10,8 @@ class SettingsUsersScreen extends ConsumerStatefulWidget {
   const SettingsUsersScreen({super.key});
 
   @override
-  ConsumerState<SettingsUsersScreen> createState() => _SettingsUsersScreenState();
+  ConsumerState<SettingsUsersScreen> createState() =>
+      _SettingsUsersScreenState();
 }
 
 class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
@@ -76,7 +77,11 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  const Icon(Icons.account_circle, size: 32, color: Colors.blue),
+                  const Icon(
+                    Icons.account_circle,
+                    size: 32,
+                    color: Colors.blue,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -84,9 +89,16 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       children: [
                         Text(
                           auth.currentUser?.name ?? 'غير معروف',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        Text(isAdmin ? 'مدير النظام' : (auth.currentUser?.userType ?? '')),
+                        Text(
+                          isAdmin
+                              ? 'مدير النظام'
+                              : (auth.currentUser?.userType ?? ''),
+                        ),
                       ],
                     ),
                   ),
@@ -115,7 +127,10 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('صلاحيات المستخدمين', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const Text(
+                  'صلاحيات المستخدمين',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
                 ElevatedButton.icon(
                   onPressed: _openAddUserDialog,
                   icon: const Icon(Icons.person_add),
@@ -134,11 +149,17 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                   );
                 }
                 if (snapshot.hasError) {
-                  return const Padding(padding: EdgeInsets.all(16), child: Text('تعذر تحميل المستخدمين'));
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('تعذر تحميل المستخدمين'),
+                  );
                 }
                 final accounts = snapshot.data ?? [];
                 if (accounts.isEmpty) {
-                  return const Padding(padding: EdgeInsets.all(16), child: Text('لا يوجد مستخدمون مسجلون'));
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('لا يوجد مستخدمون مسجلون'),
+                  );
                 }
                 return Column(
                   children: accounts
@@ -193,39 +214,71 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                     children: [
                       TextFormField(
                         controller: fullNameCtrl,
-                        decoration: const InputDecoration(labelText: 'الاسم الكامل'),
-                        validator: (value) => (value == null || value.trim().isEmpty) ? 'الاسم مطلوب' : null,
+                        decoration: const InputDecoration(
+                          labelText: 'الاسم الكامل',
+                        ),
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                            ? 'الاسم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: usernameCtrl,
-                        decoration: const InputDecoration(labelText: 'اسم المستخدم'),
-                        validator: (value) => (value == null || value.trim().isEmpty) ? 'اسم المستخدم مطلوب' : null,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم المستخدم',
+                        ),
+                        validator: (value) =>
+                            (value == null || value.trim().isEmpty)
+                            ? 'اسم المستخدم مطلوب'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: passwordCtrl,
-                        decoration: const InputDecoration(labelText: 'كلمة المرور'),
+                        decoration: const InputDecoration(
+                          labelText: 'كلمة المرور',
+                        ),
                         obscureText: true,
                         validator: (value) =>
-                            (value == null || value.length < 4) ? 'أدخل 4 أرقام/رموز على الأقل' : null,
+                            (value == null || value.length < 4)
+                            ? 'أدخل 4 أرقام/رموز على الأقل'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: confirmCtrl,
-                        decoration: const InputDecoration(labelText: 'تأكيد كلمة المرور'),
+                        decoration: const InputDecoration(
+                          labelText: 'تأكيد كلمة المرور',
+                        ),
                         obscureText: true,
-                        validator: (value) => value != passwordCtrl.text ? 'كلمتا المرور غير متطابقتين' : null,
+                        validator: (value) => value != passwordCtrl.text
+                            ? 'كلمتا المرور غير متطابقتين'
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: userType,
-                        decoration: const InputDecoration(labelText: 'نوع المستخدم'),
+                        decoration: const InputDecoration(
+                          labelText: 'نوع المستخدم',
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'employee', child: Text('موظف')),
-                          DropdownMenuItem(value: 'supervisor', child: Text('مشرف')),
-                          DropdownMenuItem(value: 'accountant', child: Text('محاسب')),
-                          DropdownMenuItem(value: 'manager', child: Text('مدير')),
+                          DropdownMenuItem(
+                            value: 'employee',
+                            child: Text('موظف'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'supervisor',
+                            child: Text('مشرف'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'accountant',
+                            child: Text('محاسب'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'manager',
+                            child: Text('مدير'),
+                          ),
                         ],
                         onChanged: (value) {
                           if (value != null) {
@@ -236,7 +289,10 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       const SizedBox(height: 16),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Text('الصلاحيات', style: Theme.of(context).textTheme.titleMedium),
+                        child: Text(
+                          'الصلاحيات',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       PermissionMatrixEditor(
@@ -254,14 +310,20 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       if (localError != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(localError!, style: const TextStyle(color: Colors.red)),
+                          child: Text(
+                            localError!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
                         ),
                     ],
                   ),
                 ),
               ),
               actions: [
-                TextButton(onPressed: saving ? null : () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+                TextButton(
+                  onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('إلغاء'),
+                ),
                 ElevatedButton(
                   onPressed: saving
                       ? null
@@ -270,7 +332,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                             return;
                           }
                           if (selectedPerms.isEmpty) {
-                            setStateDialog(() => localError = 'اختر صلاحية واحدة على الأقل');
+                            setStateDialog(
+                              () => localError = 'اختر صلاحية واحدة على الأقل',
+                            );
                             return;
                           }
                           setStateDialog(() {
@@ -289,18 +353,28 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                                 );
                             if (mounted && context.mounted) {
                               Navigator.pop(dialogContext);
-                              SnackBarHelper.showSuccess(context, 'تم إضافة المستخدم بنجاح');
+                              SnackBarHelper.showSuccess(
+                                context,
+                                'تم إضافة المستخدم بنجاح',
+                              );
                               _refreshAccounts();
                             }
                           } catch (e) {
                             setStateDialog(() {
                               saving = false;
-                              localError = e.toString().replaceAll('Exception: ', '');
+                              localError = e.toString().replaceAll(
+                                'Exception: ',
+                                '',
+                              );
                             });
                           }
                         },
                   child: saving
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('حفظ'),
                 ),
               ],
@@ -377,7 +451,8 @@ class UserPermissionsCard extends ConsumerStatefulWidget {
   final VoidCallback? onUpdated;
 
   @override
-  ConsumerState<UserPermissionsCard> createState() => _UserPermissionsCardState();
+  ConsumerState<UserPermissionsCard> createState() =>
+      _UserPermissionsCardState();
 }
 
 class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
@@ -410,7 +485,9 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
     });
 
     try {
-      final saved = await ref.read(authProvider.notifier).updateUserPermissions(widget.username, _perms);
+      final saved = await ref
+          .read(authProvider.notifier)
+          .updateUserPermissions(widget.username, _perms);
       if (!mounted) return;
       if (!saved) {
         throw StateError('تعذر حفظ الصلاحيات في السحابة');
@@ -456,23 +533,53 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── معلومات أساسية ──
-                      const Text('المعلومات الأساسية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const Text(
+                        'المعلومات الأساسية',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: fullNameCtrl,
-                        decoration: const InputDecoration(labelText: 'الاسم الكامل', prefixIcon: Icon(Icons.person)),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                        decoration: const InputDecoration(
+                          labelText: 'الاسم الكامل',
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedPerms.contains('all') ? 'admin' : userType,
-                        decoration: const InputDecoration(labelText: 'نوع المستخدم', prefixIcon: Icon(Icons.badge)),
+                        initialValue: selectedPerms.contains('all')
+                            ? 'admin'
+                            : userType,
+                        decoration: const InputDecoration(
+                          labelText: 'نوع المستخدم',
+                          prefixIcon: Icon(Icons.badge),
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'admin', child: Text('مدير (كل الصلاحيات)')),
-                          DropdownMenuItem(value: 'manager', child: Text('مدير فرعي')),
-                          DropdownMenuItem(value: 'supervisor', child: Text('مشرف')),
-                          DropdownMenuItem(value: 'accountant', child: Text('محاسب')),
-                          DropdownMenuItem(value: 'employee', child: Text('موظف')),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('مدير (كل الصلاحيات)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'manager',
+                            child: Text('مدير فرعي'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'supervisor',
+                            child: Text('مشرف'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'accountant',
+                            child: Text('محاسب'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'employee',
+                            child: Text('موظف'),
+                          ),
                         ],
                         onChanged: (v) {
                           if (v != null) {
@@ -495,7 +602,10 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                       // ── تغيير كلمة المرور ──
                       const Text(
                         'تغيير كلمة المرور (اختياري)',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -522,7 +632,8 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                         ),
                         obscureText: true,
                         validator: (v) {
-                          if (passwordCtrl.text.isNotEmpty && passwordCtrl.text != v) {
+                          if (passwordCtrl.text.isNotEmpty &&
+                              passwordCtrl.text != v) {
                             return 'كلمتا المرور غير متطابقتين';
                           }
                           return null;
@@ -532,7 +643,13 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
 
                       // ── الصلاحيات ──
                       if (userType != 'admin') ...[
-                        const Text('الصلاحيات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const Text(
+                          'الصلاحيات',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         PermissionMatrixEditor(
                           selected: selectedPerms.toSet(),
@@ -560,12 +677,19 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.warning_amber, color: Colors.orange, size: 16),
+                              Icon(
+                                Icons.warning_amber,
+                                color: Colors.orange,
+                                size: 16,
+                              ),
                               SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   'سيتم قطع الجلسة على الأجهزة الأخرى عند حفظ كلمة المرور',
-                                  style: TextStyle(color: Colors.orange, fontSize: 12),
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ],
@@ -574,7 +698,10 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                       if (localError != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(localError!, style: const TextStyle(color: Colors.red)),
+                          child: Text(
+                            localError!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
                         ),
                     ],
                   ),
@@ -590,7 +717,10 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                             setDialog(() => deleteRequested = true);
                           },
                     icon: const Icon(Icons.delete, color: Colors.red),
-                    label: const Text('حذف', style: TextStyle(color: Colors.red)),
+                    label: const Text(
+                      'حذف',
+                      style: TextStyle(color: Colors.red),
+                    ),
                   ),
                 if (deleteRequested) ...[
                   TextButton(
@@ -598,11 +728,14 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                     child: const Text('إلغاء الحذف'),
                   ),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
                     onPressed: () async {
                       setDialog(() => saving = true);
                       try {
-                        if (widget.username == ref.read(authProvider).currentUser?.username) {
+                        if (widget.username ==
+                            ref.read(authProvider).currentUser?.username) {
                           setDialog(() {
                             saving = false;
                             deleteRequested = false;
@@ -615,12 +748,20 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                   ? false
                                   : await ref
                                         .read(authProvider.notifier)
-                                        .deleteCloudUser(docId: widget.docId!, username: widget.username)
-                            : await ref.read(authProvider.notifier).deleteLocalUser(username: widget.username);
+                                        .deleteCloudUser(
+                                          docId: widget.docId!,
+                                          username: widget.username,
+                                        )
+                            : await ref
+                                  .read(authProvider.notifier)
+                                  .deleteLocalUser(username: widget.username);
                         if (mounted && context.mounted && success) {
                           Navigator.pop(dialogContext);
                           widget.onDeleted?.call();
-                          SnackBarHelper.showSuccess(context, 'تم حذف المستخدم ${widget.username}');
+                          SnackBarHelper.showSuccess(
+                            context,
+                            'تم حذف المستخدم ${widget.username}',
+                          );
                         }
                       } catch (e) {
                         setDialog(() {
@@ -634,12 +775,20 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                         ? const SizedBox(
                             height: 16,
                             width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('تأكيد الحذف'),
                   ),
                 ] else ...[
-                  TextButton(onPressed: saving ? null : () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+                  TextButton(
+                    onPressed: saving
+                        ? null
+                        : () => Navigator.pop(dialogContext),
+                    child: const Text('إلغاء'),
+                  ),
                   ElevatedButton(
                     onPressed: saving
                         ? null
@@ -648,7 +797,10 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                               return;
                             }
                             if (selectedPerms.isEmpty) {
-                              setDialog(() => localError = 'اختر صلاحية واحدة على الأقل');
+                              setDialog(
+                                () =>
+                                    localError = 'اختر صلاحية واحدة على الأقل',
+                              );
                               return;
                             }
                             setDialog(() {
@@ -664,11 +816,17 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                               .updateCloudUser(
                                                 username: widget.username,
                                                 docId: widget.docId!,
-                                                newFullName: fullNameCtrl.text.trim(),
-                                                newPassword: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,
+                                                newFullName: fullNameCtrl.text
+                                                    .trim(),
+                                                newPassword:
+                                                    passwordCtrl.text.isNotEmpty
+                                                    ? passwordCtrl.text
+                                                    : null,
                                                 newUserType: userType,
-                                                newPermissions: userType == 'admin'
-                                                    ? AuthLocalStore.permissionKeys
+                                                newPermissions:
+                                                    userType == 'admin'
+                                                    ? AuthLocalStore
+                                                          .permissionKeys
                                                     : selectedPerms,
                                               )
                                   : await ref
@@ -676,7 +834,10 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                         .updateLocalUser(
                                           username: widget.username,
                                           newFullName: fullNameCtrl.text.trim(),
-                                          newPassword: passwordCtrl.text.isNotEmpty ? passwordCtrl.text : null,
+                                          newPassword:
+                                              passwordCtrl.text.isNotEmpty
+                                              ? passwordCtrl.text
+                                              : null,
                                           newUserType: userType,
                                           newPermissions: userType == 'admin'
                                               ? AuthLocalStore.permissionKeys
@@ -705,7 +866,11 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                             }
                           },
                     child: saving
-                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('حفظ التغييرات'),
                   ),
                 ],
@@ -723,7 +888,8 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdminUser = widget.username == 'admin' || widget.userType.toLowerCase() == 'admin';
+    final isAdminUser =
+        widget.username == 'admin' || widget.userType.toLowerCase() == 'admin';
     final allKeys = AuthLocalStore.permissionEditorKeys;
 
     return Card(
@@ -740,20 +906,35 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text('@${widget.username}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        widget.displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '@${widget.username}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 if (widget.isCloudUser)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.blue),
                     ),
-                    child: const Text('سحابي', style: TextStyle(color: Colors.blue, fontSize: 11)),
+                    child: const Text(
+                      'سحابي',
+                      style: TextStyle(color: Colors.blue, fontSize: 11),
+                    ),
                   ),
                 const SizedBox(width: 6),
                 Chip(
@@ -779,17 +960,33 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Chip(label: Text(widget.userType.isEmpty ? 'مستخدم' : _typeLabel(widget.userType))),
+                Chip(
+                  label: Text(
+                    widget.userType.isEmpty
+                        ? 'مستخدم'
+                        : _typeLabel(widget.userType),
+                  ),
+                ),
                 if (widget.isFixedAccount)
-                  const Padding(padding: EdgeInsets.only(right: 8), child: Icon(Icons.lock, size: 16)),
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: Icon(Icons.lock, size: 16),
+                  ),
                 // زر التعديل للمستخدمين غير الثابتين
                 if (!widget.isFixedAccount)
-                  IconButton(icon: const Icon(Icons.edit, size: 20), tooltip: 'تعديل', onPressed: _openEditDialog),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    tooltip: 'تعديل',
+                    onPressed: _openEditDialog,
+                  ),
               ],
             ),
             const SizedBox(height: 8),
             if (_loading || _savingPermissions)
-              const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator())
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: CircularProgressIndicator(),
+              )
             else ...[
               PermissionMatrixEditor(
                 selected: isAdminUser ? allKeys.toSet() : _perms.toSet(),
@@ -808,7 +1005,9 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
-                    onPressed: _savingPermissions ? null : () => _savePermissions(const <String>[]),
+                    onPressed: _savingPermissions
+                        ? null
+                        : () => _savePermissions(const <String>[]),
                     icon: const Icon(Icons.clear),
                     label: const Text('إزالة جميع الصلاحيات'),
                   ),

@@ -26,7 +26,8 @@ class FormInput extends StatelessWidget {
       keyboardType: keyboardType,
       inputFormatters:
           inputFormatters ??
-          ((keyboardType == TextInputType.number || keyboardType == TextInputType.phone)
+          ((keyboardType == TextInputType.number ||
+                  keyboardType == TextInputType.phone)
               ? const [englishIntegerInputFormatter]
               : null),
       decoration: InputDecoration(labelText: label),

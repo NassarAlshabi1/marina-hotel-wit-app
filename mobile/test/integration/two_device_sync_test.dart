@@ -99,7 +99,12 @@ class CloudStore {
   }
 }
 
-Future<int> simulatePush(AppDatabase db, OutboxDao outboxDao, CloudStore cloud, String deviceLabel) async {
+Future<int> simulatePush(
+  AppDatabase db,
+  OutboxDao outboxDao,
+  CloudStore cloud,
+  String deviceLabel,
+) async {
   int count = 0;
   while (true) {
     final entries = await outboxDao.takeBatch(50, sources: const ['local']);
@@ -129,7 +134,11 @@ Future<int> simulatePush(AppDatabase db, OutboxDao outboxDao, CloudStore cloud, 
   return count;
 }
 
-Future<int> simulatePull(AppDatabase db, OutboxDao outboxDao, CloudStore cloud) async {
+Future<int> simulatePull(
+  AppDatabase db,
+  OutboxDao outboxDao,
+  CloudStore cloud,
+) async {
   int count = 0;
 
   for (final entity in ['rooms', 'bookings']) {
@@ -140,7 +149,9 @@ Future<int> simulatePull(AppDatabase db, OutboxDao outboxDao, CloudStore cloud) 
 
       if (entity == 'rooms') {
         final localUuid = doc['localUuid'] as String? ?? 'cloud-${serverId}r';
-        final existing = await (db.select(db.rooms)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        final existing = await (db.select(
+          db.rooms,
+        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
         final now = _epoch();
 
         if (existing == null) {
@@ -148,7 +159,9 @@ Future<int> simulatePull(AppDatabase db, OutboxDao outboxDao, CloudStore cloud) 
               .into(db.rooms)
               .insert(
                 RoomsCompanion(
-                  roomNumber: _v(doc['roomNumber'] as String? ?? 'CLOUD-$serverId'),
+                  roomNumber: _v(
+                    doc['roomNumber'] as String? ?? 'CLOUD-$serverId',
+                  ),
                   localUuid: _v(localUuid),
                   type: _v(doc['type'] as String? ?? 'single'),
                   price: _v((doc['price'] as num?)?.toDouble() ?? 100),
@@ -162,7 +175,9 @@ Future<int> simulatePull(AppDatabase db, OutboxDao outboxDao, CloudStore cloud) 
               );
           count++;
         } else {
-          await (db.update(db.rooms)..where((t) => t.id.equals(existing.id))).write(
+          await (db.update(
+            db.rooms,
+          )..where((t) => t.id.equals(existing.id))).write(
             RoomsCompanion(
               type: _v(doc['type'] as String? ?? existing.type),
               price: _v((doc['price'] as num?)?.toDouble() ?? existing.price),
@@ -175,7 +190,9 @@ Future<int> simulatePull(AppDatabase db, OutboxDao outboxDao, CloudStore cloud) 
         }
       } else if (entity == 'bookings') {
         final localUuid = doc['localUuid'] as String? ?? 'cloud-${serverId}b';
-        final existing = await (db.select(db.bookings)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+        final existing = await (db.select(
+          db.bookings,
+        )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
         final now = _epoch();
 
         if (existing == null) {
@@ -202,7 +219,9 @@ Future<int> simulatePull(AppDatabase db, OutboxDao outboxDao, CloudStore cloud) 
               );
           count++;
         } else {
-          await (db.update(db.bookings)..where((t) => t.id.equals(existing.id))).write(
+          await (db.update(
+            db.bookings,
+          )..where((t) => t.id.equals(existing.id))).write(
             BookingsCompanion(
               guestName: _v(doc['guestName'] as String? ?? existing.guestName),
               origin: const d.Value('server'),
@@ -242,12 +261,21 @@ void main() {
   group('جهازين — مزامنة أساسية', () {
     test('الجهاز A يُنشئ غرفة ← push ← الجهاز B يسحبها', () async {
       final roomUuid = 'room-a-001';
-      await dbA.into(dbA.rooms).insert(_room(number: '101', uuid: roomUuid, type: 'double', price: 200));
+      await dbA
+          .into(dbA.rooms)
+          .insert(
+            _room(number: '101', uuid: roomUuid, type: 'double', price: 200),
+          );
       await outboxA.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: roomUuid,
-        payload: {'roomNumber': '101', 'type': 'double', 'price': 200, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '101',
+          'type': 'double',
+          'price': 200,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
@@ -269,13 +297,26 @@ void main() {
     test('الجهاز A يُنشئ حجزاً ← push ← B يسحب ← B يُعدّل الغرفة', () async {
       final roomUuid = 'room-a-002';
       final bkgUuid = 'bkg-a-002';
-      await dbA.into(dbA.rooms).insert(_room(number: '102', uuid: roomUuid, type: 'single', price: 150));
-      await dbA.into(dbA.bookings).insert(_booking(uuid: bkgUuid, roomNumber: '102', guestName: 'ضيف A'));
+      await dbA
+          .into(dbA.rooms)
+          .insert(
+            _room(number: '102', uuid: roomUuid, type: 'single', price: 150),
+          );
+      await dbA
+          .into(dbA.bookings)
+          .insert(
+            _booking(uuid: bkgUuid, roomNumber: '102', guestName: 'ضيف A'),
+          );
       await outboxA.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: roomUuid,
-        payload: {'roomNumber': '102', 'type': 'single', 'price': 150, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '102',
+          'type': 'single',
+          'price': 150,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
@@ -292,15 +333,25 @@ void main() {
       await simulatePull(dbB, outboxB, cloud);
       expect(await dbB.select(dbB.bookings).get().then((b) => b.length), 1);
 
-      final roomB = await (dbB.select(dbB.rooms)..where((t) => t.roomNumber.equals('102'))).getSingle();
+      final roomB = await (dbB.select(
+        dbB.rooms,
+      )..where((t) => t.roomNumber.equals('102'))).getSingle();
       await (dbB.update(dbB.rooms)..where((t) => t.id.equals(roomB.id))).write(
-        RoomsCompanion(price: const d.Value(250), lastModified: d.Value(_epoch() + 100)),
+        RoomsCompanion(
+          price: const d.Value(250),
+          lastModified: d.Value(_epoch() + 100),
+        ),
       );
       await outboxB.merge(
         entity: 'rooms',
         op: 'update',
         localUuid: roomB.localUuid,
-        payload: {'roomNumber': '102', 'type': 'single', 'price': 250, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '102',
+          'type': 'single',
+          'price': 250,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch() + 100,
         source: 'local',
       );
@@ -311,21 +362,49 @@ void main() {
     });
 
     test('الجهازان ينشئان غرفاً بدون تعارض', () async {
-      await dbA.into(dbA.rooms).insert(_room(number: '201', uuid: 'room-indep-a', type: 'double', price: 300));
+      await dbA
+          .into(dbA.rooms)
+          .insert(
+            _room(
+              number: '201',
+              uuid: 'room-indep-a',
+              type: 'double',
+              price: 300,
+            ),
+          );
       await outboxA.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: 'room-indep-a',
-        payload: {'roomNumber': '201', 'type': 'double', 'price': 300, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '201',
+          'type': 'double',
+          'price': 300,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
-      await dbB.into(dbB.rooms).insert(_room(number: '202', uuid: 'room-indep-b', type: 'suite', price: 500));
+      await dbB
+          .into(dbB.rooms)
+          .insert(
+            _room(
+              number: '202',
+              uuid: 'room-indep-b',
+              type: 'suite',
+              price: 500,
+            ),
+          );
       await outboxB.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: 'room-indep-b',
-        payload: {'roomNumber': '202', 'type': 'suite', 'price': 500, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '202',
+          'type': 'suite',
+          'price': 500,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
@@ -344,27 +423,46 @@ void main() {
   group('جهازين — كشف التعارضات وحلّها', () {
     test('تعديل سعر الغرفة — push from B wins (newerWins)', () async {
       final roomUuid = 'room-conflict-price';
-      await dbA.into(dbA.rooms).insert(_room(number: '301', uuid: roomUuid, type: 'single', price: 100));
+      await dbA
+          .into(dbA.rooms)
+          .insert(
+            _room(number: '301', uuid: roomUuid, type: 'single', price: 100),
+          );
       await outboxA.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: roomUuid,
-        payload: {'roomNumber': '301', 'type': 'single', 'price': 100, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '301',
+          'type': 'single',
+          'price': 100,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
       await simulatePush(dbA, outboxA, cloud, 'DeviceA');
       await simulatePull(dbB, outboxB, cloud);
 
-      final roomB = await (dbB.select(dbB.rooms)..where((t) => t.localUuid.equals(roomUuid))).getSingle();
+      final roomB = await (dbB.select(
+        dbB.rooms,
+      )..where((t) => t.localUuid.equals(roomUuid))).getSingle();
       await (dbB.update(dbB.rooms)..where((t) => t.id.equals(roomB.id))).write(
-        RoomsCompanion(price: const d.Value(350), lastModified: d.Value(_epoch() + 2000)),
+        RoomsCompanion(
+          price: const d.Value(350),
+          lastModified: d.Value(_epoch() + 2000),
+        ),
       );
       await outboxB.merge(
         entity: 'rooms',
         op: 'update',
         localUuid: roomUuid,
-        payload: {'roomNumber': '301', 'type': 'single', 'price': 350, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '301',
+          'type': 'single',
+          'price': 350,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch() + 2000,
         source: 'local',
       );
@@ -373,7 +471,9 @@ void main() {
       expect(cloud.getAll('rooms').first['price'], 350);
 
       await simulatePull(dbA, outboxA, cloud);
-      final roomAFinal = await (dbA.select(dbA.rooms)..where((t) => t.localUuid.equals(roomUuid))).getSingle();
+      final roomAFinal = await (dbA.select(
+        dbA.rooms,
+      )..where((t) => t.localUuid.equals(roomUuid))).getSingle();
       expect(roomAFinal.price, 350);
     });
 
@@ -381,27 +481,50 @@ void main() {
       final roomUuid = 'room-merge-fields';
       await dbA
           .into(dbA.rooms)
-          .insert(_room(number: '401', uuid: roomUuid, type: 'single', price: 100, status: 'شاغرة'));
+          .insert(
+            _room(
+              number: '401',
+              uuid: roomUuid,
+              type: 'single',
+              price: 100,
+              status: 'شاغرة',
+            ),
+          );
       await outboxA.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: roomUuid,
-        payload: {'roomNumber': '401', 'type': 'single', 'price': 100, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '401',
+          'type': 'single',
+          'price': 100,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
       await simulatePush(dbA, outboxA, cloud, 'DeviceA');
       await simulatePull(dbB, outboxB, cloud);
 
-      final roomB = await (dbB.select(dbB.rooms)..where((t) => t.localUuid.equals(roomUuid))).getSingle();
+      final roomB = await (dbB.select(
+        dbB.rooms,
+      )..where((t) => t.localUuid.equals(roomUuid))).getSingle();
       await (dbB.update(dbB.rooms)..where((t) => t.id.equals(roomB.id))).write(
-        RoomsCompanion(status: const d.Value('مشغولة'), lastModified: d.Value(_epoch() + 2000)),
+        RoomsCompanion(
+          status: const d.Value('مشغولة'),
+          lastModified: d.Value(_epoch() + 2000),
+        ),
       );
       await outboxB.merge(
         entity: 'rooms',
         op: 'update',
         localUuid: roomUuid,
-        payload: {'roomNumber': '401', 'type': 'single', 'price': 100, 'status': 'مشغولة'},
+        payload: {
+          'roomNumber': '401',
+          'type': 'single',
+          'price': 100,
+          'status': 'مشغولة',
+        },
         clientTs: _epoch() + 2000,
         source: 'local',
       );
@@ -409,7 +532,9 @@ void main() {
       await simulatePush(dbB, outboxB, cloud, 'DeviceB');
       await simulatePull(dbA, outboxA, cloud);
 
-      final roomA = await (dbA.select(dbA.rooms)..where((t) => t.localUuid.equals(roomUuid))).getSingle();
+      final roomA = await (dbA.select(
+        dbA.rooms,
+      )..where((t) => t.localUuid.equals(roomUuid))).getSingle();
       expect(roomA.status, 'مشغولة');
     });
 
@@ -439,7 +564,11 @@ void main() {
         'lastModified': 2500,
       };
 
-      final result = ConflictDetector.detect(localData: local, remoteData: remote, commonAncestor: ancestor);
+      final result = ConflictDetector.detect(
+        localData: local,
+        remoteData: remote,
+        commonAncestor: ancestor,
+      );
 
       expect(result.type, equals(ConflictType.concurrentSameFields));
       expect(result.conflictingFields, contains('price'));
@@ -485,16 +614,29 @@ void main() {
       final roomUuid = 'room-full-cycle';
       final bkgUuid = 'bkg-full-cycle';
 
-      await dbA.into(dbA.rooms).insert(_room(number: '701', uuid: roomUuid, type: 'suite', price: 400));
+      await dbA
+          .into(dbA.rooms)
+          .insert(
+            _room(number: '701', uuid: roomUuid, type: 'suite', price: 400),
+          );
       await outboxA.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: roomUuid,
-        payload: {'roomNumber': '701', 'type': 'suite', 'price': 400, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '701',
+          'type': 'suite',
+          'price': 400,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
-      await dbA.into(dbA.bookings).insert(_booking(uuid: bkgUuid, roomNumber: '701', guestName: 'ضيف كامل'));
+      await dbA
+          .into(dbA.bookings)
+          .insert(
+            _booking(uuid: bkgUuid, roomNumber: '701', guestName: 'ضيف كامل'),
+          );
       await outboxA.merge(
         entity: 'bookings',
         op: 'create',
@@ -512,12 +654,26 @@ void main() {
       expect(await dbB.select(dbB.rooms).get().then((r) => r.length), 1);
       expect(await dbB.select(dbB.bookings).get().then((b) => b.length), 1);
 
-      await dbB.into(dbB.rooms).insert(_room(number: '702', uuid: 'room-b-full', type: 'double', price: 300));
+      await dbB
+          .into(dbB.rooms)
+          .insert(
+            _room(
+              number: '702',
+              uuid: 'room-b-full',
+              type: 'double',
+              price: 300,
+            ),
+          );
       await outboxB.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: 'room-b-full',
-        payload: {'roomNumber': '702', 'type': 'double', 'price': 300, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '702',
+          'type': 'double',
+          'price': 300,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
@@ -532,12 +688,21 @@ void main() {
   group('جهازين — حالات حافة', () {
     test('حذف من A — السحابة تعكس الحذف', () async {
       final roomUuid = 'room-del-upd';
-      await dbA.into(dbA.rooms).insert(_room(number: '801', uuid: roomUuid, type: 'single', price: 100));
+      await dbA
+          .into(dbA.rooms)
+          .insert(
+            _room(number: '801', uuid: roomUuid, type: 'single', price: 100),
+          );
       await outboxA.merge(
         entity: 'rooms',
         op: 'create',
         localUuid: roomUuid,
-        payload: {'roomNumber': '801', 'type': 'single', 'price': 100, 'status': 'شاغرة'},
+        payload: {
+          'roomNumber': '801',
+          'type': 'single',
+          'price': 100,
+          'status': 'شاغرة',
+        },
         clientTs: _epoch(),
         source: 'local',
       );
@@ -556,11 +721,25 @@ void main() {
     });
 
     test('ConflictDetector يكتشف deleteVsUpdate', () async {
-      final ancestor = {'vectorClock': '{}', 'deletedAt': null, 'price': 100, 'status': 'شاغرة'};
+      final ancestor = {
+        'vectorClock': '{}',
+        'deletedAt': null,
+        'price': 100,
+        'status': 'شاغرة',
+      };
       final local = {'vectorClock': '{}', 'deletedAt': 99999};
-      final remote = {'vectorClock': '{}', 'deletedAt': null, 'price': 500, 'status': 'مشغولة'};
+      final remote = {
+        'vectorClock': '{}',
+        'deletedAt': null,
+        'price': 500,
+        'status': 'مشغولة',
+      };
 
-      final result = ConflictDetector.detect(localData: local, remoteData: remote, commonAncestor: ancestor);
+      final result = ConflictDetector.detect(
+        localData: local,
+        remoteData: remote,
+        commonAncestor: ancestor,
+      );
 
       expect(result.type, equals(ConflictType.deleteVsUpdate));
     });
@@ -571,7 +750,13 @@ void main() {
         final roomUuid = 'room-stress-$i';
         await dbA
             .into(dbA.rooms)
-            .insert(_room(number: '9${i.toString().padLeft(2, '0')}', uuid: roomUuid, price: 100.0 + i));
+            .insert(
+              _room(
+                number: '9${i.toString().padLeft(2, '0')}',
+                uuid: roomUuid,
+                price: 100.0 + i,
+              ),
+            );
         await outboxA.merge(
           entity: 'rooms',
           op: 'create',
@@ -598,9 +783,12 @@ void main() {
       final roomsB = await dbB.select(dbB.rooms).get();
       for (var i = 0; i < count; i++) {
         expect(
-          roomsB.where((r) => r.roomNumber == '9${i.toString().padLeft(2, '0')}').length,
+          roomsB
+              .where((r) => r.roomNumber == '9${i.toString().padLeft(2, '0')}')
+              .length,
           1,
-          reason: 'الغرفة 9${i.toString().padLeft(2, '0')} يجب أن تكون موجودة مرة واحدة',
+          reason:
+              'الغرفة 9${i.toString().padLeft(2, '0')} يجب أن تكون موجودة مرة واحدة',
         );
       }
     });

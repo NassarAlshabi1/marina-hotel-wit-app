@@ -19,7 +19,11 @@ class BlacklistAlertService {
   /// يعيد عنصر القائمة المطابق أو `null` عند عدم المطابقة/الفشل.
   /// فشل الإشعار نفسه لا يمنع إرجاع المطابقة (مفيد للاختبارات حيث قناة
   /// الإشعارات غير متاحة).
-  Future<BlacklistEntry?> notifyIfBlacklisted({required String guestName, int? bookingId, String? roomNumber}) async {
+  Future<BlacklistEntry?> notifyIfBlacklisted({
+    required String guestName,
+    int? bookingId,
+    String? roomNumber,
+  }) async {
     try {
       final match = await _repository.findBlacklistMatch(guestName);
       if (match == null) return null;

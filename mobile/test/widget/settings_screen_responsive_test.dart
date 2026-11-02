@@ -34,7 +34,9 @@ void main() {
     view?.resetDevicePixelRatio();
   });
 
-  testWidgets('لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول', (tester) async {
+  testWidgets('لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول', (
+    tester,
+  ) async {
     await pumpAtSize(tester, const Size(360, 800));
 
     expect(find.text('الوصول السريع'), findsNothing);
@@ -49,14 +51,34 @@ void main() {
   });
 
   testWidgets('يبقى التخطيط مستقراً على اللوحي وWindows', (tester) async {
-    for (final size in <Size>[const Size(800, 600), const Size(1366, 768), const Size(1920, 1080)]) {
+    for (final size in <Size>[
+      const Size(800, 600),
+      const Size(1366, 768),
+      const Size(1920, 1080),
+    ]) {
       await pumpAtSize(tester, size);
       expect(find.text('الوصول السريع'), findsNothing, reason: 'size=$size');
       expect(find.text('إدارة البيانات'), findsOneWidget, reason: 'size=$size');
-      expect(find.text('المزامنة والنسخ الاحتياطي'), findsOneWidget, reason: 'size=$size');
-      expect(find.text('الإشعارات والتقارير'), findsOneWidget, reason: 'size=$size');
-      expect(find.text('التطبيق والخدمات'), findsOneWidget, reason: 'size=$size');
-      expect(find.text('النسخ الاحتياطي والاستعادة'), findsOneWidget, reason: 'size=$size');
+      expect(
+        find.text('المزامنة والنسخ الاحتياطي'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
+      expect(
+        find.text('الإشعارات والتقارير'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
+      expect(
+        find.text('التطبيق والخدمات'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
+      expect(
+        find.text('النسخ الاحتياطي والاستعادة'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
       expect(find.text('Appwrite'), findsOneWidget, reason: 'size=$size');
       expect(tester.takeException(), isNull, reason: 'size=$size');
     }

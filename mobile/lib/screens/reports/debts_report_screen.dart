@@ -19,7 +19,8 @@ class DebtsReportScreen extends ConsumerStatefulWidget {
   ConsumerState<DebtsReportScreen> createState() => _DebtsReportScreenState();
 }
 
-class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfExportGuardMixin {
+class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen>
+    with PdfExportGuardMixin {
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
 
@@ -97,29 +98,40 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
         totalDebt += debt.totalAmount;
         totalPaid += debt.paidAmount;
         totalRemaining += debt.remainingAmount;
-        final guestEntry = guestMap.putIfAbsent(debt.guestName, () => _GuestDebtSummary(guestName: debt.guestName));
+        final guestEntry = guestMap.putIfAbsent(
+          debt.guestName,
+          () => _GuestDebtSummary(guestName: debt.guestName),
+        );
         guestEntry.totalAmount += debt.totalAmount;
         guestEntry.paidAmount += debt.paidAmount;
         guestEntry.remainingAmount += debt.remainingAmount;
         final date = _parseDateTime(debt.paymentDate);
         if (date == null) continue;
-        final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+        final monthKey =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}';
         final monthEntry = monthlyMap.putIfAbsent(
           monthKey,
-          () => _MonthlyDebtSummary(label: monthKey, month: DateTime(date.year, date.month)),
+          () => _MonthlyDebtSummary(
+            label: monthKey,
+            month: DateTime(date.year, date.month),
+          ),
         );
         monthEntry.totalAmount += debt.totalAmount;
         monthEntry.paidAmount += debt.paidAmount;
         monthEntry.remainingAmount += debt.remainingAmount;
       }
-      final guestSummaries = guestMap.values.toList()..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
-      final monthlySummaries = monthlyMap.values.toList()..sort((a, b) => a.month.compareTo(b.month));
+      final guestSummaries = guestMap.values.toList()
+        ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
+      final monthlySummaries = monthlyMap.values.toList()
+        ..sort((a, b) => a.month.compareTo(b.month));
       // جلب بيانات الحجوزات لحساب سعر الغرفة لكل دين
       final bookingsQuery = db.select(db.bookings);
       final allBookings = await bookingsQuery.get();
       _roomPriceMap.clear();
       for (final booking in allBookings) {
-        final price = booking.totalNightsCached > 0 ? booking.totalDueCached / booking.totalNightsCached : 0.0;
+        final price = booking.totalNightsCached > 0
+            ? booking.totalDueCached / booking.totalNightsCached
+            : 0.0;
         _roomPriceMap[booking.id] = price;
       }
 
@@ -172,7 +184,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
           final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
           return DebtsReportDetailRow(
             guestName: debt.guestName,
-            recordedDate: Time.safeIsoToDateString(debt.dateRecorded.isNotEmpty ? debt.dateRecorded : debt.paymentDate),
+            recordedDate: Time.safeIsoToDateString(
+              debt.dateRecorded.isNotEmpty
+                  ? debt.dateRecorded
+                  : debt.paymentDate,
+            ),
             roomPrice: roomPrice,
             totalAmount: debt.totalAmount,
             paidAmount: debt.paidAmount,
@@ -200,9 +216,14 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
         IconButton(
           icon: const Icon(Icons.picture_as_pdf),
           tooltip: 'تصدير PDF',
-          onPressed: _rows.isEmpty || _loading || isPdfExporting ? null : _exportPdf,
+          onPressed: _rows.isEmpty || _loading || isPdfExporting
+              ? null
+              : _exportPdf,
         ),
-        IconButton(onPressed: _loading ? null : _fetchReport, icon: const Icon(Icons.refresh)),
+        IconButton(
+          onPressed: _loading ? null : _fetchReport,
+          icon: const Icon(Icons.refresh),
+        ),
       ],
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -226,7 +247,10 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
               children: [
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     textStyle: const TextStyle(fontSize: 11),
                   ),
                   onPressed: _loading ? null : _fetchReport,
@@ -247,7 +271,13 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
                       message: 'لم يتم العثور على ديون ضمن النطاق المحدد.',
                       icon: Icons.assessment_outlined,
                     )
-                  : ListView(children: [_buildGuestsTable(), const SizedBox(height: 10), _buildDebtsTable()]),
+                  : ListView(
+                      children: [
+                        _buildGuestsTable(),
+                        const SizedBox(height: 10),
+                        _buildDebtsTable(),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -263,13 +293,37 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         child: Row(
           children: [
-            Expanded(child: _buildSummaryChip('إجمالي الديون', _currencyFormat.format(_totalDebt), Colors.red)),
+            Expanded(
+              child: _buildSummaryChip(
+                'إجمالي الديون',
+                _currencyFormat.format(_totalDebt),
+                Colors.red,
+              ),
+            ),
             Container(width: 1, height: 22, color: Colors.grey.shade200),
-            Expanded(child: _buildSummaryChip('المدفوعة', _currencyFormat.format(_totalPaid), Colors.green)),
+            Expanded(
+              child: _buildSummaryChip(
+                'المدفوعة',
+                _currencyFormat.format(_totalPaid),
+                Colors.green,
+              ),
+            ),
             Container(width: 1, height: 22, color: Colors.grey.shade200),
-            Expanded(child: _buildSummaryChip('المتبقية', _currencyFormat.format(_totalRemaining), Colors.orange)),
+            Expanded(
+              child: _buildSummaryChip(
+                'المتبقية',
+                _currencyFormat.format(_totalRemaining),
+                Colors.orange,
+              ),
+            ),
             Container(width: 1, height: 22, color: Colors.grey.shade200),
-            Expanded(child: _buildSummaryChip('سجلات', _rows.length.toString(), Colors.blue)),
+            Expanded(
+              child: _buildSummaryChip(
+                'سجلات',
+                _rows.length.toString(),
+                Colors.blue,
+              ),
+            ),
           ],
         ),
       ),
@@ -281,7 +335,11 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
       children: [
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: color),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+            color: color,
+          ),
         ),
         const SizedBox(height: 1),
         Text(label, style: const TextStyle(fontSize: 8, color: Colors.grey)),
@@ -298,11 +356,20 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
             .map(
               (guest) => [
                 Text(guest.guestName, style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(guest.totalAmount), style: const TextStyle(fontSize: 10)),
-                Text(_currencyFormat.format(guest.paidAmount), style: const TextStyle(fontSize: 10)),
+                Text(
+                  _currencyFormat.format(guest.totalAmount),
+                  style: const TextStyle(fontSize: 10),
+                ),
+                Text(
+                  _currencyFormat.format(guest.paidAmount),
+                  style: const TextStyle(fontSize: 10),
+                ),
                 Text(
                   _currencyFormat.format(guest.remainingAmount),
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             )
@@ -334,21 +401,54 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
           final roomPrice = _roomPriceMap[debt.bookingLocalId] ?? 0.0;
           return [
             Text(debt.guestName, style: const TextStyle(fontSize: 9)),
-            Text(_formatDisplayDate(debt.dateRecorded), style: const TextStyle(fontSize: 9)),
-            Text(_formatTextFallback(debt.debtReason), style: const TextStyle(fontSize: 9)),
-            Text(Time.safeIsoToDateString(debt.checkinDate), style: const TextStyle(fontSize: 9)),
-            Text(Time.safeIsoToDateString(debt.checkoutDate), style: const TextStyle(fontSize: 9)),
-            Text(_currencyFormat.format(roomPrice), style: const TextStyle(fontSize: 9)),
-            Text(_currencyFormat.format(debt.totalAmount), style: const TextStyle(fontSize: 9)),
-            Text(_currencyFormat.format(debt.paidAmount), style: const TextStyle(fontSize: 9)),
+            Text(
+              _formatDisplayDate(debt.dateRecorded),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _formatTextFallback(debt.debtReason),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              Time.safeIsoToDateString(debt.checkinDate),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              Time.safeIsoToDateString(debt.checkoutDate),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _currencyFormat.format(roomPrice),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _currencyFormat.format(debt.totalAmount),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _currencyFormat.format(debt.paidAmount),
+              style: const TextStyle(fontSize: 9),
+            ),
             Text(
               _currencyFormat.format(debt.remainingAmount),
               style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
             ),
-            Text(Time.safeIsoToDateString(debt.paymentDate), style: const TextStyle(fontSize: 9)),
-            Text(_formatSettlement(debt.isSettled), style: const TextStyle(fontSize: 9)),
-            Text(debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-', style: const TextStyle(fontSize: 9)),
-            Text(debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-', style: const TextStyle(fontSize: 9)),
+            Text(
+              Time.safeIsoToDateString(debt.paymentDate),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              _formatSettlement(debt.isSettled),
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              debt.pledge?.isNotEmpty ?? false ? debt.pledge! : '-',
+              style: const TextStyle(fontSize: 9),
+            ),
+            Text(
+              debt.pledgeType?.isNotEmpty ?? false ? debt.pledgeType! : '-',
+              style: const TextStyle(fontSize: 9),
+            ),
           ];
         }).toList(),
       ),
@@ -360,7 +460,9 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> with PdfE
   /// مما يُدخل سجلات فاسدة في ملخصات 1970 ويُفسد المجاميع الشهرية
   DateTime? _parseDateTime(String value) {
     if (value.isEmpty) return null;
-    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {

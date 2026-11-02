@@ -138,12 +138,36 @@ class DebtsReportPdf {
             title: 'تفاصيل التقرير',
             fonts: fonts,
             content: [
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'التقرير', value: 'الديون'),
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'الفترة', value: 'من $fromLabel إلى $toLabel'),
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'عدد السجلات', value: data.recordCount.toString()),
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'عدد النزلاء', value: data.guestCount.toString()),
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'مسدد', value: '${data.settledCount} سجل'),
-              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'غير مسدد', value: '${data.unsettledCount} سجل'),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'التقرير',
+                value: 'الديون',
+              ),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'الفترة',
+                value: 'من $fromLabel إلى $toLabel',
+              ),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'عدد السجلات',
+                value: data.recordCount.toString(),
+              ),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'عدد النزلاء',
+                value: data.guestCount.toString(),
+              ),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'مسدد',
+                value: '${data.settledCount} سجل',
+              ),
+              EnhancedPdfUtils.buildKeyValueRow(
+                fonts: fonts,
+                label: 'غير مسدد',
+                value: '${data.unsettledCount} سجل',
+              ),
             ],
           );
 
@@ -151,7 +175,12 @@ class DebtsReportPdf {
           final guestColWidths = [140.0, 100.0, 100.0, 100.0];
           final guestData = data.guestSummaries
               .map(
-                (guest) => [guest.guestName, fmt(guest.totalAmount), fmt(guest.paidAmount), fmt(guest.remainingAmount)],
+                (guest) => [
+                  guest.guestName,
+                  fmt(guest.totalAmount),
+                  fmt(guest.paidAmount),
+                  fmt(guest.remainingAmount),
+                ],
               )
               .toList();
 
@@ -160,7 +189,10 @@ class DebtsReportPdf {
             fonts: fonts,
             content: [
               if (guestData.isEmpty)
-                pw.Text('لا توجد بيانات', style: pw.TextStyle(font: fonts.regular, fontSize: 11))
+                pw.Text(
+                  'لا توجد بيانات',
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+                )
               else
                 EnhancedPdfUtils.buildProfessionalTable(
                   headers: guestHeaders,
@@ -184,7 +216,17 @@ class DebtsReportPdf {
             'السبب',
             'الحالة',
           ];
-          final detailColWidths = [25.0, 80.0, 60.0, 55.0, 60.0, 60.0, 60.0, 75.0, 55.0];
+          final detailColWidths = [
+            25.0,
+            80.0,
+            60.0,
+            55.0,
+            60.0,
+            60.0,
+            60.0,
+            75.0,
+            55.0,
+          ];
           final detailData = <List<String>>[];
           for (var i = 0; i < data.detailRows.length; i++) {
             final row = data.detailRows[i];
@@ -223,7 +265,10 @@ class DebtsReportPdf {
             pw.SizedBox(height: 12),
             totalsCard,
             pw.SizedBox(height: 16),
-            pw.Text('تفاصيل السجلات', style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
+            pw.Text(
+              'تفاصيل السجلات',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14),
+            ),
             pw.SizedBox(height: 8),
             ...EnhancedPdfUtils.buildChunkedTable(
               headers: detailHeaders,
@@ -239,7 +284,11 @@ class DebtsReportPdf {
   }
 
   /// بطاقة الإجماليات الثلاثة (ديون/مدفوع/متبقي).
-  static pw.Widget _buildTotalsCard(ArabicPdfFonts fonts, DebtsReportData data, String Function(double) fmt) {
+  static pw.Widget _buildTotalsCard(
+    ArabicPdfFonts fonts,
+    DebtsReportData data,
+    String Function(double) fmt,
+  ) {
     pw.Widget buildTotalLine(String title, String value, PdfColor color) {
       return pw.Padding(
         padding: const pw.EdgeInsets.symmetric(vertical: 4),
@@ -269,11 +318,19 @@ class DebtsReportPdf {
       ),
       child: pw.Column(
         children: [
-          buildTotalLine('إجمالي الديون', fmt(data.totalDebt), PdfColors.danger),
+          buildTotalLine(
+            'إجمالي الديون',
+            fmt(data.totalDebt),
+            PdfColors.danger,
+          ),
           pw.Divider(color: PdfColors.textLight),
           buildTotalLine('المدفوع', fmt(data.totalPaid), PdfColors.success),
           pw.Divider(color: PdfColors.textLight),
-          buildTotalLine('المتبقي', fmt(data.totalRemaining), PdfColors.warning),
+          buildTotalLine(
+            'المتبقي',
+            fmt(data.totalRemaining),
+            PdfColors.warning,
+          ),
         ],
       ),
     );

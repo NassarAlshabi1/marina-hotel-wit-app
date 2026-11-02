@@ -22,7 +22,9 @@ class SafeDatabaseOperations {
         dlog(() => '⏸️ Operation $opName paused: database is being restored');
         await Future<void>.delayed(const Duration(milliseconds: 100));
         if (DatabaseManager.isRestoring) {
-          throw StateError('Database is being restored. Please try again later.');
+          throw StateError(
+            'Database is being restored. Please try again later.',
+          );
         }
       }
 
@@ -30,7 +32,9 @@ class SafeDatabaseOperations {
         throw StateError('Database is not initialized. Cannot perform $opName');
       }
 
-      final isHealthy = await _healthChecker.ensureHealthy(timeout: const Duration(seconds: 3));
+      final isHealthy = await _healthChecker.ensureHealthy(
+        timeout: const Duration(seconds: 3),
+      );
       if (!isHealthy) {
         throw StateError('Database health check failed for $opName');
       }
@@ -131,12 +135,17 @@ class SafeDatabaseOperations {
           }
 
           if (!DatabaseManager.isInitialized) {
-            dlog(() => '⚠️ Database not initialized for $opName. Attempting to initialize...');
+            dlog(
+              () =>
+                  '⚠️ Database not initialized for $opName. Attempting to initialize...',
+            );
             try {
               // محاولة الحصول على instance لتهيئة قاعدة البيانات
               final _ = DatabaseManager.instance;
             } catch (e) {
-              controller.addError(StateError('Failed to initialize database for $opName: $e'));
+              controller.addError(
+                StateError('Failed to initialize database for $opName: $e'),
+              );
               controller.close();
               return;
             }
@@ -157,13 +166,18 @@ class SafeDatabaseOperations {
                   errorStr.contains('isolate channel') ||
                   errorStr.contains('Can\'t re-open a database') ||
                   errorStr.contains('DatabaseManager has been closed')) {
-                dlog(() => '⚠️ Database stream error: $error. Attempting to recover...');
+                dlog(
+                  () =>
+                      '⚠️ Database stream error: $error. Attempting to recover...',
+                );
 
                 subscription?.cancel();
 
                 // التحقق من حالة الاستعادة قبل المحاولة
                 if (DatabaseManager.isRestoring) {
-                  dlog('⏸️ Database is being restored, will retry after restore completes');
+                  dlog(
+                    '⏸️ Database is being restored, will retry after restore completes',
+                  );
                   Future<void>.delayed(const Duration(seconds: 1), () {
                     if (!isClosed && !DatabaseManager.isRestoring) {
                       setupStream();
@@ -172,18 +186,21 @@ class SafeDatabaseOperations {
                   return;
                 }
 
-                Future<void>.delayed(const Duration(milliseconds: 500), () async {
-                  try {
-                    dlog('🔄 Attempting to reopen database for stream...');
-                    await DatabaseManager.reopen();
-                    dlog('✅ Database reopened. Recreating stream...');
-                    setupStream();
-                  } catch (e) {
-                    if (!isClosed) {
-                      controller.addError(e, stackTrace);
+                Future<void>.delayed(
+                  const Duration(milliseconds: 500),
+                  () async {
+                    try {
+                      dlog('🔄 Attempting to reopen database for stream...');
+                      await DatabaseManager.reopen();
+                      dlog('✅ Database reopened. Recreating stream...');
+                      setupStream();
+                    } catch (e) {
+                      if (!isClosed) {
+                        controller.addError(e, stackTrace);
+                      }
                     }
-                  }
-                });
+                  },
+                );
               } else {
                 if (!isClosed) {
                   controller.addError(error, stackTrace);

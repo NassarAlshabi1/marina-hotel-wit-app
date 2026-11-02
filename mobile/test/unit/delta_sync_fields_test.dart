@@ -26,7 +26,11 @@ void main() {
 
     setUp(() {
       db = TestDatabase.create();
-      pull = SyncPullService(appwriteService: AppwriteService(), database: db, outboxDao: OutboxDao(db));
+      pull = SyncPullService(
+        appwriteService: AppwriteService(),
+        database: db,
+        outboxDao: OutboxDao(db),
+      );
     });
 
     tearDown(() => db.close());
@@ -51,34 +55,43 @@ void main() {
       expect(q.first, contains('greaterThan'));
     });
 
-    test('تقدّم المؤشر لا يفقد السجلات: cutoff أقدم بـ 300s من lastPullTs', () async {
-      // ✅ Sync Safety Wave 2 (2026-08-12): full_sync_complete يجب أن = 1
-      await pull.markFullSyncComplete();
+    test(
+      'تقدّم المؤشر لا يفقد السجلات: cutoff أقدم بـ 300s من lastPullTs',
+      () async {
+        // ✅ Sync Safety Wave 2 (2026-08-12): full_sync_complete يجب أن = 1
+        await pull.markFullSyncComplete();
 
-      const lastPull = 2000000000; // ~2033
-      final q = await pull.buildDeltaQueries(lastPull);
-      // cutoff ISO لـ (2000000000 - 300) ثانية.
-      final expectedCutoffIso = DateTime.fromMillisecondsSinceEpoch(
-        (lastPull - 300) * 1000,
-        isUtc: true,
-      ).toIso8601String();
-      expect(q.first, contains(expectedCutoffIso));
-    });
+        const lastPull = 2000000000; // ~2033
+        final q = await pull.buildDeltaQueries(lastPull);
+        // cutoff ISO لـ (2000000000 - 300) ثانية.
+        final expectedCutoffIso = DateTime.fromMillisecondsSinceEpoch(
+          (lastPull - 300) * 1000,
+          isUtc: true,
+        ).toIso8601String();
+        expect(q.first, contains(expectedCutoffIso));
+      },
+    );
 
-    test('✅ Wave2: buildDeltaQueries تُرجع [] عندما full_sync_complete = 0', () async {
-      // لا نستدعي markFullSyncComplete — full_sync_complete = 0 افتراضياً
-      final q = await pull.buildDeltaQueries(1000);
-      expect(
-        q,
-        isEmpty,
-        reason:
-            'عندما full_sync_complete = 0، يجب إجبار full fetch '
-            'حتى لو lastPullTs > 0',
-      );
-    });
+    test(
+      '✅ Wave2: buildDeltaQueries تُرجع [] عندما full_sync_complete = 0',
+      () async {
+        // لا نستدعي markFullSyncComplete — full_sync_complete = 0 افتراضياً
+        final q = await pull.buildDeltaQueries(1000);
+        expect(
+          q,
+          isEmpty,
+          reason:
+              'عندما full_sync_complete = 0، يجب إجبار full fetch '
+              'حتى لو lastPullTs > 0',
+        );
+      },
+    );
 
     test('bookingNightsDeltaQueries يحاكي نفس منطق delta', () {
-      final q = pull.bookingNightsDeltaQueries(1000, remoteEpochIsMillis: false);
+      final q = pull.bookingNightsDeltaQueries(
+        1000,
+        remoteEpochIsMillis: false,
+      );
       expect(q, hasLength(1));
       expect(q.first, contains(r'$updatedAt'));
     });

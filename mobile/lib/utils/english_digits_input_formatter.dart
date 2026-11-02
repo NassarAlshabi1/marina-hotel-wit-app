@@ -41,7 +41,10 @@ class EnglishDigitsInputFormatter extends TextInputFormatter {
   }
 
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final normalized = normalize(newValue.text);
     final allowed = allowDecimal ? RegExp(r'[^0-9.]') : RegExp(r'[^0-9]');
     var filtered = normalized.replaceAll(allowed, '');
@@ -49,11 +52,15 @@ class EnglishDigitsInputFormatter extends TextInputFormatter {
     if (allowDecimal) {
       final firstDot = filtered.indexOf('.');
       if (firstDot >= 0) {
-        filtered = filtered.substring(0, firstDot + 1) + filtered.substring(firstDot + 1).replaceAll('.', '');
+        filtered =
+            filtered.substring(0, firstDot + 1) +
+            filtered.substring(firstDot + 1).replaceAll('.', '');
       }
     }
 
-    final selectionOffset = newValue.selection.baseOffset.clamp(0, filtered.length).toInt();
+    final selectionOffset = newValue.selection.baseOffset
+        .clamp(0, filtered.length)
+        .toInt();
     return TextEditingValue(
       text: filtered,
       selection: TextSelection.collapsed(offset: selectionOffset),

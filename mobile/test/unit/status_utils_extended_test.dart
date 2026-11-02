@@ -209,8 +209,14 @@ void main() {
     });
 
     test('يقبل قيم مخصصة', () {
-      expect(StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'), 'X');
-      expect(StatusUtils.roomStatusForOccupancy(false, fallbackAvailable: 'Y'), 'Y');
+      expect(
+        StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'),
+        'X',
+      );
+      expect(
+        StatusUtils.roomStatusForOccupancy(false, fallbackAvailable: 'Y'),
+        'Y',
+      );
     });
   });
 

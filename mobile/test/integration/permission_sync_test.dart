@@ -45,10 +45,15 @@ void main() {
       clientTs: firstTs + 1,
     );
 
-    final rows = await (db.select(db.outbox)..where((row) => row.entity.equals('app_users'))).get();
+    final rows = await (db.select(
+      db.outbox,
+    )..where((row) => row.entity.equals('app_users'))).get();
     expect(rows, hasLength(1));
     expect(rows.single.localUuid, docId);
-    expect(jsonDecode(rows.single.payload)['permissions'], jsonEncode(['inventory.view']));
+    expect(
+      jsonDecode(rows.single.payload)['permissions'],
+      jsonEncode(['inventory.view']),
+    );
     expect(await outbox.countPendingPushable(), 1);
   });
 

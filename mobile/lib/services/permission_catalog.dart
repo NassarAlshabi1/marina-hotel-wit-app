@@ -50,11 +50,16 @@ abstract final class PermissionCatalog {
 
   static List<String> get actionKeys => [for (final a in actions) a.key];
 
-  static List<String> keysForModule(String moduleKey) => [for (final a in actions) '$moduleKey.${a.key}'];
+  static List<String> keysForModule(String moduleKey) => [
+    for (final a in actions) '$moduleKey.${a.key}',
+  ];
 
   /// كل المفاتيح التي يعرضها محرر الصلاحيات: مفاتيح الوحدات القديمة
   /// (للتوافق) ثم المفاتيح الدقيقة لكل وحدة.
-  static List<String> get editorKeys => [...moduleKeys, for (final m in modules) ...keysForModule(m.key)];
+  static List<String> get editorKeys => [
+    ...moduleKeys,
+    for (final m in modules) ...keysForModule(m.key),
+  ];
 
   static String moduleLabel(String key) => switch (key) {
     'dashboard' => 'لوحة التحكم',

@@ -10,21 +10,33 @@ void main() {
     await $.pumpWidgetAndSettle(
       const ProviderScope(
         child: MaterialApp(
-          home: Directionality(textDirection: TextDirection.rtl, child: LoginScreen()),
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: LoginScreen(),
+          ),
         ),
       ),
     );
 
     await $(TextFormField).at(1).enterText('secret123');
-    expect($.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText, isTrue);
+    expect(
+      $.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
+      isTrue,
+    );
 
     await $(Icons.visibility).tap();
-    expect($.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText, isFalse);
+    expect(
+      $.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
+      isFalse,
+    );
     expect($('secret123'), findsOneWidget);
     expect($(Icons.visibility_off), findsOneWidget);
 
     await $(Icons.visibility_off).tap();
-    expect($.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText, isTrue);
+    expect(
+      $.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
+      isTrue,
+    );
     expect($(Icons.visibility), findsOneWidget);
   });
 }

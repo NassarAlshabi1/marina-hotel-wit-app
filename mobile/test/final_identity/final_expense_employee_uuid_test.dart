@@ -23,7 +23,9 @@ void main() {
       relatedId: 7,
       employeeUuid: 'EMP-UUID-1',
     );
-    final row = await (db.select(db.expenses)..where((e) => e.id.equals(id))).getSingle();
+    final row = await (db.select(
+      db.expenses,
+    )..where((e) => e.id.equals(id))).getSingle();
     expect(row.employeeUuid, 'EMP-UUID-1');
   });
 
@@ -36,7 +38,9 @@ void main() {
       relatedId: 999,
       employeeUuid: 'EMP-REAL',
     );
-    final row = await (db.select(db.expenses)..where((e) => e.id.equals(id))).getSingle();
+    final row = await (db.select(
+      db.expenses,
+    )..where((e) => e.id.equals(id))).getSingle();
     expect(row.relatedId, 999);
     expect(row.employeeUuid, 'EMP-REAL');
   });

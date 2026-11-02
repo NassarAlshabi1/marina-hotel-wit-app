@@ -31,7 +31,9 @@ class AppwriteConfig {
   // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
   // ✅ SECURITY: API key via --dart-define, NOT hardcoded.
   // Pass at build time: --dart-define=APPWRITE_API_KEY=standard_xxx
-  static const String defaultApiKey = String.fromEnvironment('APPWRITE_API_KEY');
+  static const String defaultApiKey = String.fromEnvironment(
+    'APPWRITE_API_KEY',
+  );
 
   // ═══════════════════════════════════════════════════════════════
   //  Messaging — Appwrite Messaging Provider ID
@@ -67,7 +69,8 @@ class AppwriteConfig {
 
   // جداول التدقيق المالي والتعديلات
   static const String priceAdjustmentsCollectionId = 'price_adjustments';
-  static const String bookingPriceAdjustmentsCollectionId = 'booking_price_adjustments';
+  static const String bookingPriceAdjustmentsCollectionId =
+      'booking_price_adjustments';
   static const String auditLogsCollectionId = 'audit_logs';
   static const String paymentVoidsCollectionId = 'payment_voids';
 
@@ -78,13 +81,15 @@ class AppwriteConfig {
   static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
 
   // جدول سجلات ترحيل الرواتب
-  static const String salaryCarryOverLogsCollectionId = 'salary_carry_over_logs';
+  static const String salaryCarryOverLogsCollectionId =
+      'salary_carry_over_logs';
 
   // جدول إعدادات التطبيق (واتساب، وغيرها)
   static const String appSettingsCollectionId = 'app_settings';
   static const String appUsersCollectionId = 'app_users';
   static const String inventoryItemsCollectionId = 'inventory_items';
-  static const String inventoryTransactionsCollectionId = 'inventory_transactions';
+  static const String inventoryTransactionsCollectionId =
+      'inventory_transactions';
 
   /// خرائط أسماء الكيانات إلى collection IDs.
   /// تستخدم لتحويل اسم الكيان في outbox (مثل 'bookings') إلى collection ID
@@ -140,7 +145,8 @@ class AppwriteConfig {
   static const int maxCacheSizeMB = 20;
   static const int maxRetries = 3;
   static const Duration initialRetryDelay = Duration(seconds: 2);
-  static const double retryBackoffMultiplier = 2.0; // Exponential backoff multiplier
+  static const double retryBackoffMultiplier =
+      2.0; // Exponential backoff multiplier
 
   // إعدادات Timeout
   static const Duration defaultTimeout = Duration(seconds: 30);

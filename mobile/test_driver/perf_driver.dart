@@ -44,17 +44,37 @@ Future<void> main() {
 
               // طباعة ملخص سريع
               print('');
-              print('═══════════════════════════════════════════════════════════');
+              print(
+                '═══════════════════════════════════════════════════════════',
+              );
               print('  📊 Timeline Summary: $key');
-              print('═══════════════════════════════════════════════════════════');
-              print('  Frame count:              ${summaryMap['frame_count'] ?? 'N/A'}');
-              print('  Avg frame build time:     ${summaryMap['average_frame_build_time_millis'] ?? 'N/A'} ms');
-              print('  Worst frame build time:   ${summaryMap['worst_frame_build_time_millis'] ?? 'N/A'} ms');
-              print('  Avg raster time:          ${summaryMap['average_frame_rasterizer_time_millis'] ?? 'N/A'} ms');
-              print('  Worst raster time:        ${summaryMap['worst_frame_rasterizer_time_millis'] ?? 'N/A'} ms');
-              print('  Missed build budget:      ${summaryMap['missed_frame_build_budget_count'] ?? 'N/A'}');
-              print('  Missed raster budget:     ${summaryMap['missed_frame_rasterizer_budget_count'] ?? 'N/A'}');
-              print('═══════════════════════════════════════════════════════════');
+              print(
+                '═══════════════════════════════════════════════════════════',
+              );
+              print(
+                '  Frame count:              ${summaryMap['frame_count'] ?? 'N/A'}',
+              );
+              print(
+                '  Avg frame build time:     ${summaryMap['average_frame_build_time_millis'] ?? 'N/A'} ms',
+              );
+              print(
+                '  Worst frame build time:   ${summaryMap['worst_frame_build_time_millis'] ?? 'N/A'} ms',
+              );
+              print(
+                '  Avg raster time:          ${summaryMap['average_frame_rasterizer_time_millis'] ?? 'N/A'} ms',
+              );
+              print(
+                '  Worst raster time:        ${summaryMap['worst_frame_rasterizer_time_millis'] ?? 'N/A'} ms',
+              );
+              print(
+                '  Missed build budget:      ${summaryMap['missed_frame_build_budget_count'] ?? 'N/A'}',
+              );
+              print(
+                '  Missed raster budget:     ${summaryMap['missed_frame_rasterizer_budget_count'] ?? 'N/A'}',
+              );
+              print(
+                '═══════════════════════════════════════════════════════════',
+              );
               print('');
             } catch (e) {
               print('⚠️ Failed to parse timeline for $key: $e');

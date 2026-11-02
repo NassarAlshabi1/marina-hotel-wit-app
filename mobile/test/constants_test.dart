@@ -40,8 +40,14 @@ void main() {
       expect(SystemSettingKeys.autoBackupEnabled, 'auto_backup_enabled');
       expect(SystemSettingKeys.autoBackupTime, 'auto_backup_time');
       expect(SystemSettingKeys.autoBackupFrequency, 'auto_backup_frequency');
-      expect(SystemSettingKeys.scheduledBackupEnabled, 'scheduled_backup_enabled');
-      expect(SystemSettingKeys.autoLocalBackupEnabled, 'auto_local_backup_enabled');
+      expect(
+        SystemSettingKeys.scheduledBackupEnabled,
+        'scheduled_backup_enabled',
+      );
+      expect(
+        SystemSettingKeys.autoLocalBackupEnabled,
+        'auto_local_backup_enabled',
+      );
       expect(SystemSettingKeys.smartSyncInterval, 'smart_sync_interval');
       expect(SystemSettingKeys.wifiOnlySync, 'wifi_only_sync');
     });

@@ -46,7 +46,10 @@ class GoogleDriveDeltaSync {
   static const fullBackupPrefix = 'marina_backup_full_';
   static const deltaSyncPrefix = 'marina_sync_delta_';
 
-  Future<void> initialize(GoogleDriveBackupService driveService, AppDatabase db) async {
+  Future<void> initialize(
+    GoogleDriveBackupService driveService,
+    AppDatabase db,
+  ) async {
     _driveService = driveService;
     _database = db;
     _adapterRegistry = AdapterRegistry.instance;
@@ -72,10 +75,14 @@ class GoogleDriveDeltaSync {
   /// Drive للنسخ الاحتياطي الكامل والاستعادة فقط. كل مسارات الدفع هنا
   /// تُصبح no-ops ناجحة كي يبقى أي مُستدعٍ قديم يعمل دون أخطاء.
   Future<DeltaSyncResult> pushDeltaChanges() async {
-    dlog(() => '⛔ Drive delta push معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط');
+    dlog(
+      () =>
+          '⛔ Drive delta push معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط',
+    );
     return DeltaSyncResult(
       success: true,
-      message: 'مزامنة Google Drive التفاضلية معطّلة — النسخ الاحتياطي الكامل فقط',
+      message:
+          'مزامنة Google Drive التفاضلية معطّلة — النسخ الاحتياطي الكامل فقط',
       changesCount: 0,
     );
   }
@@ -84,10 +91,14 @@ class GoogleDriveDeltaSync {
   /// Drive للنسخ الاحتياطي الكامل والاستعادة فقط. كل مسارات السحب هنا
   /// تُصبح no-ops ناجحة كي يبقى أي مُستدعٍ قديم يعمل دون أخطاء.
   Future<DeltaSyncResult> pullDeltaChanges() async {
-    dlog(() => '⛔ Drive delta pull معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط');
+    dlog(
+      () =>
+          '⛔ Drive delta pull معطّل بقرار منتج — نسخ احتياطي كامل واستعادة فقط',
+    );
     return DeltaSyncResult(
       success: true,
-      message: 'مزامنة Google Drive التفاضلية معطّلة — النسخ الاحتياطي الكامل فقط',
+      message:
+          'مزامنة Google Drive التفاضلية معطّلة — النسخ الاحتياطي الكامل فقط',
       changesCount: 0,
     );
   }
@@ -96,9 +107,13 @@ class GoogleDriveDeltaSync {
   Future<DeltaSyncResult> pushDeltaChangesLegacy() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
     final pushPrefs = await SharedPreferences.getInstance();
-    final pushSyncEnabled = pushPrefs.getBool('google_drive_sync_enabled') ?? false;
+    final pushSyncEnabled =
+        pushPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (!pushSyncEnabled) {
-      return DeltaSyncResult(success: false, message: 'مزامنة Google Drive معطّلة');
+      return DeltaSyncResult(
+        success: false,
+        message: 'مزامنة Google Drive معطّلة',
+      );
     }
 
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -116,12 +131,19 @@ class GoogleDriveDeltaSync {
       return _DeltaSyncStartResult.ok;
     });
 
-    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
-      return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة أو المزامنة جارية');
+    if (canStart == _DeltaSyncStartResult.notInitialized ||
+        canStart == _DeltaSyncStartResult.alreadySyncing) {
+      return DeltaSyncResult(
+        success: false,
+        message: 'الخدمة غير جاهزة أو المزامنة جارية',
+      );
     }
 
     if (canStart == _DeltaSyncStartResult.notSignedIn) {
-      return DeltaSyncResult(success: false, message: 'غير مسجل الدخول في Google Drive');
+      return DeltaSyncResult(
+        success: false,
+        message: 'غير مسجل الدخول في Google Drive',
+      );
     }
 
     try {
@@ -142,7 +164,9 @@ class GoogleDriveDeltaSync {
       await _deltaSyncService!.persistMirror(computation);
       await _updateLastPushTimestamp();
 
-      dlog(() => '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive');
+      dlog(
+        () => '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive',
+      );
 
       return DeltaSyncResult(
         success: true,
@@ -165,9 +189,13 @@ class GoogleDriveDeltaSync {
   Future<DeltaSyncResult> pullDeltaChangesLegacy() async {
     // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
     final pullPrefs = await SharedPreferences.getInstance();
-    final pullSyncEnabled = pullPrefs.getBool('google_drive_sync_enabled') ?? false;
+    final pullSyncEnabled =
+        pullPrefs.getBool('google_drive_sync_enabled') ?? false;
     if (!pullSyncEnabled) {
-      return DeltaSyncResult(success: false, message: 'مزامنة Google Drive معطّلة');
+      return DeltaSyncResult(
+        success: false,
+        message: 'مزامنة Google Drive معطّلة',
+      );
     }
 
     final canStart = await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -185,7 +213,8 @@ class GoogleDriveDeltaSync {
       return _DeltaSyncStartResult.ok;
     });
 
-    if (canStart == _DeltaSyncStartResult.notInitialized || canStart == _DeltaSyncStartResult.alreadySyncing) {
+    if (canStart == _DeltaSyncStartResult.notInitialized ||
+        canStart == _DeltaSyncStartResult.alreadySyncing) {
       return DeltaSyncResult(success: false, message: 'الخدمة غير جاهزة');
     }
 
@@ -238,14 +267,20 @@ class GoogleDriveDeltaSync {
       // إعادة حساب حالات الغرف بناءً على الحجوزات الفعلية
       if (appliedChanges > 0) {
         try {
-          await RoomsRepository(_database!).refreshAllRoomOccupancy(originIsServer: true);
+          await RoomsRepository(
+            _database!,
+          ).refreshAllRoomOccupancy(originIsServer: true);
           dlog('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
         } catch (e) {
           dlog(() => '⚠️ فشل تحديث حالة الإشغال: $e');
         }
       }
 
-      return DeltaSyncResult(success: true, message: 'تم تطبيق $appliedChanges تغيير', changesCount: appliedChanges);
+      return DeltaSyncResult(
+        success: true,
+        message: 'تم تطبيق $appliedChanges تغيير',
+        changesCount: appliedChanges,
+      );
     } catch (e, stackTrace) {
       final errorMessage = 'خطأ في سحب التغييرات: $e';
       dlog(() => '❌ $errorMessage');
@@ -260,7 +295,9 @@ class GoogleDriveDeltaSync {
 
   Future<List<DriveBackupFile>> _listDeltaSyncFiles() async {
     final allFiles = await _driveService!.listBackupFiles();
-    return allFiles.where((f) => f.fileName.startsWith(deltaSyncPrefix)).toList();
+    return allFiles
+        .where((f) => f.fileName.startsWith(deltaSyncPrefix))
+        .toList();
   }
 
   Map<String, dynamic> _buildDeltaPayload(DeltaSyncComputation computation) {
@@ -277,14 +314,18 @@ class GoogleDriveDeltaSync {
 
   String _generateDeltaSyncFileName() {
     final now = DateTime.now();
-    final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    final dateStr =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
     final timeStr =
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
     // ✅ تغيير الامتداد من .json إلى .json.gz ليعكس الضغط الفعلي
     return '$deltaSyncPrefix${dateStr}_$timeStr.json.gz';
   }
 
-  Future<void> _uploadDeltaFile(String fileName, Map<String, dynamic> payload) async {
+  Future<void> _uploadDeltaFile(
+    String fileName,
+    Map<String, dynamic> payload,
+  ) async {
     final jsonStr = jsonEncode(payload);
     final bytes = utf8.encode(jsonStr);
     // ✅ ضغط gzip — يقلّل حجم الملف 3-5 أضعاف، مطابق لـ uploadSnapshot() في
@@ -320,7 +361,11 @@ class GoogleDriveDeltaSync {
   /// الإنتاجي نفسه. يُثبت أن salary_withdrawals/salary_carry_over_logs
   /// تُطبَّق الآن بدل إسقاطها صامتاً لعدم وجود case لهما في _applyChange.
   @visibleForTesting
-  Future<int> applyChangesForTesting(AppDatabase db, AdapterRegistry registry, Map<String, dynamic> deltaData) async {
+  Future<int> applyChangesForTesting(
+    AppDatabase db,
+    AdapterRegistry registry,
+    Map<String, dynamic> deltaData,
+  ) async {
     _database = db;
     _adapterRegistry = registry;
     return _applyDeltaChanges(deltaData);
@@ -379,7 +424,9 @@ class GoogleDriveDeltaSync {
   }
 
   List<Map<String, dynamic>> _sortChangesByDependency(List<dynamic> changes) {
-    final changesList = List<Map<String, dynamic>>.from(changes.map((c) => Map<String, dynamic>.from(c as Map)));
+    final changesList = List<Map<String, dynamic>>.from(
+      changes.map((c) => Map<String, dynamic>.from(c as Map)),
+    );
 
     final deletes = <Map<String, dynamic>>[];
     final nonDeletes = <Map<String, dynamic>>[];
@@ -419,7 +466,11 @@ class GoogleDriveDeltaSync {
   /// booking_price_adjustments) أُضيفت — كانت يصلها من المنتج
   /// (delta_sync_service يصدّرها جميعاً) وتُسقط هنا بصمت.
   /// أي كيان غير مغطى يُسقط الآن **معلَناً** (تحذير + إحصاء) لا صامتاً.
-  Future<bool> _applyChange(String entity, String operation, Map<String, dynamic> data) async {
+  Future<bool> _applyChange(
+    String entity,
+    String operation,
+    Map<String, dynamic> data,
+  ) async {
     if (_database == null || _adapterRegistry == null) {
       _logger.warning(
         '⚠️ Drive delta: تغيير $entity/$operation مُسقط — '
@@ -430,7 +481,8 @@ class GoogleDriveDeltaSync {
     }
     final db = _database!;
     final registry = _adapterRegistry!;
-    final localUuid = _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
+    final localUuid =
+        _asString(data['local_uuid']) ?? _asString(data['localUuid']) ?? '';
     if (localUuid.isEmpty) {
       _logger.warning(
         '⚠️ Drive delta: تغيير $entity/$operation مُسقط — '
@@ -451,52 +503,130 @@ class GoogleDriveDeltaSync {
 
     switch (entity) {
       case 'rooms':
-        return await registry.rooms.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.rooms.upsertFromJson(payload, src: Source.drive) >
+            0;
       case 'bookings':
-        return await registry.bookings.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.bookings.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'payments':
-        return await registry.payments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.payments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'expenses':
-        return await registry.expenses.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.expenses.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'debts':
-        return await registry.debts.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.debts.upsertFromJson(payload, src: Source.drive) >
+            0;
       case 'employees':
-        return await registry.employees.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.employees.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_notes':
-        return await registry.bookingNotes.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.bookingNotes.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_nights':
-        return await registry.nights.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.nights.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_cycles':
-        return await registry.salaryCycles.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryCycles.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_payments':
-        return await registry.salaryPayments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryPayments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       // ✅ (المرحلة 0 — P0.6 / R7) الجدولان كانا يصلان من المنتج
       // (delta_sync_service يصدر تغييراتهما) وتُسقطهما هذه الدالة بصمت
       // لعدم وجود case لهما — تغييرات رواتب كاملة كانت تختفي دون تطبيق.
       case 'salary_withdrawals':
-        return await registry.salaryWithdrawals.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryWithdrawals.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'salary_carry_over_logs':
-        return await registry.salaryCarryOverLogs.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.salaryCarryOverLogs.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'cash_transactions':
-        return await registry.cashTransactions.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.cashTransactions.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'shift_notes':
-        return await registry.shiftNotes.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.shiftNotes.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'price_adjustments':
-        return await registry.priceAdjustments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.priceAdjustments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'audit_logs':
-        return await registry.auditLogs.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.auditLogs.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'payment_voids':
-        return await registry.paymentVoids.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.paymentVoids.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       // ✅ (ت1 المكملة 2026-10-04) الكيانات الأربعة المتبقية — كانت تُسقط
       // بصمت رغم أن المُنتِج يصدّرها (delta_sync_service أسطر 363/372/427/509).
       case 'guest_infos':
-        return await registry.guestInfos.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.guestInfos.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'inventory_items':
-        return await registry.inventoryItems.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.inventoryItems.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'inventory_transactions':
-        return await registry.inventoryTransactions.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.inventoryTransactions.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       case 'booking_price_adjustments':
-        return await registry.bookingPriceAdjustments.upsertFromJson(payload, src: Source.drive) > 0;
+        return await registry.bookingPriceAdjustments.upsertFromJson(
+              payload,
+              src: Source.drive,
+            ) >
+            0;
       default:
         _logger.warning(
           '⛔ Drive delta: كيان غير مدعوم في التطبيق — إسقاط معلن: '
@@ -512,37 +642,61 @@ class GoogleDriveDeltaSync {
   /// غير المالية تُحذف حذفاً نهائياً (مطابقة لسلوكها الحالي)، والجداول
   /// المالية تبقى حذفاً ناعماً فقط (مبدأ 2 في العقد). الكيان غير المغطى
   /// يُسقط معلَناً (تحذير) لا صامتاً.
-  Future<bool> _deleteEntity(AppDatabase db, String entity, String localUuid) async {
+  Future<bool> _deleteEntity(
+    AppDatabase db,
+    String entity,
+    String localUuid,
+  ) async {
     switch (entity) {
       case 'rooms':
-        await (db.delete(db.rooms)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.rooms,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'bookings':
-        await (db.delete(db.bookings)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.bookings,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'payments':
-        await (db.delete(db.payments)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.payments,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'expenses':
-        await (db.delete(db.expenses)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.expenses,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'debts':
-        await (db.delete(db.debts)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.debts,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'employees':
-        await (db.delete(db.employees)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.employees,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'booking_notes':
-        await (db.delete(db.bookingNotes)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.bookingNotes,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'booking_nights':
-        await (db.delete(db.bookingNights)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.bookingNights,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'salary_cycles':
-        await (db.delete(db.salaryCycles)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.salaryCycles,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'salary_payments':
-        await (db.delete(db.salaryPayments)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.salaryPayments,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       // ✅ (المرحلة 0 — P0.6 / R7) جداول مالية: حذف ناعم فقط — لا DELETE
       // نهائي لبيانات رواتب مهما كان مصدر العملية (مبدأ 2 في العقد).
@@ -578,30 +732,46 @@ class GoogleDriveDeltaSync {
         );
         return true;
       case 'cash_transactions':
-        await (db.delete(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.cashTransactions,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'shift_notes':
-        await (db.delete(db.shiftNotes)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.shiftNotes,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'price_adjustments':
-        await (db.delete(db.priceAdjustments)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.priceAdjustments,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'payment_voids':
-        await (db.delete(db.paymentVoids)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.paymentVoids,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       // ✅ (ت1 المكملة 2026-10-04) الكيانات الأربعة المتبقية — حذف نهائي
       // (غير مالية، مطابقة لسلوك الجداول الشقيقة كالليالي والتعديلات).
       case 'guest_infos':
-        await (db.delete(db.guestInfos)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.guestInfos,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'inventory_items':
-        await (db.delete(db.inventoryItems)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.inventoryItems,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'inventory_transactions':
-        await (db.delete(db.inventoryTransactions)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.inventoryTransactions,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       case 'booking_price_adjustments':
-        await (db.delete(db.bookingPriceAdjustments)..where((t) => t.localUuid.equals(localUuid))).go();
+        await (db.delete(
+          db.bookingPriceAdjustments,
+        )..where((t) => t.localUuid.equals(localUuid))).go();
         return true;
       default:
         _logger.warning(
@@ -621,34 +791,65 @@ class GoogleDriveDeltaSync {
     Map<String, dynamic> data,
   ) async {
     if (operation == 'delete') {
-      await (db.delete(db.cashTransactions)..where((t) => t.localUuid.equals(localUuid))).go();
+      await (db.delete(
+        db.cashTransactions,
+      )..where((t) => t.localUuid.equals(localUuid))).go();
       return;
     }
 
-    final transactionType = _asString(data['transaction_type']) ?? _asString(data['transactionType']);
+    final transactionType =
+        _asString(data['transaction_type']) ??
+        _asString(data['transactionType']);
     if (transactionType == null || transactionType.isEmpty) {
       return;
     }
 
-    final transactionTime = _asString(data['transaction_time']) ?? _asString(data['transactionTime']) ?? Time.nowIso();
+    final transactionTime =
+        _asString(data['transaction_time']) ??
+        _asString(data['transactionTime']) ??
+        Time.nowIso();
 
     final companion = CashTransactionsCompanion(
       localUuid: d.Value(localUuid),
-      serverId: _nullableValue<int>(_asInt(data['server_id']) ?? _asInt(data['serverId'])),
-      createdAt: d.Value(_asInt(data['created_at']) ?? _asInt(data['createdAt']) ?? Time.nowEpoch()),
-      updatedAt: d.Value(_asInt(data['updated_at']) ?? _asInt(data['updatedAt']) ?? Time.nowEpoch()),
-      deletedAt: _nullableValue<int>(_asInt(data['deleted_at']) ?? _asInt(data['deletedAt'])),
-      lastModified: d.Value(_asInt(data['last_modified']) ?? _asInt(data['lastModified']) ?? Time.nowEpoch()),
+      serverId: _nullableValue<int>(
+        _asInt(data['server_id']) ?? _asInt(data['serverId']),
+      ),
+      createdAt: d.Value(
+        _asInt(data['created_at']) ??
+            _asInt(data['createdAt']) ??
+            Time.nowEpoch(),
+      ),
+      updatedAt: d.Value(
+        _asInt(data['updated_at']) ??
+            _asInt(data['updatedAt']) ??
+            Time.nowEpoch(),
+      ),
+      deletedAt: _nullableValue<int>(
+        _asInt(data['deleted_at']) ?? _asInt(data['deletedAt']),
+      ),
+      lastModified: d.Value(
+        _asInt(data['last_modified']) ??
+            _asInt(data['lastModified']) ??
+            Time.nowEpoch(),
+      ),
       version: d.Value(_asInt(data['version']) ?? 1),
       origin: const d.Value('google_drive_delta'),
-      registerId: _nullableValue<int>(_asInt(data['register_id']) ?? _asInt(data['registerId'])),
+      registerId: _nullableValue<int>(
+        _asInt(data['register_id']) ?? _asInt(data['registerId']),
+      ),
       transactionType: d.Value(transactionType),
       amount: d.Value(_asDouble(data['amount'])),
-      referenceType: _nullableValue<String>(_asString(data['reference_type']) ?? _asString(data['referenceType'])),
-      referenceId: _nullableValue<int>(_asInt(data['reference_id']) ?? _asInt(data['referenceId'])),
+      referenceType: _nullableValue<String>(
+        _asString(data['reference_type']) ?? _asString(data['referenceType']),
+      ),
+      referenceId: _nullableValue<int>(
+        _asInt(data['reference_id']) ?? _asInt(data['referenceId']),
+      ),
       description: _nullableValue<String>(_asString(data['description'])),
       transactionTime: d.Value(transactionTime),
-      createdBy: _nullableValue<int>(_asInt(data['created_by']) ?? _asInt(data['createdBy'])),
+      createdBy: _nullableValue<int>(
+        _asInt(data['created_by']) ?? _asInt(data['createdBy']),
+      ),
     );
     await db.into(db.cashTransactions).insertOnConflictUpdate(companion);
   }
@@ -772,11 +973,21 @@ class GoogleDriveDeltaSync {
       'device_id': _deviceId,
       'last_push_epoch': lastPush,
       'last_pull_epoch': lastPull,
-      'last_push_time': lastPush > 0 ? DateTime.fromMillisecondsSinceEpoch(lastPush * 1000).toIso8601String() : null,
-      'last_pull_time': lastPull > 0 ? DateTime.fromMillisecondsSinceEpoch(lastPull * 1000).toIso8601String() : null,
+      'last_push_time': lastPush > 0
+          ? DateTime.fromMillisecondsSinceEpoch(
+              lastPush * 1000,
+            ).toIso8601String()
+          : null,
+      'last_pull_time': lastPull > 0
+          ? DateTime.fromMillisecondsSinceEpoch(
+              lastPull * 1000,
+            ).toIso8601String()
+          : null,
       'last_sync_epoch': lastActivity,
       'last_sync_time': lastActivity > 0
-          ? DateTime.fromMillisecondsSinceEpoch(lastActivity * 1000).toIso8601String()
+          ? DateTime.fromMillisecondsSinceEpoch(
+              lastActivity * 1000,
+            ).toIso8601String()
           : null,
       'signed_in': _driveService?.isSignedIn ?? false,
     };
@@ -784,7 +995,11 @@ class GoogleDriveDeltaSync {
 }
 
 class DeltaSyncResult {
-  DeltaSyncResult({required this.success, required this.message, this.changesCount = 0});
+  DeltaSyncResult({
+    required this.success,
+    required this.message,
+    this.changesCount = 0,
+  });
   final bool success;
   final String message;
   final int changesCount;

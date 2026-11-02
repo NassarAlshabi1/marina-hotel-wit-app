@@ -35,7 +35,11 @@ AppDatabase _db() {
   return db;
 }
 
-Future<int> _insertEmployee(AppDatabase db, {required String localUuid, required String name}) {
+Future<int> _insertEmployee(
+  AppDatabase db, {
+  required String localUuid,
+  required String name,
+}) {
   return db
       .into(db.employees)
       .insert(
@@ -112,7 +116,11 @@ void main() {
       final db = _db();
       addTearDown(db.close);
 
-      final empId = await _insertEmployee(db, localUuid: 'emp-uuid-1', name: 'م');
+      final empId = await _insertEmployee(
+        db,
+        localUuid: 'emp-uuid-1',
+        name: 'م',
+      );
       final expenseId = await _insertExpense(
         db,
         localUuid: 'exp-uuid-1',
@@ -130,95 +138,122 @@ void main() {
         expenseId: expenseId,
         expenseUuid: 'exp-uuid-1',
       );
-      await db.customStatement('UPDATE expenses SET withdrawal_uuid = ? WHERE id = ?', ['sw-uuid-1', expenseId]);
+      await db.customStatement(
+        'UPDATE expenses SET withdrawal_uuid = ? WHERE id = ?',
+        ['sw-uuid-1', expenseId],
+      );
 
-      final sw = await (db.select(db.salaryWithdrawals)..where((t) => t.id.equals(swId))).getSingle();
+      final sw = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(swId))).getSingle();
       expect(sw.expenseUuid, 'exp-uuid-1');
-      final exp = await (db.select(db.expenses)..where((t) => t.id.equals(expenseId))).getSingle();
+      final exp = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
       expect(exp.withdrawalUuid, 'sw-uuid-1');
     });
 
-    test('2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)', () async {
-      final db = _db();
-      addTearDown(db.close);
+    test(
+      '2. حراس الـ backfill يمنعون الربط العابر للموظف (تصادم أجهزة)',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
 
-      await _insertEmployee(db, localUuid: 'emp-uuid-A', name: 'أ');
-      await _insertEmployee(db, localUuid: 'emp-uuid-B', name: 'ب');
+        await _insertEmployee(db, localUuid: 'emp-uuid-A', name: 'أ');
+        await _insertEmployee(db, localUuid: 'emp-uuid-B', name: 'ب');
 
-      // مصروف موظف أ + مصروف موظف ب بنفس المبلغ واليوم. سحبة موظف ب
-      // تحمل expense_id يشير رقمياً إلى مصروف موظف أ — الخلل التاريخي
-      // عند تصادم autoincrement بين جهازين.
-      await _insertExpense(
-        db,
-        localUuid: 'exp-uuid-A',
-        expenseType: 'سحب راتب',
-        amount: 6000,
-        date: '2026-10-01',
-        employeeUuid: 'emp-uuid-A',
-      );
-      await _insertExpense(
-        db,
-        localUuid: 'exp-uuid-B',
-        expenseType: 'سحب راتب',
-        amount: 6000,
-        date: '2026-10-01',
-        employeeUuid: 'emp-uuid-B',
-      );
-      final swId = await _insertWithdrawal(
-        db,
-        employeeId: 2,
-        localUuid: 'sw-uuid-B',
-        amount: 6000,
-        withdrawDate: '2026-10-01',
-        expenseId: 1, // مصروف موظف أ!
-      );
+        // مصروف موظف أ + مصروف موظف ب بنفس المبلغ واليوم. سحبة موظف ب
+        // تحمل expense_id يشير رقمياً إلى مصروف موظف أ — الخلل التاريخي
+        // عند تصادم autoincrement بين جهازين.
+        await _insertExpense(
+          db,
+          localUuid: 'exp-uuid-A',
+          expenseType: 'سحب راتب',
+          amount: 6000,
+          date: '2026-10-01',
+          employeeUuid: 'emp-uuid-A',
+        );
+        await _insertExpense(
+          db,
+          localUuid: 'exp-uuid-B',
+          expenseType: 'سحب راتب',
+          amount: 6000,
+          date: '2026-10-01',
+          employeeUuid: 'emp-uuid-B',
+        );
+        final swId = await _insertWithdrawal(
+          db,
+          employeeId: 2,
+          localUuid: 'sw-uuid-B',
+          amount: 6000,
+          withdrawDate: '2026-10-01',
+          expenseId: 1, // مصروف موظف أ!
+        );
 
-      await db.customStatement(_migration68SwBackfillSql);
-      await db.customStatement(_migration68ExpBackfillSql);
+        await db.customStatement(_migration68SwBackfillSql);
+        await db.customStatement(_migration68ExpBackfillSql);
 
-      // حرس الموظف يمنع الربط الخاطئ: expense_uuid يبقى NULL
-      // (لا نؤسس رابطاً عابراً للموظف حتى لو طابق المبلغ واليوم).
-      final sw = await (db.select(db.salaryWithdrawals)..where((t) => t.id.equals(swId))).getSingle();
-      expect(sw.expenseUuid, isNull);
-    });
+        // حرس الموظف يمنع الربط الخاطئ: expense_uuid يبقى NULL
+        // (لا نؤسس رابطاً عابراً للموظف حتى لو طابق المبلغ واليوم).
+        final sw = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.id.equals(swId))).getSingle();
+        expect(sw.expenseUuid, isNull);
+      },
+    );
 
-    test('3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)', () async {
-      final db = _db();
-      addTearDown(db.close);
+    test(
+      '3. الـ backfill يربط المرآة الصحيحة (نفس الموظف/المبلغ/±1 يوم)',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
 
-      final empId = await _insertEmployee(db, localUuid: 'emp-uuid-A', name: 'أ');
-      final expenseId = await _insertExpense(
-        db,
-        localUuid: 'exp-uuid-A',
-        expenseType: 'سحب راتب',
-        amount: 6000,
-        date: '2026-10-01',
-        employeeUuid: 'emp-uuid-A',
-      );
-      final swId = await _insertWithdrawal(
-        db,
-        employeeId: empId,
-        localUuid: 'sw-uuid-A',
-        amount: 6000,
-        withdrawDate: '2026-10-01', // نفس اليوم بالضبط (دلالة L3)
-        expenseId: expenseId,
-        employeeUuid: 'emp-uuid-A',
-      );
+        final empId = await _insertEmployee(
+          db,
+          localUuid: 'emp-uuid-A',
+          name: 'أ',
+        );
+        final expenseId = await _insertExpense(
+          db,
+          localUuid: 'exp-uuid-A',
+          expenseType: 'سحب راتب',
+          amount: 6000,
+          date: '2026-10-01',
+          employeeUuid: 'emp-uuid-A',
+        );
+        final swId = await _insertWithdrawal(
+          db,
+          employeeId: empId,
+          localUuid: 'sw-uuid-A',
+          amount: 6000,
+          withdrawDate: '2026-10-01', // نفس اليوم بالضبط (دلالة L3)
+          expenseId: expenseId,
+          employeeUuid: 'emp-uuid-A',
+        );
 
-      await db.customStatement(_migration68SwBackfillSql);
-      await db.customStatement(_migration68ExpBackfillSql);
+        await db.customStatement(_migration68SwBackfillSql);
+        await db.customStatement(_migration68ExpBackfillSql);
 
-      final sw = await (db.select(db.salaryWithdrawals)..where((t) => t.id.equals(swId))).getSingle();
-      expect(sw.expenseUuid, 'exp-uuid-A');
-      final exp = await (db.select(db.expenses)..where((t) => t.id.equals(expenseId))).getSingle();
-      expect(exp.withdrawalUuid, 'sw-uuid-A');
-    });
+        final sw = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.id.equals(swId))).getSingle();
+        expect(sw.expenseUuid, 'exp-uuid-A');
+        final exp = await (db.select(
+          db.expenses,
+        )..where((t) => t.id.equals(expenseId))).getSingle();
+        expect(exp.withdrawalUuid, 'sw-uuid-A');
+      },
+    );
 
     test('3-أ. يوم ±1 مختلف لا يُربط (لا تسامح زمني — L3 حرفياً)', () async {
       final db = _db();
       addTearDown(db.close);
 
-      final empId = await _insertEmployee(db, localUuid: 'emp-uuid-A', name: 'أ');
+      final empId = await _insertEmployee(
+        db,
+        localUuid: 'emp-uuid-A',
+        name: 'أ',
+      );
       final expenseId = await _insertExpense(
         db,
         localUuid: 'exp-uuid-A2',
@@ -240,9 +275,13 @@ void main() {
       await db.customStatement(_migration68SwBackfillSql);
       await db.customStatement(_migration68ExpBackfillSql);
 
-      final sw = await (db.select(db.salaryWithdrawals)..where((t) => t.id.equals(swId))).getSingle();
+      final sw = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(swId))).getSingle();
       expect(sw.expenseUuid, isNull);
-      final exp = await (db.select(db.expenses)..where((t) => t.id.equals(expenseId))).getSingle();
+      final exp = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
       expect(exp.withdrawalUuid, isNull);
     });
 
@@ -250,7 +289,11 @@ void main() {
       final db = _db();
       addTearDown(db.close);
 
-      final empId = await _insertEmployee(db, localUuid: 'emp-uuid-A', name: 'أ');
+      final empId = await _insertEmployee(
+        db,
+        localUuid: 'emp-uuid-A',
+        name: 'أ',
+      );
       // مصروف أغذية عادي — بهوية موظف مؤكدة (السحوبات في الإنتاج تحمل
       // employee_uuid بعد ترحيلات family-61 قبل وصول ترحيل 68)
       final expenseId = await _insertExpense(
@@ -274,56 +317,73 @@ void main() {
       await db.customStatement(_migration68SwBackfillSql);
       await db.customStatement(_migration68ExpBackfillSql);
 
-      final exp = await (db.select(db.expenses)..where((t) => t.id.equals(expenseId))).getSingle();
+      final exp = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
       // السحبة تُربط بالمصروف (نفس الجهاز — الربط صحيح)، لكن المصروف
       // العادي (غير الراتبي) لا يأخذ withdrawal_uuid حفاظاً على دلالة
       // expense_id للمصروفات الأخرى.
-      final exp2 = await (db.select(db.expenses)..where((t) => t.id.equals(expenseId))).getSingle();
+      final exp2 = await (db.select(
+        db.expenses,
+      )..where((t) => t.id.equals(expenseId))).getSingle();
       expect(exp2.withdrawalUuid, isNull);
       // والتأكيد الأول: الرابط الأمامي على السحبة تم
-      final sw = await (db.select(db.salaryWithdrawals)..where((t) => t.localUuid.equals('sw-uuid-A'))).getSingle();
+      final sw = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.localUuid.equals('sw-uuid-A'))).getSingle();
       expect(sw.expenseUuid, 'exp-uuid-food');
       expect(exp.id, expenseId); // صحة القراءة
     });
 
-    test('10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS', () async {
-      final db = _db();
-      addTearDown(db.close);
+    test(
+      '10. الطرفان بلا هوية موظف (NULL) ⇒ لا رابط — حرس صارم بلا IS',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
 
-      final empId = await _insertEmployee(db, localUuid: 'emp-uuid-orphan', name: 'يتيم');
-      // زوج مرآة حقيقي (نفس الجهاز — expense_id صحيح) لكن employee_uuid
-      // NULL على الطرفين (الهوية لم تُحل بعد) — نفس المبلغ واليوم.
-      // الصيغة المتسامحة القديمة (NULL IS NULL = صحيح) كانت ستُربطهما
-      // عبر المبلغ واليوم وحدهما = خطر العبور بين الموظفين.
-      final expenseId = await _insertExpense(
-        db,
-        localUuid: 'exp-uuid-orphan',
-        expenseType: 'سحب راتب',
-        amount: 2000,
-        date: '2026-07-06',
-        // employeeUuid: null
-      );
-      final swId = await _insertWithdrawal(
-        db,
-        employeeId: empId, // صف موجود (FK) لكن uuidه غير مكتوب بعد
-        localUuid: 'sw-uuid-orphan',
-        amount: 2000,
-        withdrawDate: '2026-07-06',
-        expenseId: expenseId,
-        // employeeUuid: null
-      );
+        final empId = await _insertEmployee(
+          db,
+          localUuid: 'emp-uuid-orphan',
+          name: 'يتيم',
+        );
+        // زوج مرآة حقيقي (نفس الجهاز — expense_id صحيح) لكن employee_uuid
+        // NULL على الطرفين (الهوية لم تُحل بعد) — نفس المبلغ واليوم.
+        // الصيغة المتسامحة القديمة (NULL IS NULL = صحيح) كانت ستُربطهما
+        // عبر المبلغ واليوم وحدهما = خطر العبور بين الموظفين.
+        final expenseId = await _insertExpense(
+          db,
+          localUuid: 'exp-uuid-orphan',
+          expenseType: 'سحب راتب',
+          amount: 2000,
+          date: '2026-07-06',
+          // employeeUuid: null
+        );
+        final swId = await _insertWithdrawal(
+          db,
+          employeeId: empId, // صف موجود (FK) لكن uuidه غير مكتوب بعد
+          localUuid: 'sw-uuid-orphan',
+          amount: 2000,
+          withdrawDate: '2026-07-06',
+          expenseId: expenseId,
+          // employeeUuid: null
+        );
 
-      await db.customStatement(_migration68SwBackfillSql);
-      await db.customStatement(_migration68ExpBackfillSql);
+        await db.customStatement(_migration68SwBackfillSql);
+        await db.customStatement(_migration68ExpBackfillSql);
 
-      final sw = await (db.select(db.salaryWithdrawals)..where((t) => t.id.equals(swId))).getSingle();
-      final exp = await (db.select(db.expenses)..where((t) => t.id.equals(expenseId))).getSingle();
-      // المنهجية المحافظة: بلا هوية موظف مؤكدة ⇒ بلا رابط (لا نخمّن).
-      // الختم الزمني يعيد كتابة الرابط لاحقاً عند أول تعديل عبر
-      // saveFromExpense/createFromExpense بعد أن تُملأ الهوية.
-      expect(sw.expenseUuid, isNull);
-      expect(exp.withdrawalUuid, isNull);
-    });
+        final sw = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.id.equals(swId))).getSingle();
+        final exp = await (db.select(
+          db.expenses,
+        )..where((t) => t.id.equals(expenseId))).getSingle();
+        // المنهجية المحافظة: بلا هوية موظف مؤكدة ⇒ بلا رابط (لا نخمّن).
+        // الختم الزمني يعيد كتابة الرابط لاحقاً عند أول تعديل عبر
+        // saveFromExpense/createFromExpense بعد أن تُملأ الهوية.
+        expect(sw.expenseUuid, isNull);
+        expect(exp.withdrawalUuid, isNull);
+      },
+    );
   });
 
   group('migration 68: adapters & payloads', () {
@@ -371,75 +431,83 @@ void main() {
       expect(companion.expenseUuid.value, 'exp-uuid-9');
     });
 
-    test('5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه', () async {
-      final db = _db();
-      addTearDown(db.close);
-      const expense = Expense(
-        id: 5,
-        localUuid: 'exp-uuid-5',
-        expenseType: 'سحب راتب',
-        description: 'مرآة',
-        amount: 6000,
-        date: '2026-10-01',
-        isAutoGenerated: true,
-        withdrawalUuid: 'sw-uuid-1',
-        createdAt: _now,
-        updatedAt: _now,
-        lastModified: _now,
-        createdAtEpoch: _now,
-        lastModifiedEpoch: _now,
-        version: 1,
-        origin: 'local',
-        vectorClock: '{}',
-        deviceId: '',
-        syncTimestamp: _now,
-      );
-      final remote = const PayloadMapper().expenseToRemote(expense);
-      expect(remote['withdrawalUuid'], 'sw-uuid-1');
+    test(
+      '5. mapper المصروفات يختم withdrawalUuid والـ adapter يقرؤه',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
+        const expense = Expense(
+          id: 5,
+          localUuid: 'exp-uuid-5',
+          expenseType: 'سحب راتب',
+          description: 'مرآة',
+          amount: 6000,
+          date: '2026-10-01',
+          isAutoGenerated: true,
+          withdrawalUuid: 'sw-uuid-1',
+          createdAt: _now,
+          updatedAt: _now,
+          lastModified: _now,
+          createdAtEpoch: _now,
+          lastModifiedEpoch: _now,
+          version: 1,
+          origin: 'local',
+          vectorClock: '{}',
+          deviceId: '',
+          syncTimestamp: _now,
+        );
+        final remote = const PayloadMapper().expenseToRemote(expense);
+        expect(remote['withdrawalUuid'], 'sw-uuid-1');
 
-      final adapter = ExpensesAdapter(IdResolver(db));
-      final companion = adapter.fromJson(
-        {
-          'localUuid': 'exp-remote-1',
-          'expenseType': 'سحب راتب',
-          'description': 'مرآة',
-          'amount': 6000.0,
-          'date': '2026-10-01',
-          'withdrawalUuid': 'sw-remote-1',
-        },
-        src: Source.appwrite,
-        refs: ResolveResult.empty,
-      );
-      expect(companion.withdrawalUuid.present, isTrue);
-      expect(companion.withdrawalUuid.value, 'sw-remote-1');
-    });
+        final adapter = ExpensesAdapter(IdResolver(db));
+        final companion = adapter.fromJson(
+          {
+            'localUuid': 'exp-remote-1',
+            'expenseType': 'سحب راتب',
+            'description': 'مرآة',
+            'amount': 6000.0,
+            'date': '2026-10-01',
+            'withdrawalUuid': 'sw-remote-1',
+          },
+          src: Source.appwrite,
+          refs: ResolveResult.empty,
+        );
+        expect(companion.withdrawalUuid.present, isTrue);
+        expect(companion.withdrawalUuid.value, 'sw-remote-1');
+      },
+    );
 
     test('6. القوائم المسموحة لا تُسقط الحقول الجديدة', () {
-      final expensesFiltered = AppwriteSyncUtils.filterPayloadForCollection(AppwriteConfig.expensesCollectionId, {
-        'withdrawalUuid': 'sw-uuid-1',
-        'bogus': 1,
-      });
+      final expensesFiltered = AppwriteSyncUtils.filterPayloadForCollection(
+        AppwriteConfig.expensesCollectionId,
+        {'withdrawalUuid': 'sw-uuid-1', 'bogus': 1},
+      );
       expect(expensesFiltered['withdrawalUuid'], 'sw-uuid-1');
       expect(expensesFiltered.containsKey('bogus'), isFalse);
 
-      final swFiltered = AppwriteSyncUtils.filterPayloadForCollection(AppwriteConfig.salaryWithdrawalsCollectionId, {
-        'expenseUuid': 'exp-uuid-5',
-        'bogus': 1,
-      });
+      final swFiltered = AppwriteSyncUtils.filterPayloadForCollection(
+        AppwriteConfig.salaryWithdrawalsCollectionId,
+        {'expenseUuid': 'exp-uuid-5', 'bogus': 1},
+      );
       expect(swFiltered['expenseUuid'], 'exp-uuid-5');
       expect(swFiltered.containsKey('bogus'), isFalse);
     });
 
     test('7. مواصفات مدقق المخطط تضم الخصائص السحابية الجديدة', () {
-      final expensesSpec = AppwriteSchemaVerifier.requiredCollections['expenses']!;
+      final expensesSpec =
+          AppwriteSchemaVerifier.requiredCollections['expenses']!;
       final expensesAttrs = (expensesSpec['attributes']! as List)
           .cast<Map<dynamic, dynamic>>()
           .map((a) => a['key'])
           .toList();
       expect(expensesAttrs, contains('withdrawalUuid'));
 
-      final swSpec = AppwriteSchemaVerifier.requiredCollections['salary_withdrawals']!;
-      final swAttrs = (swSpec['attributes']! as List).cast<Map<dynamic, dynamic>>().map((a) => a['key']).toList();
+      final swSpec =
+          AppwriteSchemaVerifier.requiredCollections['salary_withdrawals']!;
+      final swAttrs = (swSpec['attributes']! as List)
+          .cast<Map<dynamic, dynamic>>()
+          .map((a) => a['key'])
+          .toList();
       expect(swAttrs, contains('expenseUuid'));
     });
   });

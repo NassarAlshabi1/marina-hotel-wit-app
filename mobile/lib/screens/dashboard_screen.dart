@@ -63,7 +63,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     // ✅ Analytics: تتبّع مشاهدة الشاشة لفهم سلوك المستخدم
-    unawaited(AnalyticsService().logScreenView(screenName: 'dashboard', screenClass: 'DashboardScreen'));
+    unawaited(
+      AnalyticsService().logScreenView(
+        screenName: 'dashboard',
+        screenClass: 'DashboardScreen',
+      ),
+    );
     // ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
     // refactor/performance-fixes-v2: فحص ساعة + SyncGate + إشعار تحميل.
     // التكييف مع معمارية هذا الفرع: deltaOnly:true — فتح الشاشة لا يبدأ
@@ -125,7 +130,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? loading;
       if (mounted) {
-        loading = LoadingSnackBar.show(context, message: '📥 جاري سحب البيانات...');
+        loading = LoadingSnackBar.show(
+          context,
+          message: '📥 جاري سحب البيانات...',
+        );
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
@@ -140,7 +148,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       // ─── تسجيل وقت هذا السحب التلقائي ───
-      await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+        SyncConstants.lastAppOpenPullKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
       if (mounted && result.hasPullFailures) {
         // ✅ (2026-11-02) سحب جزئي: مجموعات (مثل bookings) فشلت ولم تصل —
@@ -165,7 +176,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             backgroundColor: Colors.orange.shade700,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             duration: const Duration(seconds: 4),
           ),
         );
@@ -187,7 +200,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       } else {
@@ -231,7 +246,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.blue.shade400]),
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade600, Colors.blue.shade400],
+            ),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.hotel, color: Colors.white, size: 18),
@@ -241,20 +258,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('فندق مارينا', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'فندق مارينا',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               Row(
                 children: [
-                  const Text('لوحة التحكم', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const Text(
+                    'لوحة التحكم',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                   const SizedBox(width: 6),
                   // ✅ رقم إصدار APK — يُقرأ ديناميكياً من package_info_plus.
                   // يظهر للمستخدم مباشرةً في الـ header حتى يسهل التحقق من
                   // النسخة المثبّتة دون فتح شاشة الإعدادات.
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blue.shade200, width: 0.5),
+                      border: Border.all(
+                        color: Colors.blue.shade200,
+                        width: 0.5,
+                      ),
                     ),
                     child: Text(
                       'v$versionLabel',
@@ -289,15 +318,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               final expensesAsync = ref.watch(todayExpensesProvider);
 
               // التعامل مع حالة التحميل
-              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final isLoading =
+                  incomeAsync.isLoading || expensesAsync.isLoading;
               final hasError = incomeAsync.hasError || expensesAsync.hasError;
 
               if (isLoading) {
-                return _buildStatCard('المتبقي', '...', Icons.savings, Colors.indigo);
+                return _buildStatCard(
+                  'المتبقي',
+                  '...',
+                  Icons.savings,
+                  Colors.indigo,
+                );
               }
 
               if (hasError) {
-                return _buildStatCard('المتبقي', '--', Icons.savings, Colors.indigo);
+                return _buildStatCard(
+                  'المتبقي',
+                  '--',
+                  Icons.savings,
+                  Colors.indigo,
+                );
               }
 
               final income = incomeAsync.valueOrNull ?? 0.0;
@@ -319,15 +359,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final paymentsAsync = ref.watch(todayPaymentsProvider);
               return paymentsAsync.when(
-                loading: () => _buildStatCard('مدفوعات اليوم', '...', Icons.payments_rounded, Colors.green),
-                error: (e, _) => _buildStatCard('مدفوعات اليوم', '--', Icons.payments_rounded, Colors.green),
+                loading: () => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '...',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '--',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
                 data: (total) => _buildStatCard(
                   'مدفوعات اليوم',
                   currencyFmt.format(total),
                   Icons.payments_rounded,
                   Colors.green,
-                  onTap: () =>
-                      Navigator.push<void>(context, MaterialPageRoute<void>(builder: (_) => const FinanceScreen())),
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const FinanceScreen(),
+                    ),
+                  ),
                 ),
               );
             },
@@ -339,8 +393,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final expensesAsync = ref.watch(todayExpensesProvider);
               return expensesAsync.when(
-                loading: () => _buildStatCard('المصروفات', '...', Icons.money_off_rounded, Colors.red),
-                error: (e, _) => _buildStatCard('المصروفات', '--', Icons.money_off_rounded, Colors.red),
+                loading: () => _buildStatCard(
+                  'المصروفات',
+                  '...',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'المصروفات',
+                  '--',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
                 data: (total) => _buildStatCard(
                   'المصروفات',
                   currencyFmt.format(total),
@@ -348,7 +412,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Colors.red,
                   onTap: () => Navigator.push<void>(
                     context,
-                    MaterialPageRoute<void>(builder: (_) => const ExpensesReportScreen()),
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ExpensesReportScreen(),
+                    ),
                   ),
                 ),
               );
@@ -359,7 +425,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -369,7 +441,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: isLowEndDevice
               ? const []
-              : const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+              : const [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,10 +456,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
             const SizedBox(height: 1),
-            Text(title, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+            Text(
+              title,
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+            ),
           ],
         ),
       ),
@@ -403,11 +488,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.red.shade400, size: 40),
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.red.shade400,
+                    size: 40,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'تعذر تحميل الغرف',
-                    style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.red.shade600,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -426,25 +518,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildRoomsCard(List<RoomWithPaymentStatus> roomsWithStatus) {
-    final Map<String, RoomWithPaymentStatus> roomsMap = {for (final rws in roomsWithStatus) rws.room.roomNumber: rws};
+    final Map<String, RoomWithPaymentStatus> roomsMap = {
+      for (final rws in roomsWithStatus) rws.room.roomNumber: rws,
+    };
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('حالة الغرف', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text(
+                'حالة الغرف',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
-              _buildLegendSplitItem('تنبيه 22:00', Colors.red.shade600, Colors.orange.shade500),
+              _buildLegendSplitItem(
+                'تنبيه 22:00',
+                Colors.red.shade600,
+                Colors.orange.shade500,
+              ),
               const SizedBox(width: 8),
               _buildLegendItem('متأخر 23:00', Colors.red.shade800),
               const SizedBox(width: 8),
@@ -456,7 +563,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.adaptiveColumns(mobile: 4, itemMinWidth: 170),
+              crossAxisCount: context.adaptiveColumns(
+                mobile: 4,
+                itemMinWidth: 170,
+              ),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
               childAspectRatio: 1.2,
@@ -465,7 +575,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             itemBuilder: (context, index) {
               final roomNumber = _dashboardRoomNumbers[index];
               final rws = roomsMap[roomNumber];
-              return RepaintBoundary(child: _buildRoomButton(context, roomNumber, rws));
+              return RepaintBoundary(
+                child: _buildRoomButton(context, roomNumber, rws),
+              );
             },
           ),
         ],
@@ -480,17 +592,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
       ],
     );
   }
 
   /// ✅ عنصر legend يُظهر شريطاً مزدوج اللون (أحمر + برتقالي) لتمثيل
   /// حالة "التنبيه المبكر" (22:00-23:00) التي يظهر فيها جزء من الزر برتقالي.
-  Widget _buildLegendSplitItem(String label, Color leftColor, Color rightColor) {
+  Widget _buildLegendSplitItem(
+    String label,
+    Color leftColor,
+    Color rightColor,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -508,12 +630,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
       ],
     );
   }
 
-  Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
+  Widget _buildRoomButton(
+    BuildContext context,
+    String roomNumber,
+    RoomWithPaymentStatus? rws,
+  ) {
     final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
     final String tooltipText = rws != null ? rws.displayStatus : 'غير مسجلة';
     final bool isOverdue = rws?.isPaymentOverdue ?? false;
@@ -541,7 +670,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             gradient: LinearGradient(
               begin: Alignment.centerRight,
               end: Alignment.centerLeft,
-              colors: [Colors.red.shade800, Colors.red.shade600, Colors.red.shade400],
+              colors: [
+                Colors.red.shade800,
+                Colors.red.shade600,
+                Colors.red.shade400,
+              ],
               stops: const [0.0, 0.5, 1.0],
             ),
             borderRadius: BorderRadius.circular(10),
@@ -554,7 +687,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               // RTL: نبدأ من اليمين. اليمين = أحمر، اليسار = برتقالي
               begin: Alignment.centerRight,
               end: Alignment.centerLeft,
-              colors: [Colors.red.shade600, Colors.red.shade600, Colors.orange.shade500, Colors.orange.shade500],
+              colors: [
+                Colors.red.shade600,
+                Colors.red.shade600,
+                Colors.orange.shade500,
+                Colors.orange.shade500,
+              ],
               stops: const [0.0, 0.55, 0.55, 1.0],
             ),
             borderRadius: BorderRadius.circular(10),
@@ -570,7 +708,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ? '$tooltipText — تنبيه: السداد بعد ساعة (22:00+)'
           : tooltipText,
       child: GestureDetector(
-        onLongPress: rws != null ? () => _showRoomOptionsDialog(context, rws.room) : null,
+        onLongPress: rws != null
+            ? () => _showRoomOptionsDialog(context, rws.room)
+            : null,
         child: Material(
           key: ValueKey('room_$roomNumber$keySuffix'),
           color: alertDecoration == null ? bgColor : Colors.transparent,
@@ -588,7 +728,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Center(
                     child: Text(
                       roomNumber,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                   // ✅ أيقونة تنبيه صغيرة في الزاوية اليسرى للتحذير المبكر
@@ -596,14 +740,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Positioned(
                       top: 2,
                       left: 2,
-                      child: Icon(Icons.warning_amber_rounded, color: Colors.white.withValues(alpha: 0.9), size: 10),
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        size: 10,
+                      ),
                     ),
                   // ✅ أيقونة خطأ في الزاوية اليسرى للتأخر الفعلي
                   if (isOverdue)
                     Positioned(
                       top: 2,
                       left: 2,
-                      child: Icon(Icons.error_outline, color: Colors.white.withValues(alpha: 0.95), size: 11),
+                      child: Icon(
+                        Icons.error_outline,
+                        color: Colors.white.withValues(alpha: 0.95),
+                        size: 11,
+                      ),
                     ),
                 ],
               ),
@@ -655,7 +807,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
       ),
     );
   }
@@ -667,21 +824,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus'),
+            content: Text(
+              'تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus',
+            ),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('خطأ في تحديث الحالة: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحديث الحالة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
-  Future<void> _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
+  Future<void> _handleRoomTap(
+    BuildContext context,
+    String roomNumber,
+    Room? room,
+  ) async {
     if (room != null) {
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -698,26 +864,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('الغرفة $roomNumber غير مسجلة في النظام'), duration: const Duration(seconds: 3)),
+        SnackBar(
+          content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    Navigator.of(
-      context,
-    ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber)));
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
+      ),
+    );
   }
 
-  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+  Future<void> _navigateToPaymentForRoom(
+    BuildContext context,
+    String roomNumber,
+  ) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
+        roomNumber,
+      );
 
       if (activeBooking == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
+            SnackBar(
+              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
         return;
@@ -725,14 +904,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (context.mounted) {
         unawaited(
-          Navigator.of(
-            context,
-          ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingPaymentScreen(booking: activeBooking))),
+          Navigator.of(context).push<void>(
+            MaterialPageRoute<void>(
+              builder: (context) =>
+                  BookingPaymentScreen(booking: activeBooking),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -753,7 +937,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
           if (!StatusUtils.isRoomOccupied(room.status))
             ElevatedButton(
               onPressed: () {
@@ -770,25 +957,39 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildEmployeeShiftPayments() {
     final user = ref.watch(authProvider).currentUser;
     final canViewOtherEmployees =
-        user?.isAdmin == true || user?.userType == 'manager' || user?.userType == 'supervisor';
+        user?.isAdmin == true ||
+        user?.userType == 'manager' ||
+        user?.userType == 'supervisor';
     if (!canViewOtherEmployees) return const SizedBox.shrink();
 
     // ✅ (2026-09-14) مصدر سحابي مباشر — المبالغ تُقرأ من Appwrite
     // وتتحدث تلقائياً (كل 60 ثانية + مع أحداث المزامنة + زر التحديث).
-    final summariesAsync = ref.watch(cloudEmployeeShiftPaymentSummariesProvider);
+    final summariesAsync = ref.watch(
+      cloudEmployeeShiftPaymentSummariesProvider,
+    );
     // ✅ ربط البطاقة بـ Outbox: دفعات هذا الجهاز التي لم تصل السحابة
     // بعد — تُرفع تلقائياً فور توفر الشبكة دون أي تدخل يدوي.
-    final pendingUploads = ref.watch(paymentsOutboxPendingProvider).valueOrNull ?? 0;
+    final pendingUploads =
+        ref.watch(paymentsOutboxPendingProvider).valueOrNull ?? 0;
     final currencyFmt = NumberFormat('#,##0', 'en_US');
     return summariesAsync.when(
-      loading: () => _buildEmployeeShiftCard(const [], currencyFmt, isLoading: true, pendingUploads: pendingUploads),
+      loading: () => _buildEmployeeShiftCard(
+        const [],
+        currencyFmt,
+        isLoading: true,
+        pendingUploads: pendingUploads,
+      ),
       error: (error, _) => _buildEmployeeShiftCard(
         const [],
         currencyFmt,
         errorMessage: 'تعذر تحميل استلامات الموظفين',
         pendingUploads: pendingUploads,
       ),
-      data: (summaries) => _buildEmployeeShiftCard(summaries, currencyFmt, pendingUploads: pendingUploads),
+      data: (summaries) => _buildEmployeeShiftCard(
+        summaries,
+        currencyFmt,
+        pendingUploads: pendingUploads,
+      ),
     );
   }
 
@@ -808,14 +1009,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         border: Border.all(color: Colors.blue.shade100),
         boxShadow: isLowEndDevice
             ? const []
-            : const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+            : const [
+                BoxShadow(
+                  color: Color(0x0D000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.groups_2_outlined, color: Colors.blue.shade700, size: 19),
+              Icon(
+                Icons.groups_2_outlined,
+                color: Colors.blue.shade700,
+                size: 19,
+              ),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
@@ -823,7 +1034,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
-              const Text('اليوم الفندقي الحالي', style: TextStyle(fontSize: 9, color: Colors.grey)),
+              const Text(
+                'اليوم الفندقي الحالي',
+                style: TextStyle(fontSize: 9, color: Colors.grey),
+              ),
               const SizedBox(width: 4),
               // ✅ تحديث فوري من السحابة عند الطلب.
               SizedBox(
@@ -834,7 +1048,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   iconSize: 16,
                   tooltip: 'تحديث من السحابة الآن',
                   icon: Icon(Icons.refresh, color: Colors.blue.shade700),
-                  onPressed: () => ref.read(shiftReceiptsManualRefreshProvider.notifier).state++,
+                  onPressed: () => ref
+                      .read(shiftReceiptsManualRefreshProvider.notifier)
+                      .state++,
                 ),
               ),
             ],
@@ -847,13 +1063,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Icon(Icons.cloud_upload_outlined, size: 13, color: Colors.orange.shade700),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 13,
+                    color: Colors.orange.shade700,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       'دفعة/دفعات على هذا الجهاز بانتظار الرفع التلقائي '
                       'إلى السحابة ($pendingUploads)',
-                      style: TextStyle(fontSize: 10, color: Colors.orange.shade700),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange.shade700,
+                      ),
                     ),
                   ),
                 ],
@@ -862,7 +1085,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (isLoading)
             const LinearProgressIndicator(minHeight: 2)
           else if (errorMessage != null)
-            Text(errorMessage, style: TextStyle(fontSize: 11, color: Colors.orange.shade700))
+            Text(
+              errorMessage,
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+            )
           else if (summaries.isEmpty)
             const Text(
               'لا توجد استلامات منسوبة إلى نوبات مسجلة بعد',
@@ -881,15 +1107,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             summary.userName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text('${summary.paymentCount} دفعة', style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                        Text(
+                          '${summary.paymentCount} دفعة',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                          ),
+                        ),
                         const SizedBox(width: 10),
                         Text(
                           currencyFmt.format(summary.totalAmount),
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
                         ),
                       ],
                     ),

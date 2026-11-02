@@ -24,10 +24,12 @@ class ComprehensiveBackupScreen extends ConsumerStatefulWidget {
   const ComprehensiveBackupScreen({super.key});
 
   @override
-  ConsumerState<ComprehensiveBackupScreen> createState() => _ComprehensiveBackupScreenState();
+  ConsumerState<ComprehensiveBackupScreen> createState() =>
+      _ComprehensiveBackupScreenState();
 }
 
-class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupScreen>
+class _ComprehensiveBackupScreenState
+    extends ConsumerState<ComprehensiveBackupScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -47,7 +49,13 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'النسخ الاحتياطي',
-      actions: [IconButton(onPressed: _showHelpDialog, icon: const Icon(Icons.help_outline), tooltip: 'مساعدة')],
+      actions: [
+        IconButton(
+          onPressed: _showHelpDialog,
+          icon: const Icon(Icons.help_outline),
+          tooltip: 'مساعدة',
+        ),
+      ],
       body: Column(
         children: [
           // Tab Bar
@@ -70,7 +78,11 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [AppwriteBackupTab(), CloudflareD1Tab(), LocalBackupsTab()],
+              children: const [
+                AppwriteBackupTab(),
+                CloudflareD1Tab(),
+                LocalBackupsTab(),
+              ],
             ),
           ),
         ],
@@ -100,7 +112,12 @@ class _ComprehensiveBackupScreenState extends ConsumerState<ComprehensiveBackupS
             '  - استيراد نسخة من ملف خارجي',
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسناً'),
+          ),
+        ],
       ),
     );
   }

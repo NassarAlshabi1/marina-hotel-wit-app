@@ -12,7 +12,8 @@ import '../local_db.dart';
 part 'ancestor_cache_dao.g.dart';
 
 @DriftAccessor(tables: [AncestorCache])
-class AncestorCacheDao extends DatabaseAccessor<AppDatabase> with _$AncestorCacheDaoMixin {
+class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
+    with _$AncestorCacheDaoMixin {
   AncestorCacheDao(super.db);
 
   /// حفظ نسخة من السجل كما جاءت من السحابة آخر مرة
@@ -33,7 +34,10 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase> with _$AncestorCach
     required Map<String, dynamic> data,
   }) async {
     // حذف السجل الموجود (إن وُجد) قبل الإدراج لتفادي UNIQUE constraint
-    await (delete(ancestorCache)..where((t) => t.entity.equals(entity) & t.localUuid.equals(localUuid))).go();
+    await (delete(ancestorCache)..where(
+          (t) => t.entity.equals(entity) & t.localUuid.equals(localUuid),
+        ))
+        .go();
 
     await into(ancestorCache).insert(
       AncestorCacheCompanion.insert(
@@ -49,10 +53,15 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase> with _$AncestorCach
   }
 
   /// استرجاع النسخة المشتركة لسجل معيّن
-  Future<Map<String, dynamic>?> getAncestor(String entity, String localUuid) async {
+  Future<Map<String, dynamic>?> getAncestor(
+    String entity,
+    String localUuid,
+  ) async {
     final row =
         await (select(ancestorCache)
-              ..where((t) => t.entity.equals(entity) & t.localUuid.equals(localUuid))
+              ..where(
+                (t) => t.entity.equals(entity) & t.localUuid.equals(localUuid),
+              )
               ..limit(1))
             .getSingleOrNull();
     if (row == null) return null;
@@ -65,14 +74,21 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase> with _$AncestorCach
 
   /// حذف نسخة ancestor (عند حذف السجل نفسه)
   Future<void> deleteAncestor(String entity, String localUuid) async {
-    await (delete(ancestorCache)..where((t) => t.entity.equals(entity) & t.localUuid.equals(localUuid))).go();
+    await (delete(ancestorCache)..where(
+          (t) => t.entity.equals(entity) & t.localUuid.equals(localUuid),
+        ))
+        .go();
   }
 
   /// تنظيف السجلات القديمة (أقدم من maxAgeDays)
   ///
   /// ✅ P0-2 Audit Fix: استخدام مللي ثانية بدلاً من ثواني.
   Future<int> cleanupOldEntries({int maxAgeDays = 30}) async {
-    final cutoff = DateTime.now().subtract(Duration(days: maxAgeDays)).millisecondsSinceEpoch;
-    return (delete(ancestorCache)..where((t) => t.capturedAt.isSmallerThanValue(cutoff))).go();
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: maxAgeDays))
+        .millisecondsSinceEpoch;
+    return (delete(
+      ancestorCache,
+    )..where((t) => t.capturedAt.isSmallerThanValue(cutoff))).go();
   }
 }

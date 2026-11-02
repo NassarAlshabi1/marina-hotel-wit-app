@@ -88,7 +88,8 @@ class GuestStatementData {
 
   final List<GuestStatementPayment> payments;
 
-  bool get isAutoOverdue => DateTime.now().isAfter(plannedCheckout) && hasPayments;
+  bool get isAutoOverdue =>
+      DateTime.now().isAfter(plannedCheckout) && hasPayments;
 }
 
 /// قالب كشف حساب النزيل التفصيلي.
@@ -100,7 +101,9 @@ class GuestStatementPdf {
     await ReportPdfBuilder.buildAndShare(
       ReportPdfConfig(
         title: 'كشف حساب نزيل تفصيلي',
-        fileName: ReportPdfBuilder.generateFileName('كشف-حساب-${data.guestName}'),
+        fileName: ReportPdfBuilder.generateFileName(
+          'كشف-حساب-${data.guestName}',
+        ),
         extraHeaderLine: 'النزيل: ${data.guestName} | غرفة: ${data.roomNumber}',
         buildContent: (fonts) {
           return [
@@ -108,11 +111,20 @@ class GuestStatementPdf {
             pw.SizedBox(height: 16),
             _plannedCheckoutCard(fonts, data),
             pw.SizedBox(height: 20),
-            pw.Text('سجل المدفوعات التفصيلي', style: PdfTextStyles.sectionTitle(fonts)),
+            pw.Text(
+              'سجل المدفوعات التفصيلي',
+              style: PdfTextStyles.sectionTitle(fonts),
+            ),
             pw.SizedBox(height: 10),
             ...EnhancedPdfUtils.buildChunkedTable(
               fonts: fonts,
-              headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'رقم المرجع', 'ملاحظات'],
+              headers: [
+                'التاريخ',
+                'المبلغ',
+                'طريقة الدفع',
+                'رقم المرجع',
+                'ملاحظات',
+              ],
               data: data.payments
                   .map(
                     (p) => [
@@ -135,7 +147,10 @@ class GuestStatementPdf {
   }
 
   /// بطاقة ملخص الحساب والمدة الزمانية.
-  static List<pw.Widget> _accountSummaryCard(ArabicPdfFonts fonts, GuestStatementData data) {
+  static List<pw.Widget> _accountSummaryCard(
+    ArabicPdfFonts fonts,
+    GuestStatementData data,
+  ) {
     final isCredit = data.remainingBalance < 0;
     final balanceColor = isCredit ? PdfColors.success : PdfColors.danger;
 
@@ -144,13 +159,23 @@ class GuestStatementPdf {
         title: 'ملخص الحساب والمدة الزمانية',
         fonts: fonts,
         content: [
-          EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'تاريخ الوصول', value: _fmtDate(data.checkinDate)),
+          EnhancedPdfUtils.buildKeyValueRow(
+            fonts: fonts,
+            label: 'تاريخ الوصول',
+            value: _fmtDate(data.checkinDate),
+          ),
           EnhancedPdfUtils.buildKeyValueRow(
             fonts: fonts,
             label: 'المغادرة المتوقعة (يدوي)',
-            value: data.manualCheckoutDate != null ? _fmtDate(data.manualCheckoutDate!) : 'غير محدد',
+            value: data.manualCheckoutDate != null
+                ? _fmtDate(data.manualCheckoutDate!)
+                : 'غير محدد',
           ),
-          EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'الأيام المقضية', value: '${data.actualDays} يوم'),
+          EnhancedPdfUtils.buildKeyValueRow(
+            fonts: fonts,
+            label: 'الأيام المقضية',
+            value: '${data.actualDays} يوم',
+          ),
           EnhancedPdfUtils.buildKeyValueRow(
             fonts: fonts,
             label: 'الأيام المتبقية',
@@ -187,17 +212,42 @@ class GuestStatementPdf {
   }
 
   /// بطاقة المغادرة المخططة (محسوبة من المدفوعات) والتمديد التلقائي.
-  static pw.Widget _plannedCheckoutCard(ArabicPdfFonts fonts, GuestStatementData data) {
+  static pw.Widget _plannedCheckoutCard(
+    ArabicPdfFonts fonts,
+    GuestStatementData data,
+  ) {
     final isAutoOverdue = data.isAutoOverdue;
 
     return EnhancedPdfUtils.buildInfoCard(
-      title: isAutoOverdue ? 'المغادرة المخططة (مُمدَّدة تلقائياً)' : 'المغادرة المخططة (محسوبة من المدفوعات)',
+      title: isAutoOverdue
+          ? 'المغادرة المخططة (مُمدَّدة تلقائياً)'
+          : 'المغادرة المخططة (محسوبة من المدفوعات)',
       fonts: fonts,
       content: [
-        _amountLine(fonts, 'إجمالي المدفوع', EnhancedPdfUtils.formatNumber(data.totalPaid), color: PdfColors.info),
-        _amountLine(fonts, 'سعر الليلة', EnhancedPdfUtils.formatNumber(data.nightlyRate), color: PdfColors.textDark),
-        _amountLine(fonts, 'الليالي المدفوعة', '${data.totalPaidNights} ليلة', color: PdfColors.textDark),
-        _amountLine(fonts, 'المغادرة المخططة', _fmtDate(data.plannedCheckout), color: PdfColors.success),
+        _amountLine(
+          fonts,
+          'إجمالي المدفوع',
+          EnhancedPdfUtils.formatNumber(data.totalPaid),
+          color: PdfColors.info,
+        ),
+        _amountLine(
+          fonts,
+          'سعر الليلة',
+          EnhancedPdfUtils.formatNumber(data.nightlyRate),
+          color: PdfColors.textDark,
+        ),
+        _amountLine(
+          fonts,
+          'الليالي المدفوعة',
+          '${data.totalPaidNights} ليلة',
+          color: PdfColors.textDark,
+        ),
+        _amountLine(
+          fonts,
+          'المغادرة المخططة',
+          _fmtDate(data.plannedCheckout),
+          color: PdfColors.success,
+        ),
         _amountLine(
           fonts,
           'تكلفة الإقامة المستهلكة',
@@ -208,11 +258,18 @@ class GuestStatementPdf {
           fonts,
           'الرصيد الفعلي',
           EnhancedPdfUtils.formatNumber(data.effectiveBalance),
-          color: data.effectiveBalance >= 0 ? PdfColors.success : PdfColors.danger,
+          color: data.effectiveBalance >= 0
+              ? PdfColors.success
+              : PdfColors.danger,
         ),
         if (isAutoOverdue && data.autoOverdueDays > 0) ...[
           pw.Divider(color: PdfColors.border, thickness: 0.5),
-          _amountLine(fonts, 'تمديد تلقائي', '+${data.autoOverdueDays} يوم', color: PdfColors.warning),
+          _amountLine(
+            fonts,
+            'تمديد تلقائي',
+            '+${data.autoOverdueDays} يوم',
+            color: PdfColors.warning,
+          ),
           _amountLine(
             fonts,
             'تكلفة التمديد',
@@ -248,7 +305,10 @@ class GuestStatementPdf {
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('ملاحظات:', style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+                pw.Text(
+                  'ملاحظات:',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+                ),
                 pw.Text(
                   'يُحتسب اليوم الفندقي من الساعة 2:00 ظهراً.',
                   style: pw.TextStyle(font: fonts.regular, fontSize: 9),
@@ -266,7 +326,10 @@ class GuestStatementPdf {
             ),
             pw.Column(
               children: [
-                pw.Text('ختم وتوقيع الإدارة', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+                pw.Text(
+                  'ختم وتوقيع الإدارة',
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 12),
+                ),
                 pw.SizedBox(height: 40),
                 pw.Container(width: 120, height: 1, color: PdfColors.textDark),
               ],
@@ -290,7 +353,12 @@ class GuestStatementPdf {
   }
 
   /// صف مبلغ label/value محاذاة بين الطرفين.
-  static pw.Widget _amountLine(ArabicPdfFonts fonts, String label, String value, {required PdfColor color}) {
+  static pw.Widget _amountLine(
+    ArabicPdfFonts fonts,
+    String label,
+    String value, {
+    required PdfColor color,
+  }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3),
       child: pw.Row(
@@ -298,7 +366,11 @@ class GuestStatementPdf {
         children: [
           pw.Text(
             '$label:',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textDark),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: 11,
+              color: PdfColors.textDark,
+            ),
           ),
           pw.Text(
             '$value ريال',
@@ -396,8 +468,16 @@ class GuestsBalancesPdf {
               title: 'ملخص التقرير',
               fonts: fonts,
               content: [
-                EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'تاريخ التقرير', value: data.reportDateText),
-                EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'عدد النزلاء', value: '${data.guestCount}'),
+                EnhancedPdfUtils.buildKeyValueRow(
+                  fonts: fonts,
+                  label: 'تاريخ التقرير',
+                  value: data.reportDateText,
+                ),
+                EnhancedPdfUtils.buildKeyValueRow(
+                  fonts: fonts,
+                  label: 'عدد النزلاء',
+                  value: '${data.guestCount}',
+                ),
                 _amountRow(
                   fonts,
                   'إجمالي المستحق',
@@ -452,8 +532,16 @@ class GuestsBalancesPdf {
           label: 'تاريخ الوصول',
           value: EnhancedPdfUtils.formatDateShort(b.checkinDate),
         ),
-        EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'المغادرة المتوقعة', value: b.expectedCheckoutText),
-        EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'الأيام المقضية', value: '${b.actualDays} يوم'),
+        EnhancedPdfUtils.buildKeyValueRow(
+          fonts: fonts,
+          label: 'المغادرة المتوقعة',
+          value: b.expectedCheckoutText,
+        ),
+        EnhancedPdfUtils.buildKeyValueRow(
+          fonts: fonts,
+          label: 'الأيام المقضية',
+          value: '${b.actualDays} يوم',
+        ),
         EnhancedPdfUtils.buildKeyValueRow(
           fonts: fonts,
           label: 'سعر الليلة',
@@ -472,7 +560,11 @@ class GuestsBalancesPdf {
               child: pw.Text(
                 '${isCredit ? 'المتبقي (له)' : 'المتبقي (عليه)'}: '
                 '${EnhancedPdfUtils.formatNumber(b.remainingBalance.abs())} ريال',
-                style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: balanceColor),
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 10,
+                  color: balanceColor,
+                ),
                 textAlign: pw.TextAlign.left,
               ),
             ),
@@ -486,7 +578,11 @@ class GuestsBalancesPdf {
         ),
         if (b.hasPayments) ...[
           pw.Divider(color: PdfColors.border, thickness: 0.5),
-          EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'المغادرة التلقائية', value: b.autoCheckoutText),
+          EnhancedPdfUtils.buildKeyValueRow(
+            fonts: fonts,
+            label: 'المغادرة التلقائية',
+            value: b.autoCheckoutText,
+          ),
           EnhancedPdfUtils.buildKeyValueRow(
             fonts: fonts,
             label: 'الليالي المدفوعة',
@@ -499,13 +595,22 @@ class GuestsBalancesPdf {
               value: '+${b.extraNightsBeyondManual} يوم',
             ),
           if (b.uncoveredDays > 0)
-            EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'أيام غير مغطاة', value: '${b.uncoveredDays} ليلة'),
+            EnhancedPdfUtils.buildKeyValueRow(
+              fonts: fonts,
+              label: 'أيام غير مغطاة',
+              value: '${b.uncoveredDays} ليلة',
+            ),
         ],
       ],
     );
   }
 
-  static pw.Widget _amountRow(ArabicPdfFonts fonts, String label, String value, {required PdfColor color}) {
+  static pw.Widget _amountRow(
+    ArabicPdfFonts fonts,
+    String label,
+    String value, {
+    required PdfColor color,
+  }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3),
       child: pw.Row(
@@ -513,7 +618,11 @@ class GuestsBalancesPdf {
         children: [
           pw.Text(
             '$label:',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 9.5, color: PdfColors.textDark),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: 9.5,
+              color: PdfColors.textDark,
+            ),
           ),
           pw.Text(
             '$value ريال',

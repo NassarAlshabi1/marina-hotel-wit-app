@@ -22,10 +22,10 @@ class SalaryWithdrawalsRepository {
   /// العمود أُضيف عبر Migration 40 ولا يوجد في الـ data class المُولّد
   Future<void> _setExpenseIdRaw(int salaryWithdrawalId, int expenseId) async {
     try {
-      await _db.customStatement('UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?', [
-        expenseId,
-        salaryWithdrawalId,
-      ]);
+      await _db.customStatement(
+        'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+        [expenseId, salaryWithdrawalId],
+      );
     } catch (_) {
       // العمود قد لا يكون موجوداً في الإصدارات القديمة — نتخطى بصمت
     }
@@ -49,7 +49,9 @@ class SalaryWithdrawalsRepository {
 
   String _requireEmployeeUuid(d.Value<String> employeeUuid, int employeeId) {
     if (!employeeUuid.present || employeeUuid.value.trim().isEmpty) {
-      throw StateError('تعذر حفظ السحب: لا يوجد local_uuid صالح للموظف #$employeeId.');
+      throw StateError(
+        'تعذر حفظ السحب: لا يوجد local_uuid صالح للموظف #$employeeId.',
+      );
     }
     return employeeUuid.value.trim();
   }
@@ -88,7 +90,9 @@ class SalaryWithdrawalsRepository {
       );
       // ✅ بيانات واردة من الخادم: الختم المحلي مطلوب (تصحيح الروابط)
       // لكن بلا إعادة دفع للسحابة (منع حلقات الرفع).
-      if (!originIsServer && expenseLocalUuid != null && expenseLocalUuid.isNotEmpty) {
+      if (!originIsServer &&
+          expenseLocalUuid != null &&
+          expenseLocalUuid.isNotEmpty) {
         await _outboxDao.merge(
           entity: 'expenses',
           op: 'update',
@@ -133,9 +137,14 @@ class SalaryWithdrawalsRepository {
     // ✅ وسم الجهاز — عمود deviceId موجود في SyncFields وكان يُرسل فارغاً دائماً
     final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
     // ✅ (2026-09-19) UUID الموظف عند الإنشاء — الربط الدائم عبر الأجهزة
-    final employeeUuid = _requireEmployeeUuid(await _employeeUuidFor(employeeId), employeeId);
+    final employeeUuid = _requireEmployeeUuid(
+      await _employeeUuidFor(employeeId),
+      employeeId,
+    );
     // ✅ (migration 68) UUID المصروف عند الإنشاء — الرابط الدائم سحبة→مصروف
-    final expenseUuid = expenseId > 0 ? await _expenseUuidFor(expenseId) : const d.Value<String>.absent();
+    final expenseUuid = expenseId > 0
+        ? await _expenseUuidFor(expenseId)
+        : const d.Value<String>.absent();
 
     final id = await _db.transaction(() async {
       final companion = SalaryWithdrawalsCompanion(
@@ -152,7 +161,9 @@ class SalaryWithdrawalsRepository {
         hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
         withdrawalType: d.Value(withdrawalType),
         description: d.Value(description),
-        recorderName: recorderName != null && recorderName.isNotEmpty ? d.Value(recorderName) : const d.Value.absent(),
+        recorderName: recorderName != null && recorderName.isNotEmpty
+            ? d.Value(recorderName)
+            : const d.Value.absent(),
         deviceId: d.Value(deviceId),
         createdAt: d.Value(now),
         updatedAt: d.Value(now),
@@ -201,7 +212,8 @@ class SalaryWithdrawalsRepository {
           'withdrawalType': withdrawalType,
           'description': description,
           'deviceId': deviceId,
-          if (recorderName != null && recorderName.isNotEmpty) 'recorderName': recorderName,
+          if (recorderName != null && recorderName.isNotEmpty)
+            'recorderName': recorderName,
         };
         if (expenseId > 0) {
           payload['expenseId'] = expenseId;
@@ -291,7 +303,10 @@ class SalaryWithdrawalsRepository {
     bool originIsServer = false,
   }) async {
     // ✅ (2026-09-19) UUID الموظف — يُخزن مع السجل الجديد عند الإنشاء
-    final employeeUuid = _requireEmployeeUuid(await _employeeUuidFor(employeeId), employeeId);
+    final employeeUuid = _requireEmployeeUuid(
+      await _employeeUuidFor(employeeId),
+      employeeId,
+    );
 
     // ✅ (هجرة 68) صف المصروف نفسه — مصدر حقول الهوية للمطابقة والختم.
     // التمييز هنا بهوية العملية نفسها (UUID)، وليس باسم الموظف أو اليوم
@@ -316,9 +331,13 @@ class SalaryWithdrawalsRepository {
     // حتمي وعابر للأجهزة، يُرجّح على كل الطرق الرقمية/البيانية الأقدم.
     if (expenseLocalUuid.isNotEmpty) {
       // 0-أ: المرآة التي تعلن ارتباطها بهذا المصروف بهويته (سحبة → مصروف)
-      final byExpenseUuid = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.expenseUuid.equals(expenseLocalUuid) & t.deletedAt.isNull())).get();
+      final byExpenseUuid =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) =>
+                    t.expenseUuid.equals(expenseLocalUuid) &
+                    t.deletedAt.isNull(),
+              ))
+              .get();
       if (byExpenseUuid.isNotEmpty) {
         if (byExpenseUuid.length == 1) {
           matched = byExpenseUuid.first;
@@ -344,7 +363,11 @@ class SalaryWithdrawalsRepository {
         if (stampedUuid.isNotEmpty && stampedUuid != expenseLocalUuid) {
           final stamped =
               await (_db.select(_db.salaryWithdrawals)
-                    ..where((t) => t.localUuid.equals(stampedUuid) & t.deletedAt.isNull())
+                    ..where(
+                      (t) =>
+                          t.localUuid.equals(stampedUuid) &
+                          t.deletedAt.isNull(),
+                    )
                     ..limit(1))
                   .getSingleOrNull();
           if (stamped != null) {
@@ -353,7 +376,9 @@ class SalaryWithdrawalsRepository {
             // هذا المصروف لا يخوّل اختطافها.
             final declared = (stamped.expenseUuid ?? '').trim();
             final belongsToOther =
-                declared.isNotEmpty && declared != expenseLocalUuid && await _activeExpenseExistsByUuid(declared);
+                declared.isNotEmpty &&
+                declared != expenseLocalUuid &&
+                await _activeExpenseExistsByUuid(declared);
             if (!belongsToOther) {
               matched = stamped;
             }
@@ -398,9 +423,11 @@ class SalaryWithdrawalsRepository {
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة)
     if (matched == null) {
-      final existing = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull())).get();
+      final existing =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
+              ))
+              .get();
       matched = existing
           .where(
             (w) =>
@@ -431,9 +458,13 @@ class SalaryWithdrawalsRepository {
               .getSingleOrNull();
       final expenseUuidStr = expenseRowForUuid?.localUuid ?? '';
       if (expenseUuidStr.isNotEmpty) {
-        final byUuid = await (_db.select(
-          _db.salaryWithdrawals,
-        )..where((t) => t.expenseUuid.equals(expenseUuidStr) & t.deletedAt.isNull())).get();
+        final byUuid =
+            await (_db.select(_db.salaryWithdrawals)..where(
+                  (t) =>
+                      t.expenseUuid.equals(expenseUuidStr) &
+                      t.deletedAt.isNull(),
+                ))
+                .get();
         // التفرّد مضمون بالتوليد — لو انكسر (بيانات تالفة) لا نخمّن:
         // نترك البحث للطريقة 3 (التي لها حارس غموض خاص بها الآن).
         if (byUuid.length == 1) matched = byUuid.single;
@@ -467,9 +498,11 @@ class SalaryWithdrawalsRepository {
     if (matched != null) {
       final matchedId = matched.id; // ✅ متغير محلي non-null
       // البحث عن سجلات أخرى بنفس expense_id أو exp_XX
-      final allExisting = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.deletedAt.isNull() & t.id.equals(matchedId).not())).get();
+      final allExisting =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) => t.deletedAt.isNull() & t.id.equals(matchedId).not(),
+              ))
+              .get();
       for (final w in allExisting) {
         // ✅ النسخ المكررة بالهوية (identityDuplicates) تُعالج في بداية
         // المعاملة — لا نعيد معالجتها هنا منعاً للازدواج.
@@ -492,7 +525,9 @@ class SalaryWithdrawalsRepository {
       // ─── حذف النسخ المكررة لنفس الهوية (الطريقة 0) داخل المعاملة ───
       // نفس معاملة السجلات القديمة: حذف ناعم + مزامنة كتحديث للعملية نفسها.
       for (final duplicate in identityDuplicates) {
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(duplicate.id))).write(
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(duplicate.id))).write(
           SalaryWithdrawalsCompanion(
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
@@ -520,7 +555,9 @@ class SalaryWithdrawalsRepository {
 
       // ─── حذف السجلات القديمة داخل المعاملة لضمان اتساق المزامنة ───
       for (final stale in staleRecords) {
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(stale.id))).write(
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(stale.id))).write(
           SalaryWithdrawalsCompanion(
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
@@ -558,7 +595,9 @@ class SalaryWithdrawalsRepository {
         final matchedServerId = matched.serverId;
         final matchedVersion = matched.version;
         // تحديث السجل الموجود
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(matchedId))).write(
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(matchedId))).write(
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
             // ✅ (R12) تحديث employeeUuid مع employeeId — بدونه يبقى قديم
@@ -570,7 +609,9 @@ class SalaryWithdrawalsRepository {
             withdrawalType: d.Value(action),
             description: d.Value(note),
             hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
-            deviceId: deviceId.isEmpty ? const d.Value.absent() : d.Value(deviceId),
+            deviceId: deviceId.isEmpty
+                ? const d.Value.absent()
+                : d.Value(deviceId),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
             version: d.Value(matchedVersion + 1),
@@ -582,7 +623,9 @@ class SalaryWithdrawalsRepository {
         // ✅ (هجرة 68) ختم الهوية على المرآة: expense_uuid = هوية هذا
         // المصروف — الرابط الدائم الذي ينجو من إعادة ترقيم المعرفات.
         if (expenseLocalUuid.isNotEmpty) {
-          await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(matchedId))).write(
+          await (_db.update(
+            _db.salaryWithdrawals,
+          )..where((t) => t.id.equals(matchedId))).write(
             SalaryWithdrawalsCompanion(expenseUuid: d.Value(expenseLocalUuid)),
           );
         }
@@ -652,7 +695,9 @@ class SalaryWithdrawalsRepository {
                 // ✅ (2026-09-19) employee_uuid عند الإنشاء
                 employeeUuid: d.Value(employeeUuid),
                 // ✅ (هجرة 68) هوية المصروف عند الإنشاء — الرابط الدائم
-                expenseUuid: expenseLocalUuid.isNotEmpty ? d.Value(expenseLocalUuid) : const d.Value.absent(),
+                expenseUuid: expenseLocalUuid.isNotEmpty
+                    ? d.Value(expenseLocalUuid)
+                    : const d.Value.absent(),
                 amount: d.Value(amount),
                 withdrawDate: d.Value(date),
                 reason: d.Value(reasonText),
@@ -758,9 +803,11 @@ class SalaryWithdrawalsRepository {
     String? hotelDayKey,
     String? expenseLocalUuid,
   }) async {
-    final candidates = await (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.deletedAt.isNull() & t.employeeId.equals(employeeId))).get();
+    final candidates =
+        await (_db.select(_db.salaryWithdrawals)..where(
+              (t) => t.deletedAt.isNull() & t.employeeId.equals(employeeId),
+            ))
+            .get();
     if (candidates.isEmpty) return null;
 
     final effectiveHotelDayKey = hotelDayKey ?? _computeHotelDayKey(date);
@@ -785,7 +832,8 @@ class SalaryWithdrawalsRepository {
       // نتبنى فقط ما يحمل علامة مرآة (expense_id أو exp_N) — السحوبات
       // اليدوية القديمة بلا علامة مصدرها غامض ولا تُختطف.
       final wExpId = w.expenseId;
-      final hasMirrorMarker = (wExpId != null && wExpId > 0) || RegExp(r'exp_\d+').hasMatch(r);
+      final hasMirrorMarker =
+          (wExpId != null && wExpId > 0) || RegExp(r'exp_\d+').hasMatch(r);
       if (!hasMirrorMarker) continue;
 
       // رابط expense_id يشير لمصروف محلي قائم آخر → مرآة ذلك المصروف.
@@ -804,7 +852,9 @@ class SalaryWithdrawalsRepository {
 
       // نفس اليوم: hotelDayKey عند توفرهما، وإلا التاريخ التقويمي.
       final wDay = (w.hotelDayKey ?? '').trim();
-      final dayMatch = wDay.isNotEmpty ? wDay == effectiveHotelDayKey : w.withdrawDate.trim() == date.trim();
+      final dayMatch = wDay.isNotEmpty
+          ? wDay == effectiveHotelDayKey
+          : w.withdrawDate.trim() == date.trim();
       if (!dayMatch) continue;
 
       adoptable.add(w);
@@ -827,7 +877,9 @@ class SalaryWithdrawalsRepository {
   Future<bool> _activeExpenseExistsByUuid(String localUuid) async {
     final row =
         await (_db.select(_db.expenses)
-              ..where((t) => t.localUuid.equals(localUuid) & t.deletedAt.isNull())
+              ..where(
+                (t) => t.localUuid.equals(localUuid) & t.deletedAt.isNull(),
+              )
               ..limit(1))
             .getSingleOrNull();
     return row != null;
@@ -857,20 +909,25 @@ class SalaryWithdrawalsRepository {
     //    'server'/'mobile' = بيانات مسحوبة تحمل رابط جهاز آخر → تُرفض ما لم
     //    يُتبنَّها هذا الجهاز فعلياً (device_id يُعاد كتابته عند التبنّي).
     final createdByThisDevice =
-        (w.origin != 'server' && w.origin != 'mobile') || (currentDeviceId.isNotEmpty && w.deviceId == currentDeviceId);
+        (w.origin != 'server' && w.origin != 'mobile') ||
+        (currentDeviceId.isNotEmpty && w.deviceId == currentDeviceId);
     if (!createdByThisDevice) return false;
 
     // 2) نطاق الموظف (يُطبَّق دائماً عند توفيره — حتى للسجلات المحلية):
     //    يحمي من روابط قديمة خاطئة (رقم موظف سابق/مستعادة) ومن مستقبل
     //    إعادة الترقيم بعد الاستعادة (المرحلة 5).
     final hasScope =
-        employeeId != null || previousEmployeeId != null || (employeeUuid != null && employeeUuid.isNotEmpty);
+        employeeId != null ||
+        previousEmployeeId != null ||
+        (employeeUuid != null && employeeUuid.isNotEmpty);
     if (!hasScope) return true;
     if (employeeId != null && w.employeeId == employeeId) return true;
     if (previousEmployeeId != null && w.employeeId == previousEmployeeId) {
       return true;
     }
-    if (employeeUuid != null && employeeUuid.isNotEmpty && w.employeeUuid == employeeUuid) {
+    if (employeeUuid != null &&
+        employeeUuid.isNotEmpty &&
+        w.employeeUuid == employeeUuid) {
       return true;
     }
     return false;
@@ -904,9 +961,13 @@ class SalaryWithdrawalsRepository {
     final expenseLocalUuid = (expenseRow?.localUuid ?? '').trim();
     if (expenseLocalUuid.isNotEmpty) {
       // 0-أ: سحبات تعلن ارتباطها بهذا المصروف بهويته (سحبة → مصروف)
-      final byUuid = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.expenseUuid.equals(expenseLocalUuid) & t.deletedAt.isNull())).get();
+      final byUuid =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) =>
+                    t.expenseUuid.equals(expenseLocalUuid) &
+                    t.deletedAt.isNull(),
+              ))
+              .get();
       for (final w in byUuid) {
         if (!containsId(w.id)) toDelete.add(w);
       }
@@ -916,7 +977,10 @@ class SalaryWithdrawalsRepository {
       if (stampedUuid.isNotEmpty && stampedUuid != expenseLocalUuid) {
         final stamped =
             await (_db.select(_db.salaryWithdrawals)
-                  ..where((t) => t.localUuid.equals(stampedUuid) & t.deletedAt.isNull())
+                  ..where(
+                    (t) =>
+                        t.localUuid.equals(stampedUuid) & t.deletedAt.isNull(),
+                  )
                   ..limit(1))
                 .getSingleOrNull();
         // ✅ حارس الاختطاف: مرآة تعلن انتماءها لمصروف آخر قائم لا تُحذف
@@ -944,7 +1008,9 @@ class SalaryWithdrawalsRepository {
           .get();
       if (rows.isNotEmpty) {
         final ids = rows.map((r) => r.read<int>('id')).toList();
-        legacyMatches = await (_db.select(_db.salaryWithdrawals)..where((t) => t.id.isIn(ids))).get();
+        legacyMatches = await (_db.select(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.isIn(ids))).get();
       }
     } catch (_) {
       // العمود قد لا يكون موجوداً
@@ -956,15 +1022,23 @@ class SalaryWithdrawalsRepository {
     // قديم مرتبط بالـ reason وحده كان يبقى حياً خطأً.
     // ✅ الحارس يخص الروابط الرقمية/البيانية فقط — نتائج الطريقة 0
     // محسومة بالهوية ولا تخضع له.
-    bool guard(SalaryWithdrawal w) => _ownedByDeviceOrEmployee(w, employeeId: employeeId, employeeUuid: employeeUuid);
+    bool guard(SalaryWithdrawal w) => _ownedByDeviceOrEmployee(
+      w,
+      employeeId: employeeId,
+      employeeUuid: employeeUuid,
+    );
     legacyMatches = legacyMatches.where(guard).toList();
 
     // الطريقة 2: بحث عبر reason (الطريقة القديمة) إذا لم نجد عبر expense_id
     if (legacyMatches.isEmpty) {
-      final candidates = await (_db.select(
-        _db.salaryWithdrawals,
-      )..where((t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull())).get();
-      legacyMatches = candidates.where((w) => matchesExpenseRef(w.reason, expenseId)).toList();
+      final candidates =
+          await (_db.select(_db.salaryWithdrawals)..where(
+                (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
+              ))
+              .get();
+      legacyMatches = candidates
+          .where((w) => matchesExpenseRef(w.reason, expenseId))
+          .toList();
     }
 
     // ✅ (المرحلة 0 — P0.3 / R3) تطبيق الحارس على المرشحات من المسارين:
@@ -982,7 +1056,9 @@ class SalaryWithdrawalsRepository {
     // ✅ حذف ناعم في معاملة واحدة لضمان الاتساق
     await _db.transaction(() async {
       for (final item in toDelete) {
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(item.id))).write(
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((t) => t.id.equals(item.id))).write(
           SalaryWithdrawalsCompanion(
             deletedAt: d.Value(now),
             updatedAt: d.Value(now),
@@ -1001,7 +1077,11 @@ class SalaryWithdrawalsRepository {
             op: 'update',
             localUuid: item.localUuid,
             serverId: item.serverId,
-            payload: {'employeeId': item.employeeId, 'deletedAt': now, 'lastModified': now},
+            payload: {
+              'employeeId': item.employeeId,
+              'deletedAt': now,
+              'lastModified': now,
+            },
             clientTs: now,
           );
         }
@@ -1018,16 +1098,23 @@ class SalaryWithdrawalsRepository {
   /// جلب سحوبات موظف معين
   Future<List<SalaryWithdrawal>> listByEmployeeId(int employeeId) async {
     return (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.employeeId.equals(employeeId) & t.deletedAt.isNull())).get();
+          _db.salaryWithdrawals,
+        )..where((t) => t.employeeId.equals(employeeId) & t.deletedAt.isNull()))
+        .get();
   }
 
   /// جلب السحوبات النشطة (غير المحذوفة) مع حد اختياري للقوائم منخفضة الذاكرة.
-  Future<List<SalaryWithdrawal>> listActive({int? limit, int offset = 0}) async {
+  Future<List<SalaryWithdrawal>> listActive({
+    int? limit,
+    int offset = 0,
+  }) async {
     final query = _db.select(_db.salaryWithdrawals)
       ..where((t) => t.deletedAt.isNull())
       ..orderBy([
-        (t) => d.OrderingTerm(expression: t.withdrawDate, mode: d.OrderingMode.desc),
+        (t) => d.OrderingTerm(
+          expression: t.withdrawDate,
+          mode: d.OrderingMode.desc,
+        ),
         (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
       ]);
     if (limit != null) {
@@ -1054,7 +1141,9 @@ class SalaryWithdrawalsRepository {
       final year = int.tryParse(parts[0]) ?? 1;
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
-      return HotelTimeEngine.getHotelDayKey(dateTime: DateTime(year, month, day, 14, 1));
+      return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(year, month, day, 14, 1),
+      );
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }

@@ -34,7 +34,11 @@ void main() {
 
     test('warning يُضيف سجل مع error', () {
       final before = CircularBufferLogger.instance.bufferSize;
-      CircularBufferLogger.instance.warning('test warning', tag: 'TEST', error: 'some error');
+      CircularBufferLogger.instance.warning(
+        'test warning',
+        tag: 'TEST',
+        error: 'some error',
+      );
       expect(CircularBufferLogger.instance.bufferSize, greaterThan(before));
     });
 

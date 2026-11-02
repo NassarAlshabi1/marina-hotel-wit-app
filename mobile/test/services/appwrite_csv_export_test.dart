@@ -21,18 +21,21 @@ models.Document _doc(String id, {Map<String, dynamic> data = const {}}) {
 
 void main() {
   group('AppwriteCsvExportService.encodeTable', () {
-    test('escapes commas, quotes, and newlines while preserving Arabic text', () {
-      final csv = AppwriteCsvExportService.encodeTable(
-        const ExportTable(
-          columns: ['name', 'notes'],
-          rows: [
-            ['أحمد, "علي"', 'سطر 1\nسطر 2'],
-          ],
-        ),
-      );
+    test(
+      'escapes commas, quotes, and newlines while preserving Arabic text',
+      () {
+        final csv = AppwriteCsvExportService.encodeTable(
+          const ExportTable(
+            columns: ['name', 'notes'],
+            rows: [
+              ['أحمد, "علي"', 'سطر 1\nسطر 2'],
+            ],
+          ),
+        );
 
-      expect(csv, '"name","notes"\r\n"أحمد, ""علي""","سطر 1\nسطر 2"\r\n');
-    });
+        expect(csv, '"name","notes"\r\n"أحمد, ""علي""","سطر 1\nسطر 2"\r\n');
+      },
+    );
 
     test('neutralizes formula-like text when opened in spreadsheet apps', () {
       final csv = AppwriteCsvExportService.encodeTable(
@@ -102,7 +105,10 @@ void main() {
       );
 
       await expectLater(
-        service.exportCollection(collectionId: 'devices', targetPath: '${tempDir.path}/devices.csv'),
+        service.exportCollection(
+          collectionId: 'devices',
+          targetPath: '${tempDir.path}/devices.csv',
+        ),
         throwsArgumentError,
       );
       expect(fetchCalled, isFalse);

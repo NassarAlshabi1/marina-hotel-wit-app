@@ -26,10 +26,12 @@ class SecondaryAppwriteSettingsScreen extends ConsumerStatefulWidget {
   const SecondaryAppwriteSettingsScreen({super.key});
 
   @override
-  ConsumerState<SecondaryAppwriteSettingsScreen> createState() => _SecondaryAppwriteSettingsScreenState();
+  ConsumerState<SecondaryAppwriteSettingsScreen> createState() =>
+      _SecondaryAppwriteSettingsScreenState();
 }
 
-class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwriteSettingsScreen> {
+class _SecondaryAppwriteSettingsScreenState
+    extends ConsumerState<SecondaryAppwriteSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,7 +49,9 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 Expanded(
                   child: Text(
                     'المزامنة الثانوية معطّلة',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -74,7 +78,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                         children: [
                           Text(
                             'لماذا تم التعطيل؟',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
                           ),
                           SizedBox(height: 4),
                           Text(
@@ -101,7 +108,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ما الذي تغيّر؟', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      'ما الذي تغيّر؟',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     SizedBox(height: 8),
                     Text(
                       '• SecondarySyncManager أُزيل بالكامل\n'

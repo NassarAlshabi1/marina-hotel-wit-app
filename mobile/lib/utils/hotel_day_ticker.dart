@@ -94,7 +94,13 @@ class HotelDayTicker {
   /// الليل بعد يوم كامل من الإغلاق.
   void _emitMissedTickIfNeeded() {
     final now = DateTime.now();
-    final todayHotelDayStart = DateTime(now.year, now.month, now.day, _hotelStartHour, _hotelStartMinute);
+    final todayHotelDayStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _hotelStartHour,
+      _hotelStartMinute,
+    );
 
     // إذا كنا خلال ساعة بعد 14:01 اليوم، نُصدر tick فوري
     final oneHourAfterStart = todayHotelDayStart.add(const Duration(hours: 1));
@@ -111,7 +117,13 @@ class HotelDayTicker {
   void _scheduleNext() {
     _timer?.cancel();
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, _hotelStartHour, _hotelStartMinute);
+    var next = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _hotelStartHour,
+      _hotelStartMinute,
+    );
     // ✅ OCR FIX: توضيح أوضح للحالة الحافة.
     // إذا تجاوزنا 14:01 اليوم (now >= next)، الهدف هو 14:01 غداً.
     // ملاحظة: isBefore يُرجع true فقط إذا كان now < next بدقة millisecond.

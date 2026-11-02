@@ -37,7 +37,9 @@ class AuthUser {
       fullName: (json['full_name'] ?? json['name'] ?? '').toString(),
       userType: (json['user_type'] ?? '').toString(),
       cloudUserId: json['cloud_user_id']?.toString(),
-      permissions: rawPerms is List ? rawPerms.map((e) => e.toString()).toList() : const <String>[],
+      permissions: rawPerms is List
+          ? rawPerms.map((e) => e.toString()).toList()
+          : const <String>[],
     );
   }
   final int id;
@@ -53,17 +55,25 @@ class AuthUser {
 
   /// بوابة احتياطية للوظائف العامة المقيدة بالدور (مثل إلغاء الدفعات)،
   /// ولا تستبدل [canPerform] عند فحص فعل مرتبط بوحدة محددة.
-  bool get canManageRecords => AuthLocalStore.isManagerialRole(userType) || permissions.contains('all');
+  bool get canManageRecords =>
+      AuthLocalStore.isManagerialRole(userType) || permissions.contains('all');
 
   /// إلغاء الدفعات (void) متاح للمدير والمشرف فقط — لا يكفي
   /// امتلاك صلاحية القسم؛ الدور نفسه يجب أن يكون admin أو manager أو supervisor.
   bool get canVoidPayments => canManageRecords;
 
-  bool canPerform(String module, String action) =>
-      AuthLocalStore.canPerform(userType: userType, permissions: permissions, module: module, action: action);
+  bool canPerform(String module, String action) => AuthLocalStore.canPerform(
+    userType: userType,
+    permissions: permissions,
+    module: module,
+    action: action,
+  );
 
-  bool canAccessModule(String module) =>
-      AuthLocalStore.canAccessModule(userType: userType, permissions: permissions, module: module);
+  bool canAccessModule(String module) => AuthLocalStore.canAccessModule(
+    userType: userType,
+    permissions: permissions,
+    module: module,
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -136,7 +146,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
   void _startSessionCheck() {
     _sessionCheckTimer?.cancel();
-    _sessionCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkSession());
+    _sessionCheckTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkSession(),
+    );
   }
 
   void _stopSessionCheck() {
@@ -168,7 +181,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     final valid = await _store.checkSessionValidity();
     if (!valid && mounted) {
-      AppLogger.warning('Session invalidated — credentials changed from another device', tag: 'AUTH');
+      AppLogger.warning(
+        'Session invalidated — credentials changed from another device',
+        tag: 'AUTH',
+      );
       await _store.clearSession();
       PaymentSessionContext.clear();
       _stopSessionCheck();
@@ -220,15 +236,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
         PaymentSessionContext.clear();
         state = const AuthState(
           isAuthenticated: false,
-          error: 'تم تغيير بيانات الدخول من جهاز آخر. يرجى تسجيل الدخول مجدداً.',
+          error:
+              'تم تغيير بيانات الدخول من جهاز آخر. يرجى تسجيل الدخول مجدداً.',
           sessionInvalidated: true,
         );
         return;
       }
     }
 
-    state = AuthState(isAuthenticated: true, currentUser: user, rememberMe: rememberMe, authType: authType);
-    PaymentSessionContext.start(userId: user.id, userName: user.name, cloudUserId: user.cloudUserId);
+    state = AuthState(
+      isAuthenticated: true,
+      currentUser: user,
+      rememberMe: rememberMe,
+      authType: authType,
+    );
+    PaymentSessionContext.start(
+      userId: user.id,
+      userName: user.name,
+      cloudUserId: user.cloudUserId,
+    );
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
@@ -238,13 +264,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     unawaited(_resumeCloudSyncAfterLogin());
   }
 
-  Future<void> login(String username, String password, {bool rememberMe = true}) async {
+  Future<void> login(
+    String username,
+    String password, {
+    bool rememberMe = true,
+  }) async {
     PaymentSessionContext.clear();
     state = state.copyWith();
 
     final data = await _store.validateCredentials(username, password);
     if (data == null) {
-      state = const AuthState(isAuthenticated: false, error: 'اسم المستخدم أو كلمة المرور غير صحيحة');
+      state = const AuthState(
+        isAuthenticated: false,
+        error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
+      );
       return;
     }
 
@@ -253,8 +286,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _store.setRememberMe(rememberMe);
     await _store.setAuthType(AuthType.local);
 
-    state = AuthState(isAuthenticated: true, currentUser: user, rememberMe: rememberMe);
-    PaymentSessionContext.start(userId: user.id, userName: user.name, cloudUserId: user.cloudUserId);
+    state = AuthState(
+      isAuthenticated: true,
+      currentUser: user,
+      rememberMe: rememberMe,
+    );
+    PaymentSessionContext.start(
+      userId: user.id,
+      userName: user.name,
+      cloudUserId: user.cloudUserId,
+    );
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
@@ -289,7 +330,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> _resumeCloudSyncAfterLogin() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final deviceId = prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
+      final deviceId =
+          prefs.getString('appwrite_device_id') ??
+          prefs.getString('appwrite_realtime_device_id');
       if (deviceId == null) {
         return;
       }
@@ -301,11 +344,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> updateUserPermissions(String username, List<String> permissions) async {
+  Future<bool> updateUserPermissions(
+    String username,
+    List<String> permissions,
+  ) async {
     _requireAdmin();
     final updatedCloud = await _store.setPermissions(username, permissions);
     if (state.currentUser != null && state.currentUser!.username == username) {
-      final updated = state.currentUser!.copyWith(permissions: username == 'admin' ? ['all'] : permissions);
+      final updated = state.currentUser!.copyWith(
+        permissions: username == 'admin' ? ['all'] : permissions,
+      );
       await _store.saveCurrentUser(updated.toJson());
       state = state.copyWith(currentUser: updated);
     }
@@ -376,7 +424,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// حذف مستخدم سحابي
-  Future<bool> deleteCloudUser({required String docId, String? username}) async {
+  Future<bool> deleteCloudUser({
+    required String docId,
+    String? username,
+  }) async {
     _requireAdmin();
     if (username != null && username == state.currentUser?.username) {
       throw StateError('لا يمكن حذف الحساب المستخدم حالياً');
@@ -385,4 +436,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+  (ref) => AuthNotifier(),
+);

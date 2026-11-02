@@ -50,7 +50,9 @@ class UnifiedSyncScheduler {
     final multiplier = optimizer.isWeakDevice ? 2.0 : 1.0;
 
     for (final task in _tasks) {
-      final adjusted = Duration(milliseconds: (task.interval.inMilliseconds * multiplier).round());
+      final adjusted = Duration(
+        milliseconds: (task.interval.inMilliseconds * multiplier).round(),
+      );
 
       _running[task.id] = false;
 
@@ -65,7 +67,10 @@ class UnifiedSyncScheduler {
       dlog(() => '✅ Started: ${task.name} (${adjusted.inSeconds}s)');
     }
 
-    CircularBufferLogger.instance.info('UnifiedSyncScheduler started: ${_tasks.length} tasks', tag: 'SCHEDULER');
+    CircularBufferLogger.instance.info(
+      'UnifiedSyncScheduler started: ${_tasks.length} tasks',
+      tag: 'SCHEDULER',
+    );
   }
 
   void stop() {
@@ -98,7 +103,12 @@ class UnifiedSyncScheduler {
       await task.callback();
     } catch (e, st) {
       dlog(() => '❌ ${task.name} failed: $e');
-      CircularBufferLogger.instance.error('Task ${task.name} failed: $e', tag: 'SCHEDULER', error: e, stack: st);
+      CircularBufferLogger.instance.error(
+        'Task ${task.name} failed: $e',
+        tag: 'SCHEDULER',
+        error: e,
+        stack: st,
+      );
     } finally {
       _running[task.id] = false;
     }

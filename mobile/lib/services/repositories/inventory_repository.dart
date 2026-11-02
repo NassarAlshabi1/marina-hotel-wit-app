@@ -59,7 +59,9 @@ class InventoryRepository {
               deviceId: d.Value(_deviceId),
             ),
           );
-      final item = await (db.select(db.inventoryItems)..where((row) => row.id.equals(itemId))).getSingle();
+      final item = await (db.select(
+        db.inventoryItems,
+      )..where((row) => row.id.equals(itemId))).getSingle();
       await outbox.merge(
         entity: 'inventory_items',
         op: 'create',
@@ -130,7 +132,9 @@ class InventoryRepository {
 
       final now = _nowEpoch;
       final nowIso = DateTime.now().toIso8601String();
-      await (db.update(db.inventoryItems)..where((row) => row.id.equals(itemId))).write(
+      await (db.update(
+        db.inventoryItems,
+      )..where((row) => row.id.equals(itemId))).write(
         InventoryItemsCompanion(
           quantity: d.Value(nextBalance),
           updatedAt: d.Value(now),
@@ -206,7 +210,9 @@ class InventoryRepository {
 
       final now = _nowEpoch;
       final nowIso = DateTime.now().toIso8601String();
-      await (db.update(db.inventoryItems)..where((row) => row.id.equals(itemId))).write(
+      await (db.update(
+        db.inventoryItems,
+      )..where((row) => row.id.equals(itemId))).write(
         InventoryItemsCompanion(
           quantity: d.Value(actualQuantity),
           updatedAt: d.Value(now),
@@ -266,7 +272,9 @@ class InventoryRepository {
       final item = await _getItem(itemId);
       if (item == null) return;
       final now = _nowEpoch;
-      await (db.update(db.inventoryItems)..where((row) => row.id.equals(itemId))).write(
+      await (db.update(
+        db.inventoryItems,
+      )..where((row) => row.id.equals(itemId))).write(
         InventoryItemsCompanion(
           isActive: const d.Value(false),
           deletedAt: d.Value(now),
@@ -290,7 +298,9 @@ class InventoryRepository {
   }
 
   Future<InventoryItem?> _getItem(int itemId) {
-    return (db.select(db.inventoryItems)..where((row) => row.id.equals(itemId))).getSingleOrNull();
+    return (db.select(
+      db.inventoryItems,
+    )..where((row) => row.id.equals(itemId))).getSingleOrNull();
   }
 
   String get _deviceId => AppwriteSyncManager.currentDeviceIdStatic ?? '';

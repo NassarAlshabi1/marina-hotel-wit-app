@@ -22,7 +22,9 @@ class Time {
     int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final base = now ?? DateTime.now();
-    final shifted = base.subtract(Duration(hours: cutoffHour, minutes: cutoffMinute));
+    final shifted = base.subtract(
+      Duration(hours: cutoffHour, minutes: cutoffMinute),
+    );
     return dateToString(shifted);
   }
 
@@ -37,7 +39,11 @@ class Time {
     final raw = isoString.trim();
     final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
     try {
-      return hotelDayKey(now: DateTime.parse(normalized), cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
+      return hotelDayKey(
+        now: DateTime.parse(normalized),
+        cutoffHour: cutoffHour,
+        cutoffMinute: cutoffMinute,
+      );
     } catch (_) {
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     }
@@ -48,10 +54,22 @@ class Time {
     int cutoffHour = hotelDayBoundaryHour,
     int cutoffMinute = hotelDayBoundaryMinute,
   }) {
-    final start = DateTime(value.year, value.month, value.day, cutoffHour, cutoffMinute);
+    final start = DateTime(
+      value.year,
+      value.month,
+      value.day,
+      cutoffHour,
+      cutoffMinute,
+    );
     if (value.isBefore(start)) {
       final previous = start.subtract(const Duration(days: 1));
-      return DateTime(previous.year, previous.month, previous.day, cutoffHour, cutoffMinute);
+      return DateTime(
+        previous.year,
+        previous.month,
+        previous.day,
+        cutoffHour,
+        cutoffMinute,
+      );
     }
     return start;
   }
@@ -63,7 +81,11 @@ class Time {
   }) {
     // الحجز قبل 14:01 ينتمي إلى اليوم الفندقي السابق؛ يعيد hotelDayStart
     // بداية ذلك اليوم بدلاً من إعادة وقت قطع مستقبلي في اليوم التقويمي نفسه.
-    return hotelDayStart(checkin, cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
+    return hotelDayStart(
+      checkin,
+      cutoffHour: cutoffHour,
+      cutoffMinute: cutoffMinute,
+    );
   }
 
   static String hotelDayStartIso(
@@ -85,7 +107,11 @@ class Time {
     int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final next = _nextDateString(hotelDay);
-    return hotelDayStartIso(next, cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
+    return hotelDayStartIso(
+      next,
+      cutoffHour: cutoffHour,
+      cutoffMinute: cutoffMinute,
+    );
   }
 
   /// Returns the ISO string for the next day (used for date range queries)
@@ -143,9 +169,17 @@ class Time {
     final end = checkout ?? DateTime.now();
 
     // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(checkin.year, checkin.month, checkin.day, cutoffHour, cutoffMinute);
+    DateTime startOfCheckinHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      cutoffHour,
+      cutoffMinute,
+    );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
-      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
+      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
+        const Duration(days: 1),
+      );
     }
 
     // حساب الفرق الزمني بين الوقت الحالي (أو وقت المغادرة) وبداية يوم الفندق للحجز

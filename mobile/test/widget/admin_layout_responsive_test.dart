@@ -52,7 +52,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('يبقى التخطيط مستقراً في أحجام الكمبيوتر الشائعة', (tester) async {
+  testWidgets('يبقى التخطيط مستقراً في أحجام الكمبيوتر الشائعة', (
+    tester,
+  ) async {
     for (final size in <Size>[const Size(1366, 768), const Size(1920, 1080)]) {
       await pumpAtSize(tester, size);
       expect(find.byType(AppBar), findsNothing, reason: 'size=$size');

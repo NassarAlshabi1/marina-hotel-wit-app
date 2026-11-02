@@ -144,7 +144,9 @@ void main() {
       );
 
       final rows = await db
-          .customSelect("SELECT employee_uuid FROM salary_cycles WHERE local_uuid = 'cy-test-1'")
+          .customSelect(
+            "SELECT employee_uuid FROM salary_cycles WHERE local_uuid = 'cy-test-1'",
+          )
           .get();
       expect(rows.first.read<String>('employee_uuid'), empUuid);
     });
@@ -170,7 +172,11 @@ void main() {
             "WHERE employee_uuid IS NOT NULL AND amount = 2000.0",
           )
           .get();
-      expect(rows, isNotEmpty, reason: 'يجب أن تُكتب employee_uuid عند الإنشاء');
+      expect(
+        rows,
+        isNotEmpty,
+        reason: 'يجب أن تُكتب employee_uuid عند الإنشاء',
+      );
       expect(rows.first.read<String>('employee_uuid'), empUuid);
     });
 
@@ -233,7 +239,11 @@ void main() {
         "AND EXISTS (SELECT 1 FROM employees e2 WHERE e2.id = expenses.related_id)",
       );
 
-      final rows = await db.customSelect("SELECT employee_uuid FROM expenses WHERE local_uuid = 'ex-orphan-1'").get();
+      final rows = await db
+          .customSelect(
+            "SELECT employee_uuid FROM expenses WHERE local_uuid = 'ex-orphan-1'",
+          )
+          .get();
       // تبقى NULL — لا تخمين ولا فقدان
       expect(rows.first.readNullable<String>('employee_uuid'), isNull);
     });

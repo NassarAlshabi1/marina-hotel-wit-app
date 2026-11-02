@@ -39,7 +39,12 @@ mixin PdfExportGuardMixin<T extends StatefulWidget> on State<T> {
       await action();
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('$errorPrefix: $e'), duration: const Duration(seconds: 3)));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('$errorPrefix: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } finally {
       if (mounted) {

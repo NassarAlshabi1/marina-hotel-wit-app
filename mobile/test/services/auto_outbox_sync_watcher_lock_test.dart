@@ -19,7 +19,8 @@ void main() {
 
   setUp(() async {
     originalPlatform = ConnectivityPlatform.instance;
-    fakePlatform = FakeConnectivityPlatform()..current = const [ConnectivityResult.wifi];
+    fakePlatform = FakeConnectivityPlatform()
+      ..current = const [ConnectivityResult.wifi];
     ConnectivityPlatform.instance = fakePlatform;
     watcher.stop();
     if (SyncGuard.isActive) SyncGuard.markFinished();
@@ -49,34 +50,38 @@ void main() {
     expect(SyncGuard.isActive, isFalse);
   });
 
-  test('pushNow releases SyncGuard after a failed push and can retry', () async {
-    var failedCalls = 0;
-    AutoOutboxSyncWatcher.pushFunction = () async {
-      failedCalls++;
-      throw StateError('simulated push failure');
-    };
+  test(
+    'pushNow releases SyncGuard after a failed push and can retry',
+    () async {
+      var failedCalls = 0;
+      AutoOutboxSyncWatcher.pushFunction = () async {
+        failedCalls++;
+        throw StateError('simulated push failure');
+      };
 
-    await watcher.start(database);
-    await watcher.pushNow();
+      await watcher.start(database);
+      await watcher.pushNow();
 
-    expect(failedCalls, 1);
-    expect(watcher.isPushing, isFalse);
-    expect(SyncGuard.isActive, isFalse);
+      expect(failedCalls, 1);
+      expect(watcher.isPushing, isFalse);
+      expect(SyncGuard.isActive, isFalse);
 
-    var retryCalls = 0;
-    AutoOutboxSyncWatcher.pushFunction = () async {
-      retryCalls++;
-      return 1;
-    };
-    await watcher.pushNow();
+      var retryCalls = 0;
+      AutoOutboxSyncWatcher.pushFunction = () async {
+        retryCalls++;
+        return 1;
+      };
+      await watcher.pushNow();
 
-    expect(retryCalls, 1);
-    expect(SyncGuard.isActive, isFalse);
-  });
+      expect(retryCalls, 1);
+      expect(SyncGuard.isActive, isFalse);
+    },
+  );
 }
 
 class FakeConnectivityPlatform extends ConnectivityPlatform {
-  final StreamController<List<ConnectivityResult>> _events = StreamController<List<ConnectivityResult>>.broadcast();
+  final StreamController<List<ConnectivityResult>> _events =
+      StreamController<List<ConnectivityResult>>.broadcast();
 
   List<ConnectivityResult> current = const [ConnectivityResult.none];
 

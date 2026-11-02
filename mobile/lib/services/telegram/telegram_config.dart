@@ -26,7 +26,8 @@ class TelegramConfig {
   static const String _enabledKey = 'telegram_enabled';
   static const String _botTokenKey = 'telegram_bot_token';
   static const String _chatIdKey = 'telegram_chat_id';
-  static const String _notificationsEnabledKey = 'telegram_notifications_enabled';
+  static const String _notificationsEnabledKey =
+      'telegram_notifications_enabled';
   static const String _dailyReportEnabledKey = 'telegram_daily_report_enabled';
   static const String _dailyReportTimeKey = 'telegram_daily_report_time';
   static const String _lastReportSentKey = 'telegram_last_report_sent';
@@ -53,7 +54,9 @@ class TelegramConfig {
       // استخدام KeyStore مع resetOnError لمنع corruption
       resetOnError: true,
     ),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
   );
 
   /// ✅ P0-7: علامة لإجراء migration مرة واحدة فقط
@@ -161,7 +164,10 @@ class TelegramConfig {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.containsKey(_botTokenKey)) {
         await prefs.remove(_botTokenKey);
-        dlog(() => '🧹 Old token removed from SharedPreferences (security cleanup)');
+        dlog(
+          () =>
+              '🧹 Old token removed from SharedPreferences (security cleanup)',
+        );
       }
     } catch (e) {
       dlog(() => '⚠️ Failed to remove legacy token from SharedPreferences: $e');

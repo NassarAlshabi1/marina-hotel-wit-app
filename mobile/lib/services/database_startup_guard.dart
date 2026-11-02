@@ -31,7 +31,11 @@ class _QuickCheckResult {
 }
 
 class StartupGuardResult {
-  const StartupGuardResult._({required this.status, this.quarantinePath, this.details});
+  const StartupGuardResult._({
+    required this.status,
+    this.quarantinePath,
+    this.details,
+  });
 
   final StartupGuardStatus status;
   final String? quarantinePath;
@@ -80,8 +84,14 @@ class DatabaseStartupGuard {
     try {
       dbDir = await _resolveDbDir();
     } catch (e, st) {
-      dwarn(() => '⚠️ DatabaseStartupGuard فشل حل المجلد (لا يعيق الإقلاع): $e\n$st');
-      return StartupGuardResult._(status: StartupGuardStatus.unknown, details: e.toString());
+      dwarn(
+        () =>
+            '⚠️ DatabaseStartupGuard فشل حل المجلد (لا يعيق الإقلاع): $e\n$st',
+      );
+      return StartupGuardResult._(
+        status: StartupGuardStatus.unknown,
+        details: e.toString(),
+      );
     }
     return verifyAndRecoverIn(dbDir);
   }
@@ -92,7 +102,9 @@ class DatabaseStartupGuard {
       final dbPath = p.join(dbDir.path, kDefaultDbFileName);
       final dbFile = File(dbPath);
       if (!dbFile.existsSync()) {
-        return const StartupGuardResult._(status: StartupGuardStatus.freshInstall);
+        return const StartupGuardResult._(
+          status: StartupGuardStatus.freshInstall,
+        );
       }
 
       final check = await _runQuickCheck(dbPath);
@@ -135,7 +147,10 @@ class DatabaseStartupGuard {
       );
     } catch (e, st) {
       dwarn(() => '⚠️ DatabaseStartupGuard فشل (لا يعيق الإقلاع): $e\n$st');
-      return StartupGuardResult._(status: StartupGuardStatus.unknown, details: e.toString());
+      return StartupGuardResult._(
+        status: StartupGuardStatus.unknown,
+        details: e.toString(),
+      );
     }
   }
 
@@ -157,14 +172,22 @@ class DatabaseStartupGuard {
     try {
       db = sqlite3.open(dbPath);
       final rows = db.select('PRAGMA quick_check($_maxCheckRows)');
-      final first = rows.isEmpty ? 'ok' : (rows.first.values.first?.toString() ?? 'ok');
+      final first = rows.isEmpty
+          ? 'ok'
+          : (rows.first.values.first?.toString() ?? 'ok');
       if (first == 'ok') {
         return _QuickCheckResult._(true, 'ok');
       }
-      final messages = rows.map((r) => r.values.map((v) => '$v').join(' | ')).take(_maxCheckRows).join(' ; ');
+      final messages = rows
+          .map((r) => r.values.map((v) => '$v').join(' | '))
+          .take(_maxCheckRows)
+          .join(' ; ');
       return _QuickCheckResult._(false, 'quick_check: $messages');
     } catch (e) {
-      return _QuickCheckResult._(false, 'فشل فتح القاعدة للفحص (يُعامَل كتلف): $e');
+      return _QuickCheckResult._(
+        false,
+        'فشل فتح القاعدة للفحص (يُعامَل كتلف): $e',
+      );
     } finally {
       try {
         db?.close();
@@ -175,7 +198,10 @@ class DatabaseStartupGuard {
   /// نسخ الملفات الثلاثة (db + wal + shm) إلى مجلد عزل داخل مجلد القاعدة
   /// نفسه (نظام ملفات واحد — نسخة فورية) ثم حذفها من مكانها الأصلي —
   /// يعيد SQLite إنشاء ملف سليم فارغ عند الفتح التالي.
-  static Future<String> _quarantineAndRecreate(File dbFile, Directory dbDir) async {
+  static Future<String> _quarantineAndRecreate(
+    File dbFile,
+    Directory dbDir,
+  ) async {
     final dbPath = dbFile.path;
 
     // 1) مجلد العزل الحكمي — داخل مجلد القاعدة نفسه
@@ -184,7 +210,10 @@ class DatabaseStartupGuard {
     if (!quarantineDir.existsSync()) {
       quarantineDir.createSync(recursive: true);
     }
-    final quarantineBase = p.join(quarantineDir.path, '${kDefaultDbFileName}_$timestamp');
+    final quarantineBase = p.join(
+      quarantineDir.path,
+      '${kDefaultDbFileName}_$timestamp',
+    );
 
     // 2) نسخ forensics — best-effort لكل ملف على حدة
     for (final src in [dbPath, '$dbPath-wal', '$dbPath-shm']) {

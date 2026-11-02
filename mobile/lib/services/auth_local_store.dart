@@ -17,7 +17,9 @@ enum AuthType { local }
 class AuthLocalStore {
   String _cloudDocumentId(String username) {
     final legacyId = 'user_$username';
-    final validLegacy = legacyId.length <= 36 && RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(legacyId);
+    final validLegacy =
+        legacyId.length <= 36 &&
+        RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(legacyId);
     if (validLegacy) return legacyId;
 
     final digest = sha256.convert(utf8.encode(username)).toString();
@@ -37,14 +39,17 @@ class AuthLocalStore {
   /// صلاحيات العمليات الدقيقة. وجود المفتاح القديم للقسم يبقى متوافقاً
   /// ويمنح نفس صلاحيات الإصدار السابق، بينما المفاتيح الجديدة تسمح بالفصل
   /// بين القراءة والإضافة والتعديل والحذف.
-  static List<String> get operationPermissionKeys => PermissionCatalog.actionKeys;
+  static List<String> get operationPermissionKeys =>
+      PermissionCatalog.actionKeys;
 
-  static List<String> permissionKeysForModule(String module) => PermissionCatalog.keysForModule(module);
+  static List<String> permissionKeysForModule(String module) =>
+      PermissionCatalog.keysForModule(module);
 
   /// مفاتيح محرر المستخدمين: المفاتيح القديمة للتوافق، ثم العمليات الدقيقة.
   static List<String> get permissionEditorKeys => PermissionCatalog.editorKeys;
 
-  static String operationLabel(String action) => PermissionCatalog.actionLabel(action);
+  static String operationLabel(String action) =>
+      PermissionCatalog.actionLabel(action);
 
   /// أدوار الإدارة: من يملك تعديل أو حذف سجلات موجودة.
   /// الإضافة والعرض متاحان لكل مستخدم قادر على دخول الوحدة.
@@ -61,14 +66,21 @@ class AuthLocalStore {
     required String action,
   }) {
     if (userType == 'admin' || permissions.contains('all')) return true;
-    final canEnter = permissions.contains(module) || permissionKeysForModule(module).any(permissions.contains);
+    final canEnter =
+        permissions.contains(module) ||
+        permissionKeysForModule(module).any(permissions.contains);
     if (!canEnter) return false;
     if (action == 'view' || action == 'create') return true;
-    return isManagerialRole(userType) || permissions.contains('$module.$action');
+    return isManagerialRole(userType) ||
+        permissions.contains('$module.$action');
   }
 
   /// يستخدم لحارس الصفحة والقائمة: يكفي امتلاك أي صلاحية تشغيلية.
-  static bool canAccessModule({required String? userType, required List<String> permissions, required String module}) {
+  static bool canAccessModule({
+    required String? userType,
+    required List<String> permissions,
+    required String module,
+  }) {
     if (userType == 'admin' || permissions.contains('all')) return true;
     if (permissions.contains(module)) return true;
     return permissionKeysForModule(module).any(permissions.contains);
@@ -81,7 +93,12 @@ class AuthLocalStore {
   /// ⚠️ مهم: هذه الحسابات تعمل فقط على الأجهزة التي لم تُهاجر لـ Appwrite Cloud.
   /// الأجهزة المُهاجرة تستخدم `app_users` collection في Cloud.
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
-    'admin': {'password': 'admin', 'user_type': 'admin', 'full_name': 'مدير النظام', 'id': 1},
+    'admin': {
+      'password': 'admin',
+      'user_type': 'admin',
+      'full_name': 'مدير النظام',
+      'id': 1,
+    },
   };
 
   static const Map<String, List<String>> _fixedPermissions = {
@@ -110,13 +127,21 @@ class AuthLocalStore {
       if (decoded is Map) {
         return decoded.map((key, value) {
           if (value is Map) {
-            return MapEntry(key.toString(), value.map((k, v) => MapEntry(k.toString(), v)));
+            return MapEntry(
+              key.toString(),
+              value.map((k, v) => MapEntry(k.toString(), v)),
+            );
           }
           return MapEntry(key.toString(), <String, dynamic>{});
         });
       }
     } catch (e, st) {
-      AppLogger.warning('فشل قراءة الحسابات المخصصة المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'فشل قراءة الحسابات المخصصة المحفوظة',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
     return {};
   }
@@ -166,11 +191,16 @@ class AuthLocalStore {
 
   /// سحب المستخدمين من Appwrite Cloud (app_users collection)
   /// يعيد Map<username, account_data> أو فارغ عند الفشل
-  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts({bool includeInactive = false}) async {
+  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts({
+    bool includeInactive = false,
+  }) async {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final docs = await appwrite.listDocuments(collectionId: 'app_users', useCache: false);
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
       final cloudAccounts = <String, Map<String, dynamic>>{};
       for (final doc in docs) {
         final d = doc.data;
@@ -197,16 +227,26 @@ class AuthLocalStore {
         };
       }
       if (cloudAccounts.isNotEmpty) {
-        AppLogger.debug('Cloud users loaded: ${cloudAccounts.keys.join(', ')}', tag: 'AUTH');
+        AppLogger.debug(
+          'Cloud users loaded: ${cloudAccounts.keys.join(', ')}',
+          tag: 'AUTH',
+        );
       }
       return cloudAccounts;
     } catch (e) {
-      AppLogger.warning('Failed to load cloud users (fallback to local only)', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Failed to load cloud users (fallback to local only)',
+        tag: 'AUTH',
+        error: e,
+      );
       return {};
     }
   }
 
-  Future<Map<String, dynamic>?> validateCredentials(String username, String password) async {
+  Future<Map<String, dynamic>?> validateCredentials(
+    String username,
+    String password,
+  ) async {
     final normalized = username.trim();
 
     // 1️⃣ البحث في الحسابات المحلية (hardcoded + custom)
@@ -234,7 +274,10 @@ class AuthLocalStore {
     // ✅ ترحيل تلقائي: إذا كانت كلمة المرور المخزّنة نصاً صريحاً (legacy)،
     // نُعيد تشفيرها بـ PBKDF2 ونُحدّث التخزين والسحابة.
     if (!PasswordHasher.isHashed(storedPassword) && storedPassword.isNotEmpty) {
-      AppLogger.info('🔄 Migrating plaintext password to PBKDF2 for user: $normalized', tag: 'AUTH');
+      AppLogger.info(
+        '🔄 Migrating plaintext password to PBKDF2 for user: $normalized',
+        tag: 'AUTH',
+      );
       final hashedPassword = PasswordHasher.hash(password);
       await _migratePasswordToHashed(normalized, account, hashedPassword);
     }
@@ -262,7 +305,10 @@ class AuthLocalStore {
       try {
         final appwrite = AppwriteService();
         await appwrite.initialize();
-        final docs = await appwrite.listDocuments(collectionId: 'app_users', useCache: false);
+        final docs = await appwrite.listDocuments(
+          collectionId: 'app_users',
+          useCache: false,
+        );
         for (final doc in docs) {
           if ((doc.data['username']?.toString() ?? '') == normalized) {
             final version = doc.data['credentials_version'] as int? ?? 0;
@@ -271,7 +317,12 @@ class AuthLocalStore {
           }
         }
       } catch (e, st) {
-        AppLogger.warning('تعذر حفظ credentials_version للمستخدم $normalized', tag: 'AUTH', error: e, stackTrace: st);
+        AppLogger.warning(
+          'تعذر حفظ credentials_version للمستخدم $normalized',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
       }
     } else {
       perms = await getPermissions(normalized);
@@ -311,7 +362,12 @@ class AuthLocalStore {
     final id = _nextUserId(accounts);
     // ✅ تشفير كلمة المرور قبل التخزين المحلي
     final hashedPassword = PasswordHasher.hash(password);
-    accounts[normalized] = {'password': hashedPassword, 'full_name': fullName, 'user_type': userType, 'id': id};
+    accounts[normalized] = {
+      'password': hashedPassword,
+      'full_name': fullName,
+      'user_type': userType,
+      'id': id,
+    };
     await _saveCustomAccounts(accounts);
     await setPermissions(normalized, permissions);
 
@@ -346,7 +402,9 @@ class AuthLocalStore {
       final hashedPassword = PasswordHasher.hash(password);
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final deviceId = await _getDeviceId() ?? '';
-      final vectorClock = deviceId.isEmpty ? '{}' : jsonEncode(<String, int>{deviceId: 1});
+      final vectorClock = deviceId.isEmpty
+          ? '{}'
+          : jsonEncode(<String, int>{deviceId: 1});
 
       await appwrite.upsertDocument(
         collectionId: 'app_users',
@@ -376,15 +434,26 @@ class AuthLocalStore {
           'deviceId': deviceId,
         },
       );
-      AppLogger.debug('User $username pushed to cloud (password hashed)', tag: 'AUTH');
+      AppLogger.debug(
+        'User $username pushed to cloud (password hashed)',
+        tag: 'AUTH',
+      );
     } catch (e) {
-      AppLogger.warning('Failed to push user $username to cloud', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Failed to push user $username to cloud',
+        tag: 'AUTH',
+        error: e,
+      );
     }
   }
 
   /// ✅ ترحيل كلمة مرور من نص صريح إلى PBKDF2 hash
   /// يُحدّث التخزين المحلي (custom accounts) والسحابة (إذا كان حساباً سحابياً)
-  Future<void> _migratePasswordToHashed(String username, Map<String, dynamic> account, String hashedPassword) async {
+  Future<void> _migratePasswordToHashed(
+    String username,
+    Map<String, dynamic> account,
+    String hashedPassword,
+  ) async {
     try {
       // 1️⃣ تحديث الحسابات المحلية المخصصة (custom)
       final accounts = await _loadCustomAccounts();
@@ -461,7 +530,9 @@ class AuthLocalStore {
       try {
         final decoded = jsonDecode(raw);
         if (decoded is Map) {
-          final permissions = decoded.map((key, value) => MapEntry(key.toString(), value));
+          final permissions = decoded.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
           permissions.remove(username);
           await prefs.setString(_kPermissionsMap, jsonEncode(permissions));
         }
@@ -494,8 +565,12 @@ class AuthLocalStore {
       await appwrite.initialize();
 
       // سحب المستند الحالي لمعرفة credentials_version الحالي
-      final currentDoc = await appwrite.getDocument(collectionId: 'app_users', documentId: docId);
-      final currentVersion = (currentDoc.data['credentials_version'] as num?)?.toInt() ?? 0;
+      final currentDoc = await appwrite.getDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
+      final currentVersion =
+          (currentDoc.data['credentials_version'] as num?)?.toInt() ?? 0;
       final nextVersion = currentVersion + 1;
 
       final data = <String, dynamic>{'credentials_version': nextVersion};
@@ -524,9 +599,16 @@ class AuthLocalStore {
       data['version'] = (data['version'] as int) + 1;
       pendingData = Map<String, dynamic>.from(data);
 
-      await appwrite.updateDocument(collectionId: 'app_users', documentId: docId, data: data);
+      await appwrite.updateDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
 
-      AppLogger.info('Cloud user $username updated (version $currentVersion → $nextVersion)', tag: 'AUTH');
+      AppLogger.info(
+        'Cloud user $username updated (version $currentVersion → $nextVersion)',
+        tag: 'AUTH',
+      );
 
       return true;
     } catch (e) {
@@ -537,7 +619,8 @@ class AuthLocalStore {
               'username': username,
               'updatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
               'lastModified': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              'lastModifiedEpoch': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'lastModifiedEpoch':
+                  DateTime.now().millisecondsSinceEpoch ~/ 1000,
               'syncTimestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
               'version': 0,
             };
@@ -554,11 +637,18 @@ class AuthLocalStore {
         }
         if (active != null) queuedData['active'] = active;
         if (await _enqueuePermissionSync(docId, queuedData)) {
-          AppLogger.info('تم حفظ تحديث المستخدم $username في Outbox للمزامنة اللاحقة', tag: 'AUTH');
+          AppLogger.info(
+            'تم حفظ تحديث المستخدم $username في Outbox للمزامنة اللاحقة',
+            tag: 'AUTH',
+          );
           return true;
         }
       }
-      AppLogger.error('Failed to update cloud user $username', tag: 'AUTH', error: e);
+      AppLogger.error(
+        'Failed to update cloud user $username',
+        tag: 'AUTH',
+        error: e,
+      );
       return false;
     }
   }
@@ -568,7 +658,10 @@ class AuthLocalStore {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      await appwrite.deleteDocument(collectionId: 'app_users', documentId: docId);
+      await appwrite.deleteDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
 
       return true;
@@ -610,7 +703,10 @@ class AuthLocalStore {
       // نستخدم طلباً واحداً يعيد الحسابات النشطة وغير النشطة معاً؛ لأن
       // loadCloudAccounts() يستبعد active=false ولا يمكنه التمييز بين حساب
       // معطّل وحساب محذوف أو فشل شبكة.
-      final docs = await appwrite.listDocuments(collectionId: 'app_users', useCache: false);
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
       Map<String, dynamic>? cloudData;
       for (final doc in docs) {
         if ((doc.data['username']?.toString() ?? '') == username) {
@@ -622,11 +718,15 @@ class AuthLocalStore {
       // غياب المستند يعني أن الحساب حُذف أو لم يعد حساباً سحابياً. بما أن
       // هذا الفحص داخل try، فإن فشل الشبكة يبقى في catch ويُبقي الجلسة مؤقتاً.
       if (cloudData == null || cloudData['active'] == false) {
-        AppLogger.warning('Session invalid for $username: account deleted or inactive', tag: 'AUTH');
+        AppLogger.warning(
+          'Session invalid for $username: account deleted or inactive',
+          tag: 'AUTH',
+        );
         return false;
       }
 
-      final cloudVersion = (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
+      final cloudVersion =
+          (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
       if (storedVersion == null) {
         // جلسة قديمة من إصدار لا يحفظ النسخة: نثبت النسخة الحالية بعد
         // التحقق من أن الحساب موجود ونشط، بدلاً من تجاوز الإلغاء تماماً.
@@ -634,12 +734,19 @@ class AuthLocalStore {
         return true;
       }
       if (cloudVersion != storedVersion) {
-        AppLogger.warning('Session invalid for $username: local=$storedVersion, cloud=$cloudVersion', tag: 'AUTH');
+        AppLogger.warning(
+          'Session invalid for $username: local=$storedVersion, cloud=$cloudVersion',
+          tag: 'AUTH',
+        );
         return false;
       }
       return true;
     } catch (e) {
-      AppLogger.warning('Session check failed (ignoring)', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Session check failed (ignoring)',
+        tag: 'AUTH',
+        error: e,
+      );
       return true;
     }
   }
@@ -684,7 +791,9 @@ class AuthLocalStore {
       for (final entry in cloudAccounts.entries) {
         final username = entry.key;
         final data = entry.value;
-        final existingIndex = result.indexWhere((account) => account['username'].toString() == username);
+        final existingIndex = result.indexWhere(
+          (account) => account['username'].toString() == username,
+        );
         if (existingIndex == -1) {
           result.add({
             'username': username,
@@ -702,8 +811,10 @@ class AuthLocalStore {
           // ونضيف doc_id حتى تستخدم الشاشة مسار التعديل السحابي الصحيح.
           result[existingIndex] = {
             ...result[existingIndex],
-            'full_name': data['full_name'] ?? result[existingIndex]['full_name'],
-            'user_type': data['user_type'] ?? result[existingIndex]['user_type'],
+            'full_name':
+                data['full_name'] ?? result[existingIndex]['full_name'],
+            'user_type':
+                data['user_type'] ?? result[existingIndex]['user_type'],
             'is_cloud': true,
             'doc_id': data['doc_id'],
             'is_active': data['active'] != false,
@@ -713,7 +824,12 @@ class AuthLocalStore {
       }
     } catch (e, st) {
       // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
-      AppLogger.warning('فشل سحب الحسابات السحابية أثناء التجميع التفصيلي', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'فشل سحب الحسابات السحابية أثناء التجميع التفصيلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     result.sort((a, b) {
@@ -741,7 +857,12 @@ class AuthLocalStore {
       }
       return null;
     } catch (e, st) {
-      AppLogger.warning('بيانات المستخدم الحالي غير صالحة في التخزين المحلي', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'بيانات المستخدم الحالي غير صالحة في التخزين المحلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return null;
     }
   }
@@ -775,7 +896,10 @@ class AuthLocalStore {
     final prefs = await SharedPreferences.getInstance();
     final typeStr = prefs.getString(_kAuthType);
     if (typeStr == null) return AuthType.local;
-    return AuthType.values.firstWhere((e) => e.name == typeStr, orElse: () => AuthType.local);
+    return AuthType.values.firstWhere(
+      (e) => e.name == typeStr,
+      orElse: () => AuthType.local,
+    );
   }
 
   Future<List<String>> getPermissions(String username) async {
@@ -793,7 +917,12 @@ class AuthLocalStore {
         }
       }
     } catch (e, st) {
-      AppLogger.warning('تعذر تحميل الصلاحيات من السحابة للمستخدم $username', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'تعذر تحميل الصلاحيات من السحابة للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     // 2️⃣ fallback: الصلاحيات المحلية
@@ -810,7 +939,12 @@ class AuthLocalStore {
       }
       return _fixedPermissions[username] ?? <String>[];
     } catch (e, st) {
-      AppLogger.warning('تعذر تحليل خريطة الأذونات المحلية للمستخدم $username', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'تعذر تحليل خريطة الأذونات المحلية للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return _fixedPermissions[username] ?? <String>[];
     }
   }
@@ -826,7 +960,12 @@ class AuthLocalStore {
           map = decoded.map((k, v) => MapEntry(k.toString(), v));
         }
       } catch (e, st) {
-        AppLogger.warning('فشل قراءة بيانات الأذونات المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+        AppLogger.warning(
+          'فشل قراءة بيانات الأذونات المحفوظة',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
     final previous = map.containsKey(username) ? map[username] : null;
@@ -836,7 +975,10 @@ class AuthLocalStore {
 
     // تحديث الصلاحيات في السحابة أيضاً. إذا فشل، نعيد القيمة المحلية السابقة
     // حتى لا تعرض الواجهة صلاحيات لم تصل فعلياً إلى Appwrite.
-    final cloudUpdated = await _updateCloudPermissions(username, nextPermissions);
+    final cloudUpdated = await _updateCloudPermissions(
+      username,
+      nextPermissions,
+    );
     if (cloudUpdated) return true;
 
     if (previous == null) {
@@ -853,7 +995,10 @@ class AuthLocalStore {
   /// عند فشل الشبكة لا نلغي التغيير المحلي؛ نسجل payload في Outbox ليُرفع
   /// لاحقاً. أما أخطاء المصادقة أو مخطط Appwrite فلا تُحجز تلقائياً، حتى لا
   /// يبقى Outbox يعيد المحاولة بلا نهاية بسبب خطأ غير مؤقت.
-  Future<bool> _updateCloudPermissions(String username, List<String> permissions) async {
+  Future<bool> _updateCloudPermissions(
+    String username,
+    List<String> permissions,
+  ) async {
     // معرف app_users حتمي، لذلك يمكن إنشاء Outbox حتى لو تعذر الوصول
     // إلى Appwrite قبل قراءة المستند الحالي.
     String docId = _cloudDocumentId(username);
@@ -861,7 +1006,10 @@ class AuthLocalStore {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final docs = await appwrite.listDocuments(collectionId: 'app_users', useCache: false);
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
       Map<String, dynamic>? cloudData;
       for (final doc in docs) {
         if ((doc.data['username']?.toString() ?? '') == username) {
@@ -875,7 +1023,8 @@ class AuthLocalStore {
       if (docId.isEmpty) return false;
 
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final credentialsVersion = (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
+      final credentialsVersion =
+          (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
       final version = (cloudData['version'] as num?)?.toInt() ?? 0;
       pendingPayload = <String, dynamic>{
         'username': username,
@@ -887,8 +1036,15 @@ class AuthLocalStore {
         'syncTimestamp': now,
         'version': version + 1,
       };
-      await appwrite.updateDocument(collectionId: 'app_users', documentId: docId, data: pendingPayload);
-      AppLogger.debug('Permissions updated for $username in cloud', tag: 'AUTH');
+      await appwrite.updateDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: pendingPayload,
+      );
+      AppLogger.debug(
+        'Permissions updated for $username in cloud',
+        tag: 'AUTH',
+      );
 
       return true;
     } catch (e) {
@@ -906,10 +1062,17 @@ class AuthLocalStore {
       if (_isRetryablePermissionSyncError(e) &&
           pendingPayload != null &&
           await _enqueuePermissionSync(docId, pendingPayload)) {
-        AppLogger.info('تم حفظ صلاحيات $username في Outbox للمزامنة اللاحقة', tag: 'AUTH');
+        AppLogger.info(
+          'تم حفظ صلاحيات $username في Outbox للمزامنة اللاحقة',
+          tag: 'AUTH',
+        );
         return true;
       }
-      AppLogger.warning('Failed to update cloud permissions for $username', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Failed to update cloud permissions for $username',
+        tag: 'AUTH',
+        error: e,
+      );
       return false;
     }
   }
@@ -929,7 +1092,10 @@ class AuthLocalStore {
         message.contains('timed out');
   }
 
-  Future<bool> _enqueuePermissionSync(String docId, Map<String, dynamic> payload) async {
+  Future<bool> _enqueuePermissionSync(
+    String docId,
+    Map<String, dynamic> payload,
+  ) async {
     final manager = AppwriteSyncManager.instance;
     if (manager == null) return false;
     try {
@@ -943,7 +1109,12 @@ class AuthLocalStore {
       );
       return true;
     } catch (e, st) {
-      AppLogger.warning('تعذر إضافة تحديث صلاحيات المستخدم إلى Outbox', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'تعذر إضافة تحديث صلاحيات المستخدم إلى Outbox',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return false;
     }
   }
@@ -963,7 +1134,12 @@ class AuthLocalStore {
           }
         }
       } catch (e, st) {
-        AppLogger.warning('فشل قراءة أسماء المستخدمين من الأذونات', tag: 'AUTH', error: e, stackTrace: st);
+        AppLogger.warning(
+          'فشل قراءة أسماء المستخدمين من الأذونات',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
     // إضافة أسماء المستخدمين السحابيين
@@ -971,7 +1147,12 @@ class AuthLocalStore {
       final cloudAccounts = await loadCloudAccounts();
       names.addAll(cloudAccounts.keys);
     } catch (e, st) {
-      AppLogger.warning('تعذر إضافة المستخدمين السحابيين إلى قائمة الأسماء', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'تعذر إضافة المستخدمين السحابيين إلى قائمة الأسماء',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
     final list = names.toList();
     list.sort();
@@ -992,7 +1173,8 @@ class AuthLocalStore {
   Future<String?> _getDeviceId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
+      return prefs.getString('appwrite_device_id') ??
+          prefs.getString('appwrite_realtime_device_id');
     } catch (_) {
       return null;
     }

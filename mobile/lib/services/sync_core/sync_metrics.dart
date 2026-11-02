@@ -16,7 +16,9 @@ class SyncSession {
 
   factory SyncSession.fromJson(Map<String, dynamic> json) => SyncSession(
     startTime: DateTime.parse(json['startTime'] as String),
-    endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
+    endTime: json['endTime'] != null
+        ? DateTime.parse(json['endTime'] as String)
+        : null,
     success: json['success'] as bool? ?? false,
     error: json['error'] as String?,
     recordsSynced: (json['recordsSynced'] as num?)?.toInt() ?? 0,
@@ -159,7 +161,10 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    dlog(() => '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error');
+    dlog(
+      () =>
+          '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
+    );
   }
 
   /// إضافة إلى السجل
@@ -196,7 +201,10 @@ class SyncMetrics {
     final successful = _history.where((s) => s.success).toList();
     final failed = _history.where((s) => !s.success).toList();
 
-    final totalDuration = _history.fold<Duration>(Duration.zero, (sum, session) => sum + session.duration);
+    final totalDuration = _history.fold<Duration>(
+      Duration.zero,
+      (sum, session) => sum + session.duration,
+    );
 
     final avgDuration = totalDuration ~/ _history.length;
 
@@ -207,7 +215,10 @@ class SyncMetrics {
       averageDuration: avgDuration,
       successRate: successful.length / _history.length,
       totalRecordsSynced: _history.fold(0, (sum, s) => sum + s.recordsSynced),
-      totalConflictsResolved: _history.fold(0, (sum, s) => sum + s.conflictsResolved),
+      totalConflictsResolved: _history.fold(
+        0,
+        (sum, s) => sum + s.conflictsResolved,
+      ),
       lastSync: _history.last,
     );
   }
@@ -231,7 +242,9 @@ class SyncMetrics {
 
       _history.clear();
       for (final jsonStr in jsonList) {
-        final session = SyncSession.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
+        final session = SyncSession.fromJson(
+          jsonDecode(jsonStr) as Map<String, dynamic>,
+        );
         _history.add(session);
       }
 

@@ -5,7 +5,12 @@ import 'sync_constants.dart';
 
 /// بيانات وصفية لجدول (collection) قابل للسحب من Appwrite.
 class PullCollectionMeta {
-  const PullCollectionMeta({required this.name, required this.label, required this.category, this.core = false});
+  const PullCollectionMeta({
+    required this.name,
+    required this.label,
+    required this.category,
+    this.core = false,
+  });
 
   /// اسم المجموعة كما يظهر في مهام السحب (مفتاح sync_checkpoints).
   final String name;
@@ -68,7 +73,8 @@ class SyncPullScope {
   }
 
   /// هل الجدول معطّل للسحب؟ قبل التحميل يُعامل كل شيء كمفعّل (آمن).
-  static bool isDisabled(String collectionName) => _loaded && _disabled.contains(collectionName);
+  static bool isDisabled(String collectionName) =>
+      _loaded && _disabled.contains(collectionName);
 
   /// عدد الجداول المعطّلة حالياً.
   static int get disabledCount => _disabled.length;
@@ -111,34 +117,126 @@ class SyncPullScope {
   /// الموثق في sync_pull_service.entityNeedsTombstoneParents).
   static const List<PullCollectionMeta> catalog = <PullCollectionMeta>[
     // ─── الإقامة والحجوزات ───
-    PullCollectionMeta(name: 'rooms', label: 'الغرف', category: 'الإقامة والحجوزات', core: true),
-    PullCollectionMeta(name: 'bookings', label: 'الحجوزات', category: 'الإقامة والحجوزات', core: true),
-    PullCollectionMeta(name: 'booking_nights', label: 'ليالي الحجوزات', category: 'الإقامة والحجوزات'),
-    PullCollectionMeta(name: 'booking_notes', label: 'ملاحظات الحجوزات', category: 'الإقامة والحجوزات'),
-    PullCollectionMeta(name: 'guest_infos', label: 'معلومات النزلاء', category: 'الإقامة والحجوزات'),
-    PullCollectionMeta(name: 'blacklist', label: 'القائمة السوداء', category: 'الإقامة والحجوزات'),
+    PullCollectionMeta(
+      name: 'rooms',
+      label: 'الغرف',
+      category: 'الإقامة والحجوزات',
+      core: true,
+    ),
+    PullCollectionMeta(
+      name: 'bookings',
+      label: 'الحجوزات',
+      category: 'الإقامة والحجوزات',
+      core: true,
+    ),
+    PullCollectionMeta(
+      name: 'booking_nights',
+      label: 'ليالي الحجوزات',
+      category: 'الإقامة والحجوزات',
+    ),
+    PullCollectionMeta(
+      name: 'booking_notes',
+      label: 'ملاحظات الحجوزات',
+      category: 'الإقامة والحجوزات',
+    ),
+    PullCollectionMeta(
+      name: 'guest_infos',
+      label: 'معلومات النزلاء',
+      category: 'الإقامة والحجوزات',
+    ),
+    PullCollectionMeta(
+      name: 'blacklist',
+      label: 'القائمة السوداء',
+      category: 'الإقامة والحجوزات',
+    ),
     // ─── المالية ───
-    PullCollectionMeta(name: 'payments', label: 'المدفوعات', category: 'المالية'),
-    PullCollectionMeta(name: 'payment_voids', label: 'إلغاءات المدفوعات', category: 'المالية'),
+    PullCollectionMeta(
+      name: 'payments',
+      label: 'المدفوعات',
+      category: 'المالية',
+    ),
+    PullCollectionMeta(
+      name: 'payment_voids',
+      label: 'إلغاءات المدفوعات',
+      category: 'المالية',
+    ),
     PullCollectionMeta(name: 'debts', label: 'الديون', category: 'المالية'),
-    PullCollectionMeta(name: 'expenses', label: 'المصاريف', category: 'المالية'),
-    PullCollectionMeta(name: 'cash_transactions', label: 'المعاملات النقدية', category: 'المالية', core: true),
-    PullCollectionMeta(name: 'price_adjustments', label: 'تعديلات الأسعار', category: 'المالية'),
-    PullCollectionMeta(name: 'booking_price_adjustments', label: 'تعديلات أسعار الحجوزات', category: 'المالية'),
+    PullCollectionMeta(
+      name: 'expenses',
+      label: 'المصاريف',
+      category: 'المالية',
+    ),
+    PullCollectionMeta(
+      name: 'cash_transactions',
+      label: 'المعاملات النقدية',
+      category: 'المالية',
+      core: true,
+    ),
+    PullCollectionMeta(
+      name: 'price_adjustments',
+      label: 'تعديلات الأسعار',
+      category: 'المالية',
+    ),
+    PullCollectionMeta(
+      name: 'booking_price_adjustments',
+      label: 'تعديلات أسعار الحجوزات',
+      category: 'المالية',
+    ),
     // ─── الموظفون والرواتب ───
-    PullCollectionMeta(name: 'employees', label: 'الموظفون', category: 'الموظفون والرواتب', core: true),
-    PullCollectionMeta(name: 'salary_cycles', label: 'دورات الرواتب', category: 'الموظفون والرواتب'),
-    PullCollectionMeta(name: 'salary_payments', label: 'مدفوعات الرواتب', category: 'الموظفون والرواتب'),
-    PullCollectionMeta(name: 'salary_withdrawals', label: 'سحوبات الرواتب', category: 'الموظفون والرواتب'),
-    PullCollectionMeta(name: 'salary_carry_over_logs', label: 'سجلات ترحيل الراتب', category: 'الموظفون والرواتب'),
-    PullCollectionMeta(name: 'shift_notes', label: 'ملاحظات الورديات', category: 'الموظفون والرواتب'),
+    PullCollectionMeta(
+      name: 'employees',
+      label: 'الموظفون',
+      category: 'الموظفون والرواتب',
+      core: true,
+    ),
+    PullCollectionMeta(
+      name: 'salary_cycles',
+      label: 'دورات الرواتب',
+      category: 'الموظفون والرواتب',
+    ),
+    PullCollectionMeta(
+      name: 'salary_payments',
+      label: 'مدفوعات الرواتب',
+      category: 'الموظفون والرواتب',
+    ),
+    PullCollectionMeta(
+      name: 'salary_withdrawals',
+      label: 'سحوبات الرواتب',
+      category: 'الموظفون والرواتب',
+    ),
+    PullCollectionMeta(
+      name: 'salary_carry_over_logs',
+      label: 'سجلات ترحيل الراتب',
+      category: 'الموظفون والرواتب',
+    ),
+    PullCollectionMeta(
+      name: 'shift_notes',
+      label: 'ملاحظات الورديات',
+      category: 'الموظفون والرواتب',
+    ),
     // ─── المخزون ───
-    PullCollectionMeta(name: 'inventory_items', label: 'أصناف المخزون', category: 'المخزون'),
-    PullCollectionMeta(name: 'inventory_transactions', label: 'حركات المخزون', category: 'المخزون'),
+    PullCollectionMeta(
+      name: 'inventory_items',
+      label: 'أصناف المخزون',
+      category: 'المخزون',
+    ),
+    PullCollectionMeta(
+      name: 'inventory_transactions',
+      label: 'حركات المخزون',
+      category: 'المخزون',
+    ),
     // ─── أخرى ───
-    PullCollectionMeta(name: 'audit_logs', label: 'سجلات التدقيق', category: 'أخرى'),
+    PullCollectionMeta(
+      name: 'audit_logs',
+      label: 'سجلات التدقيق',
+      category: 'أخرى',
+    ),
     if (SyncConstants.appSettingsSyncEnabled)
-      PullCollectionMeta(name: 'app_settings', label: 'إعدادات التطبيق', category: 'أخرى'),
+      PullCollectionMeta(
+        name: 'app_settings',
+        label: 'إعدادات التطبيق',
+        category: 'أخرى',
+      ),
   ];
 
   /// أسماء الكتالوج فقط (للتنظيف والتحقق).

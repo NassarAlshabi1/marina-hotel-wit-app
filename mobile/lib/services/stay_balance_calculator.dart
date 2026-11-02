@@ -121,8 +121,13 @@ class StayBalanceResult {
     if (isAutoExtended || manualNightsRemaining <= 0) {
       return 0;
     }
-    final coveredBeyondActual = totalPaidNights > actualNightsSpent ? totalPaidNights - actualNightsSpent : 0;
-    return (manualNightsRemaining - coveredBeyondActual).clamp(0, manualNightsRemaining);
+    final coveredBeyondActual = totalPaidNights > actualNightsSpent
+        ? totalPaidNights - actualNightsSpent
+        : 0;
+    return (manualNightsRemaining - coveredBeyondActual).clamp(
+      0,
+      manualNightsRemaining,
+    );
   }
 
   /// تكلفة الأيام غير المغطاة
@@ -177,7 +182,9 @@ class StayBalanceCalculator {
 
       // ③ حماية: إذا لم يكن هناك تخفيض على الحجز (discount = 0)
       //    فتجنب تطبيق أي تعديل بـ amount سلبي بدون سبب واضح
-      if (bookingDiscount <= 0 && adj.adjustmentType == 0 && adj.reason == null) {
+      if (bookingDiscount <= 0 &&
+          adj.adjustmentType == 0 &&
+          adj.reason == null) {
         return false;
       }
 
@@ -200,7 +207,8 @@ class StayBalanceCalculator {
     final moment = now ?? DateTime.now();
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
     final checkinDateOnly = DateTime(checkin.year, checkin.month, checkin.day);
-    final recordedCheckout = (booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty)
+    final recordedCheckout =
+        (booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty)
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
 
@@ -211,7 +219,8 @@ class StayBalanceCalculator {
     }
 
     // تاريخ المغادرة اليدوي
-    final DateTime? manualCheckout = (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
+    final DateTime? manualCheckout =
+        (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
         ? DateTime.tryParse(booking.checkoutDate!)
         : null;
 
@@ -234,7 +243,11 @@ class StayBalanceCalculator {
     }
 
     // ─── بناء خريطة تعديلات الأسعار لكل ليلة ───
-    final adjMap = _buildPerNightAdjustments(priceAdjustments, checkinDateOnly, manualCheckout);
+    final adjMap = _buildPerNightAdjustments(
+      priceAdjustments,
+      checkinDateOnly,
+      manualCheckout,
+    );
 
     // ─── حساب بداية يوم الفندق الأول (قاعدة 14:01) ───
     final hotelDay = HotelTimeEngine.getHotelDay(checkin);
@@ -259,7 +272,9 @@ class StayBalanceCalculator {
     for (int i = 0; i < 3650; i++) {
       final key = Time.dateToString(currentNight);
       final adjustment = adjMap[key] ?? 0.0;
-      final effectiveRate = (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0).toDouble();
+      final effectiveRate = (baseRate + adjustment)
+          .clamp(0.0, baseRate > 0 ? baseRate * 3 : 0)
+          .toDouble();
       final effectiveRateMinor = toMinor(effectiveRate);
 
       if (effectiveRateMinor <= 0) {
@@ -279,15 +294,23 @@ class StayBalanceCalculator {
     // ─── حساب تكلفة الأيام المقضية فعلياً ───
     // موعد المغادرة المخطط لا يوقف التراكم؛ وحده actualCheckout المسجل
     // يحدد نهاية الإقامة. وإذا كان وقت الخروج مسجلاً في المستقبل نستخدم الآن.
-    final effectiveStayEnd = recordedCheckout != null && !recordedCheckout.isAfter(moment) ? recordedCheckout : moment;
-    final actualNightsSpent = Time.nightsWithCutoff(checkin, checkout: effectiveStayEnd);
+    final effectiveStayEnd =
+        recordedCheckout != null && !recordedCheckout.isAfter(moment)
+        ? recordedCheckout
+        : moment;
+    final actualNightsSpent = Time.nightsWithCutoff(
+      checkin,
+      checkout: effectiveStayEnd,
+    );
 
     int consumedCostMinor = 0;
     DateTime consumedNight = firstHotelDay;
     for (int i = 0; i < actualNightsSpent && i < 3650; i++) {
       final key = Time.dateToString(consumedNight);
       final adjustment = adjMap[key] ?? 0.0;
-      final nightRate = (baseRate + adjustment).clamp(0.0, baseRate > 0 ? baseRate * 3 : 0).toDouble();
+      final nightRate = (baseRate + adjustment)
+          .clamp(0.0, baseRate > 0 ? baseRate * 3 : 0)
+          .toDouble();
       consumedCostMinor += toMinor(nightRate);
       consumedNight = consumedNight.add(const Duration(days: 1));
     }
@@ -298,15 +321,19 @@ class StayBalanceCalculator {
     final effectiveBalance = fromMinor(totalPaidMinor - consumedCostMinor);
 
     // ─── تاريخ المغادرة التلقائي ───
-    final autoCheckout = checkinDateOnly.add(Duration(days: totalCoveredNights));
+    final autoCheckout = checkinDateOnly.add(
+      Duration(days: totalCoveredNights),
+    );
 
     // ─── الأيام المتبقية حتى تاريخ المغادرة اليدوي ───
-    final int manualNightsRemaining = (manualCheckout != null && manualCheckout.isAfter(moment))
+    final int manualNightsRemaining =
+        (manualCheckout != null && manualCheckout.isAfter(moment))
         ? Time.nightsWithCutoff(moment, checkout: manualCheckout)
         : 0;
 
     // ─── هل التاريخ التلقائي يتجاوز التاريخ اليدوي؟ ───
-    final bool isAutoExtended = manualCheckout != null && autoCheckout.isAfter(manualCheckout);
+    final bool isAutoExtended =
+        manualCheckout != null && autoCheckout.isAfter(manualCheckout);
 
     // ─── عدد الأيام الإضافية وراء تاريخ المغادرة اليدوي ───
     final int extraNightsBeyondManual = isAutoExtended
@@ -319,10 +346,13 @@ class StayBalanceCalculator {
 
     // ─── متوسط السعر الفعلي بعد التعديلات ───
     double effectiveNightlyRate = baseRate;
-    if (totalCoveredNights > 0 && priceAdjustments != null && priceAdjustments.isNotEmpty) {
+    if (totalCoveredNights > 0 &&
+        priceAdjustments != null &&
+        priceAdjustments.isNotEmpty) {
       final totalCoveredCostMinor = totalPaidMinor - surplusMinor;
       if (totalCoveredCostMinor > 0) {
-        effectiveNightlyRate = fromMinor(totalCoveredCostMinor) / totalCoveredNights;
+        effectiveNightlyRate =
+            fromMinor(totalCoveredCostMinor) / totalCoveredNights;
       }
     }
 
@@ -352,7 +382,11 @@ class StayBalanceCalculator {
     double? nightlyRate,
     List<BookingPriceAdjustment>? priceAdjustments,
   }) {
-    final result = calculate(booking, roomRate: nightlyRate, priceAdjustments: priceAdjustments);
+    final result = calculate(
+      booking,
+      roomRate: nightlyRate,
+      priceAdjustments: priceAdjustments,
+    );
     return result.autoCheckoutDate;
   }
 
@@ -362,7 +396,11 @@ class StayBalanceCalculator {
     double? nightlyRate,
     List<BookingPriceAdjustment>? priceAdjustments,
   }) {
-    final result = calculate(booking, roomRate: nightlyRate, priceAdjustments: priceAdjustments);
+    final result = calculate(
+      booking,
+      roomRate: nightlyRate,
+      priceAdjustments: priceAdjustments,
+    );
     return result.totalPaidNights;
   }
 
@@ -386,7 +424,8 @@ class StayBalanceCalculator {
     // ✅ إصلاح: تقليص farFuture من 3650 إلى 365 يوم (سنة واحدة)
     // الحجوزات التي تمتد لأكثر من سنة بدون تاريخ مغادرة يدوي نادرة جداً
     // وغالباً تشير إلى بيانات تالفة
-    final farFuture = manualCheckout ?? checkinDateOnly.add(const Duration(days: 365));
+    final farFuture =
+        manualCheckout ?? checkinDateOnly.add(const Duration(days: 365));
 
     for (final adj in adjustments) {
       final effectiveDate = DateTime.tryParse(adj.effectiveHotelDay);
@@ -395,10 +434,18 @@ class StayBalanceCalculator {
       }
 
       // تطبيع التواريخ إلى بداية اليوم فقط (تجنب مشاكل المنطقة الزمنية)
-      final effDateOnly = DateTime(effectiveDate.year, effectiveDate.month, effectiveDate.day);
+      final effDateOnly = DateTime(
+        effectiveDate.year,
+        effectiveDate.month,
+        effectiveDate.day,
+      );
 
-      final endDate = adj.endHotelDay != null ? DateTime.tryParse(adj.endHotelDay!) : null;
-      final adjEnd = endDate != null ? DateTime(endDate.year, endDate.month, endDate.day) : farFuture;
+      final endDate = adj.endHotelDay != null
+          ? DateTime.tryParse(adj.endHotelDay!)
+          : null;
+      final adjEnd = endDate != null
+          ? DateTime(endDate.year, endDate.month, endDate.day)
+          : farFuture;
 
       final isDiscount = adj.adjustmentType == 0;
       final rawAmount = adj.amount;
@@ -445,7 +492,8 @@ class StayBalanceCalculator {
   /// تُستخدم بدلاً من رمي استثناء يُنهي التطبيق
   static StayBalanceResult _fallbackResult(Booking booking, DateTime moment) {
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
-    final checkout = (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
+    final checkout =
+        (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty)
         ? DateTime.tryParse(booking.checkoutDate!)
         : null;
     return StayBalanceResult(

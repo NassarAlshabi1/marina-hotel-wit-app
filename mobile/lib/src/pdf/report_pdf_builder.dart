@@ -135,24 +135,40 @@ class ReportPdfBuilder {
         children: [
           pw.Text(
             'فندق مارينا بلازا',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 22,
+              color: PdfColors.textWhite,
+            ),
           ),
           pw.SizedBox(height: 8),
           pw.Text(
             title,
-            style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 20,
+              color: PdfColors.textWhite,
+            ),
           ),
           pw.SizedBox(height: 8),
           pw.Text(
             periodText,
-            style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: 12,
+              color: PdfColors.textWhite,
+            ),
             textAlign: pw.TextAlign.center,
           ),
           if (extraHeaderLine != null && extraHeaderLine.isNotEmpty) ...[
             pw.SizedBox(height: 4),
             pw.Text(
               extraHeaderLine,
-              style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
             ),
           ],
         ],
@@ -172,22 +188,36 @@ class ReportPdfBuilder {
       width: double.infinity,
       padding: const pw.EdgeInsets.only(top: 4),
       decoration: const pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: PdfColors.border, width: 0.5)),
+        border: pw.Border(
+          top: pw.BorderSide(color: PdfColors.border, width: 0.5),
+        ),
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
             'تاريخ الإنشاء: $createdAt',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.textMuted),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: 8,
+              color: PdfColors.textMuted,
+            ),
           ),
           pw.Text(
             'وثيقة داخلية',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.textMuted),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: 8,
+              color: PdfColors.textMuted,
+            ),
           ),
           pw.Text(
             'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.textMuted),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: 8,
+              color: PdfColors.textMuted,
+            ),
           ),
         ],
       ),
@@ -222,9 +252,16 @@ class ReportPdfBuilder {
 
   /// رأس مضغوط (≈44pt): العنوان والفترة يميناً، واسم الفندق وتاريخ
   /// الإنشاء يساراً — للتقارير العملية المختصرة فقط (compactHeader: true).
-  static pw.Widget _buildCompactHeader(ArabicPdfFonts fonts, ReportPdfConfig config) {
-    final fromLabel = config.fromDate != null ? DateFormat('yyyy-MM-dd').format(config.fromDate!) : 'غير محدد';
-    final toLabel = config.toDate != null ? DateFormat('yyyy-MM-dd').format(config.toDate!) : 'غير محدد';
+  static pw.Widget _buildCompactHeader(
+    ArabicPdfFonts fonts,
+    ReportPdfConfig config,
+  ) {
+    final fromLabel = config.fromDate != null
+        ? DateFormat('yyyy-MM-dd').format(config.fromDate!)
+        : 'غير محدد';
+    final toLabel = config.toDate != null
+        ? DateFormat('yyyy-MM-dd').format(config.toDate!)
+        : 'غير محدد';
     final periodText = 'الفترة من $fromLabel إلى $toLabel';
     final extra = (config.extraHeaderLine ?? '').trim();
     final contextLine = extra.isEmpty ? periodText : '$periodText • $extra';
@@ -242,12 +279,20 @@ class ReportPdfBuilder {
             children: [
               pw.Text(
                 config.title,
-                style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textWhite),
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 11,
+                  color: PdfColors.textWhite,
+                ),
               ),
               pw.SizedBox(height: 2),
               pw.Text(
                 contextLine,
-                style: pw.TextStyle(font: fonts.regular, fontSize: 7.5, color: PdfColors.textWhite),
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 7.5,
+                  color: PdfColors.textWhite,
+                ),
               ),
             ],
           ),
@@ -256,12 +301,20 @@ class ReportPdfBuilder {
             children: [
               pw.Text(
                 'فندق مارينا بلازا',
-                style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: PdfColors.textWhite),
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: 11,
+                  color: PdfColors.textWhite,
+                ),
               ),
               pw.SizedBox(height: 2),
               pw.Text(
                 'تاريخ الإنشاء: $createdAt',
-                style: pw.TextStyle(font: fonts.regular, fontSize: 7.5, color: PdfColors.textWhite),
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 7.5,
+                  color: PdfColors.textWhite,
+                ),
               ),
             ],
           ),
@@ -271,9 +324,16 @@ class ReportPdfBuilder {
   }
 
   /// بناء رأس التقرير الافتراضي من الإعدادات
-  static pw.Widget _buildDefaultHeader(ArabicPdfFonts fonts, ReportPdfConfig config) {
-    final fromLabel = config.fromDate != null ? DateFormat('yyyy-MM-dd').format(config.fromDate!) : 'غير محدد';
-    final toLabel = config.toDate != null ? DateFormat('yyyy-MM-dd').format(config.toDate!) : 'غير محدد';
+  static pw.Widget _buildDefaultHeader(
+    ArabicPdfFonts fonts,
+    ReportPdfConfig config,
+  ) {
+    final fromLabel = config.fromDate != null
+        ? DateFormat('yyyy-MM-dd').format(config.fromDate!)
+        : 'غير محدد';
+    final toLabel = config.toDate != null
+        ? DateFormat('yyyy-MM-dd').format(config.toDate!)
+        : 'غير محدد';
     final periodText = 'الفترة من تاريخ $fromLabel إلى تاريخ $toLabel';
 
     return buildReportHeader(

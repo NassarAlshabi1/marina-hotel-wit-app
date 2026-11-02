@@ -83,7 +83,11 @@ class UnifiedSyncOrchestrator {
   final _stateController = StreamController<UnifiedSyncState>.broadcast();
   Stream<UnifiedSyncState> get stateStream => _stateController.stream;
 
-  UnifiedSyncState _state = UnifiedSyncState(phase: 'idle', message: 'جاهز', timestamp: DateTime.now());
+  UnifiedSyncState _state = UnifiedSyncState(
+    phase: 'idle',
+    message: 'جاهز',
+    timestamp: DateTime.now(),
+  );
 
   Future<void> initialize({
     AppwriteSyncManager? appwrite,
@@ -121,7 +125,13 @@ class UnifiedSyncOrchestrator {
       _appwriteSub = _appwrite!.syncStatusStream.listen((status) async {
         switch (status) {
           case SyncStatus.syncing:
-            _emit(_state.copyWith(phase: 'pushing', message: 'مزامنة الدلتا مع Appwrite', timestamp: DateTime.now()));
+            _emit(
+              _state.copyWith(
+                phase: 'pushing',
+                message: 'مزامنة الدلتا مع Appwrite',
+                timestamp: DateTime.now(),
+              ),
+            );
           case SyncStatus.success:
             _emit(
               _state.copyWith(
@@ -143,7 +153,13 @@ class UnifiedSyncOrchestrator {
             );
           case SyncStatus.idle:
           case SyncStatus.partial:
-            _emit(_state.copyWith(phase: 'idle', message: 'جاهز', timestamp: DateTime.now()));
+            _emit(
+              _state.copyWith(
+                phase: 'idle',
+                message: 'جاهز',
+                timestamp: DateTime.now(),
+              ),
+            );
         }
       });
     }
@@ -156,10 +172,12 @@ class UnifiedSyncOrchestrator {
               phase: 'completing',
               message: result.message,
               timestamp: DateTime.now(),
-              lastPushAt: result.pushedChanges != null && result.pushedChanges! > 0
+              lastPushAt:
+                  result.pushedChanges != null && result.pushedChanges! > 0
                   ? DateTime.now()
                   : _state.lastPushAt,
-              lastPullAt: result.pulledChanges != null && result.pulledChanges! > 0
+              lastPullAt:
+                  result.pulledChanges != null && result.pulledChanges! > 0
                   ? DateTime.now()
                   : _state.lastPullAt,
             ),
@@ -197,7 +215,10 @@ class UnifiedSyncOrchestrator {
       // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
       // unhandled async error → Crashlytics Fatal عند أي استثناء شبكي.
       try {
-        await _autoSyncToAppwrite(reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}');
+        await _autoSyncToAppwrite(
+          reason:
+              'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}',
+        );
       } catch (e, stackTrace) {
         dwarn(() => '❌ UnifiedSyncOrchestrator: خطأ في debounce auto sync: $e');
         dwarn(() => 'Stack trace: $stackTrace');
@@ -270,7 +291,8 @@ class UnifiedSyncOrchestrator {
     try {
       final prefs = await SharedPreferences.getInstance();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-      final googleDriveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+      final googleDriveEnabled =
+          prefs.getBool('google_drive_sync_enabled') ?? false;
 
       var success = true;
 
@@ -279,7 +301,9 @@ class UnifiedSyncOrchestrator {
       }
 
       if (googleDriveEnabled) {
-        success = await _syncGoogleDrive(push: push, pull: pull, reason: reason) && success;
+        success =
+            await _syncGoogleDrive(push: push, pull: pull, reason: reason) &&
+            success;
       }
 
       if (forceSnapshot) {
@@ -319,8 +343,17 @@ class UnifiedSyncOrchestrator {
       );
       // ✅ Analytics: تسجيل فشل المزامنة
       final syncDuration = DateTime.now().difference(syncStartTime);
-      unawaited(AnalyticsService().logSyncFailure(error: e.toString(), operation: 'syncNow', attempt: 1));
-      dlog(() => '📊 Analytics: sync failed after ${syncDuration.inMilliseconds}ms');
+      unawaited(
+        AnalyticsService().logSyncFailure(
+          error: e.toString(),
+          operation: 'syncNow',
+          attempt: 1,
+        ),
+      );
+      dlog(
+        () =>
+            '📊 Analytics: sync failed after ${syncDuration.inMilliseconds}ms',
+      );
       return false;
     } finally {
       _syncing = false;
@@ -379,7 +412,11 @@ class UnifiedSyncOrchestrator {
       return;
     }
     _emit(
-      _state.copyWith(phase: 'snapshotting', message: 'إنشاء Snapshot على Google Drive', timestamp: DateTime.now()),
+      _state.copyWith(
+        phase: 'snapshotting',
+        message: 'إنشاء Snapshot على Google Drive',
+        timestamp: DateTime.now(),
+      ),
     );
     await _smart!.forceSyncNow();
     final checksum = await _computeUnifiedChecksum();
@@ -411,19 +448,43 @@ class UnifiedSyncOrchestrator {
     ]);
 
     final tablesPayload = <String, List<Map<String, dynamic>>>{
-      'rooms': (results[0] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'bookings': (results[1] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'booking_notes': (results[2] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'employees': (results[3] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'expenses': (results[4] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'cash_transactions': (results[5] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'payments': (results[6] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'debts': (results[7] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'booking_nights': (results[8] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'hotel_day_ledger': (results[9] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
-      'shift_notes': (results[10] as List).map((e) => e.toJson() as Map<String, dynamic>).toList(),
+      'rooms': (results[0] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'bookings': (results[1] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'booking_notes': (results[2] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'employees': (results[3] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'expenses': (results[4] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'cash_transactions': (results[5] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'payments': (results[6] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'debts': (results[7] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'booking_nights': (results[8] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'hotel_day_ledger': (results[9] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'shift_notes': (results[10] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
     };
-    return Isolate.run(() => models.SyncChecksum.compute({'tables': tablesPayload}));
+    return Isolate.run(
+      () => models.SyncChecksum.compute({'tables': tablesPayload}),
+    );
   }
 
   Future<bool> _syncAppwrite({required bool push, required bool pull}) async {
@@ -467,8 +528,13 @@ class UnifiedSyncOrchestrator {
     return manager;
   }
 
-  Future<bool> _syncGoogleDrive({required bool push, required bool pull, required String reason}) async {
-    final coordinator = _driveCoordinator ?? GoogleDriveUnifiedSyncCoordinator.instance;
+  Future<bool> _syncGoogleDrive({
+    required bool push,
+    required bool pull,
+    required String reason,
+  }) async {
+    final coordinator =
+        _driveCoordinator ?? GoogleDriveUnifiedSyncCoordinator.instance;
     _driveCoordinator ??= coordinator;
 
     if (!coordinator.isInitialized) {
@@ -481,7 +547,11 @@ class UnifiedSyncOrchestrator {
       await logger.initialize();
       final db = _database ?? DatabaseManager.instance;
       _database ??= db;
-      await coordinator.initialize(backupService: backupService, database: db, logger: logger);
+      await coordinator.initialize(
+        backupService: backupService,
+        database: db,
+        logger: logger,
+      );
     }
 
     if (push && pull) {
@@ -490,12 +560,17 @@ class UnifiedSyncOrchestrator {
     }
 
     if (push && !pull) {
-      final result = await coordinator.performSync(trigger: SyncTrigger.localChange);
+      final result = await coordinator.performSync(
+        trigger: SyncTrigger.localChange,
+      );
       return result.success;
     }
 
     if (!push && pull) {
-      final result = await coordinator.performSync(trigger: SyncTrigger.periodic, mode: SyncMode.deltaOnly);
+      final result = await coordinator.performSync(
+        trigger: SyncTrigger.periodic,
+        mode: SyncMode.deltaOnly,
+      );
       return result.success;
     }
 
@@ -508,7 +583,13 @@ class UnifiedSyncOrchestrator {
     }
 
     try {
-      _emit(_state.copyWith(phase: 'verifying', message: 'التحقق من سلامة البيانات', timestamp: DateTime.now()));
+      _emit(
+        _state.copyWith(
+          phase: 'verifying',
+          message: 'التحقق من سلامة البيانات',
+          timestamp: DateTime.now(),
+        ),
+      );
 
       final report = await SyncIntegrityChecker.instance.verify(_database!);
 
@@ -518,7 +599,8 @@ class UnifiedSyncOrchestrator {
             phase: 'completing',
             message: 'تم اكتشاف ${report.criticalIssueCount} مشاكل حرجة',
             timestamp: DateTime.now(),
-            lastError: 'Found ${report.criticalIssueCount} critical integrity issues',
+            lastError:
+                'Found ${report.criticalIssueCount} critical integrity issues',
           ),
         );
       } else if (report.hasIssues) {
@@ -530,7 +612,13 @@ class UnifiedSyncOrchestrator {
           ),
         );
       } else {
-        _emit(_state.copyWith(phase: 'completing', message: 'سلامة البيانات جيدة', timestamp: DateTime.now()));
+        _emit(
+          _state.copyWith(
+            phase: 'completing',
+            message: 'سلامة البيانات جيدة',
+            timestamp: DateTime.now(),
+          ),
+        );
       }
     } catch (e) {
       _emit(

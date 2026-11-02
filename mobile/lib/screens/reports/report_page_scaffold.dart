@@ -47,7 +47,10 @@ class ReportPageScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ReportDateFilterWidget(controller: filterController, onDateRangeChanged: onDateRangeChanged),
+            ReportDateFilterWidget(
+              controller: filterController,
+              onDateRangeChanged: onDateRangeChanged,
+            ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -55,7 +58,10 @@ class ReportPageScaffold extends StatelessWidget {
                 ...filterWidgets,
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     textStyle: const TextStyle(fontSize: 11),
                   ),
                   onPressed: isLoading ? null : onSearch,

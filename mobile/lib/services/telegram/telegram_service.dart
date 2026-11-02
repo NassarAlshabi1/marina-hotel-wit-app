@@ -56,7 +56,9 @@ class TelegramApiClient {
       }
 
       // Telegram يقبل حتى 4096 حرفاً. الرسائل الوصفية قد تأتي من إدخال المستخدم.
-      final safeText = text.length <= _maxMessageLength ? text : '${text.substring(0, _maxMessageLength - 1)}…';
+      final safeText = text.length <= _maxMessageLength
+          ? text
+          : '${text.substring(0, _maxMessageLength - 1)}…';
       final response = await _client
           .post(
             Uri.parse(_apiUrl('sendMessage')),
@@ -84,7 +86,10 @@ class TelegramApiClient {
   }
 
   /// إرسال رسالة إلى Chat ID المحفوظ في الإعدادات
-  Future<bool> sendToDefaultChat({required String text, String parseMode = 'HTML'}) async {
+  Future<bool> sendToDefaultChat({
+    required String text,
+    String parseMode = 'HTML',
+  }) async {
     final chatId = await TelegramConfig.getChatId();
     if (chatId.isEmpty) {
       dlog('⚠️ Telegram: Chat ID غير مضبوط');
@@ -120,7 +125,9 @@ class TelegramApiClient {
       await _updateToken();
 
       if (_cachedToken.trim().isEmpty) return false;
-      final response = await _client.get(Uri.parse(_apiUrl('getMe'))).timeout(_requestTimeout);
+      final response = await _client
+          .get(Uri.parse(_apiUrl('getMe')))
+          .timeout(_requestTimeout);
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data['ok'] == true;

@@ -93,7 +93,9 @@ class SyncPullService {
   }) async {
     // 1) حماية الحذف المحلي (soft delete) — له أولوية أعلى
     if (localDeletedAt != null) {
-      final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ?? _asIntNullable(remoteData['deleted_at']);
+      final remoteDeletedAt =
+          _asIntNullable(remoteData['deletedAt']) ??
+          _asIntNullable(remoteData['deleted_at']);
       if (remoteDeletedAt != null) {
         return const RemoteCheckResult(shouldApplyRemote: true);
       }
@@ -111,7 +113,9 @@ class SyncPullService {
     // (لأن جهاز-B قد يكون لديه VC أحدث من تعديل صغير) → السجل يبقى نشطاً
     // على جهاز-B رغم حذفه على الجهاز-A → resurrection.
     if (localDeletedAt == null) {
-      final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ?? _asIntNullable(remoteData['deleted_at']);
+      final remoteDeletedAt =
+          _asIntNullable(remoteData['deletedAt']) ??
+          _asIntNullable(remoteData['deleted_at']);
       if (remoteDeletedAt != null && remoteDeletedAt > 0) {
         // ✅ تطبيق الـ tombstone دائماً (تجاوز VC وtimestamp)
         return const RemoteCheckResult(shouldApplyRemote: true);
@@ -141,14 +145,25 @@ class SyncPullService {
     }
 
     // 4) Vector Clock comparison
-    final remoteVcStr = (remoteData['vectorClock'] as String?) ?? (remoteData['vector_clock'] as String?) ?? '{}';
+    final remoteVcStr =
+        (remoteData['vectorClock'] as String?) ??
+        (remoteData['vector_clock'] as String?) ??
+        '{}';
 
     // إذا كانت كلتا الساعتين فارغتين → LWW
-    if ((localVectorClock == null || localVectorClock.isEmpty || localVectorClock == '{}') &&
+    if ((localVectorClock == null ||
+            localVectorClock.isEmpty ||
+            localVectorClock == '{}') &&
         (remoteVcStr.isEmpty || remoteVcStr == '{}')) {
-      final normalizedRemoteTs = effectiveRemoteTs > 10000000000 ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
-      final normalizedLocalTs = localLastModified > 10000000000 ? localLastModified ~/ 1000 : localLastModified;
-      return RemoteCheckResult(shouldApplyRemote: normalizedRemoteTs > normalizedLocalTs);
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
+      return RemoteCheckResult(
+        shouldApplyRemote: normalizedRemoteTs > normalizedLocalTs,
+      );
     }
 
     final localVc = VectorClock.fromString(localVectorClock ?? '{}');
@@ -167,14 +182,19 @@ class SyncPullService {
     // إثبات السببية من VC أحادي الطرف، لذا نعود إلى LWW بدلاً من اعتبار
     // الساعة المحلية غير الفارغة أحدث دائماً وإسقاط تحديث بعيد أحدث.
     if (localVc.isEmpty || remoteVc.isEmpty) {
-      final normalizedRemoteTs = effectiveRemoteTs > 10000000000 ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
-      final normalizedLocalTs = localLastModified > 10000000000 ? localLastModified ~/ 1000 : localLastModified;
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
       final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
       final localDeviceId = _currentDeviceId ?? '';
       return RemoteCheckResult(
         shouldApplyRemote:
             normalizedRemoteTs > normalizedLocalTs ||
-            (normalizedRemoteTs == normalizedLocalTs && remoteDeviceId.compareTo(localDeviceId) < 0),
+            (normalizedRemoteTs == normalizedLocalTs &&
+                remoteDeviceId.compareTo(localDeviceId) < 0),
       );
     }
 
@@ -206,9 +226,15 @@ class SyncPullService {
         );
 
         // محاولة الحل الذكي عبر SmartConflictResolver (3-way merge)
-        if (entityName != null && localUuid != null && localData != null && _ancestorCacheDao != null) {
+        if (entityName != null &&
+            localUuid != null &&
+            localData != null &&
+            _ancestorCacheDao != null) {
           try {
-            final ancestor = await _ancestorCacheDao!.getAncestor(entityName, localUuid);
+            final ancestor = await _ancestorCacheDao!.getAncestor(
+              entityName,
+              localUuid,
+            );
             final remoteDataOriginal = Map<String, dynamic>.from(remoteData);
             final resolution = SmartConflictResolver.resolve(
               entity: entityName,
@@ -236,7 +262,11 @@ class SyncPullService {
                 remoteData[entry.key] = entry.value;
               }
               // حفظ البيانات البعيدة الأصلية كـ ancestor
-              await _ancestorCacheDao!.saveAncestor(entity: entityName, localUuid: localUuid, data: remoteDataOriginal);
+              await _ancestorCacheDao!.saveAncestor(
+                entity: entityName,
+                localUuid: localUuid,
+                data: remoteDataOriginal,
+              );
               return RemoteCheckResult(
                 shouldApplyRemote: true,
                 mergedData: resolution.mergedData,
@@ -244,17 +274,23 @@ class SyncPullService {
               );
             }
           } catch (e) {
-            _logger.warning('⚠️ SmartConflictResolver failed, LWW fallback: $e', tag: 'CONFLICT');
+            _logger.warning(
+              '⚠️ SmartConflictResolver failed, LWW fallback: $e',
+              tag: 'CONFLICT',
+            );
           }
         }
 
         // LWW fallback + deviceId tie-break
-        final normalizedRemoteTs = effectiveRemoteTs > 10000000000 ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
+        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+            ? effectiveRemoteTs ~/ 1000
+            : effectiveRemoteTs;
         final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
         final localDeviceId = _currentDeviceId ?? '';
         final shouldApply =
             normalizedRemoteTs > localLastModified ||
-            (normalizedRemoteTs == localLastModified && remoteDeviceId.compareTo(localDeviceId) < 0);
+            (normalizedRemoteTs == localLastModified &&
+                remoteDeviceId.compareTo(localDeviceId) < 0);
         return RemoteCheckResult(shouldApplyRemote: shouldApply);
     }
   }
@@ -368,7 +404,10 @@ class SyncPullService {
       }
 
       final data = list.documents.first.data;
-      final raw = data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
+      final raw =
+          data['lastModified'] ??
+          data['last_modified'] ??
+          data['last_modified_epoch'];
 
       final value = raw is int
           ? raw
@@ -434,7 +473,8 @@ class SyncPullService {
   /// (المحلل يبحث بالـ serverId) وتُتخطى سجلات مالية كاملة كـ"أيتام" —
   /// 128 سحوبة (654,500 وحدة) في بيانات الإنتاج. للكيانات هذه تُسمح
   /// الـ tombstones بالتنزيل (تُدرج صفوفاً غير مرئية deletedAt>0 كالسابق).
-  static List<String> buildFullSyncQueries({bool includeTombstones = false}) => includeTombstones
+  static List<String> buildFullSyncQueries({bool includeTombstones = false}) =>
+      includeTombstones
       ? <String>[]
       : [
           Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
@@ -476,7 +516,8 @@ class SyncPullService {
   /// - نفس قرار "لا ربط خاطئ عبر الأجهزة" المعمول به في resolveBooking
   ///   (id_resolver.dart) و expenses_adapter: بدون الموظف المحذوف محلياً
   ///   لا يمكن حل المرجع إطلاقاً — فالسحب ضرورة سلامة بيانات لا رفاهية.
-  static bool entityNeedsTombstoneParents(String entity) => entity == 'employees';
+  static bool entityNeedsTombstoneParents(String entity) =>
+      entity == 'employees';
 
   /// ✅ (2026-08-30) الفجوتان 3+4 — حساب معرّفات المستندات المتغيرة فعلاً
   /// بمقارنة metadata الخادم بالخريطة المحلية (sync_remote_meta).
@@ -516,7 +557,10 @@ class SyncPullService {
   /// سجلات شبحية تبقى نشطة محلياً بعد حذفها من جهاز آخر (resurrection).
   ///
   /// دالة نقية (قابلة للاختبار مباشرة).
-  static Set<String> tombstoneSkipIds({required Map<String, int> deletedTs, required Map<String, int> localMeta}) {
+  static Set<String> tombstoneSkipIds({
+    required Map<String, int> deletedTs,
+    required Map<String, int> localMeta,
+  }) {
     final skip = <String>{};
     deletedTs.forEach((id, _) {
       if (!localMeta.containsKey(id)) skip.add(id);
@@ -557,7 +601,10 @@ class SyncPullService {
       return [];
     }
     final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
-    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
     return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
@@ -571,7 +618,10 @@ class SyncPullService {
       return [];
     }
     final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
-    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
     return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
@@ -581,10 +631,16 @@ class SyncPullService {
   /// نسخة متزامنة (non-async) تستقبل remoteEpochIsMillis كمعامل للتوافق
   /// مع الكود الموجود، لكنها تتجاهله الآن لأن `$updatedAt` بصيغة ISO
   /// (لا يتأثر بوحدة الثواني/الميلي ثانية).
-  List<String> bookingNightsDeltaQueries(int lastPullTs, {required bool remoteEpochIsMillis}) {
+  List<String> bookingNightsDeltaQueries(
+    int lastPullTs, {
+    required bool remoteEpochIsMillis,
+  }) {
     if (lastPullTs > 0) {
       final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
-      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
+      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+        cutoffSeconds * 1000,
+        isUtc: true,
+      ).toIso8601String();
       return [Query.greaterThan(r'$updatedAt', cutoffIso)];
     }
     return []; // full fetch
@@ -615,7 +671,9 @@ class SyncPullService {
   /// يُعالج الحالة التي يكون فيها الطابع الزمني بالميلي ثانية.
   Future<int> getLastPullTs() async {
     try {
-      final state = await (database.select(database.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+      final state = await (database.select(
+        database.syncState,
+      )..where((t) => t.id.equals(1))).getSingleOrNull();
       final ts = state?.lastPullTs ?? 0;
       if (ts > 10000000000) {
         return ts ~/ 1000;
@@ -636,7 +694,12 @@ class SyncPullService {
     try {
       await database
           .into(database.syncState)
-          .insertOnConflictUpdate(SyncStateCompanion(id: const drift.Value(1), lastPullTs: drift.Value(ts)));
+          .insertOnConflictUpdate(
+            SyncStateCompanion(
+              id: const drift.Value(1),
+              lastPullTs: drift.Value(ts),
+            ),
+          );
       _logger.debug('📍 Updated lastPullTs to $ts', tag: 'SYNC');
     } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
@@ -696,7 +759,10 @@ class SyncPullService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_entityPullTsMapKey, jsonEncode(map));
     } catch (e) {
-      _logger.warning('Failed to update entity pull ts ($entity): $e', tag: 'SYNC');
+      _logger.warning(
+        'Failed to update entity pull ts ($entity): $e',
+        tag: 'SYNC',
+      );
     }
   }
 
@@ -720,7 +786,10 @@ class SyncPullService {
     final ts = await getEntityPullTs(entity);
     if (ts <= 0) return [];
     final cutoffSeconds = ts - _safetyWindowSeconds;
-    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
     return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
@@ -740,12 +809,17 @@ class SyncPullService {
   /// **متى تُستدعى**: في بداية كل دورة سحب لتحديد الوضع (full vs delta).
   Future<bool> isFullSyncComplete() async {
     try {
-      final state = await (database.select(database.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+      final state = await (database.select(
+        database.syncState,
+      )..where((t) => t.id.equals(1))).getSingleOrNull();
       final flag = state?.fullSyncComplete ?? 0;
       return flag == 1;
     } catch (_) {
       // في حالة الخطأ، نُرجع false (تحفظياً) — نُجبر full sync
-      _logger.warning('Failed to read fullSyncComplete flag — assuming false (full sync required)', tag: 'SYNC');
+      _logger.warning(
+        'Failed to read fullSyncComplete flag — assuming false (full sync required)',
+        tag: 'SYNC',
+      );
       return false;
     }
   }
@@ -759,8 +833,16 @@ class SyncPullService {
     try {
       await database
           .into(database.syncState)
-          .insertOnConflictUpdate(const SyncStateCompanion(id: drift.Value(1), fullSyncComplete: drift.Value(1)));
-      _logger.info('✅ Full sync marked complete — delta sync enabled', tag: 'SYNC');
+          .insertOnConflictUpdate(
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              fullSyncComplete: drift.Value(1),
+            ),
+          );
+      _logger.info(
+        '✅ Full sync marked complete — delta sync enabled',
+        tag: 'SYNC',
+      );
     } catch (e) {
       _logger.warning('Failed to mark full sync complete: $e', tag: 'SYNC');
     }
@@ -774,8 +856,16 @@ class SyncPullService {
     try {
       await database
           .into(database.syncState)
-          .insertOnConflictUpdate(const SyncStateCompanion(id: drift.Value(1), fullSyncComplete: drift.Value(0)));
-      _logger.info('🔄 Full sync flag reset — full sync required next cycle', tag: 'SYNC');
+          .insertOnConflictUpdate(
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              fullSyncComplete: drift.Value(0),
+            ),
+          );
+      _logger.info(
+        '🔄 Full sync flag reset — full sync required next cycle',
+        tag: 'SYNC',
+      );
     } catch (e) {
       _logger.warning('Failed to reset full sync flag: $e', tag: 'SYNC');
     }
@@ -787,7 +877,11 @@ class SyncPullService {
 /// تُماثل `_RemoteNewerResult` في AppwriteSyncManager لكنها public
 /// لتسمح لـ SyncPullService بإرجاعها مباشرة.
 class RemoteCheckResult {
-  const RemoteCheckResult({required this.shouldApplyRemote, this.mergedData, this.pushedToRemote = false});
+  const RemoteCheckResult({
+    required this.shouldApplyRemote,
+    this.mergedData,
+    this.pushedToRemote = false,
+  });
 
   /// هل يجب تطبيق البيانات البعيدة؟
   final bool shouldApplyRemote;

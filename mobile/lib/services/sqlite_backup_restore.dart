@@ -29,7 +29,8 @@ class SqliteBackupRestore {
   /// Default database file name used by Drift/sqflite. Change if the DB name differs.
   /// The current app uses 'marina_hotel.db' in `SqfliteQueryExecutor.inDatabaseFolder`.
   static const String kDefaultDbFileName = 'marina_hotel.db';
-  static const String kAndroidDocumentsBackupPath = '/storage/emulated/0/Documents/MarinaHotelBackups';
+  static const String kAndroidDocumentsBackupPath =
+      '/storage/emulated/0/Documents/MarinaHotelBackups';
 
   static Future<String> _resolveDefaultDbPath() async {
     final dbDir = await sqflite.getDatabasesPath();
@@ -54,11 +55,17 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          dlog(() => '⚠️ Failed to access default backup dir, falling back: $e');
+          dlog(
+            () => '⚠️ Failed to access default backup dir, falling back: $e',
+          );
         }
-        final fallbackDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
+        final fallbackDirs = await getExternalStorageDirectories(
+          type: StorageDirectory.documents,
+        );
         if (fallbackDirs != null && fallbackDirs.isNotEmpty) {
-          final fallbackTarget = Directory(p.join(fallbackDirs.first.path, 'MarinaHotelBackups'));
+          final fallbackTarget = Directory(
+            p.join(fallbackDirs.first.path, 'MarinaHotelBackups'),
+          );
           if (!fallbackTarget.existsSync()) {
             await fallbackTarget.create(recursive: true);
           }
@@ -101,7 +108,9 @@ class SqliteBackupRestore {
       // بدلاً من إنتاج نسخة ناقصة بصمت (نسخة كاملة أو لا نسخة).
       final checkpointBusy = await _performWalCheckpoint();
       if (checkpointBusy) {
-        throw StateError('لا يمكن إنشاء نسخة SQLite متسقة أثناء وجود قارئ نشط لملف WAL');
+        throw StateError(
+          'لا يمكن إنشاء نسخة SQLite متسقة أثناء وجود قارئ نشط لملف WAL',
+        );
       }
 
       final destDir = await _resolveUserAccessibleDir();
@@ -161,11 +170,17 @@ class SqliteBackupRestore {
   static Future<void> verifyBackupIntegrity(File backupFile) async {
     sqflite.Database? backupDb;
     try {
-      backupDb = await sqflite.openDatabase(backupFile.path, readOnly: true, singleInstance: false);
+      backupDb = await sqflite.openDatabase(
+        backupFile.path,
+        readOnly: true,
+        singleInstance: false,
+      );
       final result = await backupDb.rawQuery('PRAGMA integrity_check');
       final integrity = result.isEmpty ? null : result.first.values.first;
       if (integrity != 'ok') {
-        throw StateError('SQLite integrity_check failed for ${backupFile.path}: $integrity');
+        throw StateError(
+          'SQLite integrity_check failed for ${backupFile.path}: $integrity',
+        );
       }
     } finally {
       await backupDb?.close();
@@ -178,7 +193,10 @@ class SqliteBackupRestore {
   /// - Closes the current Drift database before replacing the file to avoid locks.
   /// - Copies the file to the default database path and reopens the database.
   /// - Optionally accepts a `reopenCallback` for custom reinitialization flows.
-  static Future<void> restoreDatabase(String sourcePath, {Future<void> Function()? reopenCallback}) async {
+  static Future<void> restoreDatabase(
+    String sourcePath, {
+    Future<void> Function()? reopenCallback,
+  }) async {
     try {
       if (sourcePath.isEmpty) {
         throw ArgumentError('sourcePath must not be empty');
@@ -266,7 +284,9 @@ class SqliteBackupRestore {
             await sidecar.delete();
             dlog(() => '🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
           } catch (e) {
-            dlog(() => '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح');
+            dlog(
+              () => '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح',
+            );
           }
         }
       }

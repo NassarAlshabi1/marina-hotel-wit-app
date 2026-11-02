@@ -67,7 +67,8 @@ class ResolveResult {
       employeeRelatedId: employeeRelatedId ?? this.employeeRelatedId,
       salaryCycleLocalId: salaryCycleLocalId ?? this.salaryCycleLocalId,
       inventoryItemLocalId: inventoryItemLocalId ?? this.inventoryItemLocalId,
-      cashTransactionLocalId: cashTransactionLocalId ?? this.cashTransactionLocalId,
+      cashTransactionLocalId:
+          cashTransactionLocalId ?? this.cashTransactionLocalId,
       createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
       lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
       shouldSkip: shouldSkip ?? this.shouldSkip,

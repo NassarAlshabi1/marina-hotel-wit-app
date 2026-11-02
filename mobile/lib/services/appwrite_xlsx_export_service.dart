@@ -56,7 +56,8 @@ const Map<String, String> kExportableCollections = {
 };
 
 /// دالة سحب كل مستندات مجموعة واحدة — نقطة الحقن للاختبارات.
-typedef CollectionFetcher = Future<List<models.Document>> Function(String collectionId);
+typedef CollectionFetcher =
+    Future<List<models.Document>> Function(String collectionId);
 
 /// حالة تقدم التصدير: كم جدولاً اكتمل من الإجمالي، وما اسم الجدول الجاري.
 class XlsxExportProgress {
@@ -77,7 +78,11 @@ class XlsxExportProgress {
 
 /// نتيجة التصدير: الملف الناتج + عدد السجلات لكل ورقة.
 class XlsxExportResult {
-  const XlsxExportResult({required this.file, required this.counts, required this.totalRecords});
+  const XlsxExportResult({
+    required this.file,
+    required this.counts,
+    required this.totalRecords,
+  });
 
   /// ملف XLSX المكتوب فعلياً على القرص.
   final File file;
@@ -103,14 +108,16 @@ class ExportTable {
 /// خدمة تصدير قاعدة بيانات Appwrite إلى XLSX — قراءة فقط من السحابة.
 class AppwriteXlsxExportService {
   /// إنشاء الخدمة بدالة سحب مخصصة (يسمح بحقن بديل في الاختبارات).
-  AppwriteXlsxExportService({required CollectionFetcher fetcher}) : _fetcher = fetcher;
+  AppwriteXlsxExportService({required CollectionFetcher fetcher})
+    : _fetcher = fetcher;
 
   final CollectionFetcher _fetcher;
 
   /// غلاف جاهز يستخدم [AppwriteService.listAllDocuments] بلا ذاكرة مؤقتة
   /// حتى تكون النسخة المصدرية طازجة من السحابة.
   static CollectionFetcher fetcherOf(AppwriteService service) =>
-      (collectionId) => service.listAllDocuments(collectionId: collectionId, useCache: false);
+      (collectionId) =>
+          service.listAllDocuments(collectionId: collectionId, useCache: false);
 
   /// تصدير كل الجداول القابلة للتصدير إلى ملف XLSX في [targetPath].
   ///
@@ -150,8 +157,14 @@ class AppwriteXlsxExportService {
     final file = File(targetPath);
     await file.writeAsBytes(fixedBytes, flush: true);
 
-    onProgress?.call(XlsxExportProgress(total, total, 'تم الحفظ: ${file.path}'));
-    return XlsxExportResult(file: file, counts: counts, totalRecords: totalRecords);
+    onProgress?.call(
+      XlsxExportProgress(total, total, 'تم الحفظ: ${file.path}'),
+    );
+    return XlsxExportResult(
+      file: file,
+      counts: counts,
+      totalRecords: totalRecords,
+    );
   }
 
   /// يحوّل مستندات Appwrite إلى جدول مسطَّح: أعمدة النظام أولاً
@@ -166,7 +179,12 @@ class AppwriteXlsxExportService {
         }
       }
     }
-    final columns = <String>['\$id', '\$createdAt', '\$updatedAt', ...dataColumns];
+    final columns = <String>[
+      '\$id',
+      '\$createdAt',
+      '\$updatedAt',
+      ...dataColumns,
+    ];
     final rows = docs
         .map(
           (doc) => columns
@@ -236,7 +254,9 @@ class AppwriteXlsxExportService {
         if (v == null) {
           continue;
         }
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r + 1));
+        final cell = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r + 1),
+        );
         cell.value = switch (v) {
           final int x => IntCellValue(x),
           final double x => DoubleCellValue(x),
@@ -265,7 +285,10 @@ class AppwriteXlsxExportService {
 
     sheet.cell(CellIndex.indexByString('A2'))
       ..value = TextCellValue('تاريخ التصدير: $exportedAt')
-      ..cellStyle = CellStyle(fontSize: 10, fontColorHex: ExcelColor.fromHexString('FF666666'));
+      ..cellStyle = CellStyle(
+        fontSize: 10,
+        fontColorHex: ExcelColor.fromHexString('FF666666'),
+      );
 
     final headerBg = ExcelColor.fromHexString('FF1B3A5C');
     final headers = ['الجدول', 'عدد السجلات'];
@@ -324,7 +347,9 @@ class AppwriteXlsxExportService {
         continue;
       }
       var content = List<int>.from(file.content as List<int>);
-      final isWorksheetXml = file.name.startsWith('xl/worksheets/sheet') && file.name.endsWith('.xml');
+      final isWorksheetXml =
+          file.name.startsWith('xl/worksheets/sheet') &&
+          file.name.endsWith('.xml');
       if (isWorksheetXml && !utf8.decode(content).contains('rightToLeft=')) {
         final xml = utf8
             .decode(content)

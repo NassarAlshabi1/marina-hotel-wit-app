@@ -32,7 +32,8 @@ class BookingEditScreen extends ConsumerStatefulWidget {
   ConsumerState<BookingEditScreen> createState() => _BookingEditScreenState();
 }
 
-class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with SyncOnExitMixin {
+class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
+    with SyncOnExitMixin {
   @override
   String get screenId => 'booking_edit';
 
@@ -72,7 +73,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
     if (_idType.isNotEmpty && !types.contains(_idType)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          setState(() => _idType = types.isNotEmpty ? types.first : 'بطاقة شخصية');
+          setState(
+            () => _idType = types.isNotEmpty ? types.first : 'بطاقة شخصية',
+          );
         }
       });
     }
@@ -81,13 +84,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
 
   /// طرق الدفع من القائمة الديناميكية
   List<String> get _paymentMethods {
-    final asyncTypes = ref.watch(customListNamesProvider(kListKeyPaymentMethod));
+    final asyncTypes = ref.watch(
+      customListNamesProvider(kListKeyPaymentMethod),
+    );
     final methods = asyncTypes.valueOrNull ?? kDefaultPaymentMethods;
     // التأكد من أن القيمة المحددة موجودة في القائمة
     if (_paymentMethod.isNotEmpty && !methods.contains(_paymentMethod)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          setState(() => _paymentMethod = methods.isNotEmpty ? methods.first : 'نقدي');
+          setState(
+            () => _paymentMethod = methods.isNotEmpty ? methods.first : 'نقدي',
+          );
         }
       });
     }
@@ -119,7 +126,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
     if (b != null) {
       _guestName.text = b.guestName;
       _guestPhone.text = b.guestPhone;
-      _guestNationality.text = b.guestNationality.isEmpty ? 'يمني' : b.guestNationality;
+      _guestNationality.text = b.guestNationality.isEmpty
+          ? 'يمني'
+          : b.guestNationality;
       _guestAddress.text = b.guestAddress ?? '';
       _guestIdNumber.text = b.guestIdNumber;
       _guestIdIssueDate.text = b.guestIdIssueDate ?? '';
@@ -133,7 +142,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
       _idType = b.guestIdType;
       _roomInitialized = true;
     } else {
-      if (widget.initialRoomNumber != null && widget.initialRoomNumber!.isNotEmpty) {
+      if (widget.initialRoomNumber != null &&
+          widget.initialRoomNumber!.isNotEmpty) {
         _roomNumber.text = widget.initialRoomNumber!;
         _roomInitialized = true;
       }
@@ -143,7 +153,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
         _status = 'مؤقت';
       }
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _recalculateExpectedNights());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _recalculateExpectedNights(),
+    );
   }
 
   @override
@@ -183,18 +195,20 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
   Future<void> _pickContact() async {
     if (!Platform.isAndroid && !Platform.isIOS) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('اختيار جهات الاتصال غير متاح على هذا الجهاز')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('اختيار جهات الاتصال غير متاح على هذا الجهاز'),
+          ),
+        );
       }
       return;
     }
     final status = await Permission.contacts.request();
     if (!status.isGranted) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('يرجى منح صلاحية الوصول لجهات الاتصال')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('يرجى منح صلاحية الوصول لجهات الاتصال')),
+        );
       }
       return;
     }
@@ -268,7 +282,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                     children: [
                       TextFormField(
                         controller: _guestName,
-                        decoration: const InputDecoration(labelText: 'اسم النزيل *'),
+                        decoration: const InputDecoration(
+                          labelText: 'اسم النزيل *',
+                        ),
                         validator: _req,
                       ),
                       const SizedBox(height: 6),
@@ -287,15 +303,26 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
-                        initialValue: _idTypes.contains(_idType) ? _idType : null,
-                        items: _idTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                        onChanged: (value) => setState(() => _idType = value ?? _idType),
-                        decoration: const InputDecoration(labelText: 'نوع الهوية'),
+                        initialValue: _idTypes.contains(_idType)
+                            ? _idType
+                            : null,
+                        items: _idTypes
+                            .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => _idType = value ?? _idType),
+                        decoration: const InputDecoration(
+                          labelText: 'نوع الهوية',
+                        ),
                       ),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _guestIdNumber,
-                        decoration: const InputDecoration(labelText: 'رقم الهوية *'),
+                        decoration: const InputDecoration(
+                          labelText: 'رقم الهوية *',
+                        ),
                         keyboardType: TextInputType.number,
                         inputFormatters: const [englishIntegerInputFormatter],
                         validator: _req,
@@ -307,20 +334,29 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                             child: TextFormField(
                               controller: _guestIdIssueDate,
                               readOnly: true,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                               decoration: const InputDecoration(
                                 labelText: 'تاريخ إصدار الهوية',
                                 suffixIcon: Icon(Icons.calendar_today),
                               ),
-                              onTap: () => _pickDate(_guestIdIssueDate, onlyDate: true),
+                              onTap: () =>
+                                  _pickDate(_guestIdIssueDate, onlyDate: true),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextFormField(
                               controller: _guestIdIssuePlace,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                              decoration: const InputDecoration(labelText: 'جهة الإصدار'),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              decoration: const InputDecoration(
+                                labelText: 'جهة الإصدار',
+                              ),
                             ),
                           ),
                         ],
@@ -328,14 +364,22 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _guestNationality,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-                        decoration: const InputDecoration(labelText: 'الجنسية *'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'الجنسية *',
+                        ),
                         validator: _req,
                       ),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _guestAddress,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                         decoration: const InputDecoration(labelText: 'العنوان'),
                       ),
                     ],
@@ -355,7 +399,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                       TextFormField(
                         controller: _checkin,
                         readOnly: true,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                         decoration: const InputDecoration(
                           labelText: 'تاريخ الوصول *',
                           helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
@@ -368,7 +415,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                       TextFormField(
                         controller: _checkout,
                         readOnly: true,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                         decoration: const InputDecoration(
                           labelText: 'تاريخ المغادرة المخطط',
                           helperText: 'التنسيق: YYYY-MM-DD HH:MM:SS',
@@ -380,15 +430,27 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         initialValue: _status,
-                        items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                        onChanged: (value) => setState(() => _status = value ?? _status),
-                        decoration: const InputDecoration(labelText: 'حالة الحجز'),
+                        items: _statusOptions
+                            .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setState(() => _status = value ?? _status),
+                        decoration: const InputDecoration(
+                          labelText: 'حالة الحجز',
+                        ),
                       ),
                       TextFormField(
                         controller: _expectedNights,
                         readOnly: true,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        decoration: const InputDecoration(labelText: 'عدد الليالي'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'عدد الليالي',
+                        ),
                       ),
                       if (widget.existing?.actualCheckout != null) ...[
                         const SizedBox(height: 6),
@@ -408,7 +470,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
               const SizedBox(height: 10),
               _buildSectionTitle('الدفع المقدم (اختياري)'),
               Card(
-                color: _hasAdvancePayment ? Colors.green.shade50 : Colors.grey.shade50,
+                color: _hasAdvancePayment
+                    ? Colors.green.shade50
+                    : Colors.grey.shade50,
                 child: Padding(
                   padding: const EdgeInsets.all(6),
                   child: Column(
@@ -421,10 +485,14 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                               : 'يمكن تسجيل الدفعات لاحقاً من شاشة المدفوعات',
                         ),
                         value: _hasAdvancePayment,
-                        onChanged: (value) => setState(() => _hasAdvancePayment = value ?? false),
+                        onChanged: (value) =>
+                            setState(() => _hasAdvancePayment = value ?? false),
                         activeColor: Colors.green,
                         dense: true,
-                        visualDensity: const VisualDensity(horizontal: -4, vertical: -3),
+                        visualDensity: const VisualDensity(
+                          horizontal: -4,
+                          vertical: -3,
+                        ),
                         contentPadding: EdgeInsets.zero,
                       ),
                       if (_hasAdvancePayment) ...[
@@ -453,12 +521,23 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                         ),
                         const SizedBox(height: 4),
                         DropdownButtonFormField<String>(
-                          initialValue: _paymentMethods.contains(_paymentMethod) ? _paymentMethod : null,
+                          initialValue: _paymentMethods.contains(_paymentMethod)
+                              ? _paymentMethod
+                              : null,
                           items: _paymentMethods
-                              .map((method) => DropdownMenuItem(value: method, child: Text(method)))
+                              .map(
+                                (method) => DropdownMenuItem(
+                                  value: method,
+                                  child: Text(method),
+                                ),
+                              )
                               .toList(),
-                          onChanged: (value) => setState(() => _paymentMethod = value ?? _paymentMethod),
-                          decoration: const InputDecoration(labelText: 'طريقة الدفع'),
+                          onChanged: (value) => setState(
+                            () => _paymentMethod = value ?? _paymentMethod,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'طريقة الدفع',
+                          ),
                         ),
                         const SizedBox(height: 4),
                         TextFormField(
@@ -482,7 +561,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                     controller: _notes,
                     minLines: 1,
                     maxLines: 5,
-                    decoration: const InputDecoration(labelText: 'ملاحظات إضافية'),
+                    decoration: const InputDecoration(
+                      labelText: 'ملاحظات إضافية',
+                    ),
                   ),
                 ),
               ),
@@ -493,8 +574,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                   onPressed: _isSaving
                       ? null
                       : () async {
-                          final permissionAction = widget.existing == null ? 'create' : 'update';
-                          if (!(ref.read(authProvider).currentUser?.canPerform('bookings', permissionAction) ??
+                          final permissionAction = widget.existing == null
+                              ? 'create'
+                              : 'update';
+                          if (!(ref
+                                  .read(authProvider)
+                                  .currentUser
+                                  ?.canPerform('bookings', permissionAction) ??
                               false)) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -507,10 +593,13 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                             );
                             return;
                           }
-                          if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
+                          if (_formKey.currentState == null ||
+                              !_formKey.currentState!.validate()) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('يرجى تعبئة اسم النزيل ورقم الهوية'),
+                                content: Text(
+                                  'يرجى تعبئة اسم النزيل ورقم الهوية',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -518,24 +607,36 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                           }
                           final name = _guestName.text.trim();
                           final phone = _normalizePhone(_guestPhone.text);
-                          final nationality = _guestNationality.text.trim().isEmpty
+                          final nationality =
+                              _guestNationality.text.trim().isEmpty
                               ? 'غير معروف'
                               : _guestNationality.text.trim();
                           final address = _optionalText(_guestAddress.text);
                           final idNumber = _guestIdNumber.text.trim();
-                          final idIssueDate = _optionalText(_guestIdIssueDate.text);
-                          final idIssuePlace = _optionalText(_guestIdIssuePlace.text);
+                          final idIssueDate = _optionalText(
+                            _guestIdIssueDate.text,
+                          );
+                          final idIssuePlace = _optionalText(
+                            _guestIdIssuePlace.text,
+                          );
                           final roomNumber = _roomNumber.text.trim();
                           final checkin = _checkin.text.trim();
                           final checkout = _optionalText(_checkout.text);
-                          final expectedNights = int.tryParse(_expectedNights.text.trim()) ?? 1;
+                          final expectedNights =
+                              int.tryParse(_expectedNights.text.trim()) ?? 1;
                           // ✅ فحص تسلسل التواريخ
                           final checkinDt = _parseDateTime(checkin);
-                          final checkoutDt = checkout != null ? _parseDateTime(checkout) : null;
-                          if (checkinDt != null && checkoutDt != null && checkoutDt.isBefore(checkinDt)) {
+                          final checkoutDt = checkout != null
+                              ? _parseDateTime(checkout)
+                              : null;
+                          if (checkinDt != null &&
+                              checkoutDt != null &&
+                              checkoutDt.isBefore(checkinDt)) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول'),
+                                content: Text(
+                                  'تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -545,13 +646,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                               ? expectedNights
                               : (checkoutDt == null && widget.existing == null)
                               ? 1
-                              : Time.nightsWithCutoff(checkinDt, checkout: checkoutDt);
+                              : Time.nightsWithCutoff(
+                                  checkinDt,
+                                  checkout: checkoutDt,
+                                );
                           final notes = _optionalText(_notes.text);
                           // email removed - unused
 
                           // فحص القائمة السوداء (مطابقة أول 3 أسماء)
                           final blacklist = ref.read(blacklistRepoProvider);
-                          final blacklistedMatch = await blacklist.findBlacklistMatch(name);
+                          final blacklistedMatch = await blacklist
+                              .findBlacklistMatch(name);
                           if (blacklistedMatch != null && mounted) {
                             final e = blacklistedMatch;
                             final snackBar = SnackBar(
@@ -563,7 +668,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                                 children: [
                                   const Row(
                                     children: [
-                                      Icon(Icons.gavel, color: Colors.white, size: 22),
+                                      Icon(
+                                        Icons.gavel,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
                                       SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -586,25 +695,39 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  if (e.nationality != null && e.nationality!.isNotEmpty)
+                                  if (e.nationality != null &&
+                                      e.nationality!.isNotEmpty)
                                     Text(
                                       'الجنسية: ${e.nationality}',
-                                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
                                     ),
-                                  if (e.nationalId != null && e.nationalId!.isNotEmpty)
+                                  if (e.nationalId != null &&
+                                      e.nationalId!.isNotEmpty)
                                     Text(
                                       'الهوية: ${e.nationalId}',
-                                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   if (e.phone != null && e.phone!.isNotEmpty)
                                     Text(
                                       'الهاتف: ${e.phone}',
-                                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   if (e.reason != null && e.reason!.isNotEmpty)
                                     Text(
                                       'السبب: ${e.reason}',
-                                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                 ],
                               ),
@@ -617,7 +740,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                               ),
                             );
                             ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(snackBar);
                             // لا نوقف الحجز — نعرض التحذير فقط
                           }
 
@@ -647,7 +772,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
 
                               // ✅ عند تغيير الحالة إلى "مكتمل"، نسجّل المغادرة الفعلية تلقائياً
                               // ونُحرّر الغرفة — تماماً كما يفعل _completeCheckout في booking_checkout_screen
-                              final wasNotCompleted = widget.existing!.status != 'مكتمل';
+                              final wasNotCompleted =
+                                  widget.existing!.status != 'مكتمل';
                               final isNowCompleted = _status == 'مكتمل';
                               String? actualCheckoutValue;
                               int? checkoutCalculatedNights;
@@ -655,9 +781,15 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                               if (isNowCompleted && wasNotCompleted) {
                                 final nowIso = Time.nowIso();
                                 actualCheckoutValue = nowIso;
-                                final checkinDate = DateTime.tryParse(checkin) ?? DateTime.now();
+                                final checkinDate =
+                                    DateTime.tryParse(checkin) ??
+                                    DateTime.now();
                                 final nowDate = DateTime.parse(nowIso);
-                                checkoutCalculatedNights = Time.nightsWithCutoff(checkinDate, checkout: nowDate);
+                                checkoutCalculatedNights =
+                                    Time.nightsWithCutoff(
+                                      checkinDate,
+                                      checkout: nowDate,
+                                    );
                               }
 
                               await repo.update(
@@ -677,7 +809,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                                 status: _status,
                                 notes: notes,
                                 expectedNights: expectedNights,
-                                calculatedNights: checkoutCalculatedNights ?? calculatedNights,
+                                calculatedNights:
+                                    checkoutCalculatedNights ??
+                                    calculatedNights,
                               );
 
                               // ✅ تحديث حالة الغرف بعد تسجيل المغادرة
@@ -694,42 +828,61 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                             // قبل الإصلاح: كان الرفع يحدث فقط عبر syncNow() في نهاية الكتلة،
                             // وهي مزامنة كاملة (push + pull) أثقل — pushLocalChanges أسرع
                             // لأنها push-only بدون pull.
-                            unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+                            unawaited(
+                              ref
+                                  .read(appwriteSyncManagerProvider)
+                                  .pushLocalChanges(),
+                            );
 
                             // ✅ تنبيه أمني: عند تسجيل حجز جديد باسم مطلوب في
                             // القائمة السوداء يُرسل إشعار نظام يظهر على
                             // الشاشة الرئيسية (fire-and-forget — لا يكسر الحفظ).
                             // ملاحظة: newBookingId مضمونة غير null هنا لأن كلا
                             // فرعي الإنشاء/التحديث يسندان قيمة int غير قابلة للـ null.
-                            if (widget.existing == null && blacklistedMatch != null) {
+                            if (widget.existing == null &&
+                                blacklistedMatch != null) {
                               unawaited(
                                 BlacklistAlertService(
                                   ref.read(blacklistRepoProvider),
-                                ).notifyIfBlacklisted(guestName: name, bookingId: newBookingId, roomNumber: roomNumber),
+                                ).notifyIfBlacklisted(
+                                  guestName: name,
+                                  bookingId: newBookingId,
+                                  roomNumber: roomNumber,
+                                ),
                               );
                             }
 
                             // ✅ حفظ الدفعة المقدمة إذا تم تحديدها
                             if (_hasAdvancePayment) {
-                              final advanceAmount = double.tryParse(_advancePayment.text.trim());
+                              final advanceAmount = double.tryParse(
+                                _advancePayment.text.trim(),
+                              );
                               if (advanceAmount != null && advanceAmount > 0) {
                                 try {
-                                  final paymentsRepo = ref.read(paymentsRepoProvider);
+                                  final paymentsRepo = ref.read(
+                                    paymentsRepoProvider,
+                                  );
                                   await paymentsRepo.create(
                                     bookingLocalId: newBookingId,
                                     roomNumber: roomNumber,
                                     amount: advanceAmount,
                                     paymentDate: Time.nowIso(),
-                                    notes: _paymentNotes.text.trim().isEmpty ? null : _paymentNotes.text.trim(),
+                                    notes: _paymentNotes.text.trim().isEmpty
+                                        ? null
+                                        : _paymentNotes.text.trim(),
                                     paymentMethod: _paymentMethod,
                                     revenueType: 'deposit',
                                   );
                                 } catch (e) {
-                                  dlog(() => '⚠️ خطأ في حفظ الدفعة المقدمة: $e');
+                                  dlog(
+                                    () => '⚠️ خطأ في حفظ الدفعة المقدمة: $e',
+                                  );
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('تم حفظ الحجز لكن فشل حفظ الدفعة المقدمة: $e'),
+                                        content: Text(
+                                          'تم حفظ الحجز لكن فشل حفظ الدفعة المقدمة: $e',
+                                        ),
                                         backgroundColor: Colors.orange,
                                       ),
                                     );
@@ -792,12 +945,23 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
       case SyncStatus.pending:
         return const Padding(
           padding: EdgeInsets.all(8),
-          child: Icon(Icons.cloud_upload_outlined, color: Colors.orange, size: 20),
+          child: Icon(
+            Icons.cloud_upload_outlined,
+            color: Colors.orange,
+            size: 20,
+          ),
         );
       case SyncStatus.syncing:
         return const Padding(
           padding: EdgeInsets.all(8),
-          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue)),
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.blue,
+            ),
+          ),
         );
       case SyncStatus.synced:
         return const Padding(
@@ -817,11 +981,17 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
   Widget _buildSectionTitle(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+      ),
     );
   }
 
-  Future<void> _pickDate(TextEditingController controller, {bool onlyDate = false}) async {
+  Future<void> _pickDate(
+    TextEditingController controller, {
+    bool onlyDate = false,
+  }) async {
     final initial = _parseDateTime(controller.text) ?? DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -833,14 +1003,25 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
       return;
     }
     if (onlyDate) {
-      controller.text = _formatDateTime(DateTime(date.year, date.month, date.day)).substring(0, 10);
+      controller.text = _formatDateTime(
+        DateTime(date.year, date.month, date.day),
+      ).substring(0, 10);
       return;
     }
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(initial));
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
     if (time == null) {
       return;
     }
-    final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final selected = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
     setState(() {
       controller.text = _formatDateTime(selected);
     });
@@ -860,7 +1041,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
     // لضمان تطبيق قاعدة الساعة 14:00 بشكل ديناميكي
     final effectiveCheckout = checkoutDt ?? DateTime.now();
 
-    final nights = Time.nightsWithCutoff(checkinDt, checkout: effectiveCheckout);
+    final nights = Time.nightsWithCutoff(
+      checkinDt,
+      checkout: effectiveCheckout,
+    );
 
     setState(() {
       _expectedNights.text = nights.toString();
@@ -874,7 +1058,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
       color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87,
     );
     return roomsAsync.when(
-      loading: () => const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator()),
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: LinearProgressIndicator(),
+      ),
       error: (err, stack) => TextFormField(
         controller: _roomNumber,
         readOnly: true,
@@ -886,11 +1073,16 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
         validator: _req,
       ),
       data: (rooms) {
-        final availableRooms = rooms.where((room) => StatusUtils.isRoomAvailable(room.status)).toList()
-          ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+        final availableRooms =
+            rooms
+                .where((room) => StatusUtils.isRoomAvailable(room.status))
+                .toList()
+              ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
 
         final currentValue = _roomNumber.text.trim();
-        if (!_roomInitialized && widget.existing == null && availableRooms.isNotEmpty) {
+        if (!_roomInitialized &&
+            widget.existing == null &&
+            availableRooms.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
@@ -904,7 +1096,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
         }
 
         final items = <DropdownMenuItem<String>>[];
-        if (currentValue.isNotEmpty && !availableRooms.any((room) => room.roomNumber == currentValue)) {
+        if (currentValue.isNotEmpty &&
+            !availableRooms.any((room) => room.roomNumber == currentValue)) {
           items.add(
             DropdownMenuItem(
               value: currentValue,
@@ -916,7 +1109,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
           availableRooms.map(
             (room) => DropdownMenuItem(
               value: room.roomNumber,
-              child: Text('${room.roomNumber} • ${room.type}', style: roomTextStyle),
+              child: Text(
+                '${room.roomNumber} • ${room.type}',
+                style: roomTextStyle,
+              ),
             ),
           ),
         );
@@ -926,7 +1122,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
             controller: _roomNumber,
             readOnly: widget.existing == null,
             style: roomTextStyle,
-            decoration: const InputDecoration(labelText: 'رقم الغرفة *', helperText: 'لا توجد غرف شاغرة متاحة حالياً'),
+            decoration: const InputDecoration(
+              labelText: 'رقم الغرفة *',
+              helperText: 'لا توجد غرف شاغرة متاحة حالياً',
+            ),
             validator: _req,
           );
         }
@@ -941,7 +1140,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
             });
           },
           decoration: const InputDecoration(labelText: 'رقم الغرفة *'),
-          validator: (value) => value == null || value.trim().isEmpty ? 'مطلوب' : null,
+          validator: (value) =>
+              value == null || value.trim().isEmpty ? 'مطلوب' : null,
         );
       },
     );
@@ -1003,7 +1203,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
     return '967$normalized';
   }
 
-  String? _optionalText(String text) => text.trim().isEmpty ? null : text.trim();
+  String? _optionalText(String text) =>
+      text.trim().isEmpty ? null : text.trim();
   String? _req(String? v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null;
 
   // ignore: unused_element
@@ -1016,7 +1217,10 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
           title: const Text('تأكيد'),
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('لا')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('لا'),
+            ),
             TextButton(
               onPressed: () async {
                 Navigator.pop(ctx);

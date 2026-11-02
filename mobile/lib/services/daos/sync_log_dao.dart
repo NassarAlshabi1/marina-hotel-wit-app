@@ -82,7 +82,9 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       deviceId: Value(deviceId),
       status: Value(status),
       createdAt: Value(now.toIso8601String()),
-      completedAt: status != 'in_progress' ? Value(now.toIso8601String()) : const Value.absent(),
+      completedAt: status != 'in_progress'
+          ? Value(now.toIso8601String())
+          : const Value.absent(),
       metadata: Value(
         jsonEncode({
           'target': target,
@@ -105,7 +107,8 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     String? direction, // 'pull', 'push', null للكل
     String? status, // 'success', 'failed', null للكل
   }) async {
-    var query = select(syncLog)..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+    var query = select(syncLog)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
 
     if (direction != null) {
       query = query..where((t) => t.direction.equals(direction));
@@ -129,8 +132,12 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
         deviceId: row.deviceId,
         status: row.status,
         createdAt: DateTime.parse(row.createdAt),
-        completedAt: row.completedAt != null ? DateTime.parse(row.completedAt!) : null,
-        recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
+        completedAt: row.completedAt != null
+            ? DateTime.parse(row.completedAt!)
+            : null,
+        recordsCount:
+            (metadata['recordsPulled'] as int?) ??
+            (metadata['recordsPushed'] as int?),
         errorMessage: metadata['errorMessage'] as String?,
         durationMs: metadata['durationMs'] as int?,
         target: metadata['target'] as String?,
@@ -158,8 +165,12 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       deviceId: result.deviceId,
       status: result.status,
       createdAt: DateTime.parse(result.createdAt),
-      completedAt: result.completedAt != null ? DateTime.parse(result.completedAt!) : null,
-      recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
+      completedAt: result.completedAt != null
+          ? DateTime.parse(result.completedAt!)
+          : null,
+      recordsCount:
+          (metadata['recordsPulled'] as int?) ??
+          (metadata['recordsPushed'] as int?),
       errorMessage: metadata['errorMessage'] as String?,
       durationMs: metadata['durationMs'] as int?,
       target: metadata['target'] as String?,
@@ -223,7 +234,8 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   Future<int> deleteOldLogs({required Duration olderThan}) async {
     final cutoff = DateTime.now().subtract(olderThan);
 
-    final query = delete(syncLog)..where((t) => t.createdAt.isSmallerThanValue(cutoff.toIso8601String()));
+    final query = delete(syncLog)
+      ..where((t) => t.createdAt.isSmallerThanValue(cutoff.toIso8601String()));
 
     return query.go();
   }
@@ -253,8 +265,12 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
           deviceId: row.deviceId,
           status: row.status,
           createdAt: DateTime.parse(row.createdAt),
-          completedAt: row.completedAt != null ? DateTime.parse(row.completedAt!) : null,
-          recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
+          completedAt: row.completedAt != null
+              ? DateTime.parse(row.completedAt!)
+              : null,
+          recordsCount:
+              (metadata['recordsPulled'] as int?) ??
+              (metadata['recordsPushed'] as int?),
           errorMessage: metadata['errorMessage'] as String?,
           durationMs: metadata['durationMs'] as int?,
           target: metadata['target'] as String?,

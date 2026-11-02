@@ -86,7 +86,9 @@ class SimpleNotesRepository {
 
   // مراقبة التغييرات
   Stream<List<adapter.ShiftNote>> watchAllNotes() {
-    return dao.watchAllNotes().map((dbNotes) => dbNotes.map(_convertToModel).toList());
+    return dao.watchAllNotes().map(
+      (dbNotes) => dbNotes.map(_convertToModel).toList(),
+    );
   }
 
   Stream<int> watchUnreadCount() => dao.watchUnreadCount();
@@ -115,7 +117,9 @@ class SimpleNotesRepository {
       createdAt: dbNote.createdAtIso != null
           ? DateTime.parse(dbNote.createdAtIso!)
           : DateTime.fromMillisecondsSinceEpoch(dbNote.createdAt * 1000),
-      expiresAt: dbNote.expiresAt != null ? DateTime.tryParse(dbNote.expiresAt!) : null,
+      expiresAt: dbNote.expiresAt != null
+          ? DateTime.tryParse(dbNote.expiresAt!)
+          : null,
       isRead: dbNote.isRead == 1,
       createdBy: dbNote.createdBy,
     );

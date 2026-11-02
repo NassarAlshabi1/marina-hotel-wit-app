@@ -1752,7 +1752,9 @@ class AppwriteSyncUtils {
     final normalized = <String, int>{};
     decoded.forEach((key, rawCounter) {
       final deviceId = key.toString().trim();
-      final counter = rawCounter is num ? rawCounter.toInt() : int.tryParse(rawCounter.toString());
+      final counter = rawCounter is num
+          ? rawCounter.toInt()
+          : int.tryParse(rawCounter.toString());
       if (deviceId.isNotEmpty && counter != null && counter >= 0) {
         normalized[deviceId] = counter;
       }
@@ -1763,7 +1765,9 @@ class AppwriteSyncUtils {
   }
 
   /// دفاع أخير للحمولات التي لا تمر عبر PayloadMapper.
-  static Map<String, dynamic> normalizeVectorClockInPayload(Map<String, dynamic> payload) {
+  static Map<String, dynamic> normalizeVectorClockInPayload(
+    Map<String, dynamic> payload,
+  ) {
     if (!payload.containsKey('vectorClock')) {
       return Map<String, dynamic>.from(payload);
     }
@@ -1775,7 +1779,10 @@ class AppwriteSyncUtils {
   /// تصفية الحمولة — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
   /// إذا لم يكن المجموعة معروفة، يتم إرجاع الحمولة كما هي (بدون تصفية)
-  static Map<String, dynamic> filterPayloadForCollection(String collectionId, Map<String, dynamic> payload) {
+  static Map<String, dynamic> filterPayloadForCollection(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
     final schema = collectionSchema[collectionId];
     if (schema == null) {
       // fallback to old behavior for backward compatibility
@@ -1848,7 +1855,11 @@ class AppwriteSyncUtils {
   }
 
   /// تطهير البيانات وإزالة الحقول غير المدعومة أو المحسوبة
-  static Map<String, dynamic> sanitizePayload(String entity, Map<String, dynamic> payload, {String? collectionId}) {
+  static Map<String, dynamic> sanitizePayload(
+    String entity,
+    Map<String, dynamic> payload, {
+    String? collectionId,
+  }) {
     var result = Map<String, dynamic>.from(payload);
 
     // 1. إزالة الحقول المحسوبة التي لا تُخزن في Appwrite
@@ -1896,7 +1907,9 @@ class AppwriteSyncUtils {
 
   /// تحويل جميع مفاتيح الخريطة من snake_case إلى camelCase بشكل متكرر
   /// الحقول التي لا تحتوي على _ تُترك كما هي (مثل amount, notes)
-  static Map<String, dynamic> _convertKeysToCamelCase(Map<String, dynamic> input) {
+  static Map<String, dynamic> _convertKeysToCamelCase(
+    Map<String, dynamic> input,
+  ) {
     final result = <String, dynamic>{};
     for (final entry in input.entries) {
       final camelKey = toCamelCase(entry.key);
@@ -1918,7 +1931,10 @@ class AppwriteSyncUtils {
   }
 
   /// تحويل حقول المبالغ إلى أعداد صحيحة للمجموعات التي تتطلب ذلك
-  static Map<String, dynamic> convertAmountTypesForAppwrite(String collectionId, Map<String, dynamic> payload) {
+  static Map<String, dynamic> convertAmountTypesForAppwrite(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
     final intFields = _intAmountFields[collectionId];
     if (intFields == null || intFields.isEmpty) return payload;
 
@@ -1933,7 +1949,10 @@ class AppwriteSyncUtils {
 
   /// تحويل حقول المبالغ من أعداد صحيحة (Cloud) إلى double (محلي)
   /// يُستخدم عند سحب البيانات من Appwrite Cloud إلى قاعدة البيانات المحلية
-  static Map<String, dynamic> convertAmountTypesFromAppwrite(String collectionId, Map<String, dynamic> payload) {
+  static Map<String, dynamic> convertAmountTypesFromAppwrite(
+    String collectionId,
+    Map<String, dynamic> payload,
+  ) {
     final intFields = _intAmountFields[collectionId];
     if (intFields == null || intFields.isEmpty) return payload;
 
@@ -1988,7 +2007,9 @@ class AppwriteSyncUtils {
     if (_preserveSnakeCase.contains(input)) return input;
     final parts = input.split('_');
     final first = parts.first;
-    final rest = parts.skip(1).map((p) => p.isEmpty ? '' : '${p[0].toUpperCase()}${p.substring(1)}');
+    final rest = parts
+        .skip(1)
+        .map((p) => p.isEmpty ? '' : '${p[0].toUpperCase()}${p.substring(1)}');
     return '$first${rest.join()}';
   }
 }

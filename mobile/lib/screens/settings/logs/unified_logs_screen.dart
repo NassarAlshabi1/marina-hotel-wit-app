@@ -19,7 +19,8 @@ class UnifiedLogsScreen extends ConsumerStatefulWidget {
   ConsumerState<UnifiedLogsScreen> createState() => _UnifiedLogsScreenState();
 }
 
-class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with SingleTickerProviderStateMixin {
+class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedLevel = 'all';
   String _searchQuery = '';
@@ -61,14 +62,18 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
       await AppwriteLogger().initialize(enableFile: enabled);
       if (!mounted) return;
       setState(() => _saveLogsEnabled = enabled);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(enabled ? 'تم تفعيل حفظ السجلات' : 'تم إيقاف حفظ السجلات')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled ? 'تم تفعيل حفظ السجلات' : 'تم إيقاف حفظ السجلات',
+          ),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تعذر حفظ إعداد السجلات. حاول مرة أخرى.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ إعداد السجلات. حاول مرة أخرى.')),
+      );
     } finally {
       if (mounted) setState(() => _isSavingLogSettings = false);
     }
@@ -85,10 +90,14 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
       if (!mounted || !dialogContext.mounted) return;
       setState(() => _logRetentionDays = days);
       Navigator.pop(dialogContext);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم ضبط الاحتفاظ بالسجلات على $days أيام')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم ضبط الاحتفاظ بالسجلات على $days أيام')),
+      );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حفظ مدة الاحتفاظ بالسجلات.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر حفظ مدة الاحتفاظ بالسجلات.')),
+      );
     } finally {
       if (mounted) setState(() => _isSavingLogSettings = false);
     }
@@ -105,8 +114,16 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
     return AppScaffold(
       title: 'السجلات',
       actions: [
-        IconButton(onPressed: _showFilterDialog, icon: const Icon(Icons.filter_list), tooltip: 'تصفية'),
-        IconButton(onPressed: _exportLogs, icon: const Icon(Icons.download), tooltip: 'تصدير'),
+        IconButton(
+          onPressed: _showFilterDialog,
+          icon: const Icon(Icons.filter_list),
+          tooltip: 'تصفية',
+        ),
+        IconButton(
+          onPressed: _exportLogs,
+          icon: const Icon(Icons.download),
+          tooltip: 'تصدير',
+        ),
         PopupMenuButton(
           itemBuilder: (context) => [
             const PopupMenuItem(
@@ -121,7 +138,13 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
             ),
             const PopupMenuItem(
               value: 'settings',
-              child: Row(children: [Icon(Icons.settings, size: 20), SizedBox(width: 8), Text('إعدادات السجلات')]),
+              child: Row(
+                children: [
+                  Icon(Icons.settings, size: 20),
+                  SizedBox(width: 8),
+                  Text('إعدادات السجلات'),
+                ],
+              ),
             ),
           ],
           onSelected: (value) {
@@ -161,7 +184,12 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [_buildAllLogsTab(), _buildAppwriteLogsTab(), _buildGoogleDriveLogsTab(), _buildSyncLogsTab()],
+              children: [
+                _buildAllLogsTab(),
+                _buildAppwriteLogsTab(),
+                _buildGoogleDriveLogsTab(),
+                _buildSyncLogsTab(),
+              ],
             ),
           ),
         ],
@@ -178,9 +206,14 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
           hintText: 'بحث في السجلات...',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setState(() => _searchQuery = ''))
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => setState(() => _searchQuery = ''),
+                )
               : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(UIConstants.radiusMD)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+          ),
           filled: true,
           fillColor: Colors.grey.shade50,
         ),
@@ -191,39 +224,129 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
 
   Widget _buildAllLogsTab() {
     return _buildLogsList([
-      _createLogEntry('info', 'Appwrite', 'Connection established successfully', '2024-01-29T18:00:00'),
-      _createLogEntry('success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
-      _createLogEntry('warning', 'Google Drive', 'Low storage space', '2024-01-29T17:50:00'),
-      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests', '2024-01-29T17:45:00'),
-      _createLogEntry('info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
-      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully', '2024-01-29T17:35:00'),
+      _createLogEntry(
+        'info',
+        'Appwrite',
+        'Connection established successfully',
+        '2024-01-29T18:00:00',
+      ),
+      _createLogEntry(
+        'success',
+        'Sync',
+        'Sync completed: 42 items',
+        '2024-01-29T17:55:00',
+      ),
+      _createLogEntry(
+        'warning',
+        'Google Drive',
+        'Low storage space',
+        '2024-01-29T17:50:00',
+      ),
+      _createLogEntry(
+        'error',
+        'Appwrite',
+        'Failed to sync table: guests',
+        '2024-01-29T17:45:00',
+      ),
+      _createLogEntry(
+        'info',
+        'Sync',
+        'Starting automatic sync',
+        '2024-01-29T17:40:00',
+      ),
+      _createLogEntry(
+        'success',
+        'Google Drive',
+        'Backup uploaded successfully',
+        '2024-01-29T17:35:00',
+      ),
     ]);
   }
 
   Widget _buildAppwriteLogsTab() {
     return _buildLogsList([
-      _createLogEntry('info', 'Appwrite', 'Connection established successfully', '2024-01-29T18:00:00'),
-      _createLogEntry('error', 'Appwrite', 'Failed to sync table: guests', '2024-01-29T17:45:00'),
-      _createLogEntry('info', 'Appwrite', 'API call: GET /databases', '2024-01-29T17:30:00'),
-      _createLogEntry('warning', 'Appwrite', 'Slow response: 2.5s', '2024-01-29T17:25:00'),
+      _createLogEntry(
+        'info',
+        'Appwrite',
+        'Connection established successfully',
+        '2024-01-29T18:00:00',
+      ),
+      _createLogEntry(
+        'error',
+        'Appwrite',
+        'Failed to sync table: guests',
+        '2024-01-29T17:45:00',
+      ),
+      _createLogEntry(
+        'info',
+        'Appwrite',
+        'API call: GET /databases',
+        '2024-01-29T17:30:00',
+      ),
+      _createLogEntry(
+        'warning',
+        'Appwrite',
+        'Slow response: 2.5s',
+        '2024-01-29T17:25:00',
+      ),
     ]);
   }
 
   Widget _buildGoogleDriveLogsTab() {
     return _buildLogsList([
-      _createLogEntry('warning', 'Google Drive', 'Low storage space', '2024-01-29T17:50:00'),
-      _createLogEntry('success', 'Google Drive', 'Backup uploaded successfully', '2024-01-29T17:35:00'),
-      _createLogEntry('info', 'Google Drive', 'Connected to account', '2024-01-29T17:20:00'),
-      _createLogEntry('error', 'Google Drive', 'Upload failed: network error', '2024-01-29T17:15:00'),
+      _createLogEntry(
+        'warning',
+        'Google Drive',
+        'Low storage space',
+        '2024-01-29T17:50:00',
+      ),
+      _createLogEntry(
+        'success',
+        'Google Drive',
+        'Backup uploaded successfully',
+        '2024-01-29T17:35:00',
+      ),
+      _createLogEntry(
+        'info',
+        'Google Drive',
+        'Connected to account',
+        '2024-01-29T17:20:00',
+      ),
+      _createLogEntry(
+        'error',
+        'Google Drive',
+        'Upload failed: network error',
+        '2024-01-29T17:15:00',
+      ),
     ]);
   }
 
   Widget _buildSyncLogsTab() {
     return _buildLogsList([
-      _createLogEntry('success', 'Sync', 'Sync completed: 42 items', '2024-01-29T17:55:00'),
-      _createLogEntry('info', 'Sync', 'Starting automatic sync', '2024-01-29T17:40:00'),
-      _createLogEntry('warning', 'Sync', 'Conflict detected: guest_123', '2024-01-29T17:30:00'),
-      _createLogEntry('success', 'Sync', 'Conflict resolved automatically', '2024-01-29T17:29:00'),
+      _createLogEntry(
+        'success',
+        'Sync',
+        'Sync completed: 42 items',
+        '2024-01-29T17:55:00',
+      ),
+      _createLogEntry(
+        'info',
+        'Sync',
+        'Starting automatic sync',
+        '2024-01-29T17:40:00',
+      ),
+      _createLogEntry(
+        'warning',
+        'Sync',
+        'Conflict detected: guest_123',
+        '2024-01-29T17:30:00',
+      ),
+      _createLogEntry(
+        'success',
+        'Sync',
+        'Conflict resolved automatically',
+        '2024-01-29T17:29:00',
+      ),
     ]);
   }
 
@@ -232,21 +355,30 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
     var filteredLogs = logs;
 
     if (_selectedLevel != 'all') {
-      filteredLogs = logs.where((log) => log['level'] == _selectedLevel).toList();
+      filteredLogs = logs
+          .where((log) => log['level'] == _selectedLevel)
+          .toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       filteredLogs = filteredLogs
           .where(
             (log) =>
-                log['message']!.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                log['source']!.toLowerCase().contains(_searchQuery.toLowerCase()),
+                log['message']!.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ||
+                log['source']!.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ),
           )
           .toList();
     }
 
     if (filteredLogs.isEmpty) {
-      return const EmptyStateWidget(message: 'لا توجد سجلات', icon: Icons.description);
+      return const EmptyStateWidget(
+        message: 'لا توجد سجلات',
+        icon: Icons.description,
+      );
     }
 
     return ListView.builder(
@@ -303,7 +435,10 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
               children: [
                 Icon(Icons.label, size: 12, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
-                Text(source, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text(
+                  source,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
                 const SizedBox(width: 12),
                 Icon(Icons.schedule, size: 12, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
@@ -315,13 +450,26 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
             ),
           ],
         ),
-        trailing: IconButton(icon: const Icon(Icons.more_vert, size: 20), onPressed: () => _showLogDetails(log)),
+        trailing: IconButton(
+          icon: const Icon(Icons.more_vert, size: 20),
+          onPressed: () => _showLogDetails(log),
+        ),
       ),
     );
   }
 
-  Map<String, String> _createLogEntry(String level, String source, String message, String timestamp) {
-    return {'level': level, 'source': source, 'message': message, 'timestamp': timestamp};
+  Map<String, String> _createLogEntry(
+    String level,
+    String source,
+    String message,
+    String timestamp,
+  ) {
+    return {
+      'level': level,
+      'source': source,
+      'message': message,
+      'timestamp': timestamp,
+    };
   }
 
   void _showFilterDialog() {
@@ -399,7 +547,12 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
             ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
       ),
     );
   }
@@ -417,11 +570,19 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
               _buildDetailRow('المستوى', log['level']!),
               _buildDetailRow('المصدر', log['source']!),
               _buildDetailRow('الرسالة', log['message']!),
-              _buildDetailRow('الوقت', DateTimeFormatter.formatDateTime(log['timestamp'])),
+              _buildDetailRow(
+                'الوقت',
+                DateTimeFormatter.formatDateTime(log['timestamp']),
+              ),
             ],
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
   }
@@ -434,7 +595,11 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontSize: 14)),
@@ -451,7 +616,10 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
             SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
             ),
             SizedBox(width: 12),
             Text('جاري تصدير السجلات...'),
@@ -467,13 +635,20 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
-        content: const Text('هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.'),
+        content: const Text(
+          'هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم مسح جميع السجلات')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم مسح جميع السجلات')),
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف', style: TextStyle(color: Colors.white)),
@@ -526,7 +701,12 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen> with Sing
             ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
   }

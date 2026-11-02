@@ -54,7 +54,8 @@ class WhatsAppNotificationService {
   WhatsAppNotificationService._();
   static WhatsAppNotificationService? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static WhatsAppNotificationService get instance => _instance ??= WhatsAppNotificationService._();
+  static WhatsAppNotificationService get instance =>
+      _instance ??= WhatsAppNotificationService._();
 
   // CallMeBot WhatsApp API
   static const String _callMeBotUrl = 'https://api.callmebot.com/whatsapp.php';
@@ -123,7 +124,9 @@ class WhatsAppNotificationService {
 
       // قص الرسالة إذا تجاوزت الحد الأقصى (CallMeBot ~1000 حرف)
       final maxLength = RemoteConfigService.instance.whatsappMessageMaxLength;
-      final trimmedMessage = message.length > maxLength ? '${message.substring(0, maxLength - 3)}...' : message;
+      final trimmedMessage = message.length > maxLength
+          ? '${message.substring(0, maxLength - 3)}...'
+          : message;
 
       final url = Uri.parse(
         '$_callMeBotUrl'
@@ -133,7 +136,9 @@ class WhatsAppNotificationService {
       );
 
       // timeout من Remote Config (افتراضي 15 ثانية)
-      final timeout = Duration(seconds: RemoteConfigService.instance.whatsappApiTimeout);
+      final timeout = Duration(
+        seconds: RemoteConfigService.instance.whatsappApiTimeout,
+      );
       final response = await _httpClient.get(url).timeout(timeout);
       final body = response.body;
 
@@ -189,7 +194,9 @@ class WhatsAppNotificationService {
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln('💵 المبلغ: *\$${CurrencyFormatter.formatAmount(event.amount!)}*');
+        buffer.writeln(
+          '💵 المبلغ: *\$${CurrencyFormatter.formatAmount(event.amount!)}*',
+        );
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
@@ -210,7 +217,10 @@ class WhatsAppNotificationService {
       final success = await _sendViaCallMeBot(buffer.toString().trimRight());
 
       if (success) {
-        dlog(() => '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        dlog(
+          () =>
+              '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
+        );
       }
 
       return success;
@@ -245,7 +255,9 @@ class WhatsAppNotificationService {
       details.writeln('🌙 الليالي: $nights');
     }
     if (totalDue != null) {
-      details.writeln('💰 الإجمالي: \$${CurrencyFormatter.formatAmount(totalDue)}');
+      details.writeln(
+        '💰 الإجمالي: \$${CurrencyFormatter.formatAmount(totalDue)}',
+      );
     }
 
     return sendEventNotification(
@@ -297,10 +309,14 @@ class WhatsAppNotificationService {
       details.writeln('🌙 الليالي الفعلية: $actualNights');
     }
     if (totalPaid != null) {
-      details.writeln('💰 المدفوع: \$${CurrencyFormatter.formatAmount(totalPaid)}');
+      details.writeln(
+        '💰 المدفوع: \$${CurrencyFormatter.formatAmount(totalPaid)}',
+      );
     }
     if (remaining != null && remaining > 0) {
-      details.writeln('⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}');
+      details.writeln(
+        '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+      );
     }
 
     return sendEventNotification(
@@ -326,7 +342,9 @@ class WhatsAppNotificationService {
     details.writeln('💳 طريقة الدفع: $paymentMethod');
     if (remaining != null) {
       if (remaining > 0) {
-        details.writeln('⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}');
+        details.writeln(
+          '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+        );
       } else {
         details.writeln('✅ مسدد بالكامل');
       }
@@ -345,7 +363,11 @@ class WhatsAppNotificationService {
   }
 
   /// إشعار طلب صيانة
-  Future<bool> notifyMaintenance({required String roomNumber, required String description, String? reportedBy}) {
+  Future<bool> notifyMaintenance({
+    required String roomNumber,
+    required String description,
+    String? reportedBy,
+  }) {
     return sendEventNotification(
       WhatsAppEvent(
         type: WhatsAppEventType.maintenance,
@@ -358,7 +380,11 @@ class WhatsAppNotificationService {
   }
 
   /// إشعار إلغاء حجز
-  Future<bool> notifyCancellation({required String roomNumber, required String guestName, String? reason}) {
+  Future<bool> notifyCancellation({
+    required String roomNumber,
+    required String guestName,
+    String? reason,
+  }) {
     return sendEventNotification(
       WhatsAppEvent(
         type: WhatsAppEventType.cancellation,
@@ -384,7 +410,9 @@ class WhatsAppNotificationService {
       details.writeln('➕ ليالي إضافية: $extraNights');
     }
     if (extraCharge != null) {
-      details.writeln('💵 تكلفة إضافية: \$${CurrencyFormatter.formatAmount(extraCharge)}');
+      details.writeln(
+        '💵 تكلفة إضافية: \$${CurrencyFormatter.formatAmount(extraCharge)}',
+      );
     }
 
     return sendEventNotification(
@@ -399,7 +427,11 @@ class WhatsAppNotificationService {
   }
 
   /// إشعار مصروف جديد
-  Future<bool> notifyNewExpense({required String category, required double amount, String? description}) {
+  Future<bool> notifyNewExpense({
+    required String category,
+    required double amount,
+    String? description,
+  }) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
     if (description != null && description.isNotEmpty) {
@@ -461,7 +493,10 @@ class WhatsAppNotificationService {
       if (success) {
         dlog(() => '✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        dlog(() => '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}');
+        dlog(
+          () =>
+              '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}',
+        );
       }
       return success;
     } catch (e) {
@@ -471,7 +506,11 @@ class WhatsAppNotificationService {
   }
 
   /// إشعار crash حرج في الشاشات — يرسل فوراً عبر WhatsApp
-  Future<bool> notifyCrash({required String screen, required String action, required String error}) async {
+  Future<bool> notifyCrash({
+    required String screen,
+    required String action,
+    required String error,
+  }) async {
     try {
       final phone = _phone;
       final apiKey = _apiKey;

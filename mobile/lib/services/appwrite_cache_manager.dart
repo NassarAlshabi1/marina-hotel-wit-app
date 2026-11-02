@@ -48,7 +48,8 @@ class CacheStatistics {
   final int hits;
   final int misses;
 
-  double get usagePercentage => maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
+  double get usagePercentage =>
+      maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
 
   String get totalSizeMB => (totalSizeBytes / (1024 * 1024)).toStringAsFixed(2);
   String get maxSizeMB => (maxSizeBytes / (1024 * 1024)).toStringAsFixed(2);
@@ -61,11 +62,14 @@ class CacheStatistics {
 class AppwriteCacheManager {
   factory AppwriteCacheManager() => _instance;
   AppwriteCacheManager._internal();
-  static final AppwriteCacheManager _instance = AppwriteCacheManager._internal();
+  static final AppwriteCacheManager _instance =
+      AppwriteCacheManager._internal();
   static AppwriteCacheManager get instance => _instance;
 
-  final LinkedHashMap<String, CacheEntry<dynamic>> _cache = LinkedHashMap<String, CacheEntry<dynamic>>();
-  final Map<String, Future<dynamic>> _inFlightRequests = <String, Future<dynamic>>{};
+  final LinkedHashMap<String, CacheEntry<dynamic>> _cache =
+      LinkedHashMap<String, CacheEntry<dynamic>>();
+  final Map<String, Future<dynamic>> _inFlightRequests =
+      <String, Future<dynamic>>{};
   Timer? _cleanupTimer;
 
   // يمنع طلب قديم بدأ قبل clear()/ضغط الذاكرة من إعادة ملء Cache بعد التفريغ.
@@ -107,7 +111,11 @@ class AppwriteCacheManager {
   ///
   /// يمنع ذلك تكرار استدعاءات Appwrite ونسخ الاستجابة نفسها في الذاكرة عندما
   /// تطلب عدة Widgets أو Providers قائمة البيانات ذاتها في اللحظة نفسها.
-  Future<T> getOrLoad<T>(String key, Future<T> Function() loader, {Duration? ttl}) {
+  Future<T> getOrLoad<T>(
+    String key,
+    Future<T> Function() loader, {
+    Duration? ttl,
+  }) {
     if (!_enabled) {
       return Future<T>.sync(loader);
     }
@@ -149,7 +157,11 @@ class AppwriteCacheManager {
     }
 
     _removeEntry(key);
-    final entry = CacheEntry<T>(data: data, timestamp: DateTime.now(), ttl: ttl ?? _defaultTTL);
+    final entry = CacheEntry<T>(
+      data: data,
+      timestamp: DateTime.now(),
+      ttl: ttl ?? _defaultTTL,
+    );
     _cache[key] = entry;
     _currentSizeBytes += entry.sizeInBytes;
     _evictIfNeeded();
@@ -245,7 +257,8 @@ class AppwriteCacheManager {
     final targetBytes = (_maxSizeBytes / 4).ceil().clamp(1, _maxSizeBytes);
     var removed = clearExpired();
 
-    while ((_cache.length > targetEntries || _currentSizeBytes > targetBytes) && _cache.isNotEmpty) {
+    while ((_cache.length > targetEntries || _currentSizeBytes > targetBytes) &&
+        _cache.isNotEmpty) {
       _removeEntry(_cache.keys.first);
       removed++;
     }
@@ -268,13 +281,17 @@ class AppwriteCacheManager {
   void _removeEntry(String key) {
     final removed = _cache.remove(key);
     if (removed != null) {
-      _currentSizeBytes = (_currentSizeBytes - removed.sizeInBytes).clamp(0, 1 << 62);
+      _currentSizeBytes = (_currentSizeBytes - removed.sizeInBytes).clamp(
+        0,
+        1 << 62,
+      );
     }
   }
 
   /// إزالة عناصر LRU حتى يتحقق حد الحجم وحد العدد.
   void _evictIfNeeded() {
-    while ((_currentSizeBytes > _maxSizeBytes || _cache.length > _maxEntries) && _cache.isNotEmpty) {
+    while ((_currentSizeBytes > _maxSizeBytes || _cache.length > _maxEntries) &&
+        _cache.isNotEmpty) {
       _removeEntry(_cache.keys.first);
     }
   }

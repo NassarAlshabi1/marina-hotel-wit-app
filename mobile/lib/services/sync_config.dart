@@ -10,8 +10,10 @@ abstract class SyncConfig {
   static const int periodicFullSyncHours = 24;
   static const Duration syncMutexTimeout = Duration(seconds: 5);
 
-  static const String _prefsConflictThresholdKey = 'sync_config_conflict_threshold_seconds';
-  static const String _prefsSnapshotIntervalKey = 'sync_config_snapshot_interval_minutes';
+  static const String _prefsConflictThresholdKey =
+      'sync_config_conflict_threshold_seconds';
+  static const String _prefsSnapshotIntervalKey =
+      'sync_config_snapshot_interval_minutes';
   static const String _prefsDevicePriorityKey = 'sync_config_device_priority';
 
   static Future<Duration> getAdaptiveConflictThreshold() async {

@@ -126,14 +126,20 @@ class IncomeExpenseReportData {
   final int activeBookingsCount;
   final int checkoutBookingsCount;
 
-  double get incomeTotal => incomeEntries.fold<double>(0, (s, e) => s + e.amount);
-  double get expenseTotal => expenseEntries.fold<double>(0, (s, e) => s + e.amount);
-  double get salaryTotal => expenseEntries.where((e) => e.isSalary).fold<double>(0, (s, e) => s + e.amount);
+  double get incomeTotal =>
+      incomeEntries.fold<double>(0, (s, e) => s + e.amount);
+  double get expenseTotal =>
+      expenseEntries.fold<double>(0, (s, e) => s + e.amount);
+  double get salaryTotal => expenseEntries
+      .where((e) => e.isSalary)
+      .fold<double>(0, (s, e) => s + e.amount);
   double get nonSalaryTotal => expenseTotal - salaryTotal;
   double get net => incomeTotal - expenseTotal;
   double get profitMargin => incomeTotal > 0 ? (net / incomeTotal * 100) : 0.0;
-  double get expenseRatio => incomeTotal > 0 ? (expenseTotal / incomeTotal * 100) : 0.0;
-  double get salaryRatio => incomeTotal > 0 ? (salaryTotal / incomeTotal * 100) : 0.0;
+  double get expenseRatio =>
+      incomeTotal > 0 ? (expenseTotal / incomeTotal * 100) : 0.0;
+  double get salaryRatio =>
+      incomeTotal > 0 ? (salaryTotal / incomeTotal * 100) : 0.0;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -190,7 +196,10 @@ class IncomeExpenseReportPdf {
   }
 
   /// مشاركة التقرير التفصيلي المجمّع حسب الفترة (يومي/شهري/سنوي).
-  static Future<void> shareGrouped(IncomeExpenseReportData data, {required IncomeExpenseGroupMode mode}) async {
+  static Future<void> shareGrouped(
+    IncomeExpenseReportData data, {
+    required IncomeExpenseGroupMode mode,
+  }) async {
     await ReportPdfBuilder.buildAndShare(
       ReportPdfConfig(
         title: 'تقرير الدخل والمصروفات التفصيلي',
@@ -203,7 +212,10 @@ class IncomeExpenseReportPdf {
   }
 
   /// بناء التجميعات الزمنية (يومي/شهري/سنوي).
-  static List<IncomeExpensePeriodGroup> buildGroups(IncomeExpenseReportData data, IncomeExpenseGroupMode mode) {
+  static List<IncomeExpensePeriodGroup> buildGroups(
+    IncomeExpenseReportData data,
+    IncomeExpenseGroupMode mode,
+  ) {
     final incomeMap = <String, List<IncomeExpenseIncomeEntry>>{};
     final expenseMap = <String, List<IncomeExpenseExpenseEntry>>{};
 
@@ -214,7 +226,8 @@ class IncomeExpenseReportPdf {
       expenseMap.putIfAbsent(_groupKey(e.date, mode), () => []).add(e);
     }
 
-    final allKeys = <String>{...incomeMap.keys, ...expenseMap.keys}.toList()..sort();
+    final allKeys = <String>{...incomeMap.keys, ...expenseMap.keys}.toList()
+      ..sort();
 
     return allKeys.asMap().entries.map((entry) {
       final idx = entry.key;
@@ -223,7 +236,9 @@ class IncomeExpenseReportPdf {
       final exp = expenseMap[key] ?? [];
       final incTotal = inc.fold<double>(0, (s, e) => s + e.amount);
       final expTotal = exp.fold<double>(0, (s, e) => s + e.amount);
-      final salTotal = exp.where((e) => e.isSalary).fold<double>(0, (s, e) => s + e.amount);
+      final salTotal = exp
+          .where((e) => e.isSalary)
+          .fold<double>(0, (s, e) => s + e.amount);
       return IncomeExpensePeriodGroup(
         index: idx + 1,
         label: _groupLabel(key, mode),
@@ -246,7 +261,10 @@ class IncomeExpenseReportPdf {
 
   // ─────────────── المحتوى العام ───────────────
 
-  static List<pw.Widget> _buildContent(ArabicPdfFonts fonts, IncomeExpenseReportData data) {
+  static List<pw.Widget> _buildContent(
+    ArabicPdfFonts fonts,
+    IncomeExpenseReportData data,
+  ) {
     final widgets = <pw.Widget>[];
 
     // 1) الملخص التنفيذي
@@ -303,7 +321,15 @@ class IncomeExpenseReportPdf {
     } else {
       widgets.addAll(
         EnhancedPdfUtils.buildChunkedTable(
-          headers: const ['#', 'التاريخ', 'الغرفة', 'النزيل', 'طريقة الدفع', 'نوع الإيراد', 'المبلغ'],
+          headers: const [
+            '#',
+            'التاريخ',
+            'الغرفة',
+            'النزيل',
+            'طريقة الدفع',
+            'نوع الإيراد',
+            'المبلغ',
+          ],
           fonts: fonts,
           columnFlex: const [0.55, 1.15, 0.8, 1.5, 1.0, 1.0, 1.05],
           alignments: const [
@@ -355,17 +381,33 @@ class IncomeExpenseReportPdf {
       widgets.add(pw.SizedBox(height: 6));
       widgets.add(
         EnhancedPdfUtils.buildProfessionalTable(
-          headers: const ['الفئة', 'المبلغ', 'النسبة من الإيرادات', 'النسبة من المصروفات'],
+          headers: const [
+            'الفئة',
+            'المبلغ',
+            'النسبة من الإيرادات',
+            'النسبة من المصروفات',
+          ],
           fonts: fonts,
           columnFlex: const [1.7, 1.0, 1.15, 1.15],
-          alignments: const [pw.TextAlign.right, pw.TextAlign.center, pw.TextAlign.center, pw.TextAlign.center],
+          alignments: const [
+            pw.TextAlign.right,
+            pw.TextAlign.center,
+            pw.TextAlign.center,
+            pw.TextAlign.center,
+          ],
           data: expenseByType.entries
               .map(
                 (entry) => [
                   entry.key,
                   EnhancedPdfUtils.formatNumber(entry.value),
-                  if (data.incomeTotal > 0) '${(entry.value / data.incomeTotal * 100).toStringAsFixed(1)}%' else '0%',
-                  if (data.expenseTotal > 0) '${(entry.value / data.expenseTotal * 100).toStringAsFixed(1)}%' else '0%',
+                  if (data.incomeTotal > 0)
+                    '${(entry.value / data.incomeTotal * 100).toStringAsFixed(1)}%'
+                  else
+                    '0%',
+                  if (data.expenseTotal > 0)
+                    '${(entry.value / data.expenseTotal * 100).toStringAsFixed(1)}%'
+                  else
+                    '0%',
                 ],
               )
               .toList(),
@@ -383,13 +425,28 @@ class IncomeExpenseReportPdf {
         columnFlex: const [2.0, 1.3],
         data: [
           ['عدد الموظفين النشطين', '${data.activeEmployeesCount} موظف'],
-          ['عدد الموظفين المنهية خدمتهم', '${data.terminatedEmployeesCount} موظف'],
-          ['إجمالي الالتزامات الرواتب الشهرية', EnhancedPdfUtils.formatNumber(data.totalSalaryObligation)],
-          ['الرواتب المدفوعة في الفترة', EnhancedPdfUtils.formatNumber(data.salaryTotal)],
-          ['نسبة الرواتب من الإيرادات', '${data.salaryRatio.toStringAsFixed(1)}%'],
+          [
+            'عدد الموظفين المنهية خدمتهم',
+            '${data.terminatedEmployeesCount} موظف',
+          ],
+          [
+            'إجمالي الالتزامات الرواتب الشهرية',
+            EnhancedPdfUtils.formatNumber(data.totalSalaryObligation),
+          ],
+          [
+            'الرواتب المدفوعة في الفترة',
+            EnhancedPdfUtils.formatNumber(data.salaryTotal),
+          ],
+          [
+            'نسبة الرواتب من الإيرادات',
+            '${data.salaryRatio.toStringAsFixed(1)}%',
+          ],
           [
             'نسبة الرواتب من المصروفات',
-            if (data.expenseTotal > 0) '${(data.salaryTotal / data.expenseTotal * 100).toStringAsFixed(1)}%' else '0%',
+            if (data.expenseTotal > 0)
+              '${(data.salaryTotal / data.expenseTotal * 100).toStringAsFixed(1)}%'
+            else
+              '0%',
           ],
         ],
       ),
@@ -409,7 +466,12 @@ class IncomeExpenseReportPdf {
           ['حجوزات مغادرة', '${data.checkoutBookingsCount} حجز'],
           [
             'متوسط الإيراد لكل حجز',
-            if (data.bookingsCount > 0) EnhancedPdfUtils.formatNumber(data.incomeTotal / data.bookingsCount) else '0',
+            if (data.bookingsCount > 0)
+              EnhancedPdfUtils.formatNumber(
+                data.incomeTotal / data.bookingsCount,
+              )
+            else
+              '0',
           ],
         ],
       ),
@@ -437,9 +499,18 @@ class IncomeExpenseReportPdf {
           ['إيرادات الغرف', EnhancedPdfUtils.formatNumber(roomRevenue)],
           ['إيرادات أخرى', EnhancedPdfUtils.formatNumber(otherRevenue)],
           ['إجمالي الإيرادات', EnhancedPdfUtils.formatNumber(data.incomeTotal)],
-          ['(-) مصروفات تشغيلية', EnhancedPdfUtils.formatNumber(data.nonSalaryTotal)],
-          ['(-) رواتب ومخصصات', EnhancedPdfUtils.formatNumber(data.salaryTotal)],
-          ['إجمالي المصروفات', EnhancedPdfUtils.formatNumber(data.expenseTotal)],
+          [
+            '(-) مصروفات تشغيلية',
+            EnhancedPdfUtils.formatNumber(data.nonSalaryTotal),
+          ],
+          [
+            '(-) رواتب ومخصصات',
+            EnhancedPdfUtils.formatNumber(data.salaryTotal),
+          ],
+          [
+            'إجمالي المصروفات',
+            EnhancedPdfUtils.formatNumber(data.expenseTotal),
+          ],
           ['صافي الربح / الخسارة', EnhancedPdfUtils.formatNumber(data.net)],
         ],
       ),
@@ -521,10 +592,22 @@ class IncomeExpenseReportPdf {
         columnFlex: const [2.0, 1.3],
         data: [
           ['عدد الموظفين النشطين', '${data.activeEmployeesCount} موظف'],
-          ['عدد الموظفين المنهية خدمتهم', '${data.terminatedEmployeesCount} موظف'],
-          ['إجمالي الالتزامات الرواتب الشهرية', EnhancedPdfUtils.formatNumber(data.totalSalaryObligation)],
-          ['الرواتب المدفوعة في الفترة', EnhancedPdfUtils.formatNumber(data.salaryTotal)],
-          ['نسبة الرواتب من الإيرادات', '${data.salaryRatio.toStringAsFixed(1)}%'],
+          [
+            'عدد الموظفين المنهية خدمتهم',
+            '${data.terminatedEmployeesCount} موظف',
+          ],
+          [
+            'إجمالي الالتزامات الرواتب الشهرية',
+            EnhancedPdfUtils.formatNumber(data.totalSalaryObligation),
+          ],
+          [
+            'الرواتب المدفوعة في الفترة',
+            EnhancedPdfUtils.formatNumber(data.salaryTotal),
+          ],
+          [
+            'نسبة الرواتب من الإيرادات',
+            '${data.salaryRatio.toStringAsFixed(1)}%',
+          ],
         ],
       ),
     );
@@ -543,7 +626,12 @@ class IncomeExpenseReportPdf {
           ['حجوزات مغادرة', '${data.checkoutBookingsCount} حجز'],
           [
             'متوسط الإيراد لكل حجز',
-            if (data.bookingsCount > 0) EnhancedPdfUtils.formatNumber(data.incomeTotal / data.bookingsCount) else '0',
+            if (data.bookingsCount > 0)
+              EnhancedPdfUtils.formatNumber(
+                data.incomeTotal / data.bookingsCount,
+              )
+            else
+              '0',
           ],
         ],
       ),
@@ -558,12 +646,18 @@ class IncomeExpenseReportPdf {
   }
 
   /// بطاقة فترة واحدة (تقرير تفصيلي مجمّع).
-  static pw.Widget _periodCard(ArabicPdfFonts fonts, IncomeExpensePeriodGroup group) {
+  static pw.Widget _periodCard(
+    ArabicPdfFonts fonts,
+    IncomeExpensePeriodGroup group,
+  ) {
     final isProfit = group.net >= 0;
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 10),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: isProfit ? PdfColors.success : PdfColors.danger, width: 0.8),
+        border: pw.Border.all(
+          color: isProfit ? PdfColors.success : PdfColors.danger,
+          width: 0.8,
+        ),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
       ),
       child: pw.Column(
@@ -575,17 +669,27 @@ class IncomeExpenseReportPdf {
             padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: pw.BoxDecoration(
               color: isProfit ? PdfColors.success : PdfColors.danger,
-              borderRadius: const pw.BorderRadius.only(topLeft: pw.Radius.circular(3), topRight: pw.Radius.circular(3)),
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(3),
+                topRight: pw.Radius.circular(3),
+              ),
             ),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
                   '${group.index}. ${group.label}',
-                  style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 13,
+                    color: PdfColors.textWhite,
+                  ),
                 ),
                 pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const pw.EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: const pw.BoxDecoration(
                     color: PdfColors.textWhite,
                     borderRadius: pw.BorderRadius.all(pw.Radius.circular(10)),
@@ -687,26 +791,47 @@ class IncomeExpenseReportPdf {
     );
   }
 
-  static pw.Widget _periodMiniBox(ArabicPdfFonts fonts, String title, String value, String subtitle, PdfColor color) {
+  static pw.Widget _periodMiniBox(
+    ArabicPdfFonts fonts,
+    String title,
+    String value,
+    String subtitle,
+    PdfColor color,
+  ) {
     return pw.Expanded(
       child: pw.Container(
         padding: const pw.EdgeInsets.all(6),
-        decoration: pw.BoxDecoration(color: color, borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4))),
+        decoration: pw.BoxDecoration(
+          color: color,
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+        ),
         child: pw.Column(
           children: [
             pw.Text(
               title,
-              style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textWhite),
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: 9,
+                color: PdfColors.textWhite,
+              ),
             ),
             pw.SizedBox(height: 2),
             pw.Text(
               value,
-              style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: PdfColors.textWhite),
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 12,
+                color: PdfColors.textWhite,
+              ),
             ),
             if (subtitle.isNotEmpty)
               pw.Text(
                 subtitle,
-                style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.textWhite),
+                style: pw.TextStyle(
+                  font: fonts.regular,
+                  fontSize: 8,
+                  color: PdfColors.textWhite,
+                ),
               )
             else
               pw.SizedBox(height: 10),
@@ -730,7 +855,9 @@ class IncomeExpenseReportPdf {
     }
     final chunks = <List<List<String>>>[];
     for (var start = 0; start < rows.length; start += chunkSize) {
-      final end = (start + chunkSize < rows.length) ? start + chunkSize : rows.length;
+      final end = (start + chunkSize < rows.length)
+          ? start + chunkSize
+          : rows.length;
       chunks.add(rows.sublist(start, end));
     }
     return pw.Column(
@@ -738,7 +865,11 @@ class IncomeExpenseReportPdf {
       children: [
         pw.Text(
           title,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: headerColor),
+          style: pw.TextStyle(
+            font: fonts.bold,
+            fontSize: 10,
+            color: headerColor,
+          ),
         ),
         pw.SizedBox(height: 3),
         for (final chunk in chunks) ...[
@@ -758,12 +889,16 @@ class IncomeExpenseReportPdf {
     return pw.Directionality(
       textDirection: pw.TextDirection.rtl,
       child: pw.Container(
-        decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.textLight, width: 0.3)),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.textLight, width: 0.3),
+        ),
         child: pw.Table(
           children: [
             pw.TableRow(
               decoration: pw.BoxDecoration(color: headerColor),
-              children: headers.map((h) => _miniCell(h, fonts.bold, PdfColors.textWhite)).toList(),
+              children: headers
+                  .map((h) => _miniCell(h, fonts.bold, PdfColors.textWhite))
+                  .toList(),
             ),
             ...rows.asMap().entries.map((entry) {
               final isEven = entry.key.isEven;
@@ -771,7 +906,12 @@ class IncomeExpenseReportPdf {
                 decoration: isEven
                     ? const pw.BoxDecoration(color: PdfColors.tableStripe)
                     : const pw.BoxDecoration(color: PdfColors.cardBackground),
-                children: entry.value.map((cell) => _miniCell(cell, fonts.regular, PdfColors.textDark)).toList(),
+                children: entry.value
+                    .map(
+                      (cell) =>
+                          _miniCell(cell, fonts.regular, PdfColors.textDark),
+                    )
+                    .toList(),
               );
             }),
           ],
@@ -832,7 +972,11 @@ class IncomeExpenseReportPdf {
             padding: const pw.EdgeInsets.symmetric(vertical: 6),
             child: pw.Text(
               'الملخص النهائي الشامل',
-              style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.primary),
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 14,
+                color: PdfColors.primary,
+              ),
               textAlign: pw.TextAlign.center,
             ),
           ),
@@ -846,13 +990,25 @@ class IncomeExpenseReportPdf {
               ['عدد الفترات', '${groups.length} فترة'],
               ['متوسط الصافي لكل فترة', EnhancedPdfUtils.formatNumber(avgNet)],
               ['إجمالي الدخل', EnhancedPdfUtils.formatNumber(data.incomeTotal)],
-              ['إجمالي المصروفات', EnhancedPdfUtils.formatNumber(data.expenseTotal)],
-              ['مصروفات الرواتب', EnhancedPdfUtils.formatNumber(data.salaryTotal)],
+              [
+                'إجمالي المصروفات',
+                EnhancedPdfUtils.formatNumber(data.expenseTotal),
+              ],
+              [
+                'مصروفات الرواتب',
+                EnhancedPdfUtils.formatNumber(data.salaryTotal),
+              ],
               ['الصافي النهائي', EnhancedPdfUtils.formatNumber(data.net)],
               if (bestPeriod != null)
-                ['أفضل فترة (أعلى ربح)', '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}'],
+                [
+                  'أفضل فترة (أعلى ربح)',
+                  '${bestPeriod.label} - ${EnhancedPdfUtils.formatNumber(bestPeriod.net)}',
+                ],
               if (worstPeriod != null && worstPeriod.net < 0)
-                ['أسوأ فترة (أعلى خسارة)', '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}'],
+                [
+                  'أسوأ فترة (أعلى خسارة)',
+                  '${worstPeriod.label} - ${EnhancedPdfUtils.formatNumber(worstPeriod.net)}',
+                ],
             ],
           ),
         ],
@@ -862,7 +1018,9 @@ class IncomeExpenseReportPdf {
 
   // ─────────────── جداول مشتركة ───────────────
 
-  static List<List<String>> _incomeRows(List<IncomeExpenseIncomeEntry> entries) {
+  static List<List<String>> _incomeRows(
+    List<IncomeExpenseIncomeEntry> entries,
+  ) {
     return entries.asMap().entries.map((entry) {
       final e = entry.value;
       final i = entry.key + 1;
@@ -878,7 +1036,9 @@ class IncomeExpenseReportPdf {
     }).toList();
   }
 
-  static List<List<String>> _expenseRows(List<IncomeExpenseExpenseEntry> entries) {
+  static List<List<String>> _expenseRows(
+    List<IncomeExpenseExpenseEntry> entries,
+  ) {
     return entries.asMap().entries.map((entry) {
       final e = entry.value;
       final i = entry.key + 1;
@@ -892,7 +1052,10 @@ class IncomeExpenseReportPdf {
     }).toList();
   }
 
-  static pw.Widget _buildPaymentMethodsTable(ArabicPdfFonts fonts, IncomeExpenseReportData data) {
+  static pw.Widget _buildPaymentMethodsTable(
+    ArabicPdfFonts fonts,
+    IncomeExpenseReportData data,
+  ) {
     final cashIncome = data.incomeEntries
         .where((e) => e.paymentMethod == 'cash')
         .fold<double>(0, (s, e) => s + e.amount);
@@ -902,15 +1065,23 @@ class IncomeExpenseReportPdf {
     final transferIncome = data.incomeEntries
         .where((e) => e.paymentMethod == 'transfer')
         .fold<double>(0, (s, e) => s + e.amount);
-    final otherMethodIncome = data.incomeTotal - cashIncome - cardIncome - transferIncome;
+    final otherMethodIncome =
+        data.incomeTotal - cashIncome - cardIncome - transferIncome;
 
-    String pct(double v) => data.incomeTotal > 0 ? '${(v / data.incomeTotal * 100).toStringAsFixed(1)}%' : '0%';
+    String pct(double v) => data.incomeTotal > 0
+        ? '${(v / data.incomeTotal * 100).toStringAsFixed(1)}%'
+        : '0%';
 
     return EnhancedPdfUtils.buildProfessionalTable(
       headers: const ['طريقة الدفع', 'المبلغ', 'العدد', 'النسبة'],
       fonts: fonts,
       columnFlex: const [1.6, 1.2, 0.8, 0.9],
-      alignments: const [pw.TextAlign.right, pw.TextAlign.center, pw.TextAlign.center, pw.TextAlign.center],
+      alignments: const [
+        pw.TextAlign.right,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+      ],
       data: [
         [
           'نقداً',
@@ -937,13 +1108,21 @@ class IncomeExpenseReportPdf {
             '${data.incomeEntries.where((e) => e.paymentMethod != 'cash' && e.paymentMethod != 'card' && e.paymentMethod != 'transfer').length}',
             pct(otherMethodIncome),
           ],
-        ['الإجمالي', EnhancedPdfUtils.formatNumber(data.incomeTotal), '${data.incomeEntries.length}', '100%'],
+        [
+          'الإجمالي',
+          EnhancedPdfUtils.formatNumber(data.incomeTotal),
+          '${data.incomeEntries.length}',
+          '100%',
+        ],
       ],
     );
   }
 
   /// المؤشرات المالية — تقرير نقدي خالص: لا مؤشرات ديون.
-  static pw.Widget _buildFinancialIndicatorsTable(ArabicPdfFonts fonts, IncomeExpenseReportData data) {
+  static pw.Widget _buildFinancialIndicatorsTable(
+    ArabicPdfFonts fonts,
+    IncomeExpenseReportData data,
+  ) {
     final profitMargin = data.profitMargin;
     final expenseRatio = data.expenseRatio;
     final salaryRatio = data.salaryRatio;
@@ -952,7 +1131,11 @@ class IncomeExpenseReportPdf {
       headers: const ['المؤشر', 'القيمة', 'التقييم'],
       fonts: fonts,
       columnFlex: const [1.8, 0.9, 0.9],
-      alignments: const [pw.TextAlign.right, pw.TextAlign.center, pw.TextAlign.center],
+      alignments: const [
+        pw.TextAlign.right,
+        pw.TextAlign.center,
+        pw.TextAlign.center,
+      ],
       data: [
         [
           'هامش الربح الصافي',
@@ -969,12 +1152,22 @@ class IncomeExpenseReportPdf {
         [
           'نسبة المصروفات إلى الإيرادات',
           '${expenseRatio.toStringAsFixed(1)}%',
-          if (expenseRatio < 60) 'ممتاز' else if (expenseRatio < 80) 'جيد' else 'مرتفع',
+          if (expenseRatio < 60)
+            'ممتاز'
+          else if (expenseRatio < 80)
+            'جيد'
+          else
+            'مرتفع',
         ],
         [
           'نسبة الرواتب إلى الإيرادات',
           '${salaryRatio.toStringAsFixed(1)}%',
-          if (salaryRatio < 30) 'ممتاز' else if (salaryRatio < 50) 'جيد' else 'مرتفع',
+          if (salaryRatio < 30)
+            'ممتاز'
+          else if (salaryRatio < 50)
+            'جيد'
+          else
+            'مرتفع',
         ],
       ],
     );
@@ -993,7 +1186,11 @@ class IncomeExpenseReportPdf {
       ),
       child: pw.Text(
         title,
-        style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.textWhite),
+        style: pw.TextStyle(
+          font: fonts.bold,
+          fontSize: 13,
+          color: PdfColors.textWhite,
+        ),
       ),
     );
   }
@@ -1007,7 +1204,11 @@ class IncomeExpenseReportPdf {
         border: pw.Border.all(color: PdfColors.border, width: 0.5),
         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
       ),
-      child: pw.Text(text, style: PdfTextStyles.body(fonts), textAlign: pw.TextAlign.center),
+      child: pw.Text(
+        text,
+        style: PdfTextStyles.body(fonts),
+        textAlign: pw.TextAlign.center,
+      ),
     );
   }
 
@@ -1017,7 +1218,8 @@ class IncomeExpenseReportPdf {
       final key = e.isSalary ? 'رواتب' : e.type;
       map[key] = (map[key] ?? 0) + e.amount;
     }
-    final sortedEntries = map.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sortedEntries = map.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     return Map.fromEntries(sortedEntries);
   }
 
@@ -1032,7 +1234,15 @@ class IncomeExpenseReportPdf {
     }
   }
 
-  static const List<String> _arabicDays = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+  static const List<String> _arabicDays = [
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
+    'الأحد',
+  ];
 
   static const List<String> _arabicMonths = [
     '',

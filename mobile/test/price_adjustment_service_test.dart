@@ -99,7 +99,9 @@ void main() {
                 bookingLocalId: Value(bookingId),
                 hotelDayKey: Value(nightKey),
                 nightStart: Value('${nightKey}T14:01:00'),
-                nightEnd: Value('${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00'),
+                nightEnd: Value(
+                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00',
+                ),
                 nightlyRate: const Value(10000.0),
                 baseRate: const Value(10000.0),
                 adjustment: const Value(0.0),
@@ -184,7 +186,9 @@ void main() {
                 bookingLocalId: Value(bookingId),
                 hotelDayKey: Value(nightKey),
                 nightStart: Value('${nightKey}T14:01:00'),
-                nightEnd: Value('${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00'),
+                nightEnd: Value(
+                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00',
+                ),
                 nightlyRate: const Value(8000.0),
                 baseRate: const Value(10000.0),
                 adjustment: const Value(-2000.0),
@@ -266,7 +270,9 @@ void main() {
                 bookingLocalId: Value(bookingId),
                 hotelDayKey: Value(nightKey),
                 nightStart: Value('${nightKey}T14:01:00'),
-                nightEnd: Value('${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00'),
+                nightEnd: Value(
+                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00',
+                ),
                 nightlyRate: const Value(10000.0),
                 baseRate: const Value(10000.0),
                 adjustment: const Value(0.0),
@@ -296,12 +302,18 @@ void main() {
       expect(result.nightsUpdated, 5);
 
       // التحقق من تحديث سعر الغرفة
-      final updatedRoom = await (db.select(db.rooms)..where((r) => r.roomNumber.equals('201'))).getSingle();
+      final updatedRoom = await (db.select(
+        db.rooms,
+      )..where((r) => r.roomNumber.equals('201'))).getSingle();
       expect(updatedRoom.price, 12000.0);
 
       // التحقق من وجود outbox entry لتحديث سعر الغرفة
       final outboxEntries = await db.select(db.outbox).get();
-      expect(outboxEntries.any((e) => e.entity == 'rooms'), isTrue, reason: 'يجب إنشاء outbox entry لتحديث سعر الغرفة');
+      expect(
+        outboxEntries.any((e) => e.entity == 'rooms'),
+        isTrue,
+        reason: 'يجب إنشاء outbox entry لتحديث سعر الغرفة',
+      );
       expect(
         outboxEntries.any((e) => e.entity == 'price_adjustments'),
         isTrue,
@@ -366,7 +378,9 @@ void main() {
       for (var i = 0; i < 4; i++) {
         final nightDate = _dayFromNow(-5 + i);
         final nightKey = _hotelDayKey(nightDate);
-        final nextNightKey = _hotelDayKey(nightDate.add(const Duration(days: 1)));
+        final nextNightKey = _hotelDayKey(
+          nightDate.add(const Duration(days: 1)),
+        );
         await db
             .into(db.bookingNights)
             .insert(
@@ -401,11 +415,15 @@ void main() {
       expect(result.nightsUpdated, 0);
 
       // سعر الغرفة يجب أن يُحدَّث على أي حال
-      final updatedRoom = await (db.select(db.rooms)..where((r) => r.roomNumber.equals('202'))).getSingle();
+      final updatedRoom = await (db.select(
+        db.rooms,
+      )..where((r) => r.roomNumber.equals('202'))).getSingle();
       expect(updatedRoom.price, 15000.0);
 
       // الليالي تبقى بسعرها القديم
-      final nights = await (db.select(db.bookingNights)..where((n) => n.bookingLocalId.equals(bookingId))).get();
+      final nights = await (db.select(
+        db.bookingNights,
+      )..where((n) => n.bookingLocalId.equals(bookingId))).get();
       for (final night in nights) {
         expect(night.nightlyRate, 10000.0);
       }
@@ -430,49 +448,55 @@ void main() {
   });
 
   group('استعلامات تعديلات الأسعار', () {
-    test('getAdjustmentsInDateRange يُرجع التعديلات في النطاق الصحيح', () async {
-      const roomUuid = 'room-301-uuid';
-      await db
-          .into(db.rooms)
-          .insert(
-            RoomsCompanion(
-              localUuid: const Value(roomUuid),
-              roomNumber: const Value('301'),
-              type: const Value('عادية'),
-              price: const Value(10000.0),
-              status: const Value('شاغرة'),
-              createdAt: Value(Time.nowEpoch()),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ),
-          );
+    test(
+      'getAdjustmentsInDateRange يُرجع التعديلات في النطاق الصحيح',
+      () async {
+        const roomUuid = 'room-301-uuid';
+        await db
+            .into(db.rooms)
+            .insert(
+              RoomsCompanion(
+                localUuid: const Value(roomUuid),
+                roomNumber: const Value('301'),
+                type: const Value('عادية'),
+                price: const Value(10000.0),
+                status: const Value('شاغرة'),
+                createdAt: Value(Time.nowEpoch()),
+                updatedAt: Value(Time.nowEpoch()),
+                lastModified: Value(Time.nowEpoch()),
+              ),
+            );
 
-      // إنشاء تعديلين بتواريخ مختلفة
-      await service.applyRoomPriceChange(
-        roomNumber: '301',
-        oldPrice: 10000.0,
-        newPrice: 11000.0,
-        appliedBy: 'admin',
-        reason: 'تعديل 1',
-        effectiveFrom: _dayFromNow(-5, hour: 14, minute: 1),
-      );
+        // إنشاء تعديلين بتواريخ مختلفة
+        await service.applyRoomPriceChange(
+          roomNumber: '301',
+          oldPrice: 10000.0,
+          newPrice: 11000.0,
+          appliedBy: 'admin',
+          reason: 'تعديل 1',
+          effectiveFrom: _dayFromNow(-5, hour: 14, minute: 1),
+        );
 
-      await service.applyRoomPriceChange(
-        roomNumber: '301',
-        oldPrice: 11000.0,
-        newPrice: 12000.0,
-        appliedBy: 'admin',
-        reason: 'تعديل 2',
-        effectiveFrom: _dayFromNow(0, hour: 14, minute: 1),
-      );
+        await service.applyRoomPriceChange(
+          roomNumber: '301',
+          oldPrice: 11000.0,
+          newPrice: 12000.0,
+          appliedBy: 'admin',
+          reason: 'تعديل 2',
+          effectiveFrom: _dayFromNow(0, hour: 14, minute: 1),
+        );
 
-      // الاستعلام عن نطاق يشمل اليوم فقط
-      final todayKey = _hotelDayKey(DateTime.now());
-      final tomorrowKey = _hotelDayKey(_dayFromNow(1));
-      final adjustments = await service.getAdjustmentsInDateRange(todayKey, tomorrowKey);
+        // الاستعلام عن نطاق يشمل اليوم فقط
+        final todayKey = _hotelDayKey(DateTime.now());
+        final tomorrowKey = _hotelDayKey(_dayFromNow(1));
+        final adjustments = await service.getAdjustmentsInDateRange(
+          todayKey,
+          tomorrowKey,
+        );
 
-      expect(adjustments.length, 1);
-      expect(adjustments.first.reason, 'تعديل 2');
-    });
+        expect(adjustments.length, 1);
+        expect(adjustments.first.reason, 'تعديل 2');
+      },
+    );
   });
 }

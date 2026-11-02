@@ -86,15 +86,23 @@ void main() {
       (db.select(db.outbox)..where((o) => o.entity.equals(entity))).get();
 
   test('يملأ UUID الحجز للّيالي القديمة ويضعها في طابور الرفع', () async {
-    final lastModifiedBefore = (await db.select(db.bookingNights).get()).map((n) => n.lastModified).toList();
+    final lastModifiedBefore = (await db.select(db.bookingNights).get())
+        .map((n) => n.lastModified)
+        .toList();
 
     expect(await service.backfillNights(db), 2);
 
     final nights = await db.select(db.bookingNights).get();
-    expect(nights.map((n) => n.bookingUuidCache), everyElement('booking-legacy-001'));
+    expect(
+      nights.map((n) => n.bookingUuidCache),
+      everyElement('booking-legacy-001'),
+    );
     expect(nights.map((n) => n.lastModified).toList(), lastModifiedBefore);
     final queued = await outboxFor('booking_nights');
-    expect(queued.map((o) => o.localUuid).toSet(), {'night-2026-01-01', 'night-2026-01-02'});
+    expect(queued.map((o) => o.localUuid).toSet(), {
+      'night-2026-01-01',
+      'night-2026-01-02',
+    });
 
     expect(await service.backfillNights(db), 0);
     expect(await outboxFor('booking_nights'), hasLength(2));
@@ -108,6 +116,9 @@ void main() {
 
     expect(await service.repushNotesOnce(db), 0);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(BookingChildUuidBackfillService.notesRepushPrefKey), isTrue);
+    expect(
+      prefs.getBool(BookingChildUuidBackfillService.notesRepushPrefKey),
+      isTrue,
+    );
   });
 }

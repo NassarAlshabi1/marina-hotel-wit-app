@@ -30,7 +30,12 @@ AppDatabase _createTestDb() {
 /// الليل المدني. وضع الساعة بعد 14:01 يجعل تحويله إلى hotelDayKey حتمياً.
 DateTime _dayFromNow(int days, {int hour = 15}) {
   final currentHotelDay = DateTime.parse(Time.hotelDayKey());
-  return DateTime(currentHotelDay.year, currentHotelDay.month, currentHotelDay.day + days, hour);
+  return DateTime(
+    currentHotelDay.year,
+    currentHotelDay.month,
+    currentHotelDay.day + days,
+    hour,
+  );
 }
 
 /// Helper: يحوّل DateTime إلى مفتاح يوم فندقي (YYYY-MM-DD).
@@ -50,7 +55,8 @@ void main() {
   });
 
   /// Helper: يُنشئ غرفة + حجز + N ليلة بتواريخ ديناميكية تبدأ من اليوم-9.
-  Future<({Booking booking, String roomUuid, String bookingUuid})> seedBookingWithNights({
+  Future<({Booking booking, String roomUuid, String bookingUuid})>
+  seedBookingWithNights({
     required String roomNumber,
     required String roomUuid,
     required String bookingUuid,
@@ -99,7 +105,9 @@ void main() {
           ),
         );
 
-    final booking = await (db.select(db.bookings)..where((b) => b.localUuid.equals(bookingUuid))).getSingle();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.localUuid.equals(bookingUuid))).getSingle();
 
     // إدراج N ليلة بتواريخ ديناميكية متتالية
     for (var i = 0; i < nightCount; i++) {
@@ -113,7 +121,9 @@ void main() {
               bookingLocalId: Value(booking.id),
               hotelDayKey: Value(nightKey),
               nightStart: Value('${nightKey}T14:00:00'),
-              nightEnd: Value('${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T12:00:00'),
+              nightEnd: Value(
+                '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T12:00:00',
+              ),
               nightlyRate: Value(nightlyRate.toDouble()),
               baseRate: Value(nightlyRate.toDouble()),
               adjustment: const Value(0),
@@ -187,14 +197,18 @@ void main() {
       expect(adjustment.amount, equals(1000));
 
       // التحقق من وجوده في getActiveAdjustments
-      final active = await adjustmentService.getActiveAdjustments(seed.bookingUuid);
+      final active = await adjustmentService.getActiveAdjustments(
+        seed.bookingUuid,
+      );
       expect(active.length, equals(1));
       expect(active.first.localUuid, equals(adjustment.localUuid));
 
       // التحقق من إنشاء outbox entry للمزامنة
       final outboxEntries = await db.select(db.outbox).get();
       expect(
-        outboxEntries.any((e) => e.entity == 'booking_price_adjustments' && e.op == 'create'),
+        outboxEntries.any(
+          (e) => e.entity == 'booking_price_adjustments' && e.op == 'create',
+        ),
         isTrue,
         reason: 'يجب إنشاء outbox entry لتعديل السعر',
       );
@@ -202,36 +216,39 @@ void main() {
   });
 
   group('السيناريو 2: زيادة سعر (surcharge)', () {
-    test('تطبيق surcharge 3000 ر.ي يُسجَّل في تقرير الإيرادات الإضافية', () async {
-      final seed = await seedBookingWithNights(
-        roomNumber: '103',
-        roomUuid: IdGen.uuid(),
-        bookingUuid: IdGen.uuid(),
-        guestName: 'خالد سعيد',
-        nightCount: 10,
-        nightlyRate: 15000,
-      );
+    test(
+      'تطبيق surcharge 3000 ر.ي يُسجَّل في تقرير الإيرادات الإضافية',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '103',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'خالد سعيد',
+          nightCount: 10,
+          nightlyRate: 15000,
+        );
 
-      final effectiveDay = _hotelDayKey(_dayFromNow(-3));
+        final effectiveDay = _hotelDayKey(_dayFromNow(-3));
 
-      await adjustmentService.applyTemporaryAdjustment(
-        bookingLocalUuid: seed.bookingUuid,
-        amount: 3000,
-        type: AdjustmentType.surcharge,
-        effectiveHotelDay: effectiveDay,
-        reason: 'زيادة الشهر الثاني',
-        appliedBy: 'المدير',
-      );
+        await adjustmentService.applyTemporaryAdjustment(
+          bookingLocalUuid: seed.bookingUuid,
+          amount: 3000,
+          type: AdjustmentType.surcharge,
+          effectiveHotelDay: effectiveDay,
+          reason: 'زيادة الشهر الثاني',
+          appliedBy: 'المدير',
+        );
 
-      // surcharge بدون endHotelDay → ينطبق على جميع الليالي من effectiveDay فصاعداً
-      // الليالي المتأثرة: today-3, today-2, today-1, today = 4 ليالي
-      final report = await adjustmentService.generateLostRevenueReport();
+        // surcharge بدون endHotelDay → ينطبق على جميع الليالي من effectiveDay فصاعداً
+        // الليالي المتأثرة: today-3, today-2, today-1, today = 4 ليالي
+        final report = await adjustmentService.generateLostRevenueReport();
 
-      expect(report.totalGainedRevenue, equals(4 * 3000));
-      expect(report.totalLostRevenue, equals(0));
-      expect(report.bookingDetails.length, equals(1));
-      expect(report.bookingDetails.first.adjustments.length, equals(1));
-    });
+        expect(report.totalGainedRevenue, equals(4 * 3000));
+        expect(report.totalLostRevenue, equals(0));
+        expect(report.bookingDetails.length, equals(1));
+        expect(report.bookingDetails.first.adjustments.length, equals(1));
+      },
+    );
   });
 
   group('السيناريو 3: إلغاء تخفيض (cancelAdjustment)', () {
@@ -258,19 +275,33 @@ void main() {
       );
 
       // التحقق من أنه نشط قبل الإلغاء
-      var active = await adjustmentService.getActiveAdjustments(seed.bookingUuid);
+      var active = await adjustmentService.getActiveAdjustments(
+        seed.bookingUuid,
+      );
       expect(active.length, equals(1));
 
       // إلغاء التعديل
-      await adjustmentService.cancelAdjustment(adjustmentUuid: adjustment.localUuid, cancelledBy: 'المدير');
+      await adjustmentService.cancelAdjustment(
+        adjustmentUuid: adjustment.localUuid,
+        cancelledBy: 'المدير',
+      );
 
       // بما أن effectiveHotelDay في المستقبل، يجب أن يُعطَّل بالكامل
       active = await adjustmentService.getActiveAdjustments(seed.bookingUuid);
-      expect(active.isEmpty, isTrue, reason: 'التخفيض المستقبلي يجب أن يُعطَّل بالكامل عند الإلغاء');
+      expect(
+        active.isEmpty,
+        isTrue,
+        reason: 'التخفيض المستقبلي يجب أن يُعطَّل بالكامل عند الإلغاء',
+      );
 
       // التحقق من وجود outbox entry للإلغاء
       final outboxEntries = await db.select(db.outbox).get();
-      expect(outboxEntries.any((e) => e.entity == 'booking_price_adjustments' && e.op == 'update'), isTrue);
+      expect(
+        outboxEntries.any(
+          (e) => e.entity == 'booking_price_adjustments' && e.op == 'update',
+        ),
+        isTrue,
+      );
     });
 
     test('إلغاء تخفيض سابق يقتصر على الليالي السابقة فقط', () async {
@@ -295,131 +326,159 @@ void main() {
         appliedBy: 'المدير',
       );
 
-      await adjustmentService.cancelAdjustment(adjustmentUuid: adjustment.localUuid, cancelledBy: 'المدير');
+      await adjustmentService.cancelAdjustment(
+        adjustmentUuid: adjustment.localUuid,
+        cancelledBy: 'المدير',
+      );
 
       // التخفيض يبقى نشطاً لكن مع endHotelDay = أمس
-      final allAdjustments = await adjustmentService.getAllAdjustments(seed.bookingUuid);
+      final allAdjustments = await adjustmentService.getAllAdjustments(
+        seed.bookingUuid,
+      );
       expect(allAdjustments.length, equals(1));
-      expect(allAdjustments.first.isActive, isTrue, reason: 'التخفيض السابق يبقى نشطاً لليالي الماضية');
+      expect(
+        allAdjustments.first.isActive,
+        isTrue,
+        reason: 'التخفيض السابق يبقى نشطاً لليالي الماضية',
+      );
       expect(allAdjustments.first.endHotelDay, isNotNull);
       expect(allAdjustments.first.cancelledAt, isNotNull);
     });
   });
 
-  group('السيناريو 4: تقرير الإيرادات المفقودة (generateLostRevenueReport)', () {
-    test('تقرير دقيق لتخفيض 5000 على 5 ليالي', () async {
-      final seed = await seedBookingWithNights(
-        roomNumber: '106',
-        roomUuid: IdGen.uuid(),
-        bookingUuid: IdGen.uuid(),
-        guestName: 'نورا أحمد',
-        nightCount: 10,
-        nightlyRate: 20000,
-        roomPrice: 20000,
-      );
+  group(
+    'السيناريو 4: تقرير الإيرادات المفقودة (generateLostRevenueReport)',
+    () {
+      test('تقرير دقيق لتخفيض 5000 على 5 ليالي', () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '106',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'نورا أحمد',
+          nightCount: 10,
+          nightlyRate: 20000,
+          roomPrice: 20000,
+        );
 
-      final effectiveDay = _hotelDayKey(_dayFromNow(-4));
-      final endDay = _hotelDayKey(_dayFromNow(0));
+        final effectiveDay = _hotelDayKey(_dayFromNow(-4));
+        final endDay = _hotelDayKey(_dayFromNow(0));
 
-      await adjustmentService.applyTemporaryAdjustment(
-        bookingLocalUuid: seed.bookingUuid,
-        amount: 5000,
-        type: AdjustmentType.discount,
-        effectiveHotelDay: effectiveDay,
-        endHotelDay: endDay,
-        reason: 'خصم VIP',
-        appliedBy: 'المدير',
-      );
-
-      final report = await adjustmentService.generateLostRevenueReport();
-
-      // 5 ليالي متأثرة (today-4 إلى today)
-      expect(report.totalLostRevenue, equals(5 * 5000));
-      expect(report.totalGainedRevenue, equals(0));
-      expect(report.bookingDetails.length, equals(1));
-      expect(report.bookingDetails.first.adjustments.length, equals(1));
-      expect(report.bookingDetails.first.adjustments.first.nightsAffected, equals(5));
-    });
-
-    test('تقرير مع فلترة تاريخ', () async {
-      final seed = await seedBookingWithNights(
-        roomNumber: '107',
-        roomUuid: IdGen.uuid(),
-        bookingUuid: IdGen.uuid(),
-        guestName: 'عمر خالد',
-        nightCount: 5,
-        nightlyRate: 10000,
-        roomPrice: 10000,
-      );
-
-      // تعديل بتاريخ اليوم
-      await adjustmentService.applyTemporaryAdjustment(
-        bookingLocalUuid: seed.bookingUuid,
-        amount: 1000,
-        type: AdjustmentType.discount,
-        effectiveHotelDay: _hotelDayKey(_dayFromNow(0)),
-        reason: 'خصم اليوم',
-        appliedBy: 'المدير',
-      );
-
-      // تقرير لنطاق يشمل اليوم
-      final todayKey = Time.hotelDayKey();
-      final tomorrowKey = _hotelDayKey(_dayFromNow(1));
-      final report = await adjustmentService.generateLostRevenueReport(fromHotelDay: todayKey, toHotelDay: tomorrowKey);
-
-      expect(report.bookingDetails.length, equals(1));
-
-      // تقرير لنطاق لا يشمل اليوم (بعد غد)
-      final afterTomorrowKey = _hotelDayKey(_dayFromNow(2));
-      final nextWeekKey = _hotelDayKey(_dayFromNow(7));
-      final emptyReport = await adjustmentService.generateLostRevenueReport(
-        fromHotelDay: afterTomorrowKey,
-        toHotelDay: nextWeekKey,
-      );
-
-      expect(emptyReport.bookingDetails.length, equals(0));
-    });
-  });
-
-  group('السيناريو 5: نقل التعديلات لغرفة جديدة', () {
-    test('transferAdjustmentsToRoom يُحدّث roomNumber لجميع التعديلات النشطة', () async {
-      final seed = await seedBookingWithNights(
-        roomNumber: '108',
-        roomUuid: IdGen.uuid(),
-        bookingUuid: IdGen.uuid(),
-        guestName: 'سعيد محمد',
-        nightCount: 5,
-        nightlyRate: 12000,
-        roomPrice: 12000,
-      );
-
-      // إنشاء تعديلين نشطين
-      for (var i = 0; i < 2; i++) {
         await adjustmentService.applyTemporaryAdjustment(
           bookingLocalUuid: seed.bookingUuid,
-          amount: 1000 + i * 500,
+          amount: 5000,
           type: AdjustmentType.discount,
-          effectiveHotelDay: _hotelDayKey(_dayFromNow(-2 + i)),
-          reason: 'خصم #$i',
+          effectiveHotelDay: effectiveDay,
+          endHotelDay: endDay,
+          reason: 'خصم VIP',
           appliedBy: 'المدير',
         );
-      }
 
-      // نقل التعديلات لغرفة جديدة (مثلاً '108-A')
-      await adjustmentService.transferAdjustmentsToRoom(bookingId: seed.booking.id, newRoomNumber: '108-A');
+        final report = await adjustmentService.generateLostRevenueReport();
 
-      // التحقق من تحديث roomNumber في جميع التعديلات النشطة
-      final activeAdjustments = await adjustmentService.getActiveAdjustments(seed.bookingUuid);
-      expect(activeAdjustments.length, equals(2));
-      for (final adj in activeAdjustments) {
-        expect(adj.roomNumber, equals('108-A'));
-      }
+        // 5 ليالي متأثرة (today-4 إلى today)
+        expect(report.totalLostRevenue, equals(5 * 5000));
+        expect(report.totalGainedRevenue, equals(0));
+        expect(report.bookingDetails.length, equals(1));
+        expect(report.bookingDetails.first.adjustments.length, equals(1));
+        expect(
+          report.bookingDetails.first.adjustments.first.nightsAffected,
+          equals(5),
+        );
+      });
 
-      // التحقق من إنشاء outbox entries للتحديث
-      final outboxEntries = await db.select(db.outbox).get();
-      final updateEntries = outboxEntries.where((e) => e.entity == 'booking_price_adjustments' && e.op == 'update');
-      expect(updateEntries.length, greaterThanOrEqualTo(2));
-    });
+      test('تقرير مع فلترة تاريخ', () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '107',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'عمر خالد',
+          nightCount: 5,
+          nightlyRate: 10000,
+          roomPrice: 10000,
+        );
+
+        // تعديل بتاريخ اليوم
+        await adjustmentService.applyTemporaryAdjustment(
+          bookingLocalUuid: seed.bookingUuid,
+          amount: 1000,
+          type: AdjustmentType.discount,
+          effectiveHotelDay: _hotelDayKey(_dayFromNow(0)),
+          reason: 'خصم اليوم',
+          appliedBy: 'المدير',
+        );
+
+        // تقرير لنطاق يشمل اليوم
+        final todayKey = Time.hotelDayKey();
+        final tomorrowKey = _hotelDayKey(_dayFromNow(1));
+        final report = await adjustmentService.generateLostRevenueReport(
+          fromHotelDay: todayKey,
+          toHotelDay: tomorrowKey,
+        );
+
+        expect(report.bookingDetails.length, equals(1));
+
+        // تقرير لنطاق لا يشمل اليوم (بعد غد)
+        final afterTomorrowKey = _hotelDayKey(_dayFromNow(2));
+        final nextWeekKey = _hotelDayKey(_dayFromNow(7));
+        final emptyReport = await adjustmentService.generateLostRevenueReport(
+          fromHotelDay: afterTomorrowKey,
+          toHotelDay: nextWeekKey,
+        );
+
+        expect(emptyReport.bookingDetails.length, equals(0));
+      });
+    },
+  );
+
+  group('السيناريو 5: نقل التعديلات لغرفة جديدة', () {
+    test(
+      'transferAdjustmentsToRoom يُحدّث roomNumber لجميع التعديلات النشطة',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '108',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'سعيد محمد',
+          nightCount: 5,
+          nightlyRate: 12000,
+          roomPrice: 12000,
+        );
+
+        // إنشاء تعديلين نشطين
+        for (var i = 0; i < 2; i++) {
+          await adjustmentService.applyTemporaryAdjustment(
+            bookingLocalUuid: seed.bookingUuid,
+            amount: 1000 + i * 500,
+            type: AdjustmentType.discount,
+            effectiveHotelDay: _hotelDayKey(_dayFromNow(-2 + i)),
+            reason: 'خصم #$i',
+            appliedBy: 'المدير',
+          );
+        }
+
+        // نقل التعديلات لغرفة جديدة (مثلاً '108-A')
+        await adjustmentService.transferAdjustmentsToRoom(
+          bookingId: seed.booking.id,
+          newRoomNumber: '108-A',
+        );
+
+        // التحقق من تحديث roomNumber في جميع التعديلات النشطة
+        final activeAdjustments = await adjustmentService.getActiveAdjustments(
+          seed.bookingUuid,
+        );
+        expect(activeAdjustments.length, equals(2));
+        for (final adj in activeAdjustments) {
+          expect(adj.roomNumber, equals('108-A'));
+        }
+
+        // التحقق من إنشاء outbox entries للتحديث
+        final outboxEntries = await db.select(db.outbox).get();
+        final updateEntries = outboxEntries.where(
+          (e) => e.entity == 'booking_price_adjustments' && e.op == 'update',
+        );
+        expect(updateEntries.length, greaterThanOrEqualTo(2));
+      },
+    );
   });
 
   group('Whole Amount Tests', () {
@@ -433,13 +492,17 @@ void main() {
         nightlyRate: 15000,
       );
 
-      final booking = await (db.select(db.bookings)..where((b) => b.localUuid.equals(seed.bookingUuid))).getSingle();
+      final booking = await (db.select(
+        db.bookings,
+      )..where((b) => b.localUuid.equals(seed.bookingUuid))).getSingle();
 
       expect(booking.totalDueCached, isA<num>());
       expect(booking.discount, isA<double>());
       expect(booking.discount, 0.0);
 
-      final room = await (db.select(db.rooms)..where((r) => r.localUuid.equals(seed.roomUuid))).getSingle();
+      final room = await (db.select(
+        db.rooms,
+      )..where((r) => r.localUuid.equals(seed.roomUuid))).getSingle();
 
       expect(room.price, equals(15000));
     });
@@ -458,7 +521,8 @@ void main() {
         roomPrice: 10000,
       );
 
-      final longStays = await adjustmentService.getLongStayBookingsWithoutSurcharge(minimumNights: 30);
+      final longStays = await adjustmentService
+          .getLongStayBookingsWithoutSurcharge(minimumNights: 30);
 
       expect(longStays.length, greaterThanOrEqualTo(1));
       expect(longStays.any((b) => b.id == seed.booking.id), isTrue);
@@ -485,7 +549,8 @@ void main() {
         appliedBy: 'المدير',
       );
 
-      final longStays = await adjustmentService.getLongStayBookingsWithoutSurcharge(minimumNights: 30);
+      final longStays = await adjustmentService
+          .getLongStayBookingsWithoutSurcharge(minimumNights: 30);
 
       expect(
         longStays.any((b) => b.id == seed.booking.id),

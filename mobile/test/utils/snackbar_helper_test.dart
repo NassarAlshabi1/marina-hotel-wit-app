@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/snackbar_helper.dart';
 
 void main() {
-  testWidgets('replaces queued SnackBars instead of stacking them', (tester) async {
+  testWidgets('replaces queued SnackBars instead of stacking them', (
+    tester,
+  ) async {
     final scaffoldKey = GlobalKey<ScaffoldState>();
     await tester.pumpWidget(
       MaterialApp(
@@ -30,13 +32,17 @@ void main() {
     expect(find.text('فشل الحفظ'), findsOneWidget);
   });
 
-  testWidgets('does not throw when no ScaffoldMessenger is available', (tester) async {
+  testWidgets('does not throw when no ScaffoldMessenger is available', (
+    tester,
+  ) async {
     BuildContext? capturedContext;
     await tester.pumpWidget(
       WidgetsApp(
         color: Colors.white,
-        pageRouteBuilder: <T>(settings, builder) =>
-            PageRouteBuilder<T>(settings: settings, pageBuilder: (context, _, __) => builder(context)),
+        pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+          settings: settings,
+          pageBuilder: (context, _, __) => builder(context),
+        ),
         builder: (context, child) => child ?? const SizedBox(),
         home: Builder(
           builder: (context) {
@@ -48,6 +54,9 @@ void main() {
     );
 
     expect(capturedContext, isNotNull);
-    expect(() => SnackBarHelper.show(capturedContext!, 'رسالة'), returnsNormally);
+    expect(
+      () => SnackBarHelper.show(capturedContext!, 'رسالة'),
+      returnsNormally,
+    );
   });
 }

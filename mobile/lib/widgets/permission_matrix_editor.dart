@@ -8,7 +8,12 @@ import '../services/permission_catalog.dart';
 /// لا يملك منطق التخزين — يستدعي [onToggle] بكل تبديل، والمستدعي
 /// يقرر قواعده (مثل «صلاحية واحدة على الأقل» أو وضع القراءة فقط).
 class PermissionMatrixEditor extends StatelessWidget {
-  const PermissionMatrixEditor({required this.selected, required this.onToggle, super.key, this.enabled = true});
+  const PermissionMatrixEditor({
+    required this.selected,
+    required this.onToggle,
+    super.key,
+    this.enabled = true,
+  });
 
   /// مجموعة مفاتيح الصلاحيات المحددة حالياً (module أو module.action).
   final Set<String> selected;
@@ -33,7 +38,12 @@ class PermissionMatrixEditor extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 92,
-                  child: Text(module.label, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    module.label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: Wrap(
@@ -50,9 +60,12 @@ class PermissionMatrixEditor extends StatelessWidget {
                         _MiniChip(
                           label: action.label,
                           tooltip: '${action.label} ${module.label}',
-                          selected: selected.contains('${module.key}.${action.key}'),
+                          selected: selected.contains(
+                            '${module.key}.${action.key}',
+                          ),
                           enabled: enabled,
-                          onSelected: (v) => onToggle('${module.key}.${action.key}', v),
+                          onSelected: (v) =>
+                              onToggle('${module.key}.${action.key}', v),
                         ),
                     ],
                   ),

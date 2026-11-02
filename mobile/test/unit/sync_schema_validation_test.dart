@@ -13,7 +13,10 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 
 /// تحويل camelCase إلى snake_case (مطابق لتحويل Drift التلقائي)
 String _snake(String camel) {
-  return camel.replaceAllMapped(RegExp(r'[A-Z]'), (m) => '_${m.group(0)!.toLowerCase()}');
+  return camel.replaceAllMapped(
+    RegExp(r'[A-Z]'),
+    (m) => '_${m.group(0)!.toLowerCase()}',
+  );
 }
 
 /// الحقول الأساسية المتوقعة في كل جدول مزامنة (SyncFields)
@@ -78,7 +81,9 @@ void main() {
     pragmaTableInfo = {};
     for (final table in allTables) {
       try {
-        final rows = await db.customSelect('PRAGMA table_info($table)', readsFrom: {}).get();
+        final rows = await db
+            .customSelect('PRAGMA table_info($table)', readsFrom: {})
+            .get();
         pragmaTableInfo[table] = rows
             .map(
               (r) => {
@@ -103,7 +108,11 @@ void main() {
     for (final tableName in _syncTableNames) {
       test('جدول $tableName يحتوي على جميع حقول SyncFields', () {
         final tableInfo = pragmaTableInfo[tableName];
-        expect(tableInfo, isNotNull, reason: 'الجدول $tableName غير موجود في قاعدة البيانات');
+        expect(
+          tableInfo,
+          isNotNull,
+          reason: 'الجدول $tableName غير موجود في قاعدة البيانات',
+        );
 
         final colByName = {for (final c in tableInfo!) c['name'] as String: c};
 
@@ -112,20 +121,34 @@ void main() {
           final keySnake = _snake(entry.key);
           final expected = entry.value;
 
-          expect(colByName, contains(keySnake), reason: 'جدول $tableName يفتقد الحقل ${entry.key} (snake: $keySnake)');
+          expect(
+            colByName,
+            contains(keySnake),
+            reason:
+                'جدول $tableName يفتقد الحقل ${entry.key} (snake: $keySnake)',
+          );
 
           final colInfo = colByName[keySnake]!;
           final actualType = colInfo['type'] as String;
           expect(
             actualType,
             contains(expected['type'] as String),
-            reason: 'جدول $tableName: ${entry.key} نوعه $actualType لكن المتوقع ${expected['type']}',
+            reason:
+                'جدول $tableName: ${entry.key} نوعه $actualType لكن المتوقع ${expected['type']}',
           );
 
           if (expected['nullable'] == false) {
-            expect(colInfo['notnull'], 1, reason: 'جدول $tableName: ${entry.key} يجب أن يكون NOT NULL');
+            expect(
+              colInfo['notnull'],
+              1,
+              reason: 'جدول $tableName: ${entry.key} يجب أن يكون NOT NULL',
+            );
           } else {
-            expect(colInfo['notnull'], 0, reason: 'جدول $tableName: ${entry.key} يجب أن يكون NULLABLE');
+            expect(
+              colInfo['notnull'],
+              0,
+              reason: 'جدول $tableName: ${entry.key} يجب أن يكون NULLABLE',
+            );
           }
 
           if (expected['default'] != null) {
@@ -135,13 +158,15 @@ void main() {
               expect(
                 defaultVal,
                 anyOf(isNull, equals("''")),
-                reason: 'جدول $tableName: default لـ ${entry.key} يجب أن يكون \'\' أو null',
+                reason:
+                    'جدول $tableName: default لـ ${entry.key} يجب أن يكون \'\' أو null',
               );
             } else {
               expect(
                 defaultVal,
                 isNotNull,
-                reason: 'جدول $tableName: ${entry.key} يجب أن يكون default=$expectedDefault',
+                reason:
+                    'جدول $tableName: ${entry.key} يجب أن يكون default=$expectedDefault',
               );
             }
           }
@@ -150,12 +175,17 @@ void main() {
         // تحقق من localUuid و idempotencyKey (من Drift SyncFields)
         for (final entry in _extraDriftSyncFields.entries) {
           final keySnake = _snake(entry.key);
-          expect(colByName, contains(keySnake), reason: 'جدول $tableName يفتقد ${entry.key}');
+          expect(
+            colByName,
+            contains(keySnake),
+            reason: 'جدول $tableName يفتقد ${entry.key}',
+          );
           final colInfo = colByName[keySnake]!;
           expect(
             colInfo['type'],
             'TEXT',
-            reason: 'جدول $tableName: ${entry.key} نوعه ${colInfo['type']} لكن المتوقع TEXT',
+            reason:
+                'جدول $tableName: ${entry.key} نوعه ${colInfo['type']} لكن المتوقع TEXT',
           );
           if (entry.value['nullable'] == false) {
             expect(colInfo['notnull'], 1);
@@ -201,9 +231,20 @@ void main() {
       expect(tableInfo, isNotNull);
       final columnNames = tableInfo!.map((c) => c['name'] as String).toSet();
 
-      final expectedCols = {'id', 'last_server_ts', 'last_pull_ts', 'last_push_ts', 'is_syncing', 'version'};
+      final expectedCols = {
+        'id',
+        'last_server_ts',
+        'last_pull_ts',
+        'last_push_ts',
+        'is_syncing',
+        'version',
+      };
       for (final col in expectedCols) {
-        expect(columnNames, contains(col), reason: 'sync_state يفتقد العمود $col');
+        expect(
+          columnNames,
+          contains(col),
+          reason: 'sync_state يفتقد العمود $col',
+        );
       }
     });
   });
@@ -217,7 +258,11 @@ void main() {
       final col = colByName['sync_timestamp'];
       expect(col, isNotNull, reason: 'sync_timestamp غير موجود في rooms');
       expect(col!['notnull'], 1, reason: 'sync_timestamp يجب أن يكون NOT NULL');
-      expect(col['dflt_value'], '0', reason: 'sync_timestamp يجب أن يكون DEFAULT 0');
+      expect(
+        col['dflt_value'],
+        '0',
+        reason: 'sync_timestamp يجب أن يكون DEFAULT 0',
+      );
     });
   });
 
@@ -226,20 +271,32 @@ void main() {
       for (final entry in _expectedSyncFields.entries) {
         final def = entry.value['default'] as String?;
         if (def != null && entry.value['type'] == 'INTEGER') {
-          expect(int.tryParse(def), isNotNull, reason: 'default "${def}" للحقل ${entry.key} ليس عدداً صحيحاً');
+          expect(
+            int.tryParse(def),
+            isNotNull,
+            reason: 'default "${def}" للحقل ${entry.key} ليس عدداً صحيحاً',
+          );
         }
       }
     });
 
     test('createdAt, updatedAt, lastModified غير nullable', () {
       for (final required in ['createdAt', 'updatedAt', 'lastModified']) {
-        expect(_expectedSyncFields[required]!['nullable'], false, reason: '${required} يجب أن يكون required=true');
+        expect(
+          _expectedSyncFields[required]!['nullable'],
+          false,
+          reason: '${required} يجب أن يكون required=true',
+        );
       }
     });
 
     test('serverId و deletedAt nullable', () {
       for (final nullable in ['serverId', 'deletedAt']) {
-        expect(_expectedSyncFields[nullable]!['nullable'], true, reason: '${nullable} يجب أن يكون nullable');
+        expect(
+          _expectedSyncFields[nullable]!['nullable'],
+          true,
+          reason: '${nullable} يجب أن يكون nullable',
+        );
       }
     });
   });

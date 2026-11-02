@@ -67,11 +67,18 @@ void main() {
       expect(payload['date'], '2026-08-12');
     });
 
-    test('1e. payload لا يحتوي على amount عندما null (سلوك putIfNotNull)', () async {
-      final debt = await _insertDebt(db, amount: null);
-      final payload = payloadMapper.debtToRemote(debt);
-      expect(payload.containsKey('amount'), isFalse, reason: 'amount null يجب ألا يُرسل في الـ payload');
-    });
+    test(
+      '1e. payload لا يحتوي على amount عندما null (سلوك putIfNotNull)',
+      () async {
+        final debt = await _insertDebt(db, amount: null);
+        final payload = payloadMapper.debtToRemote(debt);
+        expect(
+          payload.containsKey('amount'),
+          isFalse,
+          reason: 'amount null يجب ألا يُرسل في الـ payload',
+        );
+      },
+    );
 
     test('1f. payload لا يحتوي على bookingUuidCache عندما null/فارغ', () async {
       final debt = await _insertDebt(db, bookingUuidCache: null);
@@ -109,10 +116,16 @@ void main() {
         'paidAmount': 500.0,
         'bookingUuidCache': 'booking-uuid-789',
       };
-      final companion = await debtsAdapter.resolveAndFromJson(db, json, src: Source.appwrite);
+      final companion = await debtsAdapter.resolveAndFromJson(
+        db,
+        json,
+        src: Source.appwrite,
+      );
       await db.into(db.debts).insert(companion);
 
-      final saved = await (db.select(db.debts)..where((t) => t.localUuid.equals('debt-1'))).getSingle();
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-1'))).getSingle();
       expect(saved.bookingUuidCache, 'booking-uuid-789');
     });
 
@@ -125,10 +138,16 @@ void main() {
         'paidAmount': 500.0,
         'debtorName': 'Mohammed Saleh',
       };
-      final companion = await debtsAdapter.resolveAndFromJson(db, json, src: Source.appwrite);
+      final companion = await debtsAdapter.resolveAndFromJson(
+        db,
+        json,
+        src: Source.appwrite,
+      );
       await db.into(db.debts).insert(companion);
 
-      final saved = await (db.select(db.debts)..where((t) => t.localUuid.equals('debt-2'))).getSingle();
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-2'))).getSingle();
       expect(saved.debtorName, 'Mohammed Saleh');
     });
 
@@ -141,10 +160,16 @@ void main() {
         'paidAmount': 500.0,
         'amount': 2500.75,
       };
-      final companion = await debtsAdapter.resolveAndFromJson(db, json, src: Source.appwrite);
+      final companion = await debtsAdapter.resolveAndFromJson(
+        db,
+        json,
+        src: Source.appwrite,
+      );
       await db.into(db.debts).insert(companion);
 
-      final saved = await (db.select(db.debts)..where((t) => t.localUuid.equals('debt-3'))).getSingle();
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-3'))).getSingle();
       expect(saved.amount, 2500.75);
     });
 
@@ -157,35 +182,50 @@ void main() {
         'paidAmount': 500.0,
         'date': '2026-08-12',
       };
-      final companion = await debtsAdapter.resolveAndFromJson(db, json, src: Source.appwrite);
+      final companion = await debtsAdapter.resolveAndFromJson(
+        db,
+        json,
+        src: Source.appwrite,
+      );
       await db.into(db.debts).insert(companion);
 
-      final saved = await (db.select(db.debts)..where((t) => t.localUuid.equals('debt-4'))).getSingle();
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-4'))).getSingle();
       expect(saved.date, '2026-08-12');
     });
 
-    test('2e. fromJson يقرأ snake_case variants (booking_uuid_cache, debtor_name)', () async {
-      // Drive sync يستخدم snake_case
-      final json = {
-        'local_uuid': 'debt-5',
-        'guest_name': 'Guest 5',
-        'checkin_date': '2026-08-01',
-        'total_amount': 1000.0,
-        'paid_amount': 500.0,
-        'booking_uuid_cache': 'booking-snake',
-        'debtor_name': 'Snake Debtor',
-        'amount': 300.0,
-        'date': '2026-08-13',
-      };
-      final companion = await debtsAdapter.resolveAndFromJson(db, json, src: Source.drive);
-      await db.into(db.debts).insert(companion);
+    test(
+      '2e. fromJson يقرأ snake_case variants (booking_uuid_cache, debtor_name)',
+      () async {
+        // Drive sync يستخدم snake_case
+        final json = {
+          'local_uuid': 'debt-5',
+          'guest_name': 'Guest 5',
+          'checkin_date': '2026-08-01',
+          'total_amount': 1000.0,
+          'paid_amount': 500.0,
+          'booking_uuid_cache': 'booking-snake',
+          'debtor_name': 'Snake Debtor',
+          'amount': 300.0,
+          'date': '2026-08-13',
+        };
+        final companion = await debtsAdapter.resolveAndFromJson(
+          db,
+          json,
+          src: Source.drive,
+        );
+        await db.into(db.debts).insert(companion);
 
-      final saved = await (db.select(db.debts)..where((t) => t.localUuid.equals('debt-5'))).getSingle();
-      expect(saved.bookingUuidCache, 'booking-snake');
-      expect(saved.debtorName, 'Snake Debtor');
-      expect(saved.amount, 300.0);
-      expect(saved.date, '2026-08-13');
-    });
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-5'))).getSingle();
+        expect(saved.bookingUuidCache, 'booking-snake');
+        expect(saved.debtorName, 'Snake Debtor');
+        expect(saved.amount, 300.0);
+        expect(saved.date, '2026-08-13');
+      },
+    );
 
     test('2f. fromJson يتعامل مع القيم المفقودة (null بأمان)', () async {
       final json = {
@@ -196,10 +236,16 @@ void main() {
         'paidAmount': 500.0,
         // لا bookingUuidCache, debtorName, amount, date
       };
-      final companion = await debtsAdapter.resolveAndFromJson(db, json, src: Source.appwrite);
+      final companion = await debtsAdapter.resolveAndFromJson(
+        db,
+        json,
+        src: Source.appwrite,
+      );
       await db.into(db.debts).insert(companion);
 
-      final saved = await (db.select(db.debts)..where((t) => t.localUuid.equals('debt-6'))).getSingle();
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-6'))).getSingle();
       expect(saved.bookingUuidCache, isNull);
       expect(saved.debtorName, isNull);
       expect(saved.amount, isNull);
@@ -212,26 +258,42 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════
   group('Migration 58: أعمدة debts الجديدة', () {
     test('3a. عمود booking_uuid_cache موجود في debts', () async {
-      final result = await db.customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts}).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts})
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('booking_uuid_cache'));
     });
 
     test('3b. عمود debtor_name موجود في debts', () async {
-      final result = await db.customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts}).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts})
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('debtor_name'));
     });
 
     test('3c. عمود amount موجود في debts', () async {
-      final result = await db.customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts}).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts})
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('amount'));
     });
 
     test('3d. عمود date موجود في debts', () async {
-      final result = await db.customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts}).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect('PRAGMA table_info(debts)', readsFrom: {db.debts})
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('date'));
     });
 
@@ -260,25 +322,42 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════
   group('filterPayload: debts يسمح بالحقول الأربعة', () {
     test('4a. filterPayload يحتفظ بـ bookingUuidCache', () {
-      final payload = {'localUuid': 'x', 'bookingUuidCache': 'booking-1', 'unknownField': 'should-be-removed'};
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', payload);
+      final payload = {
+        'localUuid': 'x',
+        'bookingUuidCache': 'booking-1',
+        'unknownField': 'should-be-removed',
+      };
+      final filtered = AppwriteSyncUtils.filterPayloadForCollection(
+        'debts',
+        payload,
+      );
       expect(filtered.containsKey('bookingUuidCache'), isTrue);
       expect(filtered['bookingUuidCache'], 'booking-1');
-      expect(filtered.containsKey('unknownField'), isFalse, reason: 'الحقول غير المدرجة يجب أن تُزال');
+      expect(
+        filtered.containsKey('unknownField'),
+        isFalse,
+        reason: 'الحقول غير المدرجة يجب أن تُزال',
+      );
     });
 
     test('4b. filterPayload يحتفظ بـ debtorName', () {
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {'debtorName': 'X'});
+      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {
+        'debtorName': 'X',
+      });
       expect(filtered.containsKey('debtorName'), isTrue);
     });
 
     test('4c. filterPayload يحتفظ بـ amount', () {
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {'amount': 100.0});
+      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {
+        'amount': 100.0,
+      });
       expect(filtered.containsKey('amount'), isTrue);
     });
 
     test('4d. filterPayload يحتفظ بـ date', () {
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {'date': '2026-08-12'});
+      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', {
+        'date': '2026-08-12',
+      });
       expect(filtered.containsKey('date'), isTrue);
     });
   });
@@ -312,7 +391,13 @@ void main() {
     });
 
     test('5e. toJson (appwrite) يحتوي على الحقول بـ camelCase', () async {
-      final debt = await _insertDebt(db, bookingUuidCache: 'b-1', debtorName: 'd-1', amount: 100.0, date: '2026-01-01');
+      final debt = await _insertDebt(
+        db,
+        bookingUuidCache: 'b-1',
+        debtorName: 'd-1',
+        amount: 100.0,
+        date: '2026-01-01',
+      );
       final json = debtsAdapter.toJson(debt, src: Source.appwrite);
       expect(json['bookingUuidCache'], 'b-1');
       expect(json['debtorName'], 'd-1');
@@ -337,16 +422,25 @@ void main() {
       final payload = payloadMapper.debtToRemote(debt);
       // 2. filterPayload يحتفظ بالحقول المسموح بها فقط
       // (debtToRemote يستدعي sanitizePayload داخلياً، لكن نختبر مرة أخرى)
-      final filtered = AppwriteSyncUtils.filterPayloadForCollection('debts', payload);
+      final filtered = AppwriteSyncUtils.filterPayloadForCollection(
+        'debts',
+        payload,
+      );
       // 3. محاكاة pull على جهاز ثانٍ/قاعدة خالية. لا يستخدم Drift
       // localUuid كمفتاح conflict، لذلك insertOnConflictUpdate لا يصلح
       // لمحاكاة upsert عبر UUID في هذا الاختبار.
       await (db.delete(db.debts)..where((t) => t.id.equals(debt.id))).go();
-      final companion = await debtsAdapter.resolveAndFromJson(db, filtered, src: Source.appwrite);
+      final companion = await debtsAdapter.resolveAndFromJson(
+        db,
+        filtered,
+        src: Source.appwrite,
+      );
       await db.into(db.debts).insert(companion);
 
       // 4. التحقق أن القيم محفوظة بعد round-trip
-      final saved = await (db.select(db.debts)..where((t) => t.localUuid.equals(debt.localUuid))).getSingle();
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals(debt.localUuid))).getSingle();
       expect(saved.bookingUuidCache, 'rt-1');
       expect(saved.debtorName, 'RT Debtor');
       expect(saved.amount, 500.0);
@@ -361,7 +455,11 @@ void main() {
 
 extension on DebtsAdapter {
   /// Helper: يجمع resolveRefs + fromJson في خطوة واحدة للاختبار.
-  Future<DebtsCompanion> resolveAndFromJson(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<DebtsCompanion> resolveAndFromJson(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final refs = await resolveRefs(db, json, src: src);
     return fromJson(json, src: src, refs: refs);
   }
@@ -370,7 +468,12 @@ extension on DebtsAdapter {
 /// Stub resolver — لا يحل FK، فقط يُرجع null.
 class _StubResolver implements IdResolver {
   @override
-  Future<int?> resolveBooking({int? localId, int? serverId, String? uuid, bool fromRemote = false}) async => localId;
+  Future<int?> resolveBooking({
+    int? localId,
+    int? serverId,
+    String? uuid,
+    bool fromRemote = false,
+  }) async => localId;
 
   @override
   Future<int?> resolveEmployee({
@@ -382,8 +485,12 @@ class _StubResolver implements IdResolver {
   }) async => localId;
 
   @override
-  Future<int?> resolveSalaryCycle({int? localId, int? serverId, String? uuid, bool fromRemote = false}) async =>
-      localId;
+  Future<int?> resolveSalaryCycle({
+    int? localId,
+    int? serverId,
+    String? uuid,
+    bool fromRemote = false,
+  }) async => localId;
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -417,11 +524,19 @@ Future<Debt> _insertDebt(
           lastModified: now,
           syncTimestamp: drift.Value(now),
           // ✅ حقول Wave 6 الجديدة
-          bookingUuidCache: bookingUuidCache != null ? drift.Value(bookingUuidCache) : const drift.Value.absent(),
-          debtorName: debtorName != null ? drift.Value(debtorName) : const drift.Value.absent(),
-          amount: amount != null ? drift.Value(amount) : const drift.Value.absent(),
+          bookingUuidCache: bookingUuidCache != null
+              ? drift.Value(bookingUuidCache)
+              : const drift.Value.absent(),
+          debtorName: debtorName != null
+              ? drift.Value(debtorName)
+              : const drift.Value.absent(),
+          amount: amount != null
+              ? drift.Value(amount)
+              : const drift.Value.absent(),
           date: date != null ? drift.Value(date) : const drift.Value.absent(),
         ),
       );
-  return (db.select(db.debts)..where((t) => t.localUuid.equals(uuid))).getSingle();
+  return (db.select(
+    db.debts,
+  )..where((t) => t.localUuid.equals(uuid))).getSingle();
 }

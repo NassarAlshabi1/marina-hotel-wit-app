@@ -117,7 +117,9 @@ void main() {
               ),
             );
 
-        final pending = await (db.select(db.outbox)..where((t) => t.processingStatus.equals('pending'))).get();
+        final pending = await (db.select(
+          db.outbox,
+        )..where((t) => t.processingStatus.equals('pending'))).get();
         expect(pending.length, equals(1));
         expect(pending.first.localUuid, equals('test-offline'));
       });

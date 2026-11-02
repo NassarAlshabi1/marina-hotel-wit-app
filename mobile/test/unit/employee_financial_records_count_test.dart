@@ -50,12 +50,20 @@ void main() {
 
   /// إنشاء موظف وإرجاع الصف الكامل (id + localUuid)
   Future<Employee> seedEmployee(String name, {String status = 'active'}) async {
-    final id = await empRepo.create(name: name, basicSalary: 50000, status: status);
+    final id = await empRepo.create(
+      name: name,
+      basicSalary: 50000,
+      status: status,
+    );
     return (db.select(db.employees)..where((t) => t.id.equals(id))).getSingle();
   }
 
   /// إدخال مصروف رواتب مرتبط بموظف
-  Future<int> seedExpense(Employee emp, {bool byUuidOnly = false, String? uuid}) async {
+  Future<int> seedExpense(
+    Employee emp, {
+    bool byUuidOnly = false,
+    String? uuid,
+  }) async {
     return db
         .into(db.expenses)
         .insert(
@@ -66,7 +74,9 @@ void main() {
             date: const d.Value('2026-09-01'),
             relatedId: byUuidOnly ? const d.Value(null) : d.Value(emp.id),
             employeeUuid: d.Value(emp.localUuid),
-            localUuid: d.Value(uuid ?? 'exp-${emp.id}-$now-${seedExpenseCounter++}'),
+            localUuid: d.Value(
+              uuid ?? 'exp-${emp.id}-$now-${seedExpenseCounter++}',
+            ),
             createdAt: const d.Value(now),
             updatedAt: const d.Value(now),
             lastModified: const d.Value(now),
@@ -75,7 +85,11 @@ void main() {
   }
 
   /// إدخال سحب راتب مرتبط بموظف
-  Future<int> seedWithdrawal(Employee emp, {int? expenseId, String? uuid}) async {
+  Future<int> seedWithdrawal(
+    Employee emp, {
+    int? expenseId,
+    String? uuid,
+  }) async {
     return db
         .into(db.salaryWithdrawals)
         .insert(
@@ -85,7 +99,9 @@ void main() {
             amount: const d.Value(10000.0),
             withdrawDate: const d.Value('2026-09-01'),
             expenseId: d.Value(expenseId),
-            localUuid: d.Value(uuid ?? 'sw-${emp.id}-$now-${seedWithdrawalCounter++}'),
+            localUuid: d.Value(
+              uuid ?? 'sw-${emp.id}-$now-${seedWithdrawalCounter++}',
+            ),
             createdAt: const d.Value(now),
             updatedAt: const d.Value(now),
             lastModified: const d.Value(now),
@@ -106,7 +122,11 @@ void main() {
       await seedWithdrawal(emp, expenseId: expId);
 
       final count = await empRepo.financialRecordsCount(emp.id);
-      expect(count, 1, reason: 'السحب مرتبط بالمصروف عبر expense_id — حدث مالي واحد');
+      expect(
+        count,
+        1,
+        reason: 'السحب مرتبط بالمصروف عبر expense_id — حدث مالي واحد',
+      );
     });
 
     test('سحب غير مرتبط بمصروف يُعدّ سجلاً مستقلاً', () async {
@@ -124,7 +144,11 @@ void main() {
       await seedExpense(emp, byUuidOnly: true);
 
       final count = await empRepo.financialRecordsCount(emp.id);
-      expect(count, 1, reason: 'العدّ عبر employeeUuid يلتقط السجلات العابرة للأجهزة');
+      expect(
+        count,
+        1,
+        reason: 'العدّ عبر employeeUuid يلتقط السجلات العابرة للأجهزة',
+      );
     });
 
     test('سحب عبر UUID فقط (employeeId مختلف) يُلتقط', () async {
@@ -151,7 +175,11 @@ void main() {
       await db.customStatement('PRAGMA foreign_keys = ON');
 
       final count = await empRepo.financialRecordsCount(emp.id);
-      expect(count, 1, reason: 'الربط عبر UUID ينقذ العدّ رغم اختلاف المعرف الرقمي');
+      expect(
+        count,
+        1,
+        reason: 'الربط عبر UUID ينقذ العدّ رغم اختلاف المعرف الرقمي',
+      );
     });
 
     test('السجلات المحذوفة منطقياً (deletedAt) لا تُعدّ', () async {
@@ -160,10 +188,20 @@ void main() {
       final swId = await seedWithdrawal(emp, expenseId: expId);
 
       await (db.update(db.expenses)..where((t) => t.id.equals(expId))).write(
-        const ExpensesCompanion(deletedAt: d.Value(now), updatedAt: d.Value(now), lastModified: d.Value(now)),
+        const ExpensesCompanion(
+          deletedAt: d.Value(now),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+        ),
       );
-      await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(swId))).write(
-        const SalaryWithdrawalsCompanion(deletedAt: d.Value(now), updatedAt: d.Value(now), lastModified: d.Value(now)),
+      await (db.update(
+        db.salaryWithdrawals,
+      )..where((t) => t.id.equals(swId))).write(
+        const SalaryWithdrawalsCompanion(
+          deletedAt: d.Value(now),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+        ),
       );
 
       final count = await empRepo.financialRecordsCount(emp.id);
@@ -183,12 +221,18 @@ void main() {
         terminationReason: 'اختبار',
       );
 
-      final after = await (db.select(db.employees)..where((t) => t.id.equals(emp.id))).getSingle();
+      final after = await (db.select(
+        db.employees,
+      )..where((t) => t.id.equals(emp.id))).getSingle();
       expect(StatusUtils.isEmployeeTerminated(after.status), isTrue);
       expect(after.deletedAt, isNull, reason: 'الإنهاء لا يحذف — حالة فقط');
 
       final count = await empRepo.financialRecordsCount(emp.id);
-      expect(count, 2, reason: 'إنهاء الخدمة يحفظ التاريخ المالي — الحارس يجده كاملاً');
+      expect(
+        count,
+        2,
+        reason: 'إنهاء الخدمة يحفظ التاريخ المالي — الحارس يجده كاملاً',
+      );
     });
 
     test('موظف غير موجود → 0 بلا استثناء', () async {
@@ -224,7 +268,11 @@ void main() {
       );
 
       final count = await empRepo.financialRecordsCount(emp.id);
-      expect(count, 1, reason: 'createFromExpense يربط السحب بالمصروف — لا عدّ مزدوج');
+      expect(
+        count,
+        1,
+        reason: 'createFromExpense يربط السحب بالمصروف — لا عدّ مزدوج',
+      );
     });
 
     test('سجلات موظف آخر لا تُنسب له', () async {

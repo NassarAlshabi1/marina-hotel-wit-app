@@ -37,11 +37,15 @@ class SyncGuard {
   SyncGuard._();
 
   /// الإعدادات الحالية (الافتراضية)
-  static const _defaultStaleLockTimeout = SyncConstants.syncGuardMaxHoldDuration;
+  static const _defaultStaleLockTimeout =
+      SyncConstants.syncGuardMaxHoldDuration;
 
   static Duration _staleLockTimeout = _defaultStaleLockTimeout;
 
-  static void configureTimeouts({Duration? lockTimeout, Duration? staleLockTimeout}) {
+  static void configureTimeouts({
+    Duration? lockTimeout,
+    Duration? staleLockTimeout,
+  }) {
     // lockTimeout هو الاسم التاريخي لنفس مهلة الكشف عن القفل المنتهي.
     // نبقيه للتوافق مع الاستدعاءات القديمة، وتعطى القيمة الجديدة أولوية.
     final timeout = staleLockTimeout ?? lockTimeout;
@@ -103,7 +107,10 @@ class SyncGuard {
   ///
   /// **ownership safety**: فقط `release(token)` بنفس الـ token يفك القفل.
   /// هذا يمنع stale release و cross-release (انظر [release]).
-  static SyncLockToken? tryAcquire({required String label, SyncPriority? priority}) {
+  static SyncLockToken? tryAcquire({
+    required String label,
+    SyncPriority? priority,
+  }) {
     if (!canStart(label: label)) {
       dlog(
         () =>
@@ -117,7 +124,10 @@ class SyncGuard {
     _activeSyncToken = _tokenCounter;
     _activeSyncStartedAt = DateTime.now();
     _activeSyncLabel = label;
-    dlog(() => '🔒 SyncGuard: tryAcquire GRANTED for "$label" (token=#$_activeSyncToken)');
+    dlog(
+      () =>
+          '🔒 SyncGuard: tryAcquire GRANTED for "$label" (token=#$_activeSyncToken)',
+    );
     return SyncLockToken._(_activeSyncToken, label);
   }
 

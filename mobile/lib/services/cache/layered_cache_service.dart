@@ -34,7 +34,12 @@ class LayeredCacheService {
   // ─── Public API ───
 
   /// Get cached or fetch
-  static Future<T> get<T>(String key, Future<T> Function() fetcher, {Duration? ttl, bool forceRefresh = false}) async {
+  static Future<T> get<T>(
+    String key,
+    Future<T> Function() fetcher, {
+    Duration? ttl,
+    bool forceRefresh = false,
+  }) async {
     // Check memory first
     if (!forceRefresh && _memoryCache.containsKey(key)) {
       final entry = _memoryCache[key]!;
@@ -50,7 +55,11 @@ class LayeredCacheService {
     if (!forceRefresh) {
       final diskValue = await _getFromDisk<T>(key);
       if (diskValue != null) {
-        _memoryCache[key] = CacheEntry(diskValue, DateTime.now(), ttl ?? const Duration(minutes: 5));
+        _memoryCache[key] = CacheEntry(
+          diskValue,
+          DateTime.now(),
+          ttl ?? const Duration(minutes: 5),
+        );
         _updateLRU(key);
         return diskValue;
       }
@@ -61,7 +70,11 @@ class LayeredCacheService {
 
     // Store in both tiers
     await _setToDisk(key, value);
-    _memoryCache[key] = CacheEntry(value, DateTime.now(), ttl ?? const Duration(minutes: 5));
+    _memoryCache[key] = CacheEntry(
+      value,
+      DateTime.now(),
+      ttl ?? const Duration(minutes: 5),
+    );
     _updateLRU(key);
 
     return value;
@@ -69,7 +82,11 @@ class LayeredCacheService {
 
   /// Set value directly
   static Future<void> set<T>(String key, T value, {Duration? ttl}) async {
-    _memoryCache[key] = CacheEntry(value, DateTime.now(), ttl ?? const Duration(minutes: 5));
+    _memoryCache[key] = CacheEntry(
+      value,
+      DateTime.now(),
+      ttl ?? const Duration(minutes: 5),
+    );
     _updateLRU(key);
     await _setToDisk(key, value);
   }
@@ -155,7 +172,11 @@ class LayeredCacheService {
 
   /// Get statistics
   static Map<String, dynamic> getStats() {
-    return {'memoryEntries': _memoryCache.length, 'memoryMax': _maxMemoryEntries, 'keys': _memoryCache.keys.toList()};
+    return {
+      'memoryEntries': _memoryCache.length,
+      'memoryMax': _maxMemoryEntries,
+      'keys': _memoryCache.keys.toList(),
+    };
   }
 }
 
@@ -169,6 +190,10 @@ extension PaginatedCache on LayeredCacheService {
     Duration? ttl,
   }) async {
     final pageKey = '${baseKey}_page_1'; // Simplifed to first page
-    return LayeredCacheService.get<List<T>>(pageKey, () => fetcher(1), ttl: ttl ?? const Duration(minutes: 2));
+    return LayeredCacheService.get<List<T>>(
+      pageKey,
+      () => fetcher(1),
+      ttl: ttl ?? const Duration(minutes: 2),
+    );
   }
 }

@@ -18,7 +18,9 @@ class _FakeConnectionStatusNotifier extends ap.ConnectionStatusNotifier {
 Widget _buildSettingsScreen() {
   return ProviderScope(
     overrides: [
-      ap.connectionStatusProvider.overrideWith((ref) => _FakeConnectionStatusNotifier(ref)),
+      ap.connectionStatusProvider.overrideWith(
+        (ref) => _FakeConnectionStatusNotifier(ref),
+      ),
       ap.syncStatsProvider.overrideWith(
         (ref) async => <String, dynamic>{
           'totalSyncs': 0,
@@ -46,7 +48,10 @@ Widget _buildSettingsScreen() {
       ap.devicesListProvider.overrideWith((ref) async => <AppwriteDevice>[]),
     ],
     child: const MaterialApp(
-      home: Directionality(textDirection: TextDirection.rtl, child: AppwriteSettingsScreen()),
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: AppwriteSettingsScreen(),
+      ),
     ),
   );
 }
@@ -61,7 +66,12 @@ void main() {
   testWidgets('يعرض أزرار إدارة Appwrite الأساسية', (tester) async {
     await tester.pumpWidget(_buildSettingsScreen());
     await tester.pump();
-    final scrollable = find.descendant(of: find.byType(ListView).first, matching: find.byType(Scrollable)).first;
+    final scrollable = find
+        .descendant(
+          of: find.byType(ListView).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
     for (final label in const [
       'إنشاء النسخة',
       'بدء الرفع',
@@ -70,24 +80,46 @@ void main() {
       'اختبار المزامنة',
       'اختبار الذاكرة المؤقتة',
     ]) {
-      await tester.scrollUntilVisible(find.text(label, skipOffstage: false), 500, scrollable: scrollable);
+      await tester.scrollUntilVisible(
+        find.text(label, skipOffstage: false),
+        500,
+        scrollable: scrollable,
+      );
     }
 
     expect(find.text('إنشاء النسخة', skipOffstage: false), findsOneWidget);
-    expect(find.text('تعبئة entryDate القديمة في Appwrite Cloud'), findsNothing);
+    expect(
+      find.text('تعبئة entryDate القديمة في Appwrite Cloud'),
+      findsNothing,
+    );
     expect(find.text('فتح أداة التعبئة'), findsNothing);
     expect(find.text('بدء الرفع', skipOffstage: false), findsOneWidget);
     expect(find.text('بدء السحب', skipOffstage: false), findsOneWidget);
-    expect(find.text('إعادة تعيين المزامنة', skipOffstage: false), findsOneWidget);
+    expect(
+      find.text('إعادة تعيين المزامنة', skipOffstage: false),
+      findsOneWidget,
+    );
     expect(find.text('اختبار المزامنة', skipOffstage: false), findsOneWidget);
-    expect(find.text('اختبار الذاكرة المؤقتة', skipOffstage: false), findsOneWidget);
+    expect(
+      find.text('اختبار الذاكرة المؤقتة', skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets('يعرض اختيار الجدول عند بدء تصدير CSV', (tester) async {
     await tester.pumpWidget(_buildSettingsScreen());
     await tester.pump();
-    final scrollable = find.descendant(of: find.byType(ListView).first, matching: find.byType(Scrollable)).first;
-    await tester.scrollUntilVisible(find.text('اختيار الجدول والتصدير'), 400, scrollable: scrollable);
+    final scrollable = find
+        .descendant(
+          of: find.byType(ListView).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('اختيار الجدول والتصدير'),
+      400,
+      scrollable: scrollable,
+    );
     // ✅ مثل اختبار «لا ينفذ إجراءات البيانات قبل تأكيد المستخدم»:
     // بطاقات قسم إدارة البيانات طويلة، وقد يبقى زر الإجراء أسفل حافة
     // الشاشة بعد scrollUntilVisible فتفوت الضربة (hit-test خارج 800x600).
@@ -117,7 +149,12 @@ void main() {
       await tester.scrollUntilVisible(
         find.text(label),
         300,
-        scrollable: find.descendant(of: find.byType(ListView).first, matching: find.byType(Scrollable)).first,
+        scrollable: find
+            .descendant(
+              of: find.byType(ListView).first,
+              matching: find.byType(Scrollable),
+            )
+            .first,
       );
       await tester.ensureVisible(find.text(label));
       await tester.pumpAndSettle();
@@ -150,12 +187,17 @@ void main() {
     expect(find.text('هل تريد إعادة تعيين حالة المزامنة؟'), findsNothing);
   });
 
-  testWidgets('اختبار الاتصال يتحقق من المدخلات قبل أي طلب شبكي', (tester) async {
+  testWidgets('اختبار الاتصال يتحقق من المدخلات قبل أي طلب شبكي', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const ProviderScope(
         overrides: [],
         child: MaterialApp(
-          home: Directionality(textDirection: TextDirection.rtl, child: AppwriteConnectionSettingsScreen()),
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: AppwriteConnectionSettingsScreen(),
+          ),
         ),
       ),
     );
@@ -165,12 +207,25 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('اختبار الاتصال'),
       500,
-      scrollable: find.descendant(of: find.byType(ListView).first, matching: find.byType(Scrollable)).first,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView).first,
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.tap(find.text('اختبار الاتصال'));
     await tester.pump();
 
-    expect(find.text('يجب أن يبدأ العنوان بـ http:// أو https://'), findsOneWidget);
-    expect(find.text('اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق'), findsNothing);
+    expect(
+      find.text('يجب أن يبدأ العنوان بـ http:// أو https://'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق',
+      ),
+      findsNothing,
+    );
   });
 }

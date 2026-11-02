@@ -70,8 +70,17 @@ void main() {
 
       test('rejects malformed hash gracefully', () {
         expect(PasswordHasher.verify('password', 'malformed'), isFalse);
-        expect(PasswordHasher.verify('password', 'pbkdf2_sha256\$abc'), isFalse);
-        expect(PasswordHasher.verify('password', 'pbkdf2_sha256\$abc\$def\$ghi\$extra'), isFalse);
+        expect(
+          PasswordHasher.verify('password', 'pbkdf2_sha256\$abc'),
+          isFalse,
+        );
+        expect(
+          PasswordHasher.verify(
+            'password',
+            'pbkdf2_sha256\$abc\$def\$ghi\$extra',
+          ),
+          isFalse,
+        );
       });
 
       test('rejects corrupted base64 in hash', () {
@@ -136,7 +145,8 @@ void main() {
         final realHash = PasswordHasher.hash(password);
         final parts = realHash.split(r'$');
         // قصّ الـ hash الناتج ليكون أقصر
-        final shortHash = '${parts[0]}\$${parts[1]}\$${parts[2]}\$${parts[3].substring(0, 10)}';
+        final shortHash =
+            '${parts[0]}\$${parts[1]}\$${parts[2]}\$${parts[3].substring(0, 10)}';
         expect(PasswordHasher.verify(password, shortHash), isFalse);
       });
     });

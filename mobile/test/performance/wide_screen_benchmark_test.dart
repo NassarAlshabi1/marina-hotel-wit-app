@@ -164,7 +164,9 @@ Future<AppDatabase> _seedFullDatabase({
       DebtsCompanion(
         guestName: d.Value('مدين $i'),
         checkinDate: d.Value(now.toIso8601String()),
-        checkoutDate: d.Value(now.add(const Duration(days: 1)).toIso8601String()),
+        checkoutDate: d.Value(
+          now.add(const Duration(days: 1)).toIso8601String(),
+        ),
         dateRecorded: d.Value(now.toIso8601String()),
         debtReason: d.Value('دين $i'),
         totalAmount: d.Value((i + 1) * 100.0),
@@ -186,22 +188,34 @@ Future<AppDatabase> _seedFullDatabase({
 /// كل providers التالية تستخدم debounceStream (lib/utils/stream_helpers.dart:18)
 /// التي تُنشئ Timer(150ms) لا يُلغى عند dispose. هذا يسبب assertion
 /// '!timersPending' في flutter_test. لذلك نُعوّضها كلها بـ Stream.value ثابت.
-Widget _buildTestWidget({required AppDatabase db, required Widget child, List<Override> extraOverrides = const []}) {
+Widget _buildTestWidget({
+  required AppDatabase db,
+  required Widget child,
+  List<Override> extraOverrides = const [],
+}) {
   return ProviderScope(
     overrides: [
       databaseProvider.overrideWithValue(db),
       // ✅ Timer-safe overrides لكل providers التي تستخدم debounceStream:
       simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
       syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
-      roomsWithPaymentStatusProvider.overrideWith((ref) => Stream.value(const <RoomWithPaymentStatus>[])),
+      roomsWithPaymentStatusProvider.overrideWith(
+        (ref) => Stream.value(const <RoomWithPaymentStatus>[]),
+      ),
       todayPaymentsProvider.overrideWith((ref) => Stream.value(0.0)),
       todayExpensesProvider.overrideWith((ref) => Stream.value(0.0)),
       // ✅ قوائم رئيسية (كلها تستخدم debounceStream 150ms):
       roomsListProvider.overrideWith((ref) => Stream.value(const <Room>[])),
-      bookingsListProvider.overrideWith((ref) => Stream.value(const <Booking>[])),
-      employeesListProvider.overrideWith((ref) => Stream.value(const <Employee>[])),
+      bookingsListProvider.overrideWith(
+        (ref) => Stream.value(const <Booking>[]),
+      ),
+      employeesListProvider.overrideWith(
+        (ref) => Stream.value(const <Employee>[]),
+      ),
       debtsListProvider.overrideWith((ref) => Stream.value(const <Debt>[])),
-      expensesListProvider.overrideWith((ref) => Stream.value(const <Expense>[])),
+      expensesListProvider.overrideWith(
+        (ref) => Stream.value(const <Expense>[]),
+      ),
       // ✅ appVersionProvider يستدعي PackageInfo.fromPlatform (يفشل في test):
       appVersionProvider.overrideWith((ref) async => '1.0.0+1'),
       ...extraOverrides,
@@ -263,7 +277,9 @@ Future<ScreenMetrics> _measureScreen(
 
   try {
     final buildStopwatch = Stopwatch()..start();
-    await tester.pumpWidget(_buildTestWidget(db: db, child: child, extraOverrides: extraOverrides));
+    await tester.pumpWidget(
+      _buildTestWidget(db: db, child: child, extraOverrides: extraOverrides),
+    );
     buildStopwatch.stop();
     metrics.buildMs = buildStopwatch.elapsedMilliseconds;
 
@@ -340,12 +356,21 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   group('📱 DashboardScreen', () {
     testWidgets('البناء + الاستقرار خلال < 3 ثواني', (tester) async {
-      final metrics = await _measureScreen(tester, 'DashboardScreen', db, const DashboardScreen());
+      final metrics = await _measureScreen(
+        tester,
+        'DashboardScreen',
+        db,
+        const DashboardScreen(),
+      );
       allMetrics.add(metrics);
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000), reason: 'DashboardScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(
+        metrics.totalMs,
+        lessThan(3000),
+        reason: 'DashboardScreen يجب أن تُبنى خلال < 3 ثواني',
+      );
       // ✅ تنظيف أي timers معلّقة من debounceStream و drift قبل نهاية الـ test
       // لتجنب assertion '!timersPending' في flutter_test.
       await _cleanupPendingTimers(tester);
@@ -357,12 +382,21 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   group('🏨 RoomsListScreen', () {
     testWidgets('البناء + الاستقرار خلال < 3 ثواني', (tester) async {
-      final metrics = await _measureScreen(tester, 'RoomsListScreen', db, const RoomsListScreen());
+      final metrics = await _measureScreen(
+        tester,
+        'RoomsListScreen',
+        db,
+        const RoomsListScreen(),
+      );
       allMetrics.add(metrics);
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000), reason: 'RoomsListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(
+        metrics.totalMs,
+        lessThan(3000),
+        reason: 'RoomsListScreen يجب أن تُبنى خلال < 3 ثواني',
+      );
       await _cleanupPendingTimers(tester);
     });
   });
@@ -382,13 +416,23 @@ void main() {
         tester,
         'BookingPaymentScreen',
         db,
-        BookingPaymentScreen(booking: booking, refreshDerivedFieldsOnInit: false, listenToHotelDayTicker: false),
+        BookingPaymentScreen(
+          booking: booking,
+          refreshDerivedFieldsOnInit: false,
+          listenToHotelDayTicker: false,
+        ),
         extraOverrides: [
           liveBookingProvider.overrideWith((ref, _) => Stream.value(booking)),
           liveRoomByNumberProvider.overrideWith((ref, _) => Stream.value(room)),
-          bookingPriceAdjustmentsProvider.overrideWith((ref, _) => Stream.value(const <BookingPriceAdjustment>[])),
-          bookingNightsProvider.overrideWith((ref, _) => Stream.value(const <BookingNight>[])),
-          bookingPaymentsDirectProvider.overrideWith((ref, _) => Stream.value(const <Payment>[])),
+          bookingPriceAdjustmentsProvider.overrideWith(
+            (ref, _) => Stream.value(const <BookingPriceAdjustment>[]),
+          ),
+          bookingNightsProvider.overrideWith(
+            (ref, _) => Stream.value(const <BookingNight>[]),
+          ),
+          bookingPaymentsDirectProvider.overrideWith(
+            (ref, _) => Stream.value(const <Payment>[]),
+          ),
         ],
         settleTimeoutSec: 5,
       );
@@ -396,7 +440,11 @@ void main() {
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(5000), reason: 'BookingPaymentScreen يجب أن تُبنى خلال < 5 ثواني');
+      expect(
+        metrics.totalMs,
+        lessThan(5000),
+        reason: 'BookingPaymentScreen يجب أن تُبنى خلال < 5 ثواني',
+      );
       await _cleanupPendingTimers(tester);
     });
   });
@@ -406,12 +454,21 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   group('💰 DebtsListScreen', () {
     testWidgets('البناء + الاستقرار خلال < 3 ثواني', (tester) async {
-      final metrics = await _measureScreen(tester, 'DebtsListScreen', db, const DebtsListScreen());
+      final metrics = await _measureScreen(
+        tester,
+        'DebtsListScreen',
+        db,
+        const DebtsListScreen(),
+      );
       allMetrics.add(metrics);
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000), reason: 'DebtsListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(
+        metrics.totalMs,
+        lessThan(3000),
+        reason: 'DebtsListScreen يجب أن تُبنى خلال < 3 ثواني',
+      );
       await _cleanupPendingTimers(tester);
     });
   });
@@ -421,12 +478,21 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   group('👔 EmployeesListScreen', () {
     testWidgets('البناء + الاستقرار خلال < 3 ثواني', (tester) async {
-      final metrics = await _measureScreen(tester, 'EmployeesListScreen', db, const EmployeesListScreen());
+      final metrics = await _measureScreen(
+        tester,
+        'EmployeesListScreen',
+        db,
+        const EmployeesListScreen(),
+      );
       allMetrics.add(metrics);
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000), reason: 'EmployeesListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(
+        metrics.totalMs,
+        lessThan(3000),
+        reason: 'EmployeesListScreen يجب أن تُبنى خلال < 3 ثواني',
+      );
       await _cleanupPendingTimers(tester);
     });
   });
@@ -436,12 +502,21 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
   group('📅 BookingsListScreen', () {
     testWidgets('البناء + الاستقرار خلال < 3 ثواني', (tester) async {
-      final metrics = await _measureScreen(tester, 'BookingsListScreen', db, const BookingsListScreen());
+      final metrics = await _measureScreen(
+        tester,
+        'BookingsListScreen',
+        db,
+        const BookingsListScreen(),
+      );
       allMetrics.add(metrics);
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000), reason: 'BookingsListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(
+        metrics.totalMs,
+        lessThan(3000),
+        reason: 'BookingsListScreen يجب أن تُبنى خلال < 3 ثواني',
+      );
       await _cleanupPendingTimers(tester);
     });
   });
@@ -452,15 +527,33 @@ void main() {
   group('📊 Final Comparison Report', () {
     test('طباعة جدول مقارنة كل المقاييس', () {
       debugPrint('');
-      debugPrint('╔══════════════════════════════════════════════════════════════════════════╗');
-      debugPrint('║  📊 Marina Hotel — Wide Coverage Screen Benchmark — Final Report      ║');
-      debugPrint('╠══════════════════════════════════════════════════════════════════════════╣');
-      debugPrint('║  البيانات: 20 غرفة + 15 حجز + 30 مصروف + 5 موظفين + 10 ديون           ║');
-      debugPrint('║  DB: drift NativeDatabase.memory() (حقيقية في الذاكرة)                ║');
-      debugPrint('║  Providers: ProviderScope + Timer-safe overrides                      ║');
-      debugPrint('╠══════════════════════════════════════════════════════════════════════════╣');
-      debugPrint('║  Screen                │ build(ms) │ settle(ms) │ total │ mem(MB) │ ✅  ║');
-      debugPrint('╠══════════════════════════════════════════════════════════════════════════╣');
+      debugPrint(
+        '╔══════════════════════════════════════════════════════════════════════════╗',
+      );
+      debugPrint(
+        '║  📊 Marina Hotel — Wide Coverage Screen Benchmark — Final Report      ║',
+      );
+      debugPrint(
+        '╠══════════════════════════════════════════════════════════════════════════╣',
+      );
+      debugPrint(
+        '║  البيانات: 20 غرفة + 15 حجز + 30 مصروف + 5 موظفين + 10 ديون           ║',
+      );
+      debugPrint(
+        '║  DB: drift NativeDatabase.memory() (حقيقية في الذاكرة)                ║',
+      );
+      debugPrint(
+        '║  Providers: ProviderScope + Timer-safe overrides                      ║',
+      );
+      debugPrint(
+        '╠══════════════════════════════════════════════════════════════════════════╣',
+      );
+      debugPrint(
+        '║  Screen                │ build(ms) │ settle(ms) │ total │ mem(MB) │ ✅  ║',
+      );
+      debugPrint(
+        '╠══════════════════════════════════════════════════════════════════════════╣',
+      );
       for (final m in allMetrics) {
         final name = m.screenName.padRight(22);
         final build = m.buildMs.toString().padLeft(8);
@@ -470,17 +563,32 @@ void main() {
         final ok = m.passed ? ' ✅ ' : ' ❌ ';
         debugPrint('║  $name │ $build │ $settle │ $total │ $mem │$ok ║');
       }
-      debugPrint('╚══════════════════════════════════════════════════════════════════════════╝');
+      debugPrint(
+        '╚══════════════════════════════════════════════════════════════════════════╝',
+      );
 
       // التحقق أن كل الشاشات نجحت
       final failed = allMetrics.where((m) => !m.passed).toList();
-      expect(failed, isEmpty, reason: 'كل الشاشات يجب أن تنجح. الفاشلة: ${failed.map((m) => m.screenName).join(", ")}');
+      expect(
+        failed,
+        isEmpty,
+        reason:
+            'كل الشاشات يجب أن تنجح. الفاشلة: ${failed.map((m) => m.screenName).join(", ")}',
+      );
 
       // التحقق أن متوسط زمن البناء معقول
       if (allMetrics.isNotEmpty) {
-        final avgTotal = allMetrics.fold<int>(0, (s, m) => s + m.totalMs) / allMetrics.length;
-        debugPrint('  📈 متوسط زمن البناء الكلي: ${avgTotal.toStringAsFixed(0)}ms');
-        expect(avgTotal, lessThan(3000), reason: 'متوسط زمن البناء يجب أن يكون < 3 ثواني');
+        final avgTotal =
+            allMetrics.fold<int>(0, (s, m) => s + m.totalMs) /
+            allMetrics.length;
+        debugPrint(
+          '  📈 متوسط زمن البناء الكلي: ${avgTotal.toStringAsFixed(0)}ms',
+        );
+        expect(
+          avgTotal,
+          lessThan(3000),
+          reason: 'متوسط زمن البناء يجب أن يكون < 3 ثواني',
+        );
       }
     });
   });

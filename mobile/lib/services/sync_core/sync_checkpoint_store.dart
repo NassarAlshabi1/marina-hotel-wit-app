@@ -207,7 +207,10 @@ class SyncCheckpointStore {
   }
 
   /// يرفع أقصى `$updatedAt` مُشاهد خلال السحب الكامل الجاري (monotonic).
-  Future<void> bumpFullSyncMaxUpdated(String collectionName, int maxUpdatedSec) async {
+  Future<void> bumpFullSyncMaxUpdated(
+    String collectionName,
+    int maxUpdatedSec,
+  ) async {
     await _ensureTable();
     await db.customStatement(
       'INSERT INTO $tableName '
@@ -261,7 +264,10 @@ class SyncCheckpointStore {
   /// في كل الصفحات) نُعلن الاكتمال فقط دون مؤشر — الدورة التالية ترى
   /// `sinceTs <= 0` فتُعيد وضع Full (استعلام فارغ رخيص) — نفس دلالات
   /// [commit] القديمة للمجموعة الفارغة.
-  Future<void> completeFullSync(String collectionName, {required int maxUpdatedSec}) async {
+  Future<void> completeFullSync(
+    String collectionName, {
+    required int maxUpdatedSec,
+  }) async {
     await _ensureTable();
     if (maxUpdatedSec > 0) {
       await db.customStatement(
@@ -411,7 +417,9 @@ class SyncCheckpointStore {
   Future<bool> hasAnyCheckpoint() async {
     await _ensureTable();
     try {
-      final rows = await db.customSelect('SELECT COUNT(*) AS c FROM $tableName').get();
+      final rows = await db
+          .customSelect('SELECT COUNT(*) AS c FROM $tableName')
+          .get();
       if (rows.isEmpty) return false;
       return rows.first.read<int>('c') > 0;
     } catch (_) {
@@ -442,5 +450,6 @@ class SyncCheckpointStore {
     await db.customStatement('DELETE FROM $tableName');
   }
 
-  int _nowSec() => _clock?.call() ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  int _nowSec() =>
+      _clock?.call() ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
 }

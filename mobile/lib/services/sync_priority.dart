@@ -31,7 +31,8 @@ class SyncPriorityGuard {
   String? _currentLabel;
 
   SyncPriority? get current => _currentPriority;
-  Duration? get elapsed => _startedAt != null ? DateTime.now().difference(_startedAt!) : null;
+  Duration? get elapsed =>
+      _startedAt != null ? DateTime.now().difference(_startedAt!) : null;
   String? get currentLabel => _currentLabel;
 
   /// Can the requested priority run right now?

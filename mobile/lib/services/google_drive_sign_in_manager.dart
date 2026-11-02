@@ -2,9 +2,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const List<String> kGoogleDriveScopes = [drive.DriveApi.driveFileScope, drive.DriveApi.driveAppdataScope];
+const List<String> kGoogleDriveScopes = [
+  drive.DriveApi.driveFileScope,
+  drive.DriveApi.driveAppdataScope,
+];
 
-const String kGoogleDriveServerClientId = '256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com';
+const String kGoogleDriveServerClientId =
+    '256666337807-561s7dakv86m3kugsalv8opa8idkjmd0.apps.googleusercontent.com';
 
 const String _prefsWasSignedInKey = 'google_drive_was_signed_in';
 const String _prefsSignedInEmailKey = 'google_drive_signed_in_email';
@@ -27,7 +31,10 @@ class GoogleDriveSignInManager {
 
   /// كائن [GoogleSignIn] الموحّد — يتضمن جميع الصلاحيات و serverClientId
   GoogleSignIn get client {
-    _client ??= GoogleSignIn(scopes: kGoogleDriveScopes, serverClientId: kGoogleDriveServerClientId);
+    _client ??= GoogleSignIn(
+      scopes: kGoogleDriveScopes,
+      serverClientId: kGoogleDriveServerClientId,
+    );
     return _client!;
   }
 
@@ -118,5 +125,6 @@ class GoogleDriveSignInManager {
   }
 
   /// استمع لتغييرات الحساب (مثلاً عند إلغاء الصلاحية من الإعدادات)
-  Stream<GoogleSignInAccount?> get onCurrentUserChanged => client.onCurrentUserChanged;
+  Stream<GoogleSignInAccount?> get onCurrentUserChanged =>
+      client.onCurrentUserChanged;
 }

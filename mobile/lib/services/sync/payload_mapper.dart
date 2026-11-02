@@ -20,7 +20,11 @@ class PayloadMapper {
   }
 
   /// يضع السلسلة النصية في الـ Map فقط إذا كانت غير null وغير فارغة.
-  void putIfStringNotEmpty(Map<String, dynamic> map, String key, String? value) {
+  void putIfStringNotEmpty(
+    Map<String, dynamic> map,
+    String key,
+    String? value,
+  ) {
     if (value != null && value.isNotEmpty) {
       map[key] = value;
     }
@@ -64,12 +68,20 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'imageUrl', room.imageUrl);
     putIfStringNotEmpty(data, 'cleaningStatus', room.cleaningStatus);
     putIfStringNotEmpty(data, 'lastCleanedHotelDay', room.lastCleanedHotelDay);
-    putIfStringNotEmpty(data, 'lastOccupiedHotelDay', room.lastOccupiedHotelDay);
+    putIfStringNotEmpty(
+      data,
+      'lastOccupiedHotelDay',
+      room.lastOccupiedHotelDay,
+    );
     putIfNotNull(data, 'requiresMaintenance', room.requiresMaintenance);
     putIfStringNotEmpty(data, 'idempotencyKey', room.idempotencyKey);
     putIfStringNotEmpty(data, 'sync_origin', room.origin);
 
-    return AppwriteSyncUtils.sanitizePayload('rooms', data, collectionId: AppwriteConfig.roomsCollectionId);
+    return AppwriteSyncUtils.sanitizePayload(
+      'rooms',
+      data,
+      collectionId: AppwriteConfig.roomsCollectionId,
+    );
   }
 
   /// يحوّل [Booking] محلي إلى payload لـ Appwrite.
@@ -135,7 +147,11 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'sync_origin', booking.origin);
     data['syncTimestamp'] = booking.lastModified;
 
-    return AppwriteSyncUtils.sanitizePayload('bookings', data, collectionId: AppwriteConfig.bookingsCollectionId);
+    return AppwriteSyncUtils.sanitizePayload(
+      'bookings',
+      data,
+      collectionId: AppwriteConfig.bookingsCollectionId,
+    );
   }
 
   /// يحوّل [Expense] محلي إلى payload لـ Appwrite.
@@ -184,7 +200,11 @@ class PayloadMapper {
     // ✅ (migration 68) uuid سحبة المرآة — الرابط العكسي الدائم.
     putIfStringNotEmpty(data, 'withdrawalUuid', expense.withdrawalUuid);
     putIfStringNotEmpty(data, 'idempotencyKey', expense.idempotencyKey);
-    return AppwriteSyncUtils.sanitizePayload('expenses', data, collectionId: AppwriteConfig.expensesCollectionId);
+    return AppwriteSyncUtils.sanitizePayload(
+      'expenses',
+      data,
+      collectionId: AppwriteConfig.expensesCollectionId,
+    );
   }
 
   /// يحوّل [Payment] محلي إلى payload لـ Appwrite.
@@ -212,15 +232,28 @@ class PayloadMapper {
     // (لا نرسل bookingLocalId إطلاقاً — البيانات تُستقبل محلياً فقط)
     // ✅ إصلاح: تطبيع bookingUuidCache للصيغة القياسية (بالشرطات) قبل الإرسال
     // منع تكرار UUIDs بصيغ مختلفة على Appwrite Cloud
-    if (payment.bookingUuidCache != null && payment.bookingUuidCache!.isNotEmpty) {
-      putIfStringNotEmpty(data, 'bookingUuidCache', _normalizeUuid(payment.bookingUuidCache!));
+    if (payment.bookingUuidCache != null &&
+        payment.bookingUuidCache!.isNotEmpty) {
+      putIfStringNotEmpty(
+        data,
+        'bookingUuidCache',
+        _normalizeUuid(payment.bookingUuidCache!),
+      );
     }
     putIfNotNull(data, 'serverBookingId', payment.serverBookingId);
     putIfStringNotEmpty(data, 'roomNumber', payment.roomNumber);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     putIfStringNotEmpty(data, 'notes', payment.notes);
-    putIfNotNull(data, 'cashTransactionLocalId', payment.cashTransactionLocalId);
-    putIfNotNull(data, 'cashTransactionServerId', payment.cashTransactionServerId);
+    putIfNotNull(
+      data,
+      'cashTransactionLocalId',
+      payment.cashTransactionLocalId,
+    );
+    putIfNotNull(
+      data,
+      'cashTransactionServerId',
+      payment.cashTransactionServerId,
+    );
     putIfStringNotEmpty(data, 'referenceNumber', payment.referenceNumber);
     putIfNotNull(data, 'serverId', payment.serverId);
     putIfNotNull(data, 'deletedAt', payment.deletedAt);
@@ -237,7 +270,11 @@ class PayloadMapper {
     // «استلامات المستخدمين الآخرين» على أجهزة المدير/المشرف.
     putIfNotNull(data, 'receivedByUserId', payment.receivedByUserId);
     putIfStringNotEmpty(data, 'receivedByName', payment.receivedByName);
-    putIfStringNotEmpty(data, 'receivedSessionUuid', payment.receivedSessionUuid);
+    putIfStringNotEmpty(
+      data,
+      'receivedSessionUuid',
+      payment.receivedSessionUuid,
+    );
     putIfStringNotEmpty(data, 'receivedByCloudId', payment.receivedByCloudId);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
 
@@ -250,7 +287,11 @@ class PayloadMapper {
     data['syncTimestamp'] = payment.lastModified;
     putIfStringNotEmpty(data, 'sync_origin', payment.origin);
 
-    return AppwriteSyncUtils.sanitizePayload('payments', data, collectionId: AppwriteConfig.paymentsCollectionId);
+    return AppwriteSyncUtils.sanitizePayload(
+      'payments',
+      data,
+      collectionId: AppwriteConfig.paymentsCollectionId,
+    );
   }
 
   /// يحوّل [Debt] محلي إلى payload لـ Appwrite.
@@ -316,7 +357,11 @@ class PayloadMapper {
     data['syncTimestamp'] = debt.lastModified;
     putIfStringNotEmpty(data, 'sync_origin', debt.origin);
 
-    return AppwriteSyncUtils.sanitizePayload('debts', data, collectionId: AppwriteConfig.debtsCollectionId);
+    return AppwriteSyncUtils.sanitizePayload(
+      'debts',
+      data,
+      collectionId: AppwriteConfig.debtsCollectionId,
+    );
   }
 
   /// يحوّل [Employee] محلي إلى payload لـ Appwrite.
@@ -359,7 +404,11 @@ class PayloadMapper {
     // ✅ إصلاح (P0-2): لف البيانات بـ sanitizePayload مثل باقي الكيانات.
     // بدون هذا، أي حقل غير معروف سيتجاوز الفلترة ويُسبب "Unknown attribute"
     // errors من Appwrite. PayloadMapper لباقي الكيانات يستخدم sanitizePayload.
-    return AppwriteSyncUtils.sanitizePayload('employees', data, collectionId: AppwriteConfig.employeesCollectionId);
+    return AppwriteSyncUtils.sanitizePayload(
+      'employees',
+      data,
+      collectionId: AppwriteConfig.employeesCollectionId,
+    );
   }
 
   /// يحوّل [BookingNote] محلي إلى payload لـ Appwrite.
@@ -424,8 +473,16 @@ class PayloadMapper {
     };
     putIfNotNull(data, 'serverId', night.serverId);
     putIfNotNull(data, 'deletedAt', night.deletedAt);
-    putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
-    putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
+    putIfStringNotEmpty(
+      data,
+      'appliedAdjustmentUuid',
+      night.appliedAdjustmentUuid,
+    );
+    putIfStringNotEmpty(
+      data,
+      'appliedAdjustmentsJson',
+      night.appliedAdjustmentsJson,
+    );
 
     putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
     putIfNotNull(data, 'serverBookingId', night.serverBookingId);
@@ -541,11 +598,16 @@ class PayloadMapper {
 
   /// يحوّل [ShiftNote] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> shiftNoteToRemote(ShiftNote note) {
-    final createdDate = DateTime.fromMillisecondsSinceEpoch(note.createdAt * 1000);
+    final createdDate = DateTime.fromMillisecondsSinceEpoch(
+      note.createdAt * 1000,
+    );
     final shiftDate = createdDate.toIso8601String().substring(0, 10);
     final createdAtIso = note.createdAtIso ?? createdDate.toIso8601String();
     final updatedAtIso =
-        note.updatedAtIso ?? DateTime.fromMillisecondsSinceEpoch(note.updatedAt * 1000).toIso8601String();
+        note.updatedAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(
+          note.updatedAt * 1000,
+        ).toIso8601String();
     final data = <String, dynamic>{
       'localUuid': note.localUuid,
       'title': note.title,
@@ -619,11 +681,20 @@ class PayloadMapper {
   Map<String, dynamic> blacklistToRemote(BlacklistData item) {
     final now = Time.nowEpoch();
     final createdAtIso =
-        item.createdAtIso ?? DateTime.fromMillisecondsSinceEpoch(item.createdAt * 1000).toIso8601String();
+        item.createdAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(
+          item.createdAt * 1000,
+        ).toIso8601String();
     final updatedAtIso =
-        item.updatedAtIso ?? DateTime.fromMillisecondsSinceEpoch(item.updatedAt * 1000).toIso8601String();
+        item.updatedAtIso ??
+        DateTime.fromMillisecondsSinceEpoch(
+          item.updatedAt * 1000,
+        ).toIso8601String();
     final deletedAtIso = item.deletedAt != null
-        ? (item.deletedAtIso ?? DateTime.fromMillisecondsSinceEpoch(item.deletedAt! * 1000).toIso8601String())
+        ? (item.deletedAtIso ??
+              DateTime.fromMillisecondsSinceEpoch(
+                item.deletedAt! * 1000,
+              ).toIso8601String())
         : null;
 
     final data = <String, dynamic>{
@@ -701,7 +772,10 @@ class PayloadMapper {
   }
 
   /// يحوّل [SalaryWithdrawal] محلي إلى payload لـ Appwrite.
-  Map<String, dynamic> salaryWithdrawalToRemote(SalaryWithdrawal withdrawal, {String? employeeUuid}) {
+  Map<String, dynamic> salaryWithdrawalToRemote(
+    SalaryWithdrawal withdrawal, {
+    String? employeeUuid,
+  }) {
     final now = Time.nowEpoch();
     final effectiveWithdrawDate = withdrawal.withdrawDate.isEmpty
         ? DateTime.now().toIso8601String().split('T').first
@@ -764,7 +838,9 @@ class PayloadMapper {
   }
 
   /// يحوّل [BookingPriceAdjustment] محلي إلى payload لـ Appwrite.
-  Map<String, dynamic> bookingPriceAdjustmentToRemote(BookingPriceAdjustment adj) {
+  Map<String, dynamic> bookingPriceAdjustmentToRemote(
+    BookingPriceAdjustment adj,
+  ) {
     final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'localUuid': adj.localUuid,
@@ -862,7 +938,14 @@ class PayloadMapper {
     // relatedId البعيد الخام ويربط السلفة بموظف خاطئ على جهاز آخر.
     // القائمة تظل أوسع عمداً من المُصنّف النقدي (تشمل الخصوم والسلف)
     // لأن استخدامها صيد اليتائم والربط أثناء المزامنة — لا تجميع نقدي.
-    const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب', 'سلفة'];
+    const salaryKeywords = [
+      'رواتب',
+      'سحب راتب',
+      'سحب من الراتب',
+      'خصم راتب',
+      'خصم من الراتب',
+      'سلفة',
+    ];
     for (final keyword in salaryKeywords) {
       if (type.contains(keyword)) return true;
     }
@@ -907,7 +990,11 @@ class PayloadMapper {
     };
     putIfNotNull(data, 'serverId', voidRecord.serverId);
     putIfNotNull(data, 'deletedAt', voidRecord.deletedAt);
-    putIfStringNotEmpty(data, 'reversalPaymentUuid', voidRecord.reversalPaymentUuid);
+    putIfStringNotEmpty(
+      data,
+      'reversalPaymentUuid',
+      voidRecord.reversalPaymentUuid,
+    );
     putIfStringNotEmpty(data, 'approvedBy', voidRecord.approvedBy);
     putIfStringNotEmpty(data, 'createdAtIso', voidRecord.createdAtIso);
     putIfStringNotEmpty(data, 'updatedAtIso', voidRecord.updatedAtIso);

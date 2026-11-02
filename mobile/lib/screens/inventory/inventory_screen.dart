@@ -52,13 +52,18 @@ class InventoryScreen extends ConsumerWidget {
         error: (error, _) => _buildErrorWidget(context, ref, error),
         data: (items) {
           if (items.isEmpty) {
-            return const Center(child: Text('لا توجد أصناف. أضف أول صنف للمخزون.'));
+            return const Center(
+              child: Text('لا توجد أصناف. أضف أول صنف للمخزون.'),
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
             itemCount: items.length,
-            itemBuilder: (context, index) =>
-                _InventoryItemCard(item: items[index], canCreate: canCreate, canUpdate: canUpdate),
+            itemBuilder: (context, index) => _InventoryItemCard(
+              item: items[index],
+              canCreate: canCreate,
+              canUpdate: canUpdate,
+            ),
           );
         },
       ),
@@ -67,7 +72,11 @@ class InventoryScreen extends ConsumerWidget {
 
   /// ✅ User-friendly error widget that detects SQLite corruption
   /// and offers recovery options.
-  static Widget _buildErrorWidget(BuildContext context, WidgetRef ref, Object error) {
+  static Widget _buildErrorWidget(
+    BuildContext context,
+    WidgetRef ref,
+    Object error,
+  ) {
     final isCorruption =
         error.toString().contains('malformed') ||
         error.toString().contains('code 11') ||
@@ -82,7 +91,9 @@ class InventoryScreen extends ConsumerWidget {
             Icon(
               isCorruption ? Icons.broken_image : Icons.error_outline,
               size: 64,
-              color: isCorruption ? Colors.red.shade400 : Colors.orange.shade400,
+              color: isCorruption
+                  ? Colors.red.shade400
+                  : Colors.orange.shade400,
             ),
             const SizedBox(height: 16),
             Text(
@@ -105,9 +116,13 @@ class InventoryScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text('جاري إعادة المزامنة... قد يستغرق هذا بضع دقائق.')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'جاري إعادة المزامنة... قد يستغرق هذا بضع دقائق.',
+                        ),
+                      ),
+                    );
                     // Refresh the provider to retry
                     ref.invalidate(inventoryItemsProvider);
                   },
@@ -130,7 +145,9 @@ class InventoryScreen extends ConsumerWidget {
                 },
                 icon: const Icon(Icons.refresh),
                 label: const Text('إعادة المحاولة'),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(16)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
+                ),
               ),
             ),
           ],
@@ -139,8 +156,15 @@ class InventoryScreen extends ConsumerWidget {
     );
   }
 
-  static Future<void> _showAddItemDialog(BuildContext context, WidgetRef ref) async {
-    if (!(ref.read(authProvider).currentUser?.canPerform('inventory', 'create') ?? false)) {
+  static Future<void> _showAddItemDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    if (!(ref
+            .read(authProvider)
+            .currentUser
+            ?.canPerform('inventory', 'create') ??
+        false)) {
       _showMessage(context, 'ليست لديك صلاحية إضافة أصناف للمخزون');
       return;
     }
@@ -165,7 +189,9 @@ class InventoryScreen extends ConsumerWidget {
                     controller: nameController,
                     autofocus: true,
                     decoration: const InputDecoration(labelText: 'اسم الصنف'),
-                    validator: (value) => value == null || value.trim().isEmpty ? 'اسم الصنف مطلوب' : null,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'اسم الصنف مطلوب'
+                        : null,
                   ),
                   TextFormField(
                     controller: unitController,
@@ -173,17 +199,23 @@ class InventoryScreen extends ConsumerWidget {
                   ),
                   TextFormField(
                     controller: categoryController,
-                    decoration: const InputDecoration(labelText: 'التصنيف (اختياري)'),
+                    decoration: const InputDecoration(
+                      labelText: 'التصنيف (اختياري)',
+                    ),
                   ),
                   TextFormField(
                     controller: initialController,
-                    decoration: const InputDecoration(labelText: 'الرصيد الافتتاحي'),
+                    decoration: const InputDecoration(
+                      labelText: 'الرصيد الافتتاحي',
+                    ),
                     keyboardType: TextInputType.number,
                     validator: _validateNonNegativeInteger,
                   ),
                   TextFormField(
                     controller: minimumController,
-                    decoration: const InputDecoration(labelText: 'حد التنبيه الأدنى'),
+                    decoration: const InputDecoration(
+                      labelText: 'حد التنبيه الأدنى',
+                    ),
                     keyboardType: TextInputType.number,
                     validator: _validateNonNegativeInteger,
                   ),
@@ -192,7 +224,10 @@ class InventoryScreen extends ConsumerWidget {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
             FilledButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
@@ -226,7 +261,10 @@ class InventoryScreen extends ConsumerWidget {
       // ✅ لا نعرض الاستثناء الخام — رسالة ودّية + التفاصيل في السجل
       dwarn(() => 'Inventory createItem error: $error');
       if (context.mounted) {
-        _showMessage(context, 'تعذر إضافة الصنف: ${_friendlyErrorMessage(error)}');
+        _showMessage(
+          context,
+          'تعذر إضافة الصنف: ${_friendlyErrorMessage(error)}',
+        );
       }
     } finally {
       nameController.dispose();
@@ -250,7 +288,11 @@ class InventoryScreen extends ConsumerWidget {
 }
 
 class _InventoryItemCard extends ConsumerWidget {
-  const _InventoryItemCard({required this.item, required this.canCreate, required this.canUpdate});
+  const _InventoryItemCard({
+    required this.item,
+    required this.canCreate,
+    required this.canUpdate,
+  });
 
   final InventoryItem item;
   final bool canCreate;
@@ -258,7 +300,8 @@ class _InventoryItemCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isLow = item.minimumQuantity > 0 && item.quantity <= item.minimumQuantity;
+    final isLow =
+        item.minimumQuantity > 0 && item.quantity <= item.minimumQuantity;
     final balanceColor = isLow ? Colors.orange.shade800 : Colors.green.shade700;
 
     return Card(
@@ -271,8 +314,14 @@ class _InventoryItemCard extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: isLow ? Colors.orange.shade50 : Colors.blue.shade50,
-                  child: Icon(isLow ? Icons.warning_amber_rounded : Icons.inventory_2, size: 20, color: balanceColor),
+                  backgroundColor: isLow
+                      ? Colors.orange.shade50
+                      : Colors.blue.shade50,
+                  child: Icon(
+                    isLow ? Icons.warning_amber_rounded : Icons.inventory_2,
+                    size: 20,
+                    color: balanceColor,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -283,13 +332,22 @@ class _InventoryItemCard extends ConsumerWidget {
                         item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       Text(
-                        [if (item.category?.isNotEmpty == true) item.category!, 'الوحدة: ${item.unit}'].join(' • '),
+                        [
+                          if (item.category?.isNotEmpty == true) item.category!,
+                          'الوحدة: ${item.unit}',
+                        ].join(' • '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -299,7 +357,11 @@ class _InventoryItemCard extends ConsumerWidget {
                   children: [
                     Text(
                       '${item.quantity}',
-                      style: TextStyle(color: balanceColor, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: balanceColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(item.unit, style: const TextStyle(fontSize: 10)),
                   ],
@@ -311,7 +373,9 @@ class _InventoryItemCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: canCreate ? () => _showMovementDialog(context, ref, item, 'in') : null,
+                    onPressed: canCreate
+                        ? () => _showMovementDialog(context, ref, item, 'in')
+                        : null,
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('وارد'),
                   ),
@@ -319,7 +383,9 @@ class _InventoryItemCard extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: canCreate ? () => _showMovementDialog(context, ref, item, 'out') : null,
+                    onPressed: canCreate
+                        ? () => _showMovementDialog(context, ref, item, 'out')
+                        : null,
                     icon: const Icon(Icons.remove, size: 16),
                     label: const Text('صرف'),
                   ),
@@ -327,7 +393,9 @@ class _InventoryItemCard extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: canUpdate ? () => _showStockDialog(context, ref, item) : null,
+                    onPressed: canUpdate
+                        ? () => _showStockDialog(context, ref, item)
+                        : null,
                     icon: const Icon(Icons.fact_check_outlined, size: 16),
                     label: const Text('جرد'),
                   ),
@@ -349,9 +417,18 @@ class _InventoryItemCard extends ConsumerWidget {
   }
 }
 
-Future<void> _showMovementDialog(BuildContext context, WidgetRef ref, InventoryItem item, String movementType) async {
-  if (!(ref.read(authProvider).currentUser?.canPerform('inventory', 'create') ?? false)) {
-    InventoryScreen._showMessage(context, 'ليست لديك صلاحية تسجيل حركات المخزون');
+Future<void> _showMovementDialog(
+  BuildContext context,
+  WidgetRef ref,
+  InventoryItem item,
+  String movementType,
+) async {
+  if (!(ref.read(authProvider).currentUser?.canPerform('inventory', 'create') ??
+      false)) {
+    InventoryScreen._showMessage(
+      context,
+      'ليست لديك صلاحية تسجيل حركات المخزون',
+    );
     return;
   }
   final quantityController = TextEditingController();
@@ -375,22 +452,32 @@ Future<void> _showMovementDialog(BuildContext context, WidgetRef ref, InventoryI
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   final parsed = int.tryParse(value?.trim() ?? '');
-                  return parsed == null || parsed <= 0 ? 'أدخل كمية أكبر من صفر' : null;
+                  return parsed == null || parsed <= 0
+                      ? 'أدخل كمية أكبر من صفر'
+                      : null;
                 },
               ),
               TextFormField(
                 controller: noteController,
-                decoration: const InputDecoration(labelText: 'ملاحظة (اختياري)'),
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظة (اختياري)',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
-                Navigator.pop(dialogContext, {'quantity': quantityController.text, 'note': noteController.text});
+                Navigator.pop(dialogContext, {
+                  'quantity': quantityController.text,
+                  'note': noteController.text,
+                });
               }
             },
             child: const Text('حفظ'),
@@ -411,7 +498,10 @@ Future<void> _showMovementDialog(BuildContext context, WidgetRef ref, InventoryI
           userName: user?.name,
         );
     if (context.mounted) {
-      InventoryScreen._showMessage(context, movementType == 'in' ? 'تم تسجيل الوارد' : 'تم تسجيل الصرف');
+      InventoryScreen._showMessage(
+        context,
+        movementType == 'in' ? 'تم تسجيل الوارد' : 'تم تسجيل الصرف',
+      );
     }
   } catch (error) {
     if (context.mounted) {
@@ -423,9 +513,17 @@ Future<void> _showMovementDialog(BuildContext context, WidgetRef ref, InventoryI
   }
 }
 
-Future<void> _showStockDialog(BuildContext context, WidgetRef ref, InventoryItem item) async {
-  if (!(ref.read(authProvider).currentUser?.canPerform('inventory', 'update') ?? false)) {
-    InventoryScreen._showMessage(context, 'ليست لديك صلاحية اعتماد جرد المخزون');
+Future<void> _showStockDialog(
+  BuildContext context,
+  WidgetRef ref,
+  InventoryItem item,
+) async {
+  if (!(ref.read(authProvider).currentUser?.canPerform('inventory', 'update') ??
+      false)) {
+    InventoryScreen._showMessage(
+      context,
+      'ليست لديك صلاحية اعتماد جرد المخزون',
+    );
     return;
   }
   final quantityController = TextEditingController(text: '${item.quantity}');
@@ -445,23 +543,33 @@ Future<void> _showStockDialog(BuildContext context, WidgetRef ref, InventoryItem
               TextFormField(
                 controller: quantityController,
                 autofocus: true,
-                decoration: InputDecoration(labelText: 'الرصيد الفعلي (${item.unit})'),
+                decoration: InputDecoration(
+                  labelText: 'الرصيد الفعلي (${item.unit})',
+                ),
                 keyboardType: TextInputType.number,
                 validator: InventoryScreen._validateNonNegativeInteger,
               ),
               TextFormField(
                 controller: noteController,
-                decoration: const InputDecoration(labelText: 'ملاحظة (اختياري)'),
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظة (اختياري)',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
-                Navigator.pop(dialogContext, {'quantity': quantityController.text, 'note': noteController.text});
+                Navigator.pop(dialogContext, {
+                  'quantity': quantityController.text,
+                  'note': noteController.text,
+                });
               }
             },
             child: const Text('اعتماد الجرد'),

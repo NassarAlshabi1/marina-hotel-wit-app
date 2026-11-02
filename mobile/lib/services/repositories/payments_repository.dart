@@ -54,17 +54,34 @@ class PaymentsRepository {
   /// يحلّ هوية من نفّذ الحذف: مفتاح الجهاز المخزن عند تسجيل الجهاز
   /// (`appwrite_device_id` مع رجوع لـ `device_id`) واسم المستخدم الحالي
   /// (`full_name` ثم `username` من جلسة AuthLocalStore).
-  Future<({String? device, String? name, String? userType, List<String> permissions})> _resolveDeleter() async {
+  Future<
+    ({String? device, String? name, String? userType, List<String> permissions})
+  >
+  _resolveDeleter() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final device = prefs.getString('appwrite_device_id') ?? prefs.getString('device_id');
+      final device =
+          prefs.getString('appwrite_device_id') ?? prefs.getString('device_id');
       final user = await AuthLocalStore().loadCurrentUser();
-      final name = (user?['full_name'] ?? user?['name'] ?? user?['username'])?.toString();
+      final name = (user?['full_name'] ?? user?['name'] ?? user?['username'])
+          ?.toString();
       final rawPerms = user?['permissions'];
-      final permissions = rawPerms is List ? rawPerms.map((e) => e.toString()).toList() : const <String>[];
-      return (device: device, name: name, userType: user?['user_type']?.toString(), permissions: permissions);
+      final permissions = rawPerms is List
+          ? rawPerms.map((e) => e.toString()).toList()
+          : const <String>[];
+      return (
+        device: device,
+        name: name,
+        userType: user?['user_type']?.toString(),
+        permissions: permissions,
+      );
     } catch (_) {
-      return (device: null, name: null, userType: null, permissions: const <String>[]);
+      return (
+        device: null,
+        name: null,
+        userType: null,
+        permissions: const <String>[],
+      );
     }
   }
 
@@ -74,7 +91,9 @@ class PaymentsRepository {
       AuthLocalStore.isManagerialRole(userType) || permissions.contains('all');
 
   Stream<List<Payment>> paymentsByBooking(int bookingLocalId) {
-    final bookingStream = (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
+    final bookingStream = (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
 
     return bookingStream.asyncExpand((booking) {
       final q = db.select(db.payments);
@@ -93,7 +112,8 @@ class PaymentsRepository {
     });
   }
 
-  Stream<List<Payment>> watchAll({bool includeDeleted = false}) => dao.watchList(includeDeleted: includeDeleted);
+  Stream<List<Payment>> watchAll({bool includeDeleted = false}) =>
+      dao.watchList(includeDeleted: includeDeleted);
   Stream<Payment?> watchOne(int id) => dao.watchById(id);
 
   /// مراقبة إجمالي المدفوعات ليوم فندقي محدد عبر SQL SUM() — أداء أفضل
@@ -106,7 +126,10 @@ class PaymentsRepository {
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
           'WHERE deleted_at IS NULL AND is_voided = 0 AND '
           '(hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
-          variables: [d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')],
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
           readsFrom: {db.payments},
         )
         .watchSingle()
@@ -180,15 +203,21 @@ class PaymentsRepository {
           'ORDER BY total_amount DESC',
           variables: [
             if (excludedUserId != null) d.Variable.withInt(excludedUserId),
-            if (excludedUserName != null) d.Variable.withString(excludedUserName),
-            if (excludedUserCloudId != null) d.Variable.withString(excludedUserCloudId),
+            if (excludedUserName != null)
+              d.Variable.withString(excludedUserName),
+            if (excludedUserCloudId != null)
+              d.Variable.withString(excludedUserCloudId),
             d.Variable.withString(hotelDayKey),
             d.Variable.withString('$hotelDayKey%'),
           ],
           readsFrom: {db.payments},
         )
         .watch()
-        .map((rows) => rows.map((row) => PaymentShiftSummary.fromRow(row.data)).toList(growable: false));
+        .map(
+          (rows) => rows
+              .map((row) => PaymentShiftSummary.fromRow(row.data))
+              .toList(growable: false),
+        );
   }
 
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
@@ -235,7 +264,9 @@ class PaymentsRepository {
 
       String? bookingUuidCache;
       if (bookingLocalId != null) {
-        final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
+        final booking = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
         bookingUuidCache = booking?.localUuid;
       }
 
@@ -267,7 +298,13 @@ class PaymentsRepository {
         return id;
       });
 
-      unawaited(AutoBackupManager.instance.onDataChange('payments', 'INSERT', recordData: {'amount': amount}));
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
+          'payments',
+          'INSERT',
+          recordData: {'amount': amount},
+        ),
+      );
       // إشعارات فورية (fire-and-forget)
       unawaited(_notifyPaymentReceived(result));
       return result;
@@ -278,7 +315,11 @@ class PaymentsRepository {
         error: e,
         stackTrace: stack,
         severity: CrashlyticsSeverity.fatal,
-        extra: {'amount': '$amount', 'method': paymentMethod, 'bookingId': '$bookingLocalId'},
+        extra: {
+          'amount': '$amount',
+          'method': paymentMethod,
+          'bookingId': '$bookingLocalId',
+        },
       );
       rethrow;
     }
@@ -297,26 +338,46 @@ class PaymentsRepository {
     bool? isPendingBalance,
   }) async {
     try {
-      final before = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+      final before = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(id))).getSingleOrNull();
       final oldBookingId = before?.bookingLocalId;
 
-      final hotelDayKey = paymentDate != null ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate) : null;
+      final hotelDayKey = paymentDate != null
+          ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate)
+          : null;
 
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
       final result = await db.transaction(() async {
         final updated = await dao.updateById(
           id,
           PaymentsCompanion(
-            bookingLocalId: bookingLocalId != null ? d.Value(bookingLocalId) : const d.Value.absent(),
-            serverBookingId: serverBookingId != null ? d.Value(serverBookingId) : const d.Value.absent(),
-            roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
+            bookingLocalId: bookingLocalId != null
+                ? d.Value(bookingLocalId)
+                : const d.Value.absent(),
+            serverBookingId: serverBookingId != null
+                ? d.Value(serverBookingId)
+                : const d.Value.absent(),
+            roomNumber: roomNumber != null
+                ? d.Value(roomNumber)
+                : const d.Value.absent(),
             amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-            paymentDate: paymentDate != null ? d.Value(paymentDate) : const d.Value.absent(),
+            paymentDate: paymentDate != null
+                ? d.Value(paymentDate)
+                : const d.Value.absent(),
             notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-            paymentMethod: paymentMethod != null ? d.Value(paymentMethod) : const d.Value.absent(),
-            revenueType: revenueType != null ? d.Value(revenueType) : const d.Value.absent(),
-            hotelDayKey: hotelDayKey != null ? d.Value(hotelDayKey) : const d.Value.absent(),
-            isPendingBalance: isPendingBalance != null ? d.Value(isPendingBalance) : const d.Value.absent(),
+            paymentMethod: paymentMethod != null
+                ? d.Value(paymentMethod)
+                : const d.Value.absent(),
+            revenueType: revenueType != null
+                ? d.Value(revenueType)
+                : const d.Value.absent(),
+            hotelDayKey: hotelDayKey != null
+                ? d.Value(hotelDayKey)
+                : const d.Value.absent(),
+            isPendingBalance: isPendingBalance != null
+                ? d.Value(isPendingBalance)
+                : const d.Value.absent(),
           ),
         );
         if (updated > 0) {
@@ -336,7 +397,13 @@ class PaymentsRepository {
       });
 
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('payments', 'UPDATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'payments',
+            'UPDATE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -357,7 +424,9 @@ class PaymentsRepository {
   /// [voidReason] سبب الإلغاء — من cascade حذف الحجز مرّر سبباً أوضح.
   Future<int> delete(int id, {String? voidReason}) async {
     try {
-      final payment = await (db.select(db.payments)..where((p) => p.id.equals(id))).getSingleOrNull();
+      final payment = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(id))).getSingleOrNull();
       if (payment == null) return 0;
       final bookingId = payment.bookingLocalId;
 
@@ -365,7 +434,10 @@ class PaymentsRepository {
       final deleter = await _resolveDeleter();
 
       // إلغاء الدفعة متاح للمدير والمشرف فقط.
-      if (!_canVoid(userType: deleter.userType, permissions: deleter.permissions)) {
+      if (!_canVoid(
+        userType: deleter.userType,
+        permissions: deleter.permissions,
+      )) {
         throw StateError('إلغاء الدفعات متاح للمدير والمشرف فقط');
       }
 
@@ -380,7 +452,13 @@ class PaymentsRepository {
         if (bookingId != null) {
           await derivedFields.refreshForBookingId(bookingId);
         }
-        unawaited(AutoBackupManager.instance.onDataChange('payments', 'VOID', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'payments',
+            'VOID',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -408,7 +486,9 @@ class PaymentsRepository {
   /// استيراد بيانات المدفوعات
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
+      await dao.importFromJson(
+        List<Map<String, dynamic>>.from(data['data'] as List),
+      );
     }
   }
 
@@ -435,8 +515,14 @@ class PaymentsRepository {
     return (result.data['total'] as num).toDouble();
   }
 
-  Future<double> getTotalByHotelDayKey(String hotelDayKey, {String? revenueType}) async {
-    final variables = <d.Variable<Object>>[d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')];
+  Future<double> getTotalByHotelDayKey(
+    String hotelDayKey, {
+    String? revenueType,
+  }) async {
+    final variables = <d.Variable<Object>>[
+      d.Variable.withString(hotelDayKey),
+      d.Variable.withString('$hotelDayKey%'),
+    ];
     var revenueFilter = '';
     if (revenueType != null && revenueType.isNotEmpty) {
       revenueFilter = ' AND revenue_type = ?';
@@ -458,7 +544,9 @@ class PaymentsRepository {
   /// إرسال إشعارات (WhatsApp + Telegram) عند استلام دفعة
   Future<void> _notifyPaymentReceived(int paymentId) async {
     try {
-      final payment = await (db.select(db.payments)..where((p) => p.id.equals(paymentId))).getSingleOrNull();
+      final payment = await (db.select(
+        db.payments,
+      )..where((p) => p.id.equals(paymentId))).getSingleOrNull();
       if (payment == null) return;
 
       // الحصول على معلومات الحجز إن وجد
@@ -466,9 +554,10 @@ class PaymentsRepository {
       String guestName = '-';
       if (payment.bookingLocalId != null) {
         try {
-          final booking = await (db.select(
-            db.bookings,
-          )..where((b) => b.id.equals(payment.bookingLocalId!))).getSingleOrNull();
+          final booking =
+              await (db.select(db.bookings)
+                    ..where((b) => b.id.equals(payment.bookingLocalId!)))
+                  .getSingleOrNull();
           if (booking != null) {
             roomNumber = booking.roomNumber;
             guestName = booking.guestName;

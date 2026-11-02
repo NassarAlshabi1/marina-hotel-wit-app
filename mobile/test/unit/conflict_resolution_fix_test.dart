@@ -33,7 +33,11 @@ void main() {
     };
 
     test('ancestor=null يُرجع الحقول المختلفة فعلياً فقط (ليس كل الحقول)', () {
-      final changed = ConflictDetector.detect(localData: local, remoteData: remote, commonAncestor: null);
+      final changed = ConflictDetector.detect(
+        localData: local,
+        remoteData: remote,
+        commonAncestor: null,
+      );
       // فقط 'name' تغيّر فعلياً بين النسختين.
       expect(changed.localChangedFields, contains('name'));
       expect(changed.localChangedFields, isNot(contains('amount')));
@@ -45,32 +49,59 @@ void main() {
     });
 
     test('نفس البيانات تماماً → لا حقول متغيرة (لا تعارض زائف)', () {
-      final changed = ConflictDetector.detect(localData: local, remoteData: local, commonAncestor: null);
+      final changed = ConflictDetector.detect(
+        localData: local,
+        remoteData: local,
+        commonAncestor: null,
+      );
       expect(changed.localChangedFields, isEmpty);
       expect(changed.remoteChangedFields, isEmpty);
     });
   });
 
   group('SmartConflictResolver newerWins tie-break (timestamp equality)', () {
-    test('تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً)', () {
-      // local و remote بنفس lastModified تماماً.
-      final localData = {'amount': 100, 'lastModified': 5000, 'deviceId': 'device-B', 'vectorClock': '{"device-B":1}'};
-      final remoteData = {'amount': 200, 'lastModified': 5000, 'deviceId': 'device-A', 'vectorClock': '{"device-A":1}'};
-      // كلا الساعتين متساويتان → concurrent → merge على مستوى الحقل.
-      final result = SmartConflictResolver.resolve(
-        entity: 'payments',
-        localData: localData,
-        remoteData: remoteData,
-        commonAncestor: null,
-      );
-      expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
-      // deviceId أصغر أبجدياً (device-A) يربح عند التعادل → remote.
-      expect(result.mergedData['amount'], equals(200));
-    });
+    test(
+      'تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً)',
+      () {
+        // local و remote بنفس lastModified تماماً.
+        final localData = {
+          'amount': 100,
+          'lastModified': 5000,
+          'deviceId': 'device-B',
+          'vectorClock': '{"device-B":1}',
+        };
+        final remoteData = {
+          'amount': 200,
+          'lastModified': 5000,
+          'deviceId': 'device-A',
+          'vectorClock': '{"device-A":1}',
+        };
+        // كلا الساعتين متساويتان → concurrent → merge على مستوى الحقل.
+        final result = SmartConflictResolver.resolve(
+          entity: 'payments',
+          localData: localData,
+          remoteData: remoteData,
+          commonAncestor: null,
+        );
+        expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
+        // deviceId أصغر أبجدياً (device-A) يربح عند التعادل → remote.
+        expect(result.mergedData['amount'], equals(200));
+      },
+    );
 
     test('تساوي timestamp ومحلي له deviceId أصغر → يحافظ على المحلي', () {
-      final localData = {'amount': 100, 'lastModified': 5000, 'deviceId': 'device-A', 'vectorClock': '{"device-A":1}'};
-      final remoteData = {'amount': 200, 'lastModified': 5000, 'deviceId': 'device-B', 'vectorClock': '{"device-B":1}'};
+      final localData = {
+        'amount': 100,
+        'lastModified': 5000,
+        'deviceId': 'device-A',
+        'vectorClock': '{"device-A":1}',
+      };
+      final remoteData = {
+        'amount': 200,
+        'lastModified': 5000,
+        'deviceId': 'device-B',
+        'vectorClock': '{"device-B":1}',
+      };
       final result = SmartConflictResolver.resolve(
         entity: 'payments',
         localData: localData,
@@ -81,8 +112,18 @@ void main() {
     });
 
     test('remote أحدث صراحةً → يربح دائماً', () {
-      final localData = {'amount': 100, 'lastModified': 4000, 'deviceId': 'device-A', 'vectorClock': '{"device-A":1}'};
-      final remoteData = {'amount': 200, 'lastModified': 5000, 'deviceId': 'device-B', 'vectorClock': '{"device-B":1}'};
+      final localData = {
+        'amount': 100,
+        'lastModified': 4000,
+        'deviceId': 'device-A',
+        'vectorClock': '{"device-A":1}',
+      };
+      final remoteData = {
+        'amount': 200,
+        'lastModified': 5000,
+        'deviceId': 'device-B',
+        'vectorClock': '{"device-B":1}',
+      };
       final result = SmartConflictResolver.resolve(
         entity: 'payments',
         localData: localData,

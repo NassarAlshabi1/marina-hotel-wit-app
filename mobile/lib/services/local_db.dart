@@ -44,14 +44,22 @@ class Rooms extends Table with SyncFields {
   RealColumn get price => real()();
   TextColumn get status => text()();
   TextColumn get imageUrl => text().nullable()();
-  TextColumn get cleaningStatus => text().withDefault(const Constant('clean'))();
+  TextColumn get cleaningStatus =>
+      text().withDefault(const Constant('clean'))();
   TextColumn get lastCleanedHotelDay => text().nullable()();
   TextColumn get lastOccupiedHotelDay => text().nullable()();
-  BoolColumn get requiresMaintenance => boolean().withDefault(const Constant(false))();
+  BoolColumn get requiresMaintenance =>
+      boolean().withDefault(const Constant(false))();
 
   List<Index> get indexes => [
-    Index('idx_rooms_status', 'CREATE INDEX idx_rooms_status ON rooms (status, cleaning_status)'),
-    Index('idx_rooms_maintenance', 'CREATE INDEX idx_rooms_maintenance ON rooms (requires_maintenance)'),
+    Index(
+      'idx_rooms_status',
+      'CREATE INDEX idx_rooms_status ON rooms (status, cleaning_status)',
+    ),
+    Index(
+      'idx_rooms_maintenance',
+      'CREATE INDEX idx_rooms_maintenance ON rooms (requires_maintenance)',
+    ),
   ];
 }
 
@@ -61,7 +69,8 @@ class Bookings extends Table with SyncFields {
   TextColumn get roomNumber => text().references(Rooms, #roomNumber)();
   TextColumn get guestName => text()();
   TextColumn get guestPhone => text()();
-  TextColumn get guestIdType => text().withDefault(const Constant('بطاقة شخصية'))();
+  TextColumn get guestIdType =>
+      text().withDefault(const Constant('بطاقة شخصية'))();
   TextColumn get guestIdNumber => text().withDefault(const Constant(''))();
   TextColumn get guestIdIssueDate => text().nullable()();
   TextColumn get guestIdIssuePlace => text().nullable()();
@@ -74,7 +83,8 @@ class Bookings extends Table with SyncFields {
   TextColumn get status => text()();
   TextColumn get notes => text().nullable()();
   RealColumn get discount => real().withDefault(const Constant(0))();
-  TextColumn get discountType => text().withDefault(const Constant('per_night'))();
+  TextColumn get discountType =>
+      text().withDefault(const Constant('per_night'))();
   TextColumn get discountStartDate => text().nullable()();
   IntColumn get expectedNights => integer().withDefault(const Constant(1))();
   IntColumn get calculatedNights => integer().withDefault(const Constant(1))();
@@ -82,10 +92,12 @@ class Bookings extends Table with SyncFields {
   TextColumn get stayDurationIso => text().nullable()();
   IntColumn get lastNightEpoch => integer().nullable()();
   BoolColumn get isOverdue => boolean().withDefault(const Constant(false))();
-  BoolColumn get needsCheckoutReview => boolean().withDefault(const Constant(false))();
+  BoolColumn get needsCheckoutReview =>
+      boolean().withDefault(const Constant(false))();
   RealColumn get totalDueCached => real().withDefault(const Constant(0.0))();
   RealColumn get totalPaidCached => real().withDefault(const Constant(0.0))();
-  RealColumn get remainingBalanceCached => real().withDefault(const Constant(0.0))();
+  RealColumn get remainingBalanceCached =>
+      real().withDefault(const Constant(0.0))();
   BoolColumn get isFullyPaid => boolean().withDefault(const Constant(false))();
   TextColumn get hotelDayCheckin => text().nullable()();
   TextColumn get hotelDayCheckout => text().nullable()();
@@ -93,11 +105,26 @@ class Bookings extends Table with SyncFields {
   TextColumn get financialHash => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_bookings_status_day', 'CREATE INDEX idx_bookings_status_day ON bookings (status, hotel_day_checkin)'),
-    Index('idx_bookings_room', 'CREATE INDEX idx_bookings_room ON bookings (room_number)'),
-    Index('idx_bookings_guest', 'CREATE INDEX idx_bookings_guest ON bookings (guest_name)'),
-    Index('idx_bookings_deleted', 'CREATE INDEX idx_bookings_deleted ON bookings (deleted_at)'),
-    Index('idx_bookings_checkin', 'CREATE INDEX idx_bookings_checkin ON bookings (checkin_date)'),
+    Index(
+      'idx_bookings_status_day',
+      'CREATE INDEX idx_bookings_status_day ON bookings (status, hotel_day_checkin)',
+    ),
+    Index(
+      'idx_bookings_room',
+      'CREATE INDEX idx_bookings_room ON bookings (room_number)',
+    ),
+    Index(
+      'idx_bookings_guest',
+      'CREATE INDEX idx_bookings_guest ON bookings (guest_name)',
+    ),
+    Index(
+      'idx_bookings_deleted',
+      'CREATE INDEX idx_bookings_deleted ON bookings (deleted_at)',
+    ),
+    Index(
+      'idx_bookings_checkin',
+      'CREATE INDEX idx_bookings_checkin ON bookings (checkin_date)',
+    ),
     Index(
       'idx_bookings_active_checkin',
       'CREATE INDEX idx_bookings_active_checkin ON bookings (checkin_date DESC) WHERE deleted_at IS NULL',
@@ -115,7 +142,10 @@ class BookingNotes extends Table with SyncFields {
   IntColumn get isActive => integer().withDefault(const Constant(1))();
 
   List<Index> get indexes => [
-    Index('idx_booking_notes_booking', 'CREATE INDEX idx_booking_notes_booking ON booking_notes (booking_id)'),
+    Index(
+      'idx_booking_notes_booking',
+      'CREATE INDEX idx_booking_notes_booking ON booking_notes (booking_id)',
+    ),
   ];
 }
 
@@ -134,8 +164,14 @@ class Employees extends Table with SyncFields {
 
   // فهرس لتسريع البحث بالاسم والحالة
   List<Index> get indexes => [
-    Index('idx_employees_name', 'CREATE INDEX idx_employees_name ON employees (name)'),
-    Index('idx_employees_status', 'CREATE INDEX idx_employees_status ON employees (status)'),
+    Index(
+      'idx_employees_name',
+      'CREATE INDEX idx_employees_name ON employees (name)',
+    ),
+    Index(
+      'idx_employees_status',
+      'CREATE INDEX idx_employees_status ON employees (status)',
+    ),
   ];
 }
 
@@ -150,7 +186,8 @@ class Expenses extends Table with SyncFields {
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get categoryUuid => text().nullable()();
   TextColumn get cashFlowUuid => text().nullable()();
-  BoolColumn get isAutoGenerated => boolean().withDefault(const Constant(false))();
+  BoolColumn get isAutoGenerated =>
+      boolean().withDefault(const Constant(false))();
   // ✅ v2: UUID الموظف المرتبط (لمصروفات الرواتب والسلف)
   TextColumn get employeeUuid => text().nullable()();
 
@@ -164,10 +201,22 @@ class Expenses extends Table with SyncFields {
   TextColumn get withdrawalUuid => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_expenses_employee_uuid', 'CREATE INDEX idx_expenses_employee_uuid ON expenses (employee_uuid)'),
-    Index('idx_expenses_hotel_day', 'CREATE INDEX idx_expenses_hotel_day ON expenses (hotel_day_key)'),
-    Index('idx_expenses_category', 'CREATE INDEX idx_expenses_category ON expenses (category_uuid)'),
-    Index('idx_expenses_date', 'CREATE INDEX idx_expenses_date ON expenses (date)'),
+    Index(
+      'idx_expenses_employee_uuid',
+      'CREATE INDEX idx_expenses_employee_uuid ON expenses (employee_uuid)',
+    ),
+    Index(
+      'idx_expenses_hotel_day',
+      'CREATE INDEX idx_expenses_hotel_day ON expenses (hotel_day_key)',
+    ),
+    Index(
+      'idx_expenses_category',
+      'CREATE INDEX idx_expenses_category ON expenses (category_uuid)',
+    ),
+    Index(
+      'idx_expenses_date',
+      'CREATE INDEX idx_expenses_date ON expenses (date)',
+    ),
     Index(
       'idx_expenses_active_hotel_day',
       'CREATE INDEX idx_expenses_active_hotel_day ON expenses (hotel_day_key, expense_type, date) WHERE deleted_at IS NULL',
@@ -181,7 +230,10 @@ class Expenses extends Table with SyncFields {
       'CREATE INDEX idx_expenses_active_date ON expenses (date DESC) WHERE deleted_at IS NULL',
     ),
     // ✅ (migration 68) فهرسة رابط المرآة العكسي (مصروف → سحبة)
-    Index('idx_expenses_withdrawal_uuid', 'CREATE INDEX idx_expenses_withdrawal_uuid ON expenses (withdrawal_uuid)'),
+    Index(
+      'idx_expenses_withdrawal_uuid',
+      'CREATE INDEX idx_expenses_withdrawal_uuid ON expenses (withdrawal_uuid)',
+    ),
   ];
 }
 
@@ -202,14 +254,18 @@ class CashTransactions extends Table with SyncFields {
       'idx_cash_trans_type_time',
       'CREATE INDEX idx_cash_trans_type_time ON cash_transactions (transaction_type, transaction_time)',
     ),
-    Index('idx_cash_trans_ref', 'CREATE INDEX idx_cash_trans_ref ON cash_transactions (reference_type, reference_id)'),
+    Index(
+      'idx_cash_trans_ref',
+      'CREATE INDEX idx_cash_trans_ref ON cash_transactions (reference_type, reference_id)',
+    ),
   ];
 }
 
 class Payments extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get serverPaymentId => integer().nullable()();
-  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  IntColumn get bookingLocalId =>
+      integer().nullable().references(Bookings, #id)();
   IntColumn get serverBookingId => integer().nullable()();
   TextColumn get roomNumber => text().nullable()();
   RealColumn get amount => real()();
@@ -217,11 +273,13 @@ class Payments extends Table with SyncFields {
   TextColumn get notes => text().nullable()();
   TextColumn get paymentMethod => text()();
   TextColumn get revenueType => text()();
-  IntColumn get cashTransactionLocalId => integer().nullable().references(CashTransactions, #id)();
+  IntColumn get cashTransactionLocalId =>
+      integer().nullable().references(CashTransactions, #id)();
   IntColumn get cashTransactionServerId => integer().nullable()();
   TextColumn get referenceNumber => text().nullable()();
   TextColumn get hotelDayKey => text().nullable()();
-  BoolColumn get isPendingBalance => boolean().withDefault(const Constant(false))();
+  BoolColumn get isPendingBalance =>
+      boolean().withDefault(const Constant(false))();
   TextColumn get linkedDebtUuid => text().nullable()();
   TextColumn get bookingUuidCache => text().nullable()();
   RealColumn get discountAmount => real().nullable()();
@@ -245,12 +303,30 @@ class Payments extends Table with SyncFields {
   TextColumn get deletedByName => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_payments_booking', 'CREATE INDEX idx_payments_booking ON payments (booking_local_id, hotel_day_key)'),
-    Index('idx_payments_room_day', 'CREATE INDEX idx_payments_room_day ON payments (room_number, hotel_day_key)'),
-    Index('idx_payments_date', 'CREATE INDEX idx_payments_date ON payments (payment_date)'),
-    Index('idx_payments_revenue', 'CREATE INDEX idx_payments_revenue ON payments (revenue_type, hotel_day_key)'),
-    Index('idx_payments_void', 'CREATE INDEX idx_payments_void ON payments (is_voided)'),
-    Index('idx_payments_method', 'CREATE INDEX idx_payments_method ON payments (payment_method)'),
+    Index(
+      'idx_payments_booking',
+      'CREATE INDEX idx_payments_booking ON payments (booking_local_id, hotel_day_key)',
+    ),
+    Index(
+      'idx_payments_room_day',
+      'CREATE INDEX idx_payments_room_day ON payments (room_number, hotel_day_key)',
+    ),
+    Index(
+      'idx_payments_date',
+      'CREATE INDEX idx_payments_date ON payments (payment_date)',
+    ),
+    Index(
+      'idx_payments_revenue',
+      'CREATE INDEX idx_payments_revenue ON payments (revenue_type, hotel_day_key)',
+    ),
+    Index(
+      'idx_payments_void',
+      'CREATE INDEX idx_payments_void ON payments (is_voided)',
+    ),
+    Index(
+      'idx_payments_method',
+      'CREATE INDEX idx_payments_method ON payments (payment_method)',
+    ),
     Index(
       'idx_payments_active_hotel_day',
       'CREATE INDEX idx_payments_active_hotel_day ON payments (hotel_day_key, revenue_type, payment_date) WHERE deleted_at IS NULL AND is_voided = 0',
@@ -272,7 +348,8 @@ class Payments extends Table with SyncFields {
 
 class Debts extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  IntColumn get bookingLocalId =>
+      integer().nullable().references(Bookings, #id)();
   TextColumn get guestName => text()();
   TextColumn get checkinDate => text()();
   TextColumn get checkoutDate => text()();
@@ -290,8 +367,10 @@ class Debts extends Table with SyncFields {
   TextColumn get debtUuid => text().nullable()();
   TextColumn get hotelDayOpened => text().nullable()();
   TextColumn get hotelDayClosed => text().nullable()();
-  BoolColumn get isFromAutoFix => boolean().withDefault(const Constant(false))();
-  BoolColumn get settlementConfirmed => boolean().withDefault(const Constant(false))();
+  BoolColumn get isFromAutoFix =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get settlementConfirmed =>
+      boolean().withDefault(const Constant(false))();
   TextColumn get guestPhone => text().nullable()();
   TextColumn get description => text().nullable()();
   TextColumn get status => text().nullable()();
@@ -308,10 +387,22 @@ class Debts extends Table with SyncFields {
   TextColumn get date => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_debts_status', 'CREATE INDEX idx_debts_status ON debts (is_settled, is_from_auto_fix)'),
-    Index('idx_debts_guest', 'CREATE INDEX idx_debts_guest ON debts (guest_name)'),
-    Index('idx_debts_booking', 'CREATE INDEX idx_debts_booking ON debts (booking_local_id)'),
-    Index('idx_debts_payment_date', 'CREATE INDEX idx_debts_payment_date ON debts (payment_date)'),
+    Index(
+      'idx_debts_status',
+      'CREATE INDEX idx_debts_status ON debts (is_settled, is_from_auto_fix)',
+    ),
+    Index(
+      'idx_debts_guest',
+      'CREATE INDEX idx_debts_guest ON debts (guest_name)',
+    ),
+    Index(
+      'idx_debts_booking',
+      'CREATE INDEX idx_debts_booking ON debts (booking_local_id)',
+    ),
+    Index(
+      'idx_debts_payment_date',
+      'CREATE INDEX idx_debts_payment_date ON debts (payment_date)',
+    ),
   ];
 }
 
@@ -320,21 +411,40 @@ class ShiftNotes extends Table with SyncFields {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get title => text()();
   TextColumn get content => text()();
-  TextColumn get priority => text().withDefault(const Constant('medium'))(); // high, medium, low
-  TextColumn get shiftType => text().withDefault(const Constant('all'))(); // morning, evening, night, all
+  TextColumn get priority =>
+      text().withDefault(const Constant('medium'))(); // high, medium, low
+  TextColumn get shiftType => text().withDefault(
+    const Constant('all'),
+  )(); // morning, evening, night, all
   // ⚠️ TODO: IntColumn بدلاً من BoolColumn — يتطلب ترحيل و إعادة توليد الكود
-  IntColumn get isRead => integer().withDefault(const Constant(0))(); // 0 = غير مقروء، 1 = مقروء
+  IntColumn get isRead =>
+      integer().withDefault(const Constant(0))(); // 0 = غير مقروء، 1 = مقروء
   // createdAt موجود في SyncFields كـ integer
   TextColumn get expiresAt => text().nullable()();
   TextColumn get createdBy => text().withDefault(const Constant('user'))();
 
   // فهارس لتسريع البحث بمنشئ الملاحظة والتاريخ والأولوية
   List<Index> get indexes => [
-    Index('idx_shift_notes_created_by', 'CREATE INDEX idx_shift_notes_created_by ON shift_notes (created_by)'),
-    Index('idx_shift_notes_date', 'CREATE INDEX idx_shift_notes_date ON shift_notes (created_at)'),
-    Index('idx_shift_notes_read', 'CREATE INDEX idx_shift_notes_read ON shift_notes (is_read)'),
-    Index('idx_shift_notes_priority', 'CREATE INDEX idx_shift_notes_priority ON shift_notes (priority)'),
-    Index('idx_shift_notes_shift_type', 'CREATE INDEX idx_shift_notes_shift_type ON shift_notes (shift_type)'),
+    Index(
+      'idx_shift_notes_created_by',
+      'CREATE INDEX idx_shift_notes_created_by ON shift_notes (created_by)',
+    ),
+    Index(
+      'idx_shift_notes_date',
+      'CREATE INDEX idx_shift_notes_date ON shift_notes (created_at)',
+    ),
+    Index(
+      'idx_shift_notes_read',
+      'CREATE INDEX idx_shift_notes_read ON shift_notes (is_read)',
+    ),
+    Index(
+      'idx_shift_notes_priority',
+      'CREATE INDEX idx_shift_notes_priority ON shift_notes (priority)',
+    ),
+    Index(
+      'idx_shift_notes_shift_type',
+      'CREATE INDEX idx_shift_notes_shift_type ON shift_notes (shift_type)',
+    ),
   ];
 }
 
@@ -357,8 +467,14 @@ class Blacklist extends Table with SyncFields {
   IntColumn get createdAt => integer()();
 
   List<Index> get indexes => [
-    Index('idx_blacklist_name', 'CREATE INDEX idx_blacklist_name ON blacklist (name)'),
-    Index('idx_blacklist_active', 'CREATE INDEX idx_blacklist_active ON blacklist (active)'),
+    Index(
+      'idx_blacklist_name',
+      'CREATE INDEX idx_blacklist_name ON blacklist (name)',
+    ),
+    Index(
+      'idx_blacklist_active',
+      'CREATE INDEX idx_blacklist_active ON blacklist (active)',
+    ),
   ];
 }
 
@@ -371,7 +487,8 @@ class BookingNights extends Table with SyncFields {
   TextColumn get nightEnd => text()();
   RealColumn get nightlyRate => real().withDefault(const Constant(0.0))();
   IntColumn get sequence => integer().withDefault(const Constant(0))();
-  BoolColumn get isProcessedByAutoFix => boolean().withDefault(const Constant(false))();
+  BoolColumn get isProcessedByAutoFix =>
+      boolean().withDefault(const Constant(false))();
   RealColumn get baseRate => real().withDefault(const Constant(0.0))();
   RealColumn get adjustment => real().withDefault(const Constant(0.0))();
   RealColumn get finalRate => real().withDefault(const Constant(0.0))();
@@ -387,7 +504,10 @@ class BookingNights extends Table with SyncFields {
   ];
 
   List<Index> get indexes => [
-    Index('idx_booking_nights_booking', 'CREATE INDEX idx_booking_nights_booking ON booking_nights (booking_local_id)'),
+    Index(
+      'idx_booking_nights_booking',
+      'CREATE INDEX idx_booking_nights_booking ON booking_nights (booking_local_id)',
+    ),
   ];
 }
 
@@ -426,7 +546,8 @@ class PriceAdjustments extends Table with SyncFields {
   TextColumn get effectiveDate => text()();
   TextColumn get appliedBy => text()();
   TextColumn get hotelDayKey => text().nullable()();
-  TextColumn get adjustmentMode => text().withDefault(const Constant('per_night'))();
+  TextColumn get adjustmentMode =>
+      text().withDefault(const Constant('per_night'))();
   TextColumn get bookingUuid => text().nullable()();
   IntColumn get appliedAt => integer().nullable()();
   BoolColumn get isReversed => boolean().withDefault(const Constant(false))();
@@ -434,8 +555,14 @@ class PriceAdjustments extends Table with SyncFields {
   TextColumn get reversedBy => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_price_adj_target', 'CREATE INDEX idx_price_adj_target ON price_adjustments (target_type, target_uuid)'),
-    Index('idx_price_adj_day', 'CREATE INDEX idx_price_adj_day ON price_adjustments (hotel_day_key)'),
+    Index(
+      'idx_price_adj_target',
+      'CREATE INDEX idx_price_adj_target ON price_adjustments (target_type, target_uuid)',
+    ),
+    Index(
+      'idx_price_adj_day',
+      'CREATE INDEX idx_price_adj_day ON price_adjustments (hotel_day_key)',
+    ),
   ];
 }
 
@@ -447,7 +574,8 @@ class BookingPriceAdjustments extends Table with SyncFields {
   @ReferenceName('bookingPriceAdjustmentsByUuid')
   TextColumn get bookingLocalUuid => text().references(Bookings, #localUuid)();
   @ReferenceName('bookingPriceAdjustmentsById')
-  IntColumn get bookingLocalId => integer().nullable().references(Bookings, #id)();
+  IntColumn get bookingLocalId =>
+      integer().nullable().references(Bookings, #id)();
   TextColumn get roomNumber => text().withLength(min: 1, max: 20).nullable()();
   RealColumn get amount => real().withDefault(const Constant(0.0))();
   TextColumn get effectiveHotelDay => text()();
@@ -495,9 +623,18 @@ class AuditLogs extends Table with SyncFields {
   IntColumn get amountImpact => integer().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_audit_entity', 'CREATE INDEX idx_audit_entity ON audit_logs (entity_type, entity_uuid)'),
-    Index('idx_audit_timestamp', 'CREATE INDEX idx_audit_timestamp ON audit_logs (timestamp DESC)'),
-    Index('idx_audit_financial', 'CREATE INDEX idx_audit_financial ON audit_logs (is_financial, hotel_day_key)'),
+    Index(
+      'idx_audit_entity',
+      'CREATE INDEX idx_audit_entity ON audit_logs (entity_type, entity_uuid)',
+    ),
+    Index(
+      'idx_audit_timestamp',
+      'CREATE INDEX idx_audit_timestamp ON audit_logs (timestamp DESC)',
+    ),
+    Index(
+      'idx_audit_financial',
+      'CREATE INDEX idx_audit_financial ON audit_logs (is_financial, hotel_day_key)',
+    ),
   ];
 }
 
@@ -521,8 +658,14 @@ class PaymentVoids extends Table with SyncFields {
   TextColumn get paymentUuid => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_void_booking', 'CREATE INDEX idx_void_booking ON payment_voids (booking_uuid)'),
-    Index('idx_void_day', 'CREATE INDEX idx_void_day ON payment_voids (hotel_day_key)'),
+    Index(
+      'idx_void_booking',
+      'CREATE INDEX idx_void_booking ON payment_voids (booking_uuid)',
+    ),
+    Index(
+      'idx_void_day',
+      'CREATE INDEX idx_void_day ON payment_voids (hotel_day_key)',
+    ),
   ];
 }
 
@@ -544,7 +687,10 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get guestPhone => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_guest_infos_room', 'CREATE INDEX idx_guest_infos_room ON guest_infos (room_number)'),
+    Index(
+      'idx_guest_infos_room',
+      'CREATE INDEX idx_guest_infos_room ON guest_infos (room_number)',
+    ),
   ];
 }
 
@@ -576,7 +722,10 @@ class IntegrityViolations extends Table {
   IntColumn get createdAtEpoch => integer()();
 
   List<Index> get indexes => [
-    Index('idx_integrity_run', 'CREATE INDEX idx_integrity_run ON integrity_violations (run_id, violation_type)'),
+    Index(
+      'idx_integrity_run',
+      'CREATE INDEX idx_integrity_run ON integrity_violations (run_id, violation_type)',
+    ),
   ];
 }
 
@@ -634,7 +783,8 @@ class SalaryPayments extends Table with SyncFields {
   TextColumn get hotelDayKey => text().nullable()();
   TextColumn get paymentDateIso => text()();
   TextColumn get method => text().nullable()();
-  BoolColumn get isAutoGenerated => boolean().withDefault(const Constant(false))();
+  BoolColumn get isAutoGenerated =>
+      boolean().withDefault(const Constant(false))();
 
   List<Index> get indexes => [
     Index(
@@ -762,7 +912,8 @@ class Outbox extends Table {
   // عند retry بعد timeout. UNIQUE يمنع التكرار ويُطبَّق عبر partial unique index
   // في migration 51 (WHERE idempotency_key IS NOT NULL).
   TextColumn get idempotencyKey => text().nullable()();
-  TextColumn get processingStatus => text().withDefault(const Constant('pending'))();
+  TextColumn get processingStatus =>
+      text().withDefault(const Constant('pending'))();
   IntColumn get processingStartedAt => integer().nullable()();
   TextColumn get processingWorker => text().nullable()();
 
@@ -781,18 +932,22 @@ class Outbox extends Table {
   ///   - delivered_to_primary = false (لم يُسلّم للرئيسي بعد)
   ///   - delivered_to_secondary = true (افتراضياً مُسلّم: تجنّب حجب السجلات
   ///     عندما Secondary غير مُفعّل — فقط SecondarySyncManager يضبطها على false)
-  BoolColumn get deliveredToPrimary => boolean().withDefault(const Constant(false))();
-  BoolColumn get deliveredToSecondary => boolean().withDefault(const Constant(true))();
+  BoolColumn get deliveredToPrimary =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get deliveredToSecondary =>
+      boolean().withDefault(const Constant(true))();
 
   /// ✅ Sync Safety Fix (2026-08-10): فصل processing state لكل وجهة.
   /// سابقاً، processingStatus و attempts و lastError كانت مشتركة بين
   /// Primary و Secondary. هذا يعني أن فشل Secondary في معالجة سجل
   /// يمنع Primary من معالجته (لأن processingStatus قد تكون 'failed').
   /// الآن: كل وجهة لها حالة منفصلة.
-  TextColumn get primaryProcessingStatus => text().withDefault(const Constant('pending'))();
+  TextColumn get primaryProcessingStatus =>
+      text().withDefault(const Constant('pending'))();
   IntColumn get primaryAttempts => integer().withDefault(const Constant(0))();
   TextColumn get primaryLastError => text().nullable()();
-  TextColumn get secondaryProcessingStatus => text().withDefault(const Constant('pending'))();
+  TextColumn get secondaryProcessingStatus =>
+      text().withDefault(const Constant('pending'))();
   IntColumn get secondaryAttempts => integer().withDefault(const Constant(0))();
   TextColumn get secondaryLastError => text().nullable()();
 
@@ -822,7 +977,10 @@ class Outbox extends Table {
   IntColumn get processingPayloadVersion => integer().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_outbox_status', 'CREATE INDEX idx_outbox_status ON outbox (processing_status)'),
+    Index(
+      'idx_outbox_status',
+      'CREATE INDEX idx_outbox_status ON outbox (processing_status)',
+    ),
     Index(
       'idx_outbox_entity_status',
       'CREATE INDEX idx_outbox_entity_status ON outbox (entity, op, processing_status)',
@@ -831,12 +989,18 @@ class Outbox extends Table {
       'idx_outbox_uuid_pending',
       'CREATE INDEX idx_outbox_uuid_pending ON outbox (entity, local_uuid, processing_status)',
     ),
-    Index('idx_outbox_client_ts', 'CREATE INDEX idx_outbox_client_ts ON outbox (client_ts)'),
+    Index(
+      'idx_outbox_client_ts',
+      'CREATE INDEX idx_outbox_client_ts ON outbox (client_ts)',
+    ),
     Index(
       'idx_outbox_processing_started',
       'CREATE INDEX idx_outbox_processing_started ON outbox (processing_status, processing_started_at)',
     ),
-    Index('idx_outbox_source_status', 'CREATE INDEX idx_outbox_source_status ON outbox (source, processing_status)'),
+    Index(
+      'idx_outbox_source_status',
+      'CREATE INDEX idx_outbox_source_status ON outbox (source, processing_status)',
+    ),
     // ✅ فهرس مركّب لتسريع استعلامات "ما الذي لم يُسلّم بعد لكل وجهة"
     Index(
       'idx_outbox_delivery_primary',
@@ -916,8 +1080,14 @@ class SyncQueue extends Table {
   TextColumn get createdAt => text()();
 
   List<Index> get indexes => [
-    Index('idx_sync_queue_status', 'CREATE INDEX idx_sync_queue_status ON sync_queue (status)'),
-    Index('idx_sync_queue_table', 'CREATE INDEX idx_sync_queue_table ON sync_queue (table_name)'),
+    Index(
+      'idx_sync_queue_status',
+      'CREATE INDEX idx_sync_queue_status ON sync_queue (status)',
+    ),
+    Index(
+      'idx_sync_queue_table',
+      'CREATE INDEX idx_sync_queue_table ON sync_queue (table_name)',
+    ),
   ];
 }
 
@@ -927,16 +1097,26 @@ class SyncLog extends Table {
   TextColumn get direction => text()();
   TextColumn get deviceId => text()();
   TextColumn get metadata => text()();
-  TextColumn get operations => text().nullable().withDefault(const Constant('[]'))();
+  TextColumn get operations =>
+      text().nullable().withDefault(const Constant('[]'))();
   IntColumn get checksumMatched => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('success'))();
   TextColumn get createdAt => text()();
   TextColumn get completedAt => text().nullable()();
 
   List<Index> get indexes => [
-    Index('idx_sync_log_created', 'CREATE INDEX idx_sync_log_created ON sync_log (created_at)'),
-    Index('idx_sync_log_sync_id', 'CREATE INDEX idx_sync_log_sync_id ON sync_log (sync_id)'),
-    Index('idx_sync_log_device_id', 'CREATE INDEX idx_sync_log_device_id ON sync_log (device_id)'),
+    Index(
+      'idx_sync_log_created',
+      'CREATE INDEX idx_sync_log_created ON sync_log (created_at)',
+    ),
+    Index(
+      'idx_sync_log_sync_id',
+      'CREATE INDEX idx_sync_log_sync_id ON sync_log (sync_id)',
+    ),
+    Index(
+      'idx_sync_log_device_id',
+      'CREATE INDEX idx_sync_log_device_id ON sync_log (device_id)',
+    ),
   ];
 }
 
@@ -1128,7 +1308,10 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(salaryCycles, salaryCycles.employeeUuid);
         await m.addColumn(salaryPayments, salaryPayments.employeeUuid);
         await m.addColumn(salaryWithdrawals, salaryWithdrawals.employeeUuid);
-        await m.addColumn(salaryCarryOverLogs, salaryCarryOverLogs.employeeUuid);
+        await m.addColumn(
+          salaryCarryOverLogs,
+          salaryCarryOverLogs.employeeUuid,
+        );
 
         // ── Backfill: تعبئة uuid من الروابط الرقمية المحلية الصحيحة ──
         // 1) الدورات: من employees.id (نفس الجهاز — الربط المحلي موثوق)
@@ -1209,7 +1392,10 @@ class AppDatabase extends _$AppDatabase {
           'ON salary_carry_over_logs (employee_uuid)',
         );
 
-        developer.log('Migration 67: added employee_uuid to salary tables + backfill', name: 'db.migration');
+        developer.log(
+          'Migration 67: added employee_uuid to salary tables + backfill',
+          name: 'db.migration',
+        );
       }
       // ✅ (2026-09-14) الإصدار 66: إسناد سحوبات الرواتب لمسجّلها.
       // recorder_name على salary_withdrawals — من سجّل السحبة (اسم المستخدم).
@@ -1378,8 +1564,12 @@ class AppDatabase extends _$AppDatabase {
             )
             .get();
 
-        await m.database.customStatement('DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid');
-        await m.database.customStatement('DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active');
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid',
+        );
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active',
+        );
 
         if (duplicateRows.isEmpty) {
           await m.database.customStatement(
@@ -1414,8 +1604,12 @@ class AppDatabase extends _$AppDatabase {
               'GROUP BY expense_uuid HAVING COUNT(*) > 1',
             )
             .get();
-        await m.database.customStatement('DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active');
-        await m.database.customStatement('DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid');
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS ux_salary_withdrawals_expense_uuid_active',
+        );
+        await m.database.customStatement(
+          'DROP INDEX IF EXISTS idx_salary_withdrawals_expense_uuid',
+        );
         if (duplicateRows.isEmpty) {
           await m.database.customStatement(
             'CREATE UNIQUE INDEX IF NOT EXISTS ux_salary_withdrawals_expense_uuid_active '
@@ -1465,7 +1659,10 @@ class AppDatabase extends _$AppDatabase {
           '  )',
         );
 
-        developer.log('Migration 71: added cycle_uuid to salary_payments + backfill', name: 'db.migration');
+        developer.log(
+          'Migration 71: added cycle_uuid to salary_payments + backfill',
+          name: 'db.migration',
+        );
       }
       // ✅ (2026-10-11) الإصدار 72: فصل جدول blacklist عن shift_notes.
       //
@@ -1518,7 +1715,10 @@ class AppDatabase extends _$AppDatabase {
           "WHERE created_by = 'blacklist'",
         );
 
-        developer.log('Migration 72: created blacklist table + migrated data from shift_notes', name: 'db.migration');
+        developer.log(
+          'Migration 72: created blacklist table + migrated data from shift_notes',
+          name: 'db.migration',
+        );
       }
       // ✅ الإصدار 73: تتبّع حاذف المدفوعات — deletedByDevice/deletedByName.
       // أعمدة nullable بلا backfill: الحذف التاريخي لا يُعرف حاذفه.
@@ -1543,7 +1743,10 @@ class AppDatabase extends _$AppDatabase {
       // لا نضيف العمود عند إنشاء الجداول لأول مرة (from < 62)، لأنه موجود
       // ضمن تعريف الجدول الحالي بالفعل.
       if (from >= 62 && from < 63) {
-        await m.addColumn(inventoryTransactions, inventoryTransactions.itemLocalUuid);
+        await m.addColumn(
+          inventoryTransactions,
+          inventoryTransactions.itemLocalUuid,
+        );
       }
       if (from < 61) {
         await m.addColumn(payments, payments.receivedByUserId);
@@ -1562,10 +1765,14 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(bookings, bookings.guestIdIssuePlace);
         await m.addColumn(bookings, bookings.actualCheckout);
         await m.addColumn(bookings, bookings.expectedNights);
-        await m.database.customStatement('UPDATE bookings SET expected_nights = calculated_nights');
+        await m.database.customStatement(
+          'UPDATE bookings SET expected_nights = calculated_nights',
+        );
       }
       if (from < 3) {
-        await m.database.customStatement('ALTER TABLE rooms RENAME TO rooms_old');
+        await m.database.customStatement(
+          'ALTER TABLE rooms RENAME TO rooms_old',
+        );
         await m.createTable(rooms);
         await m.database.customStatement(
           'INSERT INTO rooms (room_number, type, price, status, image_url, local_uuid, server_id, created_at, updated_at, deleted_at, last_modified, version, origin) '
@@ -1686,39 +1893,74 @@ class AppDatabase extends _$AppDatabase {
         try {
           await m.addColumn(outbox, outbox.processingStatus);
         } catch (e, st) {
-          developer.log('Migration add processingStatus failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add processingStatus failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(outbox, outbox.processingStartedAt);
         } catch (e, st) {
-          developer.log('Migration add processingStartedAt failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add processingStartedAt failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(outbox, outbox.processingWorker);
         } catch (e, st) {
-          developer.log('Migration add processingWorker failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add processingWorker failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
       }
       if (from < 19) {
         try {
           await m.addColumn(bookings, bookings.vectorClock);
         } catch (e, st) {
-          developer.log('Migration add bookings.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add bookings.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(rooms, rooms.vectorClock);
         } catch (e, st) {
-          developer.log('Migration add rooms.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add rooms.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(employees, employees.vectorClock);
         } catch (e, st) {
-          developer.log('Migration add employees.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add employees.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(expenses, expenses.vectorClock);
         } catch (e, st) {
-          developer.log('Migration add expenses.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add expenses.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(cashTransactions, cashTransactions.vectorClock);
@@ -1733,12 +1975,22 @@ class AppDatabase extends _$AppDatabase {
         try {
           await m.addColumn(payments, payments.vectorClock);
         } catch (e, st) {
-          developer.log('Migration add payments.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add payments.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(debts, debts.vectorClock);
         } catch (e, st) {
-          developer.log('Migration add debts.vectorClock failed', error: e, stackTrace: st, name: 'db.migration');
+          developer.log(
+            'Migration add debts.vectorClock failed',
+            error: e,
+            stackTrace: st,
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(bookingNotes, bookingNotes.vectorClock);
@@ -1795,31 +2047,63 @@ class AppDatabase extends _$AppDatabase {
         // إصلاح مشكلة serverId في الجداول القديمة
         // التحقق من وجود عمود serverId في جدول rooms وإضافته إذا لم يكن موجوداً
         try {
-          await m.database.customStatement('SELECT server_id FROM rooms LIMIT 1');
-          developer.log('serverId column already exists in rooms table', name: 'db.migration');
+          await m.database.customStatement(
+            'SELECT server_id FROM rooms LIMIT 1',
+          );
+          developer.log(
+            'serverId column already exists in rooms table',
+            name: 'db.migration',
+          );
         } catch (e) {
           // العمود غير موجود، نحتاج لإضافته
           try {
             await m.addColumn(rooms, rooms.serverId);
-            developer.log('Added serverId column to rooms table', name: 'db.migration');
+            developer.log(
+              'Added serverId column to rooms table',
+              name: 'db.migration',
+            );
           } catch (e2, st2) {
-            developer.log('Failed to add serverId column to rooms', error: e2, stackTrace: st2, name: 'db.migration');
+            developer.log(
+              'Failed to add serverId column to rooms',
+              error: e2,
+              stackTrace: st2,
+              name: 'db.migration',
+            );
           }
         }
 
         // التحقق من وجود عمود serverId في باقي الجداول
-        final tablesToCheck = ['bookings', 'employees', 'expenses', 'cash_transactions', 'payments', 'debts'];
+        final tablesToCheck = [
+          'bookings',
+          'employees',
+          'expenses',
+          'cash_transactions',
+          'payments',
+          'debts',
+        ];
 
         for (final tableName in tablesToCheck) {
           try {
-            await m.database.customStatement('SELECT server_id FROM $tableName LIMIT 1');
+            await m.database.customStatement(
+              'SELECT server_id FROM $tableName LIMIT 1',
+            );
           } catch (e) {
             // العمود غير موجود
             try {
-              await m.database.customStatement('ALTER TABLE $tableName ADD COLUMN server_id INTEGER');
-              developer.log('Added serverId column to $tableName table', name: 'db.migration');
+              await m.database.customStatement(
+                'ALTER TABLE $tableName ADD COLUMN server_id INTEGER',
+              );
+              developer.log(
+                'Added serverId column to $tableName table',
+                name: 'db.migration',
+              );
             } catch (e2, st2) {
-              developer.log('Failed to add serverId to $tableName', error: e2, stackTrace: st2, name: 'db.migration');
+              developer.log(
+                'Failed to add serverId to $tableName',
+                error: e2,
+                stackTrace: st2,
+                name: 'db.migration',
+              );
             }
           }
         }
@@ -1827,11 +2111,15 @@ class AppDatabase extends _$AppDatabase {
 
       if (from < 21) {
         // إضافة حقول المزامنة لجدول الملاحظات
-        await m.database.customStatement('ALTER TABLE shift_notes RENAME TO shift_notes_old');
+        await m.database.customStatement(
+          'ALTER TABLE shift_notes RENAME TO shift_notes_old',
+        );
 
         await m.createTable(shiftNotes);
 
-        final oldNotes = await m.database.customSelect('SELECT * FROM shift_notes_old').get();
+        final oldNotes = await m.database
+            .customSelect('SELECT * FROM shift_notes_old')
+            .get();
         final now = DateTime.now();
 
         for (final row in oldNotes) {
@@ -1842,12 +2130,16 @@ class AppDatabase extends _$AppDatabase {
           if (oldCreatedRaw is int) {
             createdTimestamp = oldCreatedRaw;
           } else if (oldCreatedRaw is String) {
-            createdTimestamp = DateTime.tryParse(oldCreatedRaw)?.millisecondsSinceEpoch ?? now.millisecondsSinceEpoch;
+            createdTimestamp =
+                DateTime.tryParse(oldCreatedRaw)?.millisecondsSinceEpoch ??
+                now.millisecondsSinceEpoch;
           } else {
             createdTimestamp = now.millisecondsSinceEpoch;
           }
 
-          final isoDate = DateTime.fromMillisecondsSinceEpoch(createdTimestamp).toIso8601String();
+          final isoDate = DateTime.fromMillisecondsSinceEpoch(
+            createdTimestamp,
+          ).toIso8601String();
 
           await m.database.customInsert(
             'INSERT INTO shift_notes ('
@@ -1906,7 +2198,10 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE rooms SET price = CAST(ROUND(price) AS INTEGER) WHERE price IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: rooms.price conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: rooms.price conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // bookings cached fields
@@ -1920,7 +2215,10 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: bookings conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: bookings conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // employees.basic_salary
@@ -1929,7 +2227,10 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE employees SET basic_salary = CAST(ROUND(basic_salary) AS INTEGER) WHERE basic_salary IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: employees conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: employees conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // expenses.amount
@@ -1938,7 +2239,10 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE expenses SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: expenses conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: expenses conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // cash_transactions.amount
@@ -1947,7 +2251,10 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE cash_transactions SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: cash_transactions conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: cash_transactions conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // payments.amount
@@ -1956,7 +2263,10 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: payments conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: payments conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // debts amounts
@@ -1969,7 +2279,10 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: debts conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: debts conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // booking_nights.nightly_rate + إضافة الأعمدة الجديدة
@@ -1978,29 +2291,44 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE booking_nights SET nightly_rate = CAST(ROUND(nightly_rate) AS INTEGER) WHERE nightly_rate IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: booking_nights.nightly_rate conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: booking_nights.nightly_rate conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // إضافة أعمدة BookingNights الجديدة (baseRate, adjustment, finalRate)
         try {
           await m.addColumn(bookingNights, bookingNights.baseRate);
         } catch (e) {
-          developer.log('Migration 24: add baseRate failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add baseRate failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(bookingNights, bookingNights.adjustment);
         } catch (e) {
-          developer.log('Migration 24: add adjustment failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add adjustment failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(bookingNights, bookingNights.finalRate);
         } catch (e) {
-          developer.log('Migration 24: add finalRate failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add finalRate failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(bookingNights, bookingNights.appliedAdjustmentUuid);
         } catch (e) {
-          developer.log('Migration 24: add appliedAdjustmentUuid failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add appliedAdjustmentUuid failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // تحديث القيم الافتراضية للأعمدة الجديدة
@@ -2013,7 +2341,10 @@ class AppDatabase extends _$AppDatabase {
             'WHERE base_rate IS NULL OR base_rate = 0',
           );
         } catch (e) {
-          developer.log('Migration 24: booking_nights defaults failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: booking_nights defaults failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // hotel_day_ledger amounts
@@ -2027,7 +2358,10 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: hotel_day_ledger conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: hotel_day_ledger conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // price_adjustments amounts
@@ -2039,7 +2373,10 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: price_adjustments conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: price_adjustments conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // payment_voids.voided_amount
@@ -2048,7 +2385,10 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE payment_voids SET voided_amount = CAST(ROUND(voided_amount) AS INTEGER) WHERE voided_amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: payment_voids conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: payment_voids conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // salary_cycles amounts
@@ -2061,7 +2401,10 @@ class AppDatabase extends _$AppDatabase {
             'WHERE 1=1',
           );
         } catch (e) {
-          developer.log('Migration 24: salary_cycles conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: salary_cycles conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // salary_payments.amount
@@ -2070,7 +2413,10 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE salary_payments SET amount = CAST(ROUND(amount) AS INTEGER) WHERE amount IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: salary_payments conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: salary_payments conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // audit_logs.amount_impact
@@ -2079,95 +2425,173 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE audit_logs SET amount_impact = CAST(ROUND(amount_impact) AS INTEGER) WHERE amount_impact IS NOT NULL',
           );
         } catch (e) {
-          developer.log('Migration 24: audit_logs conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: audit_logs conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
         // إضافة حقل discountStartDate للحجوزات إذا لم يكن موجوداً
         try {
           await m.addColumn(bookings, bookings.discountStartDate);
         } catch (e) {
-          developer.log('Migration 24: add discountStartDate already exists or failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 24: add discountStartDate already exists or failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 25) {
         try {
-          await m.addColumn(bookingNights, bookingNights.appliedAdjustmentsJson);
+          await m.addColumn(
+            bookingNights,
+            bookingNights.appliedAdjustmentsJson,
+          );
         } catch (e) {
-          developer.log('Migration 25: add appliedAdjustmentsJson failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 25: add appliedAdjustmentsJson failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 26) {
         try {
-          await m.addColumn(bookingPriceAdjustments, bookingPriceAdjustments.adjustmentMode);
-          developer.log('Migration 26: added adjustmentMode column to booking_price_adjustments', name: 'db.migration');
+          await m.addColumn(
+            bookingPriceAdjustments,
+            bookingPriceAdjustments.adjustmentMode,
+          );
+          developer.log(
+            'Migration 26: added adjustmentMode column to booking_price_adjustments',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 26: add adjustmentMode failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 26: add adjustmentMode failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 27) {
         // إنشاء جدول سجل المعلومية
         try {
           await m.createTable(guestInfos);
-          developer.log('Migration 27: created guest_infos table', name: 'db.migration');
+          developer.log(
+            'Migration 27: created guest_infos table',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 27: create guest_infos failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 27: create guest_infos failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 28) {
         // إنشاء جدول سحوبات الرواتب
         try {
           await m.createTable(salaryWithdrawals);
-          developer.log('Migration 28: created salary_withdrawals table', name: 'db.migration');
+          developer.log(
+            'Migration 28: created salary_withdrawals table',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 28: create salary_withdrawals failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 28: create salary_withdrawals failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 29) {
         // إضافة حقول جديدة لجدول payments للمزامنة مع Appwrite
         try {
           await m.addColumn(payments, payments.discountAmount);
-          developer.log('Migration 29: added payments.discountAmount', name: 'db.migration');
+          developer.log(
+            'Migration 29: added payments.discountAmount',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 29: add payments.discountAmount failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 29: add payments.discountAmount failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(payments, payments.discountStartDate);
-          developer.log('Migration 29: added payments.discountStartDate', name: 'db.migration');
+          developer.log(
+            'Migration 29: added payments.discountStartDate',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 29: add payments.discountStartDate failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 29: add payments.discountStartDate failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(payments, payments.isVoided);
-          developer.log('Migration 29: added payments.isVoided', name: 'db.migration');
+          developer.log(
+            'Migration 29: added payments.isVoided',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 29: add payments.isVoided failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 29: add payments.isVoided failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(payments, payments.voidedAt);
-          developer.log('Migration 29: added payments.voidedAt', name: 'db.migration');
+          developer.log(
+            'Migration 29: added payments.voidedAt',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 29: add payments.voidedAt failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 29: add payments.voidedAt failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(payments, payments.voidedBy);
-          developer.log('Migration 29: added payments.voidedBy', name: 'db.migration');
+          developer.log(
+            'Migration 29: added payments.voidedBy',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 29: add payments.voidedBy failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 29: add payments.voidedBy failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 30) {
         // إضافة حقول withdrawalType و description لجدول salary_withdrawals
         try {
-          await m.addColumn(salaryWithdrawals, salaryWithdrawals.withdrawalType);
-          developer.log('Migration 30: added salary_withdrawals.withdrawalType', name: 'db.migration');
+          await m.addColumn(
+            salaryWithdrawals,
+            salaryWithdrawals.withdrawalType,
+          );
+          developer.log(
+            'Migration 30: added salary_withdrawals.withdrawalType',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 30: add salary_withdrawals.withdrawalType failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 30: add salary_withdrawals.withdrawalType failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(salaryWithdrawals, salaryWithdrawals.description);
-          developer.log('Migration 30: added salary_withdrawals.description', name: 'db.migration');
+          developer.log(
+            'Migration 30: added salary_withdrawals.description',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 30: add salary_withdrawals.description failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 30: add salary_withdrawals.description failed: $e',
+            name: 'db.migration',
+          );
         }
       }
 
@@ -2195,14 +2619,26 @@ class AppDatabase extends _$AppDatabase {
           try {
             await m.database.customStatement(sql);
           } catch (e) {
-            developer.log('Migration 31: $sql failed: $e', name: 'db.migration');
+            developer.log(
+              'Migration 31: $sql failed: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 31: performance indexes created successfully', name: 'db.migration');
+        developer.log(
+          'Migration 31: performance indexes created successfully',
+          name: 'db.migration',
+        );
       }
       if (from < 32) {
-        await m.addColumn(bookingPriceAdjustments, bookingPriceAdjustments.roomNumber);
-        developer.log('Migration 32: added roomNumber to booking_price_adjustments', name: 'db.migration');
+        await m.addColumn(
+          bookingPriceAdjustments,
+          bookingPriceAdjustments.roomNumber,
+        );
+        developer.log(
+          'Migration 32: added roomNumber to booking_price_adjustments',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 33: إصلاح مصروفات الرواتب المفقودة من salary_withdrawals ===
@@ -2213,7 +2649,8 @@ class AppDatabase extends _$AppDatabase {
 
           // جلب مصروفات الرواتب التي لها موظف مرتبط ولم تُحذف
           // وأنواعها من: سحب راتب، خصم راتب، سحب من الراتب، خصم من الراتب
-          const salaryTypes = "'سحب راتب','خصم راتب','سحب من الراتب','خصم من الراتب'";
+          const salaryTypes =
+              "'سحب راتب','خصم راتب','سحب من الراتب','خصم من الراتب'";
 
           final missingExpenses = await m.database.customSelect('''
             SELECT e.id, e.related_id, e.amount, e.date, e.hotel_day_key,
@@ -2294,7 +2731,10 @@ class AppDatabase extends _$AppDatabase {
 
             created++;
           }
-          developer.log('Migration 33: created $created missing salary_withdrawals records', name: 'db.migration');
+          developer.log(
+            'Migration 33: created $created missing salary_withdrawals records',
+            name: 'db.migration',
+          );
         } catch (e) {
           developer.log('Migration 33: failed - $e', name: 'db.migration');
         }
@@ -2317,10 +2757,16 @@ class AppDatabase extends _$AppDatabase {
           try {
             await m.database.customStatement(sql);
           } catch (e) {
-            developer.log('Migration 34: $sql failed: $e', name: 'db.migration');
+            developer.log(
+              'Migration 34: $sql failed: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 34: new performance indexes created successfully', name: 'db.migration');
+        developer.log(
+          'Migration 34: new performance indexes created successfully',
+          name: 'db.migration',
+        );
       }
       // === Migration 35: فهارس إضافية للمدفوعات والمصروفات والموظفين والملاحظات ===
       if (from < 35) {
@@ -2335,10 +2781,16 @@ class AppDatabase extends _$AppDatabase {
           try {
             await m.database.customStatement(sql);
           } catch (e) {
-            developer.log('Migration 35: $sql failed: $e', name: 'db.migration');
+            developer.log(
+              'Migration 35: $sql failed: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 35: additional performance indexes created successfully', name: 'db.migration');
+        developer.log(
+          'Migration 35: additional performance indexes created successfully',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 36: فهارس GuestInfos و BookingNights + تحسينات سلامة البيانات ===
@@ -2365,10 +2817,16 @@ class AppDatabase extends _$AppDatabase {
           try {
             await m.database.customStatement(sql);
           } catch (e) {
-            developer.log('Migration 36: $sql failed: $e', name: 'db.migration');
+            developer.log(
+              'Migration 36: $sql failed: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 36: additional indexes created successfully', name: 'db.migration');
+        developer.log(
+          'Migration 36: additional indexes created successfully',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 37: جدول القوائم المخصصة (أنواع المصروفات، أنواع الهوية، طرق الدفع) ===
@@ -2432,33 +2890,53 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
-        developer.log('Migration 37: custom_list_items table created and seeded', name: 'db.migration');
+        developer.log(
+          'Migration 37: custom_list_items table created and seeded',
+          name: 'db.migration',
+        );
       }
 
       // Migration 38: إضافة عمود source إلى جدول outbox
       // يفصل بين عناصر outbox الناتجة عن تغييرات محلية (source='local')
       // وعناصر الاستعادة/المزامنة البعيدة (source='restore')
       if (from < 38) {
-        await m.database.customStatement('ALTER TABLE outbox ADD COLUMN source TEXT NOT NULL DEFAULT \'local\'');
+        await m.database.customStatement(
+          'ALTER TABLE outbox ADD COLUMN source TEXT NOT NULL DEFAULT \'local\'',
+        );
         await m.database.customStatement(
           'CREATE INDEX IF NOT EXISTS idx_outbox_source_status '
           'ON outbox (source, processing_status)',
         );
-        developer.log('Migration 38: added source column to outbox table', name: 'db.migration');
+        developer.log(
+          'Migration 38: added source column to outbox table',
+          name: 'db.migration',
+        );
       }
       // === Migration 39: إضافة حقول إنهاء الخدمة للموظفين ===
       if (from < 39) {
         try {
           await m.addColumn(employees, employees.terminationDate);
-          developer.log('Migration 39: added employees.terminationDate', name: 'db.migration');
+          developer.log(
+            'Migration 39: added employees.terminationDate',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 39: add employees.terminationDate failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 39: add employees.terminationDate failed: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.addColumn(employees, employees.terminationReason);
-          developer.log('Migration 39: added employees.terminationReason', name: 'db.migration');
+          developer.log(
+            'Migration 39: added employees.terminationReason',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 39: add employees.terminationReason failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 39: add employees.terminationReason failed: $e',
+            name: 'db.migration',
+          );
         }
       }
 
@@ -2473,11 +2951,19 @@ class AppDatabase extends _$AppDatabase {
       // ═══════════════════════════════════════════════════════════
       if (from < 40) {
         try {
-          await m.database.customStatement('ALTER TABLE salary_withdrawals ADD COLUMN expense_id INTEGER');
-          developer.log('Migration 40: added salary_withdrawals.expense_id', name: 'db.migration');
+          await m.database.customStatement(
+            'ALTER TABLE salary_withdrawals ADD COLUMN expense_id INTEGER',
+          );
+          developer.log(
+            'Migration 40: added salary_withdrawals.expense_id',
+            name: 'db.migration',
+          );
         } catch (e) {
           // العمود قد يكون موجوداً من ترحيل سابق فاشل — نتخطى
-          developer.log('Migration 40: add expense_id (may already exist): $e', name: 'db.migration');
+          developer.log(
+            'Migration 40: add expense_id (may already exist): $e',
+            name: 'db.migration',
+          );
         }
         // تعبئة expense_id من حقل reason (exp_XX → XX)
         try {
@@ -2485,9 +2971,15 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) '
             "WHERE reason LIKE 'exp_%' AND expense_id IS NULL",
           );
-          developer.log('Migration 40: populated expense_id from reason field', name: 'db.migration');
+          developer.log(
+            'Migration 40: populated expense_id from reason field',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 40: populate expense_id failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 40: populate expense_id failed: $e',
+            name: 'db.migration',
+          );
         }
       }
       // ═══════════════════════════════════════════════════════════
@@ -2517,12 +3009,20 @@ class AppDatabase extends _$AppDatabase {
         ];
         for (final table in syncTables) {
           try {
-            await m.database.customStatement('ALTER TABLE $table ADD COLUMN device_id TEXT NOT NULL DEFAULT \'\'');
+            await m.database.customStatement(
+              'ALTER TABLE $table ADD COLUMN device_id TEXT NOT NULL DEFAULT \'\'',
+            );
           } catch (e) {
-            developer.log('Migration 41: add device_id to $table (may exist): $e', name: 'db.migration');
+            developer.log(
+              'Migration 41: add device_id to $table (may exist): $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 41: added device_id to all SyncFields tables', name: 'db.migration');
+        developer.log(
+          'Migration 41: added device_id to all SyncFields tables',
+          name: 'db.migration',
+        );
       }
 
       // ✅ Migration 42 (engineer recommendation):
@@ -2533,10 +3033,18 @@ class AppDatabase extends _$AppDatabase {
       // لذا نستخدم try/catch).
       if (from < 42) {
         try {
-          await m.database.customStatement('ALTER TABLE salary_withdrawals ADD COLUMN expense_id INTEGER');
-          developer.log('Migration 42: added expense_id to salary_withdrawals', name: 'db.migration');
+          await m.database.customStatement(
+            'ALTER TABLE salary_withdrawals ADD COLUMN expense_id INTEGER',
+          );
+          developer.log(
+            'Migration 42: added expense_id to salary_withdrawals',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 42: expense_id already exists in salary_withdrawals: $e', name: 'db.migration');
+          developer.log(
+            'Migration 42: expense_id already exists in salary_withdrawals: $e',
+            name: 'db.migration',
+          );
         }
       }
 
@@ -2573,9 +3081,15 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee ON salary_carry_over_logs (employee_id)',
           );
-          developer.log('Migration 43: created salary_carry_over_logs table', name: 'db.migration');
+          developer.log(
+            'Migration 43: created salary_carry_over_logs table',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 43: salary_carry_over_logs already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 43: salary_carry_over_logs already exists: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 44) {
@@ -2586,17 +3100,29 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'ALTER TABLE outbox ADD COLUMN delivered_to_primary INTEGER NOT NULL DEFAULT 0',
           );
-          developer.log('Migration 44: added outbox.delivered_to_primary column', name: 'db.migration');
+          developer.log(
+            'Migration 44: added outbox.delivered_to_primary column',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 44: delivered_to_primary already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 44: delivered_to_primary already exists: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.database.customStatement(
             'ALTER TABLE outbox ADD COLUMN delivered_to_secondary INTEGER NOT NULL DEFAULT 1',
           );
-          developer.log('Migration 44: added outbox.delivered_to_secondary column', name: 'db.migration');
+          developer.log(
+            'Migration 44: added outbox.delivered_to_secondary column',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 44: delivered_to_secondary already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 44: delivered_to_secondary already exists: $e',
+            name: 'db.migration',
+          );
         }
         try {
           await m.database.customStatement(
@@ -2605,9 +3131,15 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'CREATE INDEX IF NOT EXISTS idx_outbox_delivery_secondary ON outbox (delivered_to_secondary, processing_status)',
           );
-          developer.log('Migration 44: created delivery tracking indexes', name: 'db.migration');
+          developer.log(
+            'Migration 44: created delivery tracking indexes',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 44: indexes already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 44: indexes already exist: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 45) {
@@ -2623,9 +3155,15 @@ class AppDatabase extends _$AppDatabase {
               UNIQUE(entity, local_uuid)
             )
           ''');
-          developer.log('Migration 45: created ancestor_cache table', name: 'db.migration');
+          developer.log(
+            'Migration 45: created ancestor_cache table',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 45: ancestor_cache already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 45: ancestor_cache already exists: $e',
+            name: 'db.migration',
+          );
         }
       }
       if (from < 46) {
@@ -2662,24 +3200,42 @@ class AppDatabase extends _$AppDatabase {
         ];
         for (final table in idempotencyTables) {
           try {
-            await m.database.customStatement('ALTER TABLE $table ADD COLUMN idempotency_key TEXT');
+            await m.database.customStatement(
+              'ALTER TABLE $table ADD COLUMN idempotency_key TEXT',
+            );
           } catch (e) {
-            developer.log('Migration 46: $table.idempotency_key already exists: $e', name: 'db.migration');
+            developer.log(
+              'Migration 46: $table.idempotency_key already exists: $e',
+              name: 'db.migration',
+            );
           }
         }
         // employeeID لجدول employees
         try {
-          await m.database.customStatement('ALTER TABLE employees ADD COLUMN employee_i_d TEXT');
+          await m.database.customStatement(
+            'ALTER TABLE employees ADD COLUMN employee_i_d TEXT',
+          );
         } catch (e) {
-          developer.log('Migration 46: employees.employee_i_d already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 46: employees.employee_i_d already exists: $e',
+            name: 'db.migration',
+          );
         }
         // employeeUuid لجدول expenses
         try {
-          await m.database.customStatement('ALTER TABLE expenses ADD COLUMN employee_uuid TEXT');
+          await m.database.customStatement(
+            'ALTER TABLE expenses ADD COLUMN employee_uuid TEXT',
+          );
         } catch (e) {
-          developer.log('Migration 46: expenses.employee_uuid already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 46: expenses.employee_uuid already exists: $e',
+            name: 'db.migration',
+          );
         }
-        developer.log('Migration 46: added idempotencyKey, employeeID, employeeUuid columns', name: 'db.migration');
+        developer.log(
+          'Migration 46: added idempotencyKey, employeeID, employeeUuid columns',
+          name: 'db.migration',
+        );
       }
       if (from < 47) {
         // ✅ v2: إضافة حقول payment_voids الإضافية لتطابق Appwrite Cloud
@@ -2687,21 +3243,39 @@ class AppDatabase extends _$AppDatabase {
         // - originalAmount: المبلغ الأصلي للدفع قبل الإلغاء
         // - paymentUuid: UUID الدفع المرتبط (مستقل عن originalPaymentUuid)
         try {
-          await m.database.customStatement('ALTER TABLE payment_voids ADD COLUMN note TEXT');
+          await m.database.customStatement(
+            'ALTER TABLE payment_voids ADD COLUMN note TEXT',
+          );
         } catch (e) {
-          developer.log('Migration 47: payment_voids.note already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 47: payment_voids.note already exists: $e',
+            name: 'db.migration',
+          );
         }
         try {
-          await m.database.customStatement('ALTER TABLE payment_voids ADD COLUMN original_amount REAL');
+          await m.database.customStatement(
+            'ALTER TABLE payment_voids ADD COLUMN original_amount REAL',
+          );
         } catch (e) {
-          developer.log('Migration 47: payment_voids.original_amount already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 47: payment_voids.original_amount already exists: $e',
+            name: 'db.migration',
+          );
         }
         try {
-          await m.database.customStatement('ALTER TABLE payment_voids ADD COLUMN payment_uuid TEXT');
+          await m.database.customStatement(
+            'ALTER TABLE payment_voids ADD COLUMN payment_uuid TEXT',
+          );
         } catch (e) {
-          developer.log('Migration 47: payment_voids.payment_uuid already exists: $e', name: 'db.migration');
+          developer.log(
+            'Migration 47: payment_voids.payment_uuid already exists: $e',
+            name: 'db.migration',
+          );
         }
-        developer.log('Migration 47: added note, originalAmount, paymentUuid to payment_voids', name: 'db.migration');
+        developer.log(
+          'Migration 47: added note, originalAmount, paymentUuid to payment_voids',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 48: SyncFields لـ audit_logs ===
@@ -2732,14 +3306,25 @@ class AppDatabase extends _$AppDatabase {
         };
         for (final column in auditLogColumns.entries) {
           try {
-            await m.database.customStatement('ALTER TABLE audit_logs ADD COLUMN ${column.key} ${column.value}');
-            developer.log('Migration 48: added audit_logs.${column.key}', name: 'db.migration');
+            await m.database.customStatement(
+              'ALTER TABLE audit_logs ADD COLUMN ${column.key} ${column.value}',
+            );
+            developer.log(
+              'Migration 48: added audit_logs.${column.key}',
+              name: 'db.migration',
+            );
           } catch (e) {
             // العمود موجود مسبقاً — ليس خطأ
-            developer.log('Migration 48: audit_logs.${column.key} already exists: $e', name: 'db.migration');
+            developer.log(
+              'Migration 48: audit_logs.${column.key} already exists: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 48: added SyncFields columns to audit_logs', name: 'db.migration');
+        developer.log(
+          'Migration 48: added SyncFields columns to audit_logs',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 49: Performance indexes for sorted queries ===
@@ -2754,12 +3339,21 @@ class AppDatabase extends _$AppDatabase {
         for (final sql in perfIndexes) {
           try {
             await m.database.customStatement(sql);
-            developer.log('Migration 49: created index: $sql', name: 'db.migration');
+            developer.log(
+              'Migration 49: created index: $sql',
+              name: 'db.migration',
+            );
           } catch (e) {
-            developer.log('Migration 49: index already exists or failed: $e', name: 'db.migration');
+            developer.log(
+              'Migration 49: index already exists or failed: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 49: performance indexes created successfully', name: 'db.migration');
+        developer.log(
+          'Migration 49: performance indexes created successfully',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 50: Additional indexes for frequently queried columns ===
@@ -2777,12 +3371,21 @@ class AppDatabase extends _$AppDatabase {
         for (final sql in additionalIndexes) {
           try {
             await m.database.customStatement(sql);
-            developer.log('Migration 50: created index: $sql', name: 'db.migration');
+            developer.log(
+              'Migration 50: created index: $sql',
+              name: 'db.migration',
+            );
           } catch (e) {
-            developer.log('Migration 50: index already exists or failed: $e', name: 'db.migration');
+            developer.log(
+              'Migration 50: index already exists or failed: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 50: additional indexes created successfully', name: 'db.migration');
+        developer.log(
+          'Migration 50: additional indexes created successfully',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 51: Audit Fixes (2026-08-06) ===
@@ -2795,9 +3398,15 @@ class AppDatabase extends _$AppDatabase {
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbox_idempotency_unique '
             'ON outbox (idempotency_key) WHERE idempotency_key IS NOT NULL',
           );
-          developer.log('Migration 51: created unique index on outbox.idempotency_key', name: 'db.migration');
+          developer.log(
+            'Migration 51: created unique index on outbox.idempotency_key',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 51: idempotency unique index failed (may already exist): $e', name: 'db.migration');
+          developer.log(
+            'Migration 51: idempotency unique index failed (may already exist): $e',
+            name: 'db.migration',
+          );
         }
 
         // P0-2: تحديث ancestor_cache.capturedAt من ثواني لمللي ثانية
@@ -2807,12 +3416,21 @@ class AppDatabase extends _$AppDatabase {
             'UPDATE ancestor_cache SET captured_at = captured_at * 1000 '
             'WHERE captured_at < 1000000000000',
           );
-          developer.log('Migration 51: converted ancestor_cache.captured_at to milliseconds', name: 'db.migration');
+          developer.log(
+            'Migration 51: converted ancestor_cache.captured_at to milliseconds',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 51: ancestor_cache timestamp conversion failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 51: ancestor_cache timestamp conversion failed: $e',
+            name: 'db.migration',
+          );
         }
 
-        developer.log('Migration 51: audit fixes applied (unique idempotency + timestamp units)', name: 'db.migration');
+        developer.log(
+          'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
+          name: 'db.migration',
+        );
       }
       // === Migration 52: Add sync_timestamp to all SyncFields tables ===
       if (from < 52) {
@@ -2840,48 +3458,93 @@ class AppDatabase extends _$AppDatabase {
         ];
         for (final table in syncTimestampTables) {
           try {
-            await m.database.customStatement('ALTER TABLE $table ADD COLUMN sync_timestamp INTEGER DEFAULT 0');
-            developer.log('Migration 52: added sync_timestamp to $table', name: 'db.migration');
+            await m.database.customStatement(
+              'ALTER TABLE $table ADD COLUMN sync_timestamp INTEGER DEFAULT 0',
+            );
+            developer.log(
+              'Migration 52: added sync_timestamp to $table',
+              name: 'db.migration',
+            );
           } catch (e) {
-            developer.log('Migration 52: sync_timestamp already exists in $table: $e', name: 'db.migration');
+            developer.log(
+              'Migration 52: sync_timestamp already exists in $table: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 52: added sync_timestamp to all sync tables', name: 'db.migration');
+        developer.log(
+          'Migration 52: added sync_timestamp to all sync tables',
+          name: 'db.migration',
+        );
       }
       // === Migration 53: Add missing Appwrite schema fields ===
       if (from < 53) {
-        developer.log('Migration 53: adding missing Appwrite fields...', name: 'db.migration');
+        developer.log(
+          'Migration 53: adding missing Appwrite fields...',
+          name: 'db.migration',
+        );
 
         // bookings: financialFrozenAt, financialHash
         try {
-          await m.database.customStatement("ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL");
-          await m.database.customStatement("ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL");
-          developer.log('Migration 53: added financial_frozen_at, financial_hash to bookings', name: 'db.migration');
+          await m.database.customStatement(
+            "ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL",
+          );
+          developer.log(
+            'Migration 53: added financial_frozen_at, financial_hash to bookings',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 53: bookings fields may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 53: bookings fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
 
         // payments: voidReason, isImmutable
         try {
-          await m.database.customStatement("ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL");
-          await m.database.customStatement("ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0");
-          developer.log('Migration 53: added void_reason, is_immutable to payments', name: 'db.migration');
+          await m.database.customStatement(
+            "ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0",
+          );
+          developer.log(
+            'Migration 53: added void_reason, is_immutable to payments',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 53: payments fields may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 53: payments fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
 
         // debts: guestPhone, description, status, dueDate
         try {
-          await m.database.customStatement("ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL");
-          await m.database.customStatement("ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL");
-          await m.database.customStatement("ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL");
-          await m.database.customStatement("ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL");
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL",
+          );
           developer.log(
             'Migration 53: added guest_phone, description, status, due_date to debts',
             name: 'db.migration',
           );
         } catch (e) {
-          developer.log('Migration 53: debts fields may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 53: debts fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
 
         // price_adjustments: adjustmentMode, bookingUuid, appliedAt
@@ -2889,14 +3552,21 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             "ALTER TABLE price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
           );
-          await m.database.customStatement("ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL");
-          await m.database.customStatement("ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL");
+          await m.database.customStatement(
+            "ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL",
+          );
           developer.log(
             'Migration 53: added adjustment_mode, booking_uuid, applied_at to price_adjustments',
             name: 'db.migration',
           );
         } catch (e) {
-          developer.log('Migration 53: price_adjustments fields may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 53: price_adjustments fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
 
         // booking_price_adjustments: adjustmentMode
@@ -2904,7 +3574,10 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             "ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
           );
-          developer.log('Migration 53: added adjustment_mode to booking_price_adjustments', name: 'db.migration');
+          developer.log(
+            'Migration 53: added adjustment_mode to booking_price_adjustments',
+            name: 'db.migration',
+          );
         } catch (e) {
           developer.log(
             'Migration 53: booking_price_adjustments adjustment_mode may already exist: $e',
@@ -2925,7 +3598,10 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         } catch (e) {
-          developer.log('Migration 53: booking_nights fields may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 53: booking_nights fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
 
         // booking_price_adjustments: adjustmentType, appliedAt
@@ -2941,7 +3617,10 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         } catch (e) {
-          developer.log('Migration 53: booking_price_adjustments fields may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 53: booking_price_adjustments fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
 
         // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy, hotelDayKey
@@ -2966,10 +3645,16 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         } catch (e) {
-          developer.log('Migration 53: salary_carry_over_logs fields may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 53: salary_carry_over_logs fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
 
-        developer.log('Migration 53: all missing Appwrite schema fields added', name: 'db.migration');
+        developer.log(
+          'Migration 53: all missing Appwrite schema fields added',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 54: syncTimestamp non-nullable DEFAULT 0 ===
@@ -3004,12 +3689,20 @@ class AppDatabase extends _$AppDatabase {
         ];
         for (final table in syncTimestampTables) {
           try {
-            await m.database.customStatement('UPDATE $table SET sync_timestamp = 0 WHERE sync_timestamp IS NULL');
+            await m.database.customStatement(
+              'UPDATE $table SET sync_timestamp = 0 WHERE sync_timestamp IS NULL',
+            );
           } catch (e) {
-            developer.log('Migration 54: $table sync_timestamp backfill skipped: $e', name: 'db.migration');
+            developer.log(
+              'Migration 54: $table sync_timestamp backfill skipped: $e',
+              name: 'db.migration',
+            );
           }
         }
-        developer.log('Migration 54: sync_timestamp backfilled to 0 for all SyncFields tables', name: 'db.migration');
+        developer.log(
+          'Migration 54: sync_timestamp backfilled to 0 for all SyncFields tables',
+          name: 'db.migration',
+        );
       }
 
       // === Migration 55: Separate primary/secondary processing state ===
@@ -3027,10 +3720,18 @@ class AppDatabase extends _$AppDatabase {
         };
         for (final entry in newColumns.entries) {
           try {
-            await m.database.customStatement('ALTER TABLE outbox ADD COLUMN ${entry.key} ${entry.value}');
-            developer.log('Migration 55: added outbox.${entry.key}', name: 'db.migration');
+            await m.database.customStatement(
+              'ALTER TABLE outbox ADD COLUMN ${entry.key} ${entry.value}',
+            );
+            developer.log(
+              'Migration 55: added outbox.${entry.key}',
+              name: 'db.migration',
+            );
           } catch (e) {
-            developer.log('Migration 55: outbox.${entry.key} may already exist: $e', name: 'db.migration');
+            developer.log(
+              'Migration 55: outbox.${entry.key} may already exist: $e',
+              name: 'db.migration',
+            );
           }
         }
         // Backfill: نسخ الحالة المشتركة الحالية إلى primary columns
@@ -3041,9 +3742,15 @@ class AppDatabase extends _$AppDatabase {
             "secondary_processing_status = processing_status, "
             "secondary_attempts = attempts, secondary_last_error = last_error",
           );
-          developer.log('Migration 55: backfilled primary/secondary state from shared columns', name: 'db.migration');
+          developer.log(
+            'Migration 55: backfilled primary/secondary state from shared columns',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 55: backfill failed: $e', name: 'db.migration');
+          developer.log(
+            'Migration 55: backfill failed: $e',
+            name: 'db.migration',
+          );
         }
       }
 
@@ -3065,9 +3772,15 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             'ALTER TABLE sync_state ADD COLUMN full_sync_complete INTEGER NOT NULL DEFAULT 0',
           );
-          developer.log('Migration 56: added sync_state.full_sync_complete column', name: 'db.migration');
+          developer.log(
+            'Migration 56: added sync_state.full_sync_complete column',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 56: sync_state.full_sync_complete may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 56: sync_state.full_sync_complete may already exist: $e',
+            name: 'db.migration',
+          );
         }
       }
 
@@ -3091,16 +3804,32 @@ class AppDatabase extends _$AppDatabase {
       // 4. الكود يرى 5 != 6 → يرفض التأكيد ويُعيد السجل لـ pending
       if (from < 57) {
         try {
-          await m.database.customStatement('ALTER TABLE outbox ADD COLUMN payload_version INTEGER NOT NULL DEFAULT 1');
-          developer.log('Migration 57: added outbox.payload_version column', name: 'db.migration');
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN payload_version INTEGER NOT NULL DEFAULT 1',
+          );
+          developer.log(
+            'Migration 57: added outbox.payload_version column',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 57: outbox.payload_version may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 57: outbox.payload_version may already exist: $e',
+            name: 'db.migration',
+          );
         }
         try {
-          await m.database.customStatement('ALTER TABLE outbox ADD COLUMN processing_payload_version INTEGER');
-          developer.log('Migration 57: added outbox.processing_payload_version column', name: 'db.migration');
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN processing_payload_version INTEGER',
+          );
+          developer.log(
+            'Migration 57: added outbox.processing_payload_version column',
+            name: 'db.migration',
+          );
         } catch (e) {
-          developer.log('Migration 57: outbox.processing_payload_version may already exist: $e', name: 'db.migration');
+          developer.log(
+            'Migration 57: outbox.processing_payload_version may already exist: $e',
+            name: 'db.migration',
+          );
         }
       }
 
@@ -3156,10 +3885,18 @@ class AppDatabase extends _$AppDatabase {
         };
         for (final entry in newColumns.entries) {
           try {
-            await m.database.customStatement('ALTER TABLE debts ADD COLUMN ${entry.key} ${entry.value}');
-            developer.log('Migration 58: added debts.${entry.key}', name: 'db.migration');
+            await m.database.customStatement(
+              'ALTER TABLE debts ADD COLUMN ${entry.key} ${entry.value}',
+            );
+            developer.log(
+              'Migration 58: added debts.${entry.key}',
+              name: 'db.migration',
+            );
           } catch (e) {
-            developer.log('Migration 58: debts.${entry.key} may already exist: $e', name: 'db.migration');
+            developer.log(
+              'Migration 58: debts.${entry.key} may already exist: $e',
+              name: 'db.migration',
+            );
           }
         }
       }
@@ -3224,9 +3961,13 @@ class AppDatabase extends _$AppDatabase {
 
   /// مساعد داخلي: تنفيذ SELECT على جدول وإرجاع صفوفه كـ List<Map<String, dynamic>>.
   /// يعزل منطق JSON serialization عن الاستعلام لتسهيل الصيانة والتحسين المستقبلي.
-  Future<List<Map<String, dynamic>>> _tableToJson<T extends Table>(TableInfo<T, dynamic> table) async {
+  Future<List<Map<String, dynamic>>> _tableToJson<T extends Table>(
+    TableInfo<T, dynamic> table,
+  ) async {
     final rows = await select(table).get();
-    return rows.map((e) => (e as dynamic).toJson() as Map<String, dynamic>).toList();
+    return rows
+        .map((e) => (e as dynamic).toJson() as Map<String, dynamic>)
+        .toList();
   }
 
   /// تطبيق البيانات المدمجة على قاعدة البيانات المحلية داخل معاملة واحدة
@@ -3249,7 +3990,9 @@ class AppDatabase extends _$AppDatabase {
         return <Map<String, dynamic>>[];
       }
       if (value is! List) {
-        throw StateError('Invalid snapshot table type for $key: ${value.runtimeType}');
+        throw StateError(
+          'Invalid snapshot table type for $key: ${value.runtimeType}',
+        );
       }
       return value.map((row) => Map<String, dynamic>.from(row as Map)).toList();
     }
@@ -3271,34 +4014,86 @@ class AppDatabase extends _$AppDatabase {
           }
           await delete(table).go();
           await batch((batch) {
-            batch.insertAll(table, rows.map(fromJson).toList(), mode: InsertMode.insertOrReplace);
+            batch.insertAll(
+              table,
+              rows.map(fromJson).toList(),
+              mode: InsertMode.insertOrReplace,
+            );
           });
         }
 
         await replaceTableIfNonEmpty<Room>(rooms, 'rooms', Room.fromJson);
-        await replaceTableIfNonEmpty<Booking>(bookings, 'bookings', Booking.fromJson);
-        await replaceTableIfNonEmpty<BookingNote>(bookingNotes, 'booking_notes', BookingNote.fromJson);
-        await replaceTableIfNonEmpty<ShiftNote>(shiftNotes, 'shift_notes', ShiftNote.fromJson);
-        await replaceTableIfNonEmpty<Employee>(employees, 'employees', Employee.fromJson);
-        await replaceTableIfNonEmpty<Expense>(expenses, 'expenses', Expense.fromJson);
-        await replaceTableIfNonEmpty<CashTransaction>(cashTransactions, 'cash_transactions', CashTransaction.fromJson);
-        await replaceTableIfNonEmpty<Payment>(payments, 'payments', Payment.fromJson);
+        await replaceTableIfNonEmpty<Booking>(
+          bookings,
+          'bookings',
+          Booking.fromJson,
+        );
+        await replaceTableIfNonEmpty<BookingNote>(
+          bookingNotes,
+          'booking_notes',
+          BookingNote.fromJson,
+        );
+        await replaceTableIfNonEmpty<ShiftNote>(
+          shiftNotes,
+          'shift_notes',
+          ShiftNote.fromJson,
+        );
+        await replaceTableIfNonEmpty<Employee>(
+          employees,
+          'employees',
+          Employee.fromJson,
+        );
+        await replaceTableIfNonEmpty<Expense>(
+          expenses,
+          'expenses',
+          Expense.fromJson,
+        );
+        await replaceTableIfNonEmpty<CashTransaction>(
+          cashTransactions,
+          'cash_transactions',
+          CashTransaction.fromJson,
+        );
+        await replaceTableIfNonEmpty<Payment>(
+          payments,
+          'payments',
+          Payment.fromJson,
+        );
         await replaceTableIfNonEmpty<Debt>(debts, 'debts', Debt.fromJson);
-        await replaceTableIfNonEmpty<BookingNight>(bookingNights, 'booking_nights', BookingNight.fromJson);
+        await replaceTableIfNonEmpty<BookingNight>(
+          bookingNights,
+          'booking_nights',
+          BookingNight.fromJson,
+        );
         await replaceTableIfNonEmpty<HotelDayLedgerEntry>(
           hotelDayLedger,
           'hotel_day_ledger',
           HotelDayLedgerEntry.fromJson,
         );
-        await replaceTableIfNonEmpty<AutoFixRun>(autoFixRuns, 'auto_fix_runs', AutoFixRun.fromJson);
+        await replaceTableIfNonEmpty<AutoFixRun>(
+          autoFixRuns,
+          'auto_fix_runs',
+          AutoFixRun.fromJson,
+        );
         await replaceTableIfNonEmpty<IntegrityViolation>(
           integrityViolations,
           'integrity_violations',
           IntegrityViolation.fromJson,
         );
-        await replaceTableIfNonEmpty<AppSession>(appSessions, 'app_sessions', AppSession.fromJson);
-        await replaceTableIfNonEmpty<SalaryCycle>(salaryCycles, 'salary_cycles', SalaryCycle.fromJson);
-        await replaceTableIfNonEmpty<SalaryPayment>(salaryPayments, 'salary_payments', SalaryPayment.fromJson);
+        await replaceTableIfNonEmpty<AppSession>(
+          appSessions,
+          'app_sessions',
+          AppSession.fromJson,
+        );
+        await replaceTableIfNonEmpty<SalaryCycle>(
+          salaryCycles,
+          'salary_cycles',
+          SalaryCycle.fromJson,
+        );
+        await replaceTableIfNonEmpty<SalaryPayment>(
+          salaryPayments,
+          'salary_payments',
+          SalaryPayment.fromJson,
+        );
         await replaceTableIfNonEmpty<BookingPriceAdjustment>(
           bookingPriceAdjustments,
           'booking_price_adjustments',
@@ -3309,9 +4104,15 @@ class AppDatabase extends _$AppDatabase {
       // ✅ إعادة تفعيل foreign key constraints خارج transaction
       await customStatement('PRAGMA foreign_keys = ON');
       // ✅ إضافة تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
-      final violations = await customSelect('PRAGMA foreign_key_check', readsFrom: Set.unmodifiable({})).get();
+      final violations = await customSelect(
+        'PRAGMA foreign_key_check',
+        readsFrom: Set.unmodifiable({}),
+      ).get();
       if (violations.isNotEmpty) {
-        developer.log('⚠️ FK violations detected after bulk replace: ${violations.length} rows', name: 'AppDatabase');
+        developer.log(
+          '⚠️ FK violations detected after bulk replace: ${violations.length} rows',
+          name: 'AppDatabase',
+        );
       }
     }
   }
@@ -3322,23 +4123,34 @@ class AppDatabase extends _$AppDatabase {
 
   /// خريطة docId → $updatedAt (بالثواني) لكل مستندات كولكشن معروفة محلياً.
   Future<Map<String, int>> getRemoteMetaMap(String collection) async {
-    final rows = await (select(syncRemoteMeta)..where((t) => t.collection.equals(collection))).get();
+    final rows = await (select(
+      syncRemoteMeta,
+    )..where((t) => t.collection.equals(collection))).get();
     return {for (final r in rows) r.docId: r.remoteUpdatedAtSec};
   }
 
   /// تحديث/إدراج خريطة $updatedAt البعيدة لكولكشن (دفعة واحدة على شرائح).
-  Future<void> upsertRemoteMeta(String collection, Map<String, int> meta) async {
+  Future<void> upsertRemoteMeta(
+    String collection,
+    Map<String, int> meta,
+  ) async {
     if (meta.isEmpty) return;
     final entries = meta.entries.toList(growable: false);
     // شرائح 500 لتجنب معاملات ضخمة على أجهزة ضعيفة
     const chunkSize = 500;
     for (var i = 0; i < entries.length; i += chunkSize) {
-      final end = (i + chunkSize < entries.length) ? i + chunkSize : entries.length;
+      final end = (i + chunkSize < entries.length)
+          ? i + chunkSize
+          : entries.length;
       final chunk = entries.sublist(i, end);
       await batch((b) {
         b.insertAllOnConflictUpdate(syncRemoteMeta, [
           for (final e in chunk)
-            SyncRemoteMetaCompanion.insert(collection: collection, docId: e.key, remoteUpdatedAtSec: e.value),
+            SyncRemoteMetaCompanion.insert(
+              collection: collection,
+              docId: e.key,
+              remoteUpdatedAtSec: e.value,
+            ),
         ]);
       });
     }
@@ -3351,7 +4163,9 @@ class AppDatabase extends _$AppDatabase {
     if (collection == null) {
       await delete(syncRemoteMeta).go();
     } else {
-      await (delete(syncRemoteMeta)..where((t) => t.collection.equals(collection))).go();
+      await (delete(
+        syncRemoteMeta,
+      )..where((t) => t.collection.equals(collection))).go();
     }
   }
 }
@@ -3390,7 +4204,10 @@ class DatabaseManager {
   /// During restore operations, asserts that an instance already exists.
   static AppDatabase get instance {
     if (_isRestoring) {
-      assert(_instance != null, 'Database is being restored; cannot access instance during restore');
+      assert(
+        _instance != null,
+        'Database is being restored; cannot access instance during restore',
+      );
     }
     return _instance ??= AppDatabase();
   }
@@ -3421,7 +4238,10 @@ class DatabaseManager {
       try {
         await _onStopCallback!();
       } catch (e) {
-        developer.log('⚠️ Database stop callback error: $e', name: 'DatabaseManager');
+        developer.log(
+          '⚠️ Database stop callback error: $e',
+          name: 'DatabaseManager',
+        );
       }
     }
     try {
@@ -3439,7 +4259,10 @@ class DatabaseManager {
       try {
         await _onRestartCallback!();
       } catch (e) {
-        developer.log('⚠️ Database restart callback error: $e', name: 'DatabaseManager');
+        developer.log(
+          '⚠️ Database restart callback error: $e',
+          name: 'DatabaseManager',
+        );
       }
     }
     _isRestoring = false;
@@ -3522,15 +4345,23 @@ class SyncAuditDao {
         .get();
   }
 
-  Future<List<sync_models.SyncConflictModel>> fetchConflictsForLog(int logId) async {
-    final rows = await (_db.select(_db.syncConflicts)..where((tbl) => tbl.logId.equals(logId))).get();
+  Future<List<sync_models.SyncConflictModel>> fetchConflictsForLog(
+    int logId,
+  ) async {
+    final rows = await (_db.select(
+      _db.syncConflicts,
+    )..where((tbl) => tbl.logId.equals(logId))).get();
     return rows
         .map(
           (row) => sync_models.SyncConflictModel(
             table: row.targetTable,
             uuid: row.uuid,
-            localPayload: Map<String, dynamic>.from(jsonDecode(row.localPayload) as Map),
-            remotePayload: Map<String, dynamic>.from(jsonDecode(row.remotePayload) as Map),
+            localPayload: Map<String, dynamic>.from(
+              jsonDecode(row.localPayload) as Map,
+            ),
+            remotePayload: Map<String, dynamic>.from(
+              jsonDecode(row.remotePayload) as Map,
+            ),
             resolution: row.resolution,
           ),
         )

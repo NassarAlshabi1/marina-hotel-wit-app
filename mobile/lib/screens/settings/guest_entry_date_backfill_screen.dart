@@ -9,11 +9,15 @@ class GuestEntryDateBackfillScreen extends ConsumerStatefulWidget {
   const GuestEntryDateBackfillScreen({super.key});
 
   @override
-  ConsumerState<GuestEntryDateBackfillScreen> createState() => _GuestEntryDateBackfillScreenState();
+  ConsumerState<GuestEntryDateBackfillScreen> createState() =>
+      _GuestEntryDateBackfillScreenState();
 }
 
-class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBackfillScreen> {
-  final ValueNotifier<_BackfillViewState> _viewState = ValueNotifier(const _BackfillViewState());
+class _GuestEntryDateBackfillScreenState
+    extends ConsumerState<GuestEntryDateBackfillScreen> {
+  final ValueNotifier<_BackfillViewState> _viewState = ValueNotifier(
+    const _BackfillViewState(),
+  );
 
   @override
   void dispose() {
@@ -36,8 +40,14 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
           'لن تُستبدل التواريخ الموجودة، وستُستثنى السجلات المحذوفة.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('ابدأ التعبئة')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('ابدأ التعبئة'),
+          ),
         ],
       ),
     );
@@ -48,14 +58,20 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
 
     _viewState.value = const _BackfillViewState(running: true);
     try {
-      final result = await GuestEntryDateBackfillService(ref.read(ap.appwriteServiceProvider)).fillMissingEntryDates(
-        onProgress: (progress) {
-          if (!mounted) {
-            return;
-          }
-          _viewState.value = _BackfillViewState(running: true, progress: progress);
-        },
-      );
+      final result =
+          await GuestEntryDateBackfillService(
+            ref.read(ap.appwriteServiceProvider),
+          ).fillMissingEntryDates(
+            onProgress: (progress) {
+              if (!mounted) {
+                return;
+              }
+              _viewState.value = _BackfillViewState(
+                running: true,
+                progress: progress,
+              );
+            },
+          );
       if (!mounted) {
         return;
       }
@@ -64,7 +80,10 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
       if (!mounted) {
         return;
       }
-      _viewState.value = _BackfillViewState(progress: _viewState.value.progress, errorMessage: error.toString());
+      _viewState.value = _BackfillViewState(
+        progress: _viewState.value.progress,
+        errorMessage: error.toString(),
+      );
     }
   }
 
@@ -86,12 +105,17 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
                       Icon(Icons.event_available, color: Colors.deepPurple),
                       SizedBox(width: 8),
                       Expanded(
-                        child: Text('سجلات الضيوف على Appwrite Cloud', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'سجلات الضيوف على Appwrite Cloud',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
                   SizedBox(height: 12),
-                  Text(r'يُستخدم تاريخ إنشاء المستند الأصلي $createdAt، ويُحفظ في entryDate بصيغة yyyy-mm-dd.'),
+                  Text(
+                    r'يُستخدم تاريخ إنشاء المستند الأصلي $createdAt، ويُحفظ في entryDate بصيغة yyyy-mm-dd.',
+                  ),
                   SizedBox(height: 8),
                   Text(
                     'تُحدّث هذه الأداة الحقل الناقص وحده، ولا تستبدل أي تاريخ موجود أو تغيّر بقية الحقول. السجلات المحذوفة تُستثنى.',
@@ -117,7 +141,10 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
                     _buildCountsCard(state.progress, running: true),
                     const SizedBox(height: 16),
                   ],
-                  if (state.result != null) ...[_buildResultCard(state.result!), const SizedBox(height: 16)],
+                  if (state.result != null) ...[
+                    _buildResultCard(state.result!),
+                    const SizedBox(height: 16),
+                  ],
                   if (state.errorMessage != null) ...[
                     Card(
                       color: Theme.of(context).colorScheme.errorContainer,
@@ -134,7 +161,10 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
                   FilledButton.icon(
                     onPressed: state.running ? null : _startBackfill,
                     icon: state.running
-                        ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.play_arrow),
                     label: Text(
                       state.running
@@ -153,7 +183,10 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
     );
   }
 
-  Widget _buildCountsCard(GuestEntryDateBackfillProgress progress, {required bool running}) {
+  Widget _buildCountsCard(
+    GuestEntryDateBackfillProgress progress, {
+    required bool running,
+  }) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -173,7 +206,10 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('اكتملت العملية', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text(
+              'اكتملت العملية',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Text('إجمالي المستندات المفحوصة: ${result.scanned}'),
             Text('تمت تعبئة entryDate: ${result.updated}'),
@@ -181,7 +217,10 @@ class _GuestEntryDateBackfillScreenState extends ConsumerState<GuestEntryDateBac
             Text('سجلات محذوفة تم تجاوزها: ${result.deletedSkipped}'),
             Text('مستندات بلا \$createdAt صالح: ${result.missingCreatedAt}'),
             if (result.updated == 0 && result.missingCreatedAt == 0)
-              const Padding(padding: EdgeInsets.only(top: 8), child: Text('لا توجد سجلات نشطة تحتاج إلى تعبئة.')),
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('لا توجد سجلات نشطة تحتاج إلى تعبئة.'),
+              ),
           ],
         ),
       ),

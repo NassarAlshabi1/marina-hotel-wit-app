@@ -24,7 +24,12 @@ void main() {
       initialQuantity: 2,
       minimumQuantity: 5,
     );
-    await repository.recordMovement(itemId: itemId, movementType: 'in', quantity: 3, userName: 'اختبار');
+    await repository.recordMovement(
+      itemId: itemId,
+      movementType: 'in',
+      quantity: 3,
+      userName: 'اختبار',
+    );
   });
 
   tearDown(() async {
@@ -37,7 +42,9 @@ void main() {
         overrides: [
           databaseProvider.overrideWithValue(db),
           simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
-          syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
+          syncStatusProvider.overrideWith(
+            (ref) => Stream.value(SyncStatus.idle),
+          ),
         ],
         child: const MaterialApp(home: InventoryReportScreen()),
       ),
@@ -90,7 +97,9 @@ class InventoryRepositoryForTest {
     required int quantity,
     String? userName,
   }) async {
-    final item = await (db.select(db.inventoryItems)..where((row) => row.id.equals(itemId))).getSingle();
+    final item = await (db.select(
+      db.inventoryItems,
+    )..where((row) => row.id.equals(itemId))).getSingle();
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     await db
         .into(db.inventoryTransactions)

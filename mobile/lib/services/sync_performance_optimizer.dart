@@ -13,7 +13,8 @@ class SyncPerformanceOptimizer {
   factory SyncPerformanceOptimizer() => _instance;
 
   SyncPerformanceOptimizer._internal();
-  static final SyncPerformanceOptimizer _instance = SyncPerformanceOptimizer._internal();
+  static final SyncPerformanceOptimizer _instance =
+      SyncPerformanceOptimizer._internal();
 
   // إضافة static getter instance للوصول للـ singleton
   static SyncPerformanceOptimizer get instance => _instance;
@@ -43,7 +44,12 @@ class SyncPerformanceOptimizer {
       'retryAttempts': 4,
       'syncInterval': 90, // ثواني
     },
-    'none': {'batchSize': 0, 'timeout': 0, 'retryAttempts': 0, 'syncInterval': 0},
+    'none': {
+      'batchSize': 0,
+      'timeout': 0,
+      'retryAttempts': 0,
+      'syncInterval': 0,
+    },
   };
 
   /// تهيئة مراقب الاتصال
@@ -191,12 +197,17 @@ class SyncPerformanceOptimizer {
     if (_syncAttempts >= (settings['retryAttempts'] as num)) {
       // ✅ إصلاح: بدلاً من التخطي الدائم، نتحقق من مرور فترة cooldown
       const cooldownMinutes = 30;
-      if (_lastSyncTime != null && DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
+      if (_lastSyncTime != null &&
+          DateTime.now().difference(_lastSyncTime!).inMinutes >=
+              cooldownMinutes) {
         dlog('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
         _syncAttempts = 0;
         return false;
       }
-      dlog(() => '⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)');
+      dlog(
+        () =>
+            '⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)',
+      );
       return true;
     }
 
@@ -209,9 +220,13 @@ class SyncPerformanceOptimizer {
     final client = _getOrCreateHttpClient();
     try {
       final uri = Uri.parse(AppwriteConfig.endpoint);
-      final request = await client.getUrl(uri).timeout(const Duration(seconds: 2));
+      final request = await client
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 2));
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final response = await request.close().timeout(const Duration(seconds: 2));
+      final response = await request.close().timeout(
+        const Duration(seconds: 2),
+      );
       await response.drain<void>();
       return response.statusCode < HttpStatus.internalServerError;
     } on SocketException catch (_) {
@@ -230,7 +245,8 @@ class SyncPerformanceOptimizer {
         _httpClientCreatedAt == null ||
         now.difference(_httpClientCreatedAt!) > _httpClientTtl) {
       _cachedHttpClient?.close(force: true);
-      _cachedHttpClient = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+      _cachedHttpClient = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 2);
       _httpClientCreatedAt = now;
     }
     return _cachedHttpClient!;
@@ -255,7 +271,9 @@ class SyncPerformanceOptimizer {
       dlog('✅ تم تسجيل مزامنة ناجحة');
     } else {
       _syncAttempts++;
-      dlog(() => '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)');
+      dlog(
+        () => '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',
+      );
     }
   }
 
@@ -387,7 +405,10 @@ class SyncPerformanceOptimizer {
         optimizedInterval += _syncAttempts * 30; // إضافة 30 ثانية لكل فشل
       }
 
-      dlog(() => '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
+      dlog(
+        () =>
+            '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
+      );
       return optimizedInterval;
     } catch (e) {
       dlog(() => '❌ خطأ في حساب الفترة المحسنة: $e');

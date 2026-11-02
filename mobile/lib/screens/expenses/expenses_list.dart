@@ -29,7 +29,8 @@ class ExpensesListScreen extends ConsumerStatefulWidget {
   ConsumerState<ExpensesListScreen> createState() => _ExpensesListScreenState();
 }
 
-class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with SyncOnExitMixin {
+class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
+    with SyncOnExitMixin {
   /// تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
   String _cleanAndFormatPhone(String phone) {
     var digitsOnly = phone.replaceAll(RegExp(r'\D'), '');
@@ -79,13 +80,21 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
   static const String _salaryAdvanceAction = 'سلفة';
-  static const List<String> _salaryActions = [_salaryWithdrawAction, _salaryDeductionAction];
+  static const List<String> _salaryActions = [
+    _salaryWithdrawAction,
+    _salaryDeductionAction,
+  ];
   @override
   void initState() {
     super.initState();
     // ✅ Analytics: تتبّع مشاهدة شاشة المصروفات
     // ✅ إصلاح PR review: إعادة استخدام screenId getter (مصدر واحد للحقيقة)
-    unawaited(AnalyticsService().logScreenView(screenName: screenId, screenClass: 'ExpensesListScreen'));
+    unawaited(
+      AnalyticsService().logScreenView(
+        screenName: screenId,
+        screenClass: 'ExpensesListScreen',
+      ),
+    );
     _expensesStream = _buildExpensesStream();
   }
 
@@ -107,22 +116,34 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       child: AppScaffold(
         title: 'المصروفات',
         actions: [
-          IconButton(onPressed: () => ref.read(appwriteSyncManagerProvider).sync(), icon: const Icon(Icons.sync)),
           IconButton(
-            onPressed: canCreate ? () => _edit(employees: employeesAsync.value) : null,
+            onPressed: () => ref.read(appwriteSyncManagerProvider).sync(),
+            icon: const Icon(Icons.sync),
+          ),
+          IconButton(
+            onPressed: canCreate
+                ? () => _edit(employees: employeesAsync.value)
+                : null,
             icon: const Icon(Icons.add),
           ),
         ],
         body: employeesAsync.when(
           data: (employees) {
-            final employeeNamesByUuid = {for (final emp in employees) emp.localUuid.trim().toLowerCase(): emp.name};
-            final employeeNamesById = {for (final emp in employees) emp.id: emp.name};
+            final employeeNamesByUuid = {
+              for (final emp in employees)
+                emp.localUuid.trim().toLowerCase(): emp.name,
+            };
+            final employeeNamesById = {
+              for (final emp in employees) emp.id: emp.name,
+            };
             return StreamBuilder<List<Expense>>(
               key: ValueKey(_streamVersion),
               stream: _expensesStream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const Center(child: Text('حدث خطأ أثناء تحميل المصروفات.'));
+                  return const Center(
+                    child: Text('حدث خطأ أثناء تحميل المصروفات.'),
+                  );
                 }
                 final expensesData = snapshot.data;
                 if (expensesData == null) {
@@ -132,7 +153,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 final filteredExpenses = expensesData;
                 // ✅ إصلاح: حساب الإحصائيات من القائمة المفلترة فعلياً
                 // بدلاً من todayExpensesSummaryProvider الذي يعرض بيانات اليوم الحالي فقط
-                final filteredTotal = filteredExpenses.fold<double>(0, (sum, e) => sum + e.amount);
+                final filteredTotal = filteredExpenses.fold<double>(
+                  0,
+                  (sum, e) => sum + e.amount,
+                );
                 final filteredCount = filteredExpenses.length;
 
                 return RefreshIndicator(
@@ -154,7 +178,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                               const SizedBox(height: 6),
                               _buildCompactFiltersCard(),
                               const SizedBox(height: 8),
-                              _buildCompactSummaryCard(totalAmount: filteredTotal, count: filteredCount),
+                              _buildCompactSummaryCard(
+                                totalAmount: filteredTotal,
+                                count: filteredCount,
+                              ),
                               const SizedBox(height: 10),
                             ],
                           ),
@@ -165,17 +192,26 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                           hasScrollBody: false,
                           child: Padding(
                             padding: EdgeInsets.only(top: 48),
-                            child: Center(child: Text('لا توجد مصروفات ضمن الفترة')),
+                            child: Center(
+                              child: Text('لا توجد مصروفات ضمن الفترة'),
+                            ),
                           ),
                         )
                       else
                         SliverList(
-                          delegate: SliverChildBuilderDelegate((context, index) {
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
                             final expense = filteredExpenses[index];
                             return RepaintBoundary(
                               child: _buildExpenseCard(
                                 expense,
-                                _employeeNameForExpense(expense, employeeNamesByUuid, employeeNamesById),
+                                _employeeNameForExpense(
+                                  expense,
+                                  employeeNamesByUuid,
+                                  employeeNamesById,
+                                ),
                                 employees,
                               ),
                             );
@@ -188,7 +224,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text('تعذر تحميل الموظفين: $error')),
+          error: (error, _) =>
+              Center(child: Text('تعذر تحميل الموظفين: $error')),
         ),
       ),
     );
@@ -210,7 +247,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
   /// (أي المصروفات من 14:01 يوم 19 إلى 14:00 يوم 20).
   String _hotelDayKeyFromDate(DateTime date) {
     return HotelTimeEngine.getHotelDayKey(
-      dateTime: DateTime(date.year, date.month, date.day, HotelTimeEngine.boundaryHour, HotelTimeEngine.boundaryMinute),
+      dateTime: DateTime(
+        date.year,
+        date.month,
+        date.day,
+        HotelTimeEngine.boundaryHour,
+        HotelTimeEngine.boundaryMinute,
+      ),
     );
   }
 
@@ -241,7 +284,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         ),
       );
     }
-    final fromHotelDay = _fromDate != null ? _hotelDayKeyFromDate(_fromDate!) : null;
+    final fromHotelDay = _fromDate != null
+        ? _hotelDayKeyFromDate(_fromDate!)
+        : null;
     final toHotelDay = _toDate != null ? _hotelDayKeyFromDate(_toDate!) : null;
     return Stream.fromFuture(
       repo.listFilteredByHotelDay(
@@ -261,12 +306,16 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
   }
 
   DateTime _parseExpenseDate(String value) {
-    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T')
+        ? value
+        : value.replaceFirst(' ', 'T');
     return DateTime.tryParse(normalized) ?? DateTime.now();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initial = isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now());
+    final initial = isFrom
+        ? (_fromDate ?? DateTime.now())
+        : (_toDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -290,13 +339,34 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
           HotelTimeEngine.boundaryMinute,
         );
         // إذا لم يكن "إلى" محدد، اجعله نهاية نفس اليوم الفندقي
-        _toDate ??= DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
+        _toDate ??= DateTime(
+          picked.year,
+          picked.month,
+          picked.day + 1,
+          HotelTimeEngine.boundaryHour,
+          0,
+          59,
+        );
         if (_fromDate!.isAfter(_toDate!)) {
-          _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
+          _toDate = DateTime(
+            picked.year,
+            picked.month,
+            picked.day + 1,
+            HotelTimeEngine.boundaryHour,
+            0,
+            59,
+          );
         }
       } else {
         // "إلى" = نهاية اليوم الفندقي (14:00:59 من اليوم التالي)
-        _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
+        _toDate = DateTime(
+          picked.year,
+          picked.month,
+          picked.day + 1,
+          HotelTimeEngine.boundaryHour,
+          0,
+          59,
+        );
         // إذا لم يكن "من" محدد، اجعله بداية نفس اليوم الفندقي
         _fromDate ??= DateTime(
           picked.year,
@@ -339,14 +409,24 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
             padding: const EdgeInsets.only(left: 4, right: 4),
             child: Icon(Icons.search, color: Colors.grey.shade500, size: 18),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 28,
+            minHeight: 28,
+          ),
           suffixIcon: _searchQuery.isNotEmpty
               ? Padding(
                   padding: const EdgeInsets.only(left: 4, right: 4),
                   child: IconButton(
-                    icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 16),
+                    icon: Icon(
+                      Icons.clear,
+                      color: Colors.grey.shade500,
+                      size: 16,
+                    ),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
                     onPressed: () {
                       _searchController.clear();
                       _debounceTimer?.cancel();
@@ -358,7 +438,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                   ),
                 )
               : null,
-          suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 28),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 24,
+            minHeight: 28,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 6),
           isDense: true,
@@ -397,16 +480,28 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 value: _selectedFilterType,
                 hint: Text(
                   'كل الأنواع',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 isDense: true,
                 isExpanded: true,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: dropdownTextColor,
+                ),
                 items: [
                   DropdownMenuItem<String?>(
                     child: Text(
                       'كل الأنواع',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                   ),
                   ...types.map(
@@ -414,7 +509,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                       value: type,
                       child: Text(
                         type,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: dropdownTextColor),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: dropdownTextColor,
+                        ),
                       ),
                     ),
                   ),
@@ -437,7 +536,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
               }),
               child: Container(
                 padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
                 child: Icon(Icons.close, size: 12, color: Colors.red.shade700),
               ),
             ),
@@ -450,8 +552,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
   Widget _buildCompactFiltersCard() {
     // ✅ عرض التاريخ حسب اليوم الفندقي — اتساقاً مع _buildExpensesStream
     final hotelDay = HotelTimeEngine.getHotelDayKey();
-    final fromDisplay = (_filterActive && _fromDate != null) ? _dateFormat.format(_fromDate!) : hotelDay;
-    final toDisplay = (_filterActive && _toDate != null) ? _dateFormat.format(_toDate!) : hotelDay;
+    final fromDisplay = (_filterActive && _fromDate != null)
+        ? _dateFormat.format(_fromDate!)
+        : hotelDay;
+    final toDisplay = (_filterActive && _toDate != null)
+        ? _dateFormat.format(_toDate!)
+        : hotelDay;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -472,7 +578,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.blue.shade200),
               ),
-              child: Text('من $fromDisplay', style: TextStyle(fontSize: 12, color: Colors.blue.shade700)),
+              child: Text(
+                'من $fromDisplay',
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+              ),
             ),
           ),
           const SizedBox(width: 6),
@@ -485,7 +594,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.blue.shade200),
               ),
-              child: Text('إلى $toDisplay', style: TextStyle(fontSize: 12, color: Colors.blue.shade700)),
+              child: Text(
+                'إلى $toDisplay',
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+              ),
             ),
           ),
           if (_filterActive) ...[
@@ -511,7 +623,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
     );
   }
 
-  Widget _buildCompactSummaryCard({required double totalAmount, required int count}) {
+  Widget _buildCompactSummaryCard({
+    required double totalAmount,
+    required int count,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -523,25 +638,42 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: Colors.indigo.shade50, borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(
+              color: Colors.indigo.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.receipt_long, size: 12, color: Colors.indigo.shade700),
+                Icon(
+                  Icons.receipt_long,
+                  size: 12,
+                  color: Colors.indigo.shade700,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '$count',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.indigo.shade700),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.indigo.shade700,
+                  ),
                 ),
                 const SizedBox(width: 2),
-                Text('عملية', style: TextStyle(fontSize: 9, color: Colors.indigo.shade400)),
+                Text(
+                  'عملية',
+                  style: TextStyle(fontSize: 9, color: Colors.indigo.shade400),
+                ),
               ],
             ),
           ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(6)),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -549,7 +681,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 const SizedBox(width: 4),
                 Text(
                   CurrencyFormatter.formatAmount(totalAmount),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700,
+                  ),
                 ),
               ],
             ),
@@ -559,7 +695,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
     );
   }
 
-  String? _employeeNameForExpense(Expense expense, Map<String, String> byUuid, Map<int, String> byId) {
+  String? _employeeNameForExpense(
+    Expense expense,
+    Map<String, String> byUuid,
+    Map<int, String> byId,
+  ) {
     final uuid = expense.employeeUuid?.trim().toLowerCase();
     if (uuid != null && uuid.isNotEmpty) {
       final name = byUuid[uuid];
@@ -570,7 +710,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
     return byId[expense.relatedId];
   }
 
-  Widget _buildExpenseCard(Expense expense, String? employeeName, List<Employee> employees) {
+  Widget _buildExpenseCard(
+    Expense expense,
+    String? employeeName,
+    List<Employee> employees,
+  ) {
     final date = _parseExpenseDate(expense.date);
     final user = ref.read(authProvider).currentUser;
     final canUpdate = user?.canPerform('expenses', 'update') ?? false;
@@ -581,7 +725,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
-        onTap: canUpdate ? () => _edit(existing: expense, employees: employees) : null,
+        onTap: canUpdate
+            ? () => _edit(existing: expense, employees: employees)
+            : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Column(
@@ -591,8 +737,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 children: [
                   Expanded(
                     child: Text(
-                      expense.description.isNotEmpty ? expense.description : 'مصروف بدون وصف',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      expense.description.isNotEmpty
+                          ? expense.description
+                          : 'مصروف بدون وصف',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -600,17 +751,29 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                   const SizedBox(width: 8),
                   Text(
                     CurrencyFormatter.formatAmount(expense.amount),
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(width: 4),
                   if (canUpdate)
                     InkWell(
-                      onTap: () => _edit(existing: expense, employees: employees),
+                      onTap: () =>
+                          _edit(existing: expense, employees: employees),
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(16)),
-                        child: Icon(Icons.edit, size: 16, color: Colors.blue.shade700),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: Colors.blue.shade700,
+                        ),
                       ),
                     ),
                   if (canUpdate && canDelete) const SizedBox(width: 4),
@@ -620,8 +783,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(16)),
-                        child: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade700),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 16,
+                          color: Colors.red.shade700,
+                        ),
                       ),
                     ),
                 ],
@@ -631,10 +801,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 children: [
                   _buildSmallMeta(Icons.category, expense.expenseType),
                   const SizedBox(width: 10),
-                  _buildSmallMeta(Icons.calendar_today, _dateFormat.format(date)),
+                  _buildSmallMeta(
+                    Icons.calendar_today,
+                    _dateFormat.format(date),
+                  ),
                   if (employeeName != null) ...[
                     const SizedBox(width: 10),
-                    Expanded(child: _buildSmallMeta(Icons.person, employeeName)),
+                    Expanded(
+                      child: _buildSmallMeta(Icons.person, employeeName),
+                    ),
                   ],
                 ],
               ),
@@ -665,9 +840,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
 
   /// حذف مصروف مع تأكيد
   Future<void> _deleteExpense(Expense expense) async {
-    if (!(ref.read(authProvider).currentUser?.canPerform('expenses', 'delete') ?? false)) {
+    if (!(ref
+            .read(authProvider)
+            .currentUser
+            ?.canPerform('expenses', 'delete') ??
+        false)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ليست لديك صلاحية حذف المصروفات')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ليست لديك صلاحية حذف المصروفات')),
+        );
       }
       return;
     }
@@ -679,7 +860,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
           'هل تريد حذف المصروف "${expense.description.isNotEmpty ? expense.description : 'مصروف بدون وصف'}" بمبلغ ${CurrencyFormatter.formatAmount(expense.amount)}؟',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -700,7 +884,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
       // ✅ (المرحلة 0 — P0.3) تمرير موظف المصروف كي لا يُحذف مسحوب جهاز/موظف
       // آخر تصادم expense_id/reason رقمياً مع هذا المصروف (R3).
-      await salaryRepo.deleteByExpenseId(expense.id, employeeId: expense.relatedId, employeeUuid: expense.employeeUuid);
+      await salaryRepo.deleteByExpenseId(
+        expense.id,
+        employeeId: expense.relatedId,
+        employeeUuid: expense.employeeUuid,
+      );
       await repo.delete(expense.id);
 
       markDataChanged();
@@ -721,26 +909,40 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('فشل حذف المصروف: $e'), backgroundColor: Colors.red.shade900));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('فشل حذف المصروف: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
     }
   }
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final action = existing == null ? 'create' : 'update';
-    if (!(ref.read(authProvider).currentUser?.canPerform('expenses', action) ?? false)) {
+    if (!(ref.read(authProvider).currentUser?.canPerform('expenses', action) ??
+        false)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(existing == null ? 'ليست لديك صلاحية إضافة المصروفات' : 'ليست لديك صلاحية تعديل المصروفات'),
+            content: Text(
+              existing == null
+                  ? 'ليست لديك صلاحية إضافة المصروفات'
+                  : 'ليست لديك صلاحية تعديل المصروفات',
+            ),
           ),
         );
       }
       return;
     }
-    final description = TextEditingController(text: existing?.description ?? '');
-    final amount = TextEditingController(text: existing != null ? CurrencyFormatter.formatAmount(existing.amount) : '');
+    final description = TextEditingController(
+      text: existing?.description ?? '',
+    );
+    final amount = TextEditingController(
+      text: existing != null
+          ? CurrencyFormatter.formatAmount(existing.amount)
+          : '',
+    );
     final installments = TextEditingController();
     DateTime selectedDate;
     try {
@@ -763,10 +965,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
 
       if (existing != null && _isSalaryAction(existing.expenseType)) {
         selectedType = _salaryType;
-        dialogSalaryAction = _mapExpenseTypeToSalaryAction(existing.expenseType);
+        dialogSalaryAction = _mapExpenseTypeToSalaryAction(
+          existing.expenseType,
+        );
       }
 
-      final List<Employee> allEmployees = employees ?? await ref.read(employeesRepoProvider).watchAll().first;
+      final List<Employee> allEmployees =
+          employees ?? await ref.read(employeesRepoProvider).watchAll().first;
       // ✅ إزالة التكرار: عند المزامنة بين أجهزة متعددة، قد يصل نفس الموظف
       // (نفس localUuid) بـ id محلي مختلف (autoIncrement). كذلك قد يوجد
       // نفس الاسم بـ localUuid مختلف (سجل مكرر فعلاً).
@@ -780,7 +985,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         // رواتب/سلف جديدة — تنفيذ وعد حوار «إنهاء الخدمة»
         // ("سيتم إيقاف صرف السلف والرواتب تلقائياً"). الاستثناء: الموظف
         // المرتبط بالسجل الحالي عند التعديل — لعرضه في المنتقي دون كسر.
-        if (StatusUtils.isEmployeeTerminated(emp.status) && emp.id != existing?.relatedId) {
+        if (StatusUtils.isEmployeeTerminated(emp.status) &&
+            emp.id != existing?.relatedId) {
           return false;
         }
         // 1. إزالة التكرار بـ localUuid
@@ -801,8 +1007,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         }
         return true;
       }).toList();
-      String? selectedEmployeeUuid = existing?.employeeUuid?.trim().toLowerCase();
-      if ((selectedEmployeeUuid == null || selectedEmployeeUuid.isEmpty) && existing?.relatedId != null) {
+      String? selectedEmployeeUuid = existing?.employeeUuid
+          ?.trim()
+          .toLowerCase();
+      if ((selectedEmployeeUuid == null || selectedEmployeeUuid.isEmpty) &&
+          existing?.relatedId != null) {
         selectedEmployeeUuid = allEmployees
             .where((e) => e.id == existing!.relatedId)
             .map((e) => e.localUuid.trim().toLowerCase())
@@ -811,7 +1020,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       int? selectedEmployeeId = selectedEmployeeUuid == null
           ? null
           : availableEmployees
-                .where((e) => e.localUuid.trim().toLowerCase() == selectedEmployeeUuid)
+                .where(
+                  (e) =>
+                      e.localUuid.trim().toLowerCase() == selectedEmployeeUuid,
+                )
                 .map((e) => e.id)
                 .firstOrNull;
 
@@ -820,9 +1032,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setState) {
             final dropdownTextColor = Theme.of(ctx).textTheme.bodyMedium?.color;
-            final dropdownTextStyle = Theme.of(
-              ctx,
-            ).textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.bold, color: dropdownTextColor);
+            final dropdownTextStyle = Theme.of(ctx).textTheme.bodyMedium
+                ?.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: dropdownTextColor,
+                );
             return AlertDialog(
               alignment: const Alignment(0, -0.4),
               title: Text(existing == null ? 'إضافة مصروف' : 'تعديل مصروف'),
@@ -832,7 +1047,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                   children: [
                     DropdownButtonFormField<String>(
                       initialValue: selectedType,
-                      decoration: const InputDecoration(labelText: 'نوع المصروف'),
+                      decoration: const InputDecoration(
+                        labelText: 'نوع المصروف',
+                      ),
                       style: dropdownTextStyle,
                       items: _expenseTypes
                           .map(
@@ -850,7 +1067,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                           selectedType = value;
                           if (selectedType == _salaryType) {
                             if (availableEmployees.isNotEmpty) {
-                              selectedEmployeeUuid ??= availableEmployees.first.localUuid.trim().toLowerCase();
+                              selectedEmployeeUuid ??= availableEmployees
+                                  .first
+                                  .localUuid
+                                  .trim()
+                                  .toLowerCase();
                               selectedEmployeeId = availableEmployees.first.id;
                             }
                           } else {
@@ -862,24 +1083,35 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                     ),
                     if (selectedType == _salaryType) ...[
                       const SizedBox(height: 12),
-                      if (availableEmployees.isEmpty) const Text('لا يوجد موظفين مسجلين حالياً.'),
+                      if (availableEmployees.isEmpty)
+                        const Text('لا يوجد موظفين مسجلين حالياً.'),
                       if (availableEmployees.isNotEmpty) ...[
                         DropdownButtonFormField<String>(
                           initialValue: selectedEmployeeUuid,
                           style: dropdownTextStyle,
-                          decoration: const InputDecoration(labelText: 'اسم الموظف'),
+                          decoration: const InputDecoration(
+                            labelText: 'اسم الموظف',
+                          ),
                           items: availableEmployees
                               .map(
                                 (employee) => DropdownMenuItem<String>(
-                                  value: employee.localUuid.trim().toLowerCase(),
-                                  child: Text(employee.name, style: dropdownTextStyle),
+                                  value: employee.localUuid
+                                      .trim()
+                                      .toLowerCase(),
+                                  child: Text(
+                                    employee.name,
+                                    style: dropdownTextStyle,
+                                  ),
                                 ),
                               )
                               .toList(),
                           onChanged: (value) => setState(() {
                             selectedEmployeeUuid = value;
                             selectedEmployeeId = availableEmployees
-                                .where((e) => e.localUuid.trim().toLowerCase() == value)
+                                .where(
+                                  (e) =>
+                                      e.localUuid.trim().toLowerCase() == value,
+                                )
                                 .map((e) => e.id)
                                 .firstOrNull;
                           }),
@@ -887,7 +1119,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
                           initialValue: dialogSalaryAction,
-                          decoration: const InputDecoration(labelText: 'نوع المعاملة'),
+                          decoration: const InputDecoration(
+                            labelText: 'نوع المعاملة',
+                          ),
                           items: _salaryActions
                               .map(
                                 (action) => DropdownMenuItem<String>(
@@ -910,7 +1144,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                       controller: amount,
                       keyboardType: TextInputType.number,
                       inputFormatters: const [englishIntegerInputFormatter],
-                      decoration: InputDecoration(labelText: 'المبلغ', filled: true, fillColor: Colors.yellow.shade50),
+                      decoration: InputDecoration(
+                        labelText: 'المبلغ',
+                        filled: true,
+                        fillColor: Colors.yellow.shade50,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -931,7 +1169,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                         }
                       },
                       child: InputDecorator(
-                        decoration: const InputDecoration(labelText: 'التاريخ', suffixIcon: Icon(Icons.calendar_today)),
+                        decoration: const InputDecoration(
+                          labelText: 'التاريخ',
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
                         child: Text(
                           DateFormat('yyyy-MM-dd').format(selectedDate),
                           style: Theme.of(ctx).textTheme.bodyMedium,
@@ -942,13 +1183,19 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('إلغاء'),
+                ),
                 FilledButton(
                   onPressed: () {
-                    if (selectedType == _salaryType && selectedEmployeeId == null) {
+                    if (selectedType == _salaryType &&
+                        selectedEmployeeId == null) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         SnackBar(
-                          content: const Text('يجب اختيار موظف عند اختيار نوع المصروف "رواتب"'),
+                          content: const Text(
+                            'يجب اختيار موظف عند اختيار نوع المصروف "رواتب"',
+                          ),
                           backgroundColor: Theme.of(ctx).colorScheme.error,
                           duration: const Duration(seconds: 3),
                         ),
@@ -957,7 +1204,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
                     }
                     // ✅ إصلاح: التحقق من المبلغ قبل إغلاق الحوار
                     // سابقاً كان التحقق بعد الإغلاق مما يسبب إغلاق صامت بدون تغذية راجعة
-                    final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
+                    final parsedAmount =
+                        CurrencyFormatter.parseAmount(amount.text) ?? 0;
                     if (parsedAmount <= 0) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
                         SnackBar(
@@ -987,7 +1235,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       final trimmedDescription = description.text.trim();
       final trimmedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
       final isSalaryExpense = selectedType == _salaryType;
-      final savedType = isSalaryExpense ? _deriveSalaryExpenseType(dialogSalaryAction) : selectedType;
+      final savedType = isSalaryExpense
+          ? _deriveSalaryExpenseType(dialogSalaryAction)
+          : selectedType;
 
       if (parsedAmount <= 0) {
         return;
@@ -1005,8 +1255,15 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
           // الآن يُكتب فورًا فيُصبح المصروف محمولاً عبر الأجهزة حتى قبل المزامنة.
           // ملاحظة: نُبقي سلوك firstWhere الأصلي (StateError عند عدم الإيجاد) لأن
           // الشاشة تتحقق مسبقًا من وجود موظفين ومن اختيار موظف قبل الحفظ.
-          final Employee? resolvedEmployee = isSalaryExpense && selectedEmployeeUuid != null
-              ? availableEmployees.where((e) => e.localUuid.trim().toLowerCase() == selectedEmployeeUuid).firstOrNull
+          final Employee? resolvedEmployee =
+              isSalaryExpense && selectedEmployeeUuid != null
+              ? availableEmployees
+                    .where(
+                      (e) =>
+                          e.localUuid.trim().toLowerCase() ==
+                          selectedEmployeeUuid,
+                    )
+                    .firstOrNull
               : null;
           if (isSalaryExpense && resolvedEmployee == null) {
             throw StateError(
@@ -1024,15 +1281,20 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
             date: trimmedDate,
             hotelDayKey: newHotelDayKey,
             // ✅ التوصية 1: اكتب employeeUuid وقت الإنشاء — مصدر الحقيقة المحمول.
-            employeeUuid: (isSalaryExpense && resolvedEmployee != null) ? resolvedEmployee.localUuid : null,
+            employeeUuid: (isSalaryExpense && resolvedEmployee != null)
+                ? resolvedEmployee.localUuid
+                : null,
           );
 
           if (isSalaryExpense && resolvedEmployee != null) {
-            final signedAmount = savedType == _salaryDeductionAction ? -parsedAmount : parsedAmount;
+            final signedAmount = savedType == _salaryDeductionAction
+                ? -parsedAmount
+                : parsedAmount;
 
             await salaryRepo.saveFromExpense(
               expenseId: newId,
-              employeeId: resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
+              employeeId:
+                  resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
               action: savedType,
               amount: signedAmount,
               date: trimmedDate,
@@ -1043,11 +1305,20 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
           }
         } else {
           // ✅ تعديل مصروف موجود — إعادة حساب hotelDayKey من التاريخ المختار
-          final updatedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
+          final updatedHotelDayKey = _hotelDayKeyFromDate(
+            DateTime.parse(trimmedDate),
+          );
 
           // ✅ التوصية 1: حل الموظف مرة واحدة لاستخدام localUuid في تعديل المصروف.
-          final Employee? resolvedEmployee = isSalaryExpense && selectedEmployeeUuid != null
-              ? availableEmployees.where((e) => e.localUuid.trim().toLowerCase() == selectedEmployeeUuid).firstOrNull
+          final Employee? resolvedEmployee =
+              isSalaryExpense && selectedEmployeeUuid != null
+              ? availableEmployees
+                    .where(
+                      (e) =>
+                          e.localUuid.trim().toLowerCase() ==
+                          selectedEmployeeUuid,
+                    )
+                    .firstOrNull
               : null;
           if (isSalaryExpense && resolvedEmployee == null) {
             throw StateError(
@@ -1069,23 +1340,29 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
             // - لمصروف الراتب: localUuid للموظف المختار.
             // - لغير الراتب: '' لمسح أي رابط قديم (يمنع بقاء رابط يتيم عند
             //   التحويل من راتب إلى نوع آخر).
-            employeeUuid: (isSalaryExpense && resolvedEmployee != null) ? resolvedEmployee.localUuid : '',
+            employeeUuid: (isSalaryExpense && resolvedEmployee != null)
+                ? resolvedEmployee.localUuid
+                : '',
           );
 
           if (isSalaryExpense && resolvedEmployee != null) {
-            final signedAmount = savedType == _salaryDeductionAction ? -parsedAmount : parsedAmount;
+            final signedAmount = savedType == _salaryDeductionAction
+                ? -parsedAmount
+                : parsedAmount;
 
             // ✅ إصلاح تكرار التقرير عند تعديل المبلغ (2026-09-25):
             // المبلغ الموقّع القديم للمرآة قبل التعديل — يُمرَّر
             // لتبنّي المرآة اليتيمة (رابطها يحمل معرّف جهاز المصدر)
             // بدل إنشاء مرآة ثانية يظهر مبلغها مكرراً في التقارير.
-            final previousSignedAmount = SalaryExpenseClassifier.isSalaryDeduction(existing.expenseType)
+            final previousSignedAmount =
+                SalaryExpenseClassifier.isSalaryDeduction(existing.expenseType)
                 ? -existing.amount
                 : existing.amount;
 
             await salaryRepo.saveFromExpense(
               expenseId: existing.id,
-              employeeId: resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
+              employeeId:
+                  resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
               action: savedType,
               amount: signedAmount,
               date: trimmedDate,
@@ -1115,20 +1392,29 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
 
         // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
         // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً
-        final savedHotelDayKey = _hotelDayKeyFromDate(DateTime.parse(trimmedDate));
+        final savedHotelDayKey = _hotelDayKeyFromDate(
+          DateTime.parse(trimmedDate),
+        );
         final currentFromKey = _filterActive && _fromDate != null
             ? _hotelDayKeyFromDate(_fromDate!)
             : HotelTimeEngine.getHotelDayKey();
         final currentToKey = _filterActive && _toDate != null
             ? _hotelDayKeyFromDate(_toDate!)
             : HotelTimeEngine.getHotelDayKey();
-        if (savedHotelDayKey.compareTo(currentFromKey) < 0 || savedHotelDayKey.compareTo(currentToKey) > 0) {
+        if (savedHotelDayKey.compareTo(currentFromKey) < 0 ||
+            savedHotelDayKey.compareTo(currentToKey) > 0) {
           // المصروف خارج نطاق الفلتر — توسيع النطاق ليشمله
           _filterActive = true;
-          final minKey = savedHotelDayKey.compareTo(currentFromKey) < 0 ? savedHotelDayKey : currentFromKey;
-          final maxKey = savedHotelDayKey.compareTo(currentToKey) > 0 ? savedHotelDayKey : currentToKey;
+          final minKey = savedHotelDayKey.compareTo(currentFromKey) < 0
+              ? savedHotelDayKey
+              : currentFromKey;
+          final maxKey = savedHotelDayKey.compareTo(currentToKey) > 0
+              ? savedHotelDayKey
+              : currentToKey;
           _fromDate = DateTime.parse('${minKey}T14:00:00');
-          _toDate = DateTime.parse('${maxKey}T13:59:59').add(const Duration(days: 1));
+          _toDate = DateTime.parse(
+            '${maxKey}T13:59:59',
+          ).add(const Duration(days: 1));
         }
 
         if (mounted) {
@@ -1141,7 +1427,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
 
         // إرسال رسالة واتساب للموظف عند تسجيل مصروف راتب
         if (isSalaryExpense && selectedEmployeeId != null && mounted) {
-          final waAction = dialogSalaryAction == _salaryAdvanceAction ? _salaryAdvanceAction : savedType;
+          final waAction = dialogSalaryAction == _salaryAdvanceAction
+              ? _salaryAdvanceAction
+              : savedType;
           unawaited(
             _sendSalaryExpenseWhatsApp(
               employeeId: selectedEmployeeId!,
@@ -1156,9 +1444,12 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('فشل حفظ المصروف: $e'), backgroundColor: Colors.red.shade900));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل حفظ المصروف: $e'),
+            backgroundColor: Colors.red.shade900,
+          ),
+        );
       }
     } finally {
       description.dispose();
@@ -1201,9 +1492,13 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       // حساب الراتب المتبقي
       String remainingText = '';
       try {
-        final entitlementService = SalaryEntitlementService(ref.read(databaseProvider));
-        final entitlement = await entitlementService.calculateEmployeeEntitlement(employee);
-        remainingText = 'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
+        final entitlementService = SalaryEntitlementService(
+          ref.read(databaseProvider),
+        );
+        final entitlement = await entitlementService
+            .calculateEmployeeEntitlement(employee);
+        remainingText =
+            'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
       } catch (e) {
         dlog(() => 'Error calculating remaining salary: $e');
       }
@@ -1211,7 +1506,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       final message = StringBuffer()
         ..writeln('مرحباً ${employee.name}')
         ..writeln()
-        ..writeln('تم تسجيل $actionText راتب بقيمة ${CurrencyFormatter.formatAmount(amount)}')
+        ..writeln(
+          'تم تسجيل $actionText راتب بقيمة ${CurrencyFormatter.formatAmount(amount)}',
+        )
         ..writeln('التاريخ: $date');
 
       if (remainingText.isNotEmpty) {
@@ -1223,7 +1520,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         ..writeln('فندق مارينا')
         ..write('للاستفسار: 9677734587456');
 
-      final result = await whatsappService.sendMessage(phoneE164: cleanedPhone, message: message.toString());
+      final result = await whatsappService.sendMessage(
+        phoneE164: cleanedPhone,
+        message: message.toString(),
+      );
 
       if (mounted) {
         if (result.quotaMessage != null) {

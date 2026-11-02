@@ -28,7 +28,11 @@ void main() {
     test('الساعة 14:00:59 → اليوم السابق', () {
       final dt = DateTime(2026, 8, 6, 14, 0, 59);
       final hotelDay = HotelDateHelper.getHotelDay(dt);
-      expect(hotelDay.day, 5, reason: '14:00:59 قبل بداية اليوم الفندقي (14:01) فتكون لليوم السابق');
+      expect(
+        hotelDay.day,
+        5,
+        reason: '14:00:59 قبل بداية اليوم الفندقي (14:01) فتكون لليوم السابق',
+      );
     });
 
     test('الساعة 15:00 → نفس اليوم', () {
@@ -110,28 +114,40 @@ void main() {
   group('calculateNights', () {
     test('نفس اليوم = ليلة واحدة كحد أدنى', () {
       final checkin = DateTime(2026, 8, 6, 15, 0, 0);
-      final nights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkin.add(const Duration(hours: 2)));
+      final nights = HotelDateHelper.calculateNights(
+        checkIn: checkin,
+        checkOut: checkin.add(const Duration(hours: 2)),
+      );
       expect(nights, greaterThanOrEqualTo(1));
     });
 
     test('دخول اليوم 1 مغادرة اليوم 2 = ليلة واحدة', () {
       final checkin = DateTime(2026, 8, 6, 15, 0, 0);
       final checkout = DateTime(2026, 8, 7, 10, 0, 0);
-      final nights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
+      final nights = HotelDateHelper.calculateNights(
+        checkIn: checkin,
+        checkOut: checkout,
+      );
       expect(nights, 1);
     });
 
     test('دخول اليوم 1 مغادرة اليوم 4 = 3 ليالي', () {
       final checkin = DateTime(2026, 8, 6, 15, 0, 0);
       final checkout = DateTime(2026, 8, 9, 10, 0, 0);
-      final nights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
+      final nights = HotelDateHelper.calculateNights(
+        checkIn: checkin,
+        checkOut: checkout,
+      );
       expect(nights, 3);
     });
 
     test('المغادرة بعد 14:01 تُحتسب كـ ليلة إضافية', () {
       final checkin = DateTime(2026, 8, 6, 15, 0, 0);
       final checkout = DateTime(2026, 8, 7, 14, 30, 0); // بعد 14:01
-      final nights = HotelDateHelper.calculateNights(checkIn: checkin, checkOut: checkout);
+      final nights = HotelDateHelper.calculateNights(
+        checkIn: checkin,
+        checkOut: checkout,
+      );
       expect(nights, 2, reason: 'المغادرة بعد 14:01 تُحتسب كـ ليلة إضافية');
     });
   });
@@ -140,7 +156,10 @@ void main() {
     test('بدون discountStartDate = نفس calculateNights', () {
       final checkin = DateTime(2026, 8, 6, 15, 0, 0);
       final checkout = DateTime(2026, 8, 9, 10, 0, 0);
-      final withoutDiscount = HotelDateHelper.calculateNightsWithDiscount(checkIn: checkin, checkOut: checkout);
+      final withoutDiscount = HotelDateHelper.calculateNightsWithDiscount(
+        checkIn: checkin,
+        checkOut: checkout,
+      );
       final withNullDiscount = HotelDateHelper.calculateNightsWithDiscount(
         checkIn: checkin,
         checkOut: checkout,
@@ -214,15 +233,33 @@ void main() {
 
   group('bookingComputedFields', () {
     test('يحتوي على الحقول المتوقعة', () {
-      expect(HotelDateHelper.bookingComputedFields.contains('stayDurationIso'), isTrue);
-      expect(HotelDateHelper.bookingComputedFields.contains('lastNightEpoch'), isTrue);
-      expect(HotelDateHelper.bookingComputedFields.contains('isOverdue'), isTrue);
-      expect(HotelDateHelper.bookingComputedFields.contains('needsCheckoutReview'), isTrue);
+      expect(
+        HotelDateHelper.bookingComputedFields.contains('stayDurationIso'),
+        isTrue,
+      );
+      expect(
+        HotelDateHelper.bookingComputedFields.contains('lastNightEpoch'),
+        isTrue,
+      );
+      expect(
+        HotelDateHelper.bookingComputedFields.contains('isOverdue'),
+        isTrue,
+      );
+      expect(
+        HotelDateHelper.bookingComputedFields.contains('needsCheckoutReview'),
+        isTrue,
+      );
     });
 
     test('لا يحتوي على الحقول التي يجب مزامنتها', () {
-      expect(HotelDateHelper.bookingComputedFields.contains('totalDueCached'), isFalse);
-      expect(HotelDateHelper.bookingComputedFields.contains('calculatedNights'), isFalse);
+      expect(
+        HotelDateHelper.bookingComputedFields.contains('totalDueCached'),
+        isFalse,
+      );
+      expect(
+        HotelDateHelper.bookingComputedFields.contains('calculatedNights'),
+        isFalse,
+      );
     });
 
     test('isBookingComputedField يُرجع قيمة صحيحة', () {
@@ -242,10 +279,17 @@ void main() {
         'needsCheckoutReview': false,
       };
 
-      final result = HotelDateHelper.stripComputedFieldsForEntity('bookings', payload);
+      final result = HotelDateHelper.stripComputedFieldsForEntity(
+        'bookings',
+        payload,
+      );
 
       expect(result.containsKey('guestName'), isTrue);
-      expect(result.containsKey('totalDueCached'), isTrue, reason: 'totalDueCached يجب أن يبقى (يُزامن)');
+      expect(
+        result.containsKey('totalDueCached'),
+        isTrue,
+        reason: 'totalDueCached يجب أن يبقى (يُزامن)',
+      );
       expect(result.containsKey('stayDurationIso'), isFalse);
       expect(result.containsKey('lastNightEpoch'), isFalse);
       expect(result.containsKey('isOverdue'), isFalse);
@@ -259,17 +303,34 @@ void main() {
         'isOverdue': true,
       };
 
-      final result = HotelDateHelper.stripComputedFieldsForEntity('employees', payload);
+      final result = HotelDateHelper.stripComputedFieldsForEntity(
+        'employees',
+        payload,
+      );
 
-      expect(result.length, 3, reason: 'يجب ألا تُزال أي حقول من كيان غير bookings');
+      expect(
+        result.length,
+        3,
+        reason: 'يجب ألا تُزال أي حقول من كيان غير bookings',
+      );
     });
 
     test('لا يُعدّل المرجع الأصلي', () {
-      final original = <String, dynamic>{'guestName': 'أحمد', 'isOverdue': true};
+      final original = <String, dynamic>{
+        'guestName': 'أحمد',
+        'isOverdue': true,
+      };
 
-      final result = HotelDateHelper.stripComputedFieldsForEntity('bookings', original);
+      final result = HotelDateHelper.stripComputedFieldsForEntity(
+        'bookings',
+        original,
+      );
 
-      expect(original.containsKey('isOverdue'), isTrue, reason: 'يجب ألا يتغير المرجع الأصلي');
+      expect(
+        original.containsKey('isOverdue'),
+        isTrue,
+        reason: 'يجب ألا يتغير المرجع الأصلي',
+      );
       expect(result.containsKey('isOverdue'), isFalse);
     });
   });

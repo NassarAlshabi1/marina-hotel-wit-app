@@ -46,10 +46,15 @@ class AppScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
-    final unreadCount = unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
+    final unreadCount = unreadCountAsync.maybeWhen(
+      data: (count) => count,
+      orElse: () => 0,
+    );
     final hasUnread = unreadCount > 0;
 
-    final isLightBg = appBarBackgroundColor != null && appBarBackgroundColor!.computeLuminance() > 0.5;
+    final isLightBg =
+        appBarBackgroundColor != null &&
+        appBarBackgroundColor!.computeLuminance() > 0.5;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -61,7 +66,9 @@ class AppScaffold extends ConsumerWidget {
           elevation: appBarBackgroundColor != null ? 1 : null,
           title: subtitle != null
               ? Column(
-                  crossAxisAlignment: titleAlign == TextAlign.end ? CrossAxisAlignment.end : CrossAxisAlignment.center,
+                  crossAxisAlignment: titleAlign == TextAlign.end
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -70,7 +77,9 @@ class AppScaffold extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: titleColor ?? (isLightBg ? Colors.black : Colors.white),
+                        color:
+                            titleColor ??
+                            (isLightBg ? Colors.black : Colors.white),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -79,7 +88,9 @@ class AppScaffold extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: subtitleColor ?? (isLightBg ? Colors.black54 : Colors.white70),
+                        color:
+                            subtitleColor ??
+                            (isLightBg ? Colors.black54 : Colors.white70),
                       ),
                     ),
                   ],
@@ -91,7 +102,11 @@ class AppScaffold extends ConsumerWidget {
                 await notes.loadLibrary();
                 if (context.mounted) {
                   unawaited(
-                    Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => notes.NotesScreen())),
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => notes.NotesScreen(),
+                      ),
+                    ),
                   );
                 }
               },
@@ -99,18 +114,32 @@ class AppScaffold extends ConsumerWidget {
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(hasUnread ? Icons.notifications_active : Icons.notifications_none),
+                  Icon(
+                    hasUnread
+                        ? Icons.notifications_active
+                        : Icons.notifications_none,
+                  ),
                   if (hasUnread)
                     Positioned(
                       right: -2,
                       top: -2,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
                         child: Text(
                           unreadCount > 9 ? '9+' : '$unreadCount',
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
