@@ -3,7 +3,7 @@
 #
 #  لماذا هذا الـ workflow؟
 #  -----------------------
-#  خطوة «Dart Format» في ci.yml تفرض معيار المشروع: 120 عموداً
+#  خطوة «Dart Format» في ci.yml تفرض معيار المشروع: 80 عموداً
 #  على الملفات المكتوبة يدوياً (بعد استثناء المولّدة بـ
 #  build_runner). لا يوجد Dart SDK في كل بيئات التطوير، لذا
 #  الطريقة الوحيدة الآمنة (بلا تخمين) لتنسيق الشجرة هي تشغيل
@@ -23,6 +23,12 @@ name: Auto Format (dart)
 
 on:
   workflow_dispatch:
+    inputs:
+      line_length:
+        description: 'عرض السطر (المعيار المعتمد في ci.yml = 80)'
+        required: false
+        default: '80'
+        type: string
   push:
     paths:
       - '.github/format-request'
@@ -36,7 +42,9 @@ concurrency:
 
 jobs:
   format:
-    name: Format Dart sources (120 cols)
+    name: Format Dart sources
+    env:
+      FORMAT_LINE_LENGTH: ${{ inputs.line_length || '80' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -57,7 +65,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: 🖋️ Format hand-written Dart (120 cols)
+      - name: 🖋️ Format hand-written Dart
         run: |
           set -uo pipefail
           FILES=$(git ls-files '*.dart' | grep -v -E '\.(g|freezed|gr|mocks)\.dart$' || true)
@@ -65,9 +73,9 @@ jobs:
             echo "لا ملفات Dart للتنسيق"
             exit 0
           fi
-          echo "🖋️ تنسيق $(printf '%s\n' "$FILES" | wc -l) ملف Dart بعرض 120 عموداً..."
+          echo "🖋️ تنسيق $(printf '%s\n' "$FILES" | wc -l) ملف Dart بعرض ${FORMAT_LINE_LENGTH} عموداً..."
           printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 \
-            dart format --line-length 120
+            dart format --line-length "${FORMAT_LINE_LENGTH}"
           echo "--- git status ---"
           git status --porcelain | head -50
           echo "إجمالي الملفات المتغيّرة: $(git status --porcelain | wc -l)"
@@ -83,6 +91,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "style(dart): تطبيق dart format --line-length 120 على ملفات Dart المكتوبة يدوياً"
+          git commit -m "style(dart): dart format --line-length ${FORMAT_LINE_LENGTH} على ملفات Dart المكتوبة يدوياً"
           git push origin "HEAD:${{ github.ref_name }}"
           echo "✅ تم دفع التنسيق إلى ${{ github.ref_name }}"

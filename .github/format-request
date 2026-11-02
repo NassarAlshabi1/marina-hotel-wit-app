@@ -9,3 +9,4 @@
 # .github/workflows/mobile-quality-gate.yml.
 #
 # آخر طلب تنسيق: 2026-11-02 — إصلاح فشل خطوة «Dart Format» في ci.yml.
+# آخر طلب تنسيق: 2026-11-02 — تشغيل dart format (80 عموداً، معيار ci.yml).
