@@ -26,6 +26,7 @@ import 'adapters/id_resolver.dart';
 import 'adapters/salary_withdrawals_adapter.dart';
 import 'adapters/source.dart';
 import 'appwrite_config.dart';
+import 'appwrite_config_manager.dart';
 import 'appwrite_error_handler.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_models.dart';
@@ -211,6 +212,7 @@ class AppwriteSyncManager {
     _unifiedPull = UnifiedPullEngine(
       checkpoints: _checkpointStore,
       pullService: _pullService!,
+      logger: _logger,
     );
   }
   static AppwriteSyncManager? _instance;
@@ -229,6 +231,9 @@ class AppwriteSyncManager {
     try {
       // إعادة تحميل الإعدادات
       await _loadSettings();
+      // ✅ (2026-11-05) تغيير الاتصال من شاشة الإعدادات قد يكون تغيير
+      // مشروع/قاعدة — لا يجوز أن تبقى مؤشرات السحب محسوبة على الهدف القديم.
+      await _ensureSyncTargetIdentity();
       // إعادة تهيئة Secondary Appwrite
       await SecondaryAppwriteConfig.ensureInitialized();
       _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
@@ -238,6 +243,96 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
     }
+  }
+
+  /// مفتاح SharedPreferences لبصمة هدف المزامنة الفعّال
+  /// (Endpoint + Project + Database).
+  static const String _syncTargetIdentityKey =
+      'appwrite_sync_target_identity';
+
+  /// ✅ (2026-11-05) حرس تغيير هدف المزامنة (مشروع/قاعدة/Endpoint).
+  ///
+  /// **المشكلة المؤكدة**: مؤشرات السحب في `sync_checkpoints` (جدول SQLite
+  /// محلي) لا تحمل أي بُعد يحدّد *أي* مشروع/قاعدة حُسبت عليها. عند الانتقال
+  /// إلى مشروع Appwrite آخر (حدث فعلاً في 2026-10-31 من `6a4408f3` إلى
+  /// `6ae118bc`) تبقى المجموعات معلَّمة `full_sync_complete = 1` بمؤشر من
+  /// المشروع القديم — فأي مستند في المشروع الجديد يحمل `$updatedAt` أقدم من
+  /// ذلك المؤشر **لا يُسحب أبداً**. نتيجة: نقص صامت في البيانات لا يشتكي
+  /// منه أي سجل ولا أي شاشة.
+  ///
+  /// **الحل**: تُخزَّن بصمة الهدف مرة واحدة؛ وعند اختلافها تُصفَّر كل مؤشرات
+  /// السحب فيبدأ سحب كامل نظيف من الهدف الجديد. وعند **غياب** البصمة (تثبيت
+  /// ترقّى إلى أول نسخة تحمل هذا الحرس) لا يمكن إثبات أن مؤشراته محسوبة على
+  /// الهدف الحالي ⇒ تصفير لمرة واحدة: سحب كامل واحد صحيح دائماً (upsert
+  /// idempotent) أفضل من احتمال نقص صامت دائم.
+  Future<void> _ensureSyncTargetIdentity() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final identity =
+          '${AppwriteConfigManager.endpoint}|'
+          '${AppwriteConfigManager.projectId}|'
+          '${AppwriteConfigManager.databaseId}';
+      final stored = prefs.getString(_syncTargetIdentityKey);
+
+      if (stored == identity) return;
+
+      if (stored != null) {
+        await _resetPullStateForNewTarget(
+          previous: stored,
+          current: identity,
+        );
+      } else if (await _checkpointStore.hasAnyCheckpoint()) {
+        // تثبيت ترقّى إلى أول نسخة تحمل هذا الحرس: المؤشرات موجودة لكن
+        // هوية الهدف غير معروفة. لا يمكن إثبات تطابقها مع الهدف الحالي،
+        // والمفاضلة واضحة: سحب كامل واحد (صحيح دائماً، idempotent) أفضل من
+        // احتمال نقص صامت دائم في البيانات.
+        await _resetPullStateForNewTarget(
+          previous: 'غير معروفة (تثبيت سابق لهذا الحرس)',
+          current: identity,
+        );
+      }
+
+      await prefs.setString(_syncTargetIdentityKey, identity);
+    } catch (e) {
+      // الحرس لا يُفشل التهيئة؛ إن فشل التخزين يُعاد الفحص في التشغيل القادم.
+      _logger.warning(
+        '⚠️ تعذّر التحقق من هوية هدف المزامنة: $e',
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// تصفير كل حالة السحب المحلية بعد تغيير هدف المزامنة.
+  Future<void> _resetPullStateForNewTarget({
+    required String previous,
+    required String current,
+  }) async {
+    _logger.warning(
+      '🔄 تغيّر هدف مزامنة Appwrite ($previous → $current) — '
+      'تصفير كل مؤشرات السحب لإجبار سحب كامل من الهدف الجديد. '
+      'السبب: مؤشرات الهدف السابق لا تصلح للحكم على مستندات الهدف الجديد، '
+      'وإبقاؤها يعني تخطّي كل مستند أقدم من آخر مؤشر صامتاً.',
+      tag: 'SYNC',
+    );
+    _maxUpdatedAtInPull = null;
+    await _checkpointStore.resetAll();
+    // المؤشر العالمي القديم (صف SyncState id=1) وخريطة مؤشرات الكيانات
+    // (SharedPreferences) قديمان بالعلة نفسها — يُصفَّران معه.
+    try {
+      await database.into(database.syncState).insertOnConflictUpdate(
+        const SyncStateCompanion(
+          id: drift.Value(1),
+          lastPullTs: drift.Value(0),
+          fullSyncComplete: drift.Value(0),
+        ),
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ تعذّر تصفير sync_state بعد تغيير الهدف: $e',
+        tag: 'SYNC',
+      );
+    }
+    await _pullService?.clearEntityPullTsMap();
   }
 
   final AppwriteService appwriteService;
@@ -305,6 +400,11 @@ class AppwriteSyncManager {
     try {
       await appwriteService.initialize();
       await _loadSettings();
+
+      // ✅ (2026-11-05) حرس هدف المزامنة — قبل أي دورة سحب تلقائية:
+      // تغيير المشروع/القاعدة يعني أن مؤشرات السحب القديمة لا تصلح للحكم
+      // على مستندات الهدف الجديد (انظر _ensureSyncTargetIdentity).
+      await _ensureSyncTargetIdentity();
 
       // ✅ نطاق السحب: تحميل الجداول المعطّلة من الإعدادات قبل أي دورة سحب
       // (الفلترة نفسها داخل _buildPullTasks — يغطي كل مسارات السحب).
@@ -2482,6 +2582,17 @@ class AppwriteSyncManager {
   Future<int> syncSalaryCyclesForTesting(List<models.Document> documents) =>
       _syncSalaryCycles(documents);
 
+  /// ✅ (2026-11-05) جسور اختبارية للكيانات التي التحقت بعقد «لا يتقدّم
+  /// المؤشر فوق الفشل» (نفس نمط [syncBookingsForTesting] — الكود الإنتاجي
+  /// نفسه بلا محاكاة).
+  @visibleForTesting
+  Future<int> syncExpensesForTesting(List<models.Document> documents) =>
+      _syncExpenses(documents);
+
+  @visibleForTesting
+  Future<int> syncGuestInfosForTesting(List<models.Document> documents) =>
+      _syncGuestInfos(documents);
+
   /// ✅ إعادة حساب حالة إشغال غرفة واحدة بناءً على الحجوزات النشطة
   /// يستخدم RoomsRepository لضمان تحديث version و lastModified
   Future<void> _refreshSingleRoomOccupancy(String roomNumber) async {
@@ -2612,6 +2723,10 @@ class AppwriteSyncManager {
   Future<int> _syncExpenses(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — آخر كيان مالي كبير كان يبتلع فشل
+    // التطبيق: مصروف يفشل تطبيقه كان يُسجَّل تحذيراً ثم يتقدّم مؤشر
+    // المجموعة فوقه فلا يُسحب مرة أخرى أبداً (فقدان مصروف دائم من التقارير).
+    final failed = <String>[];
 
     // ✅ تحسين أداء: batch lookup
     final uuids = documents
@@ -2692,10 +2807,16 @@ class AppwriteSyncManager {
           }
         }
 
-        await _adapterRegistry.expenses.upsertFromJson(
+        final upserted = await _adapterRegistry.expenses.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B (BaseRepository.shouldSkip → -1): مرجع أب
+        // غير محلول (موظف/حركة نقد) — تخطٍّ لا نجاح؛ المؤشر لا يتقدّم فوقه.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'expenses',
@@ -2707,7 +2828,19 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // فشل تطبيق مصروف = مؤشر expenses لا يتقدّم → إعادة المحاولة تلقائياً
+    // (مع تراجع تصاعدي في المحرك لمنع إعادة السحب كل دورة بلا نهاية).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'expenses: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -4086,6 +4219,10 @@ class AppwriteSyncManager {
   Future<int> _syncGuestInfos(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — بطاقة نزيل فاشلة كانت تُبتلع
+    // فيتقدّم مؤشر guest_infos فوقها (بيانات نزيل + entryDate مفقودة
+    // نهائياً من الجهاز). ملاحظة: entryDate يُسحب عبر نفس الـ adapter.
+    final failed = <String>[];
 
     // ✅ تحسين أداء: batch lookup
     final uuids = documents
@@ -4128,10 +4265,15 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.guestInfos.upsertFromJson(
+        final upserted = await _adapterRegistry.guestInfos.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B: مرجع غير محلول — تخطٍّ لا نجاح.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'guest_infos',
@@ -4146,7 +4288,17 @@ class AppwriteSyncManager {
           'Failed to sync guest_info ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'guest_infos: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -7404,6 +7556,9 @@ class AppwriteSyncManager {
   Future<int> _syncBlacklist(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — قيد قائمة سوداء فاشل كان يُبتلع،
+    // والأخطر أن غيابه يعني السماح بحجز اسم محظور على هذا الجهاز.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -7554,7 +7709,17 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync blacklist ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'blacklist: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8127,6 +8292,9 @@ class AppwriteSyncManager {
   Future<int> _syncInventoryItems(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — صنف مخزون فاشل كان يتخطاه المؤشر،
+    // فتبقى حركاته بلا أب على هذا الجهاز.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8149,10 +8317,16 @@ class AppwriteSyncManager {
         )).shouldApplyRemote) {
           continue;
         }
-        await _adapterRegistry.inventoryItems.upsertFromJson(
+        final upserted = await _adapterRegistry.inventoryItems.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B: مرجع غير محلول (تخطٍّ لا نجاح) —
+        // المؤشر لا يتقدّم فوقه.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'inventory_items',
           localUuid: localUuid,
@@ -8166,7 +8340,17 @@ class AppwriteSyncManager {
           'Failed to sync inventory item ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'inventory_items: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8295,6 +8479,9 @@ class AppwriteSyncManager {
   Future<int> _syncShiftNotes(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — ملاحظة وردية فاشلة كانت تُبتلع
+    // فيتقدّم المؤشر فوقها (ملاحظة مفقودة من سجل الورديات نهائياً).
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8328,10 +8515,16 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.shiftNotes.upsertFromJson(
+        final upserted = await _adapterRegistry.shiftNotes.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B: مرجع غير محلول (تخطٍّ لا نجاح) —
+        // المؤشر لا يتقدّم فوقه.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'shift_notes',
@@ -8346,7 +8539,17 @@ class AppwriteSyncManager {
           'Failed to sync shift note ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'shift_notes: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8848,6 +9051,9 @@ class AppwriteSyncManager {
   Future<int> _syncCashTransactions(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — حركة نقد فاشلة كانت تُبتلع فيتقدّم
+    // مؤشر المجموعة فوقها (حركة مفقودة من مطابقة الصندوق إلى الأبد).
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8874,10 +9080,16 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.cashTransactions.upsertFromJson(
+        final upserted = await _adapterRegistry.cashTransactions.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B: مرجع (حجز/مصروف) غير محلول — تخطٍّ لا
+        // نجاح؛ المؤشر لا يتقدّم فوق حركة النقد هذه.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'cash_transactions',
@@ -8892,7 +9104,17 @@ class AppwriteSyncManager {
           'Failed to sync cash transaction ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'cash_transactions: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -9383,6 +9605,9 @@ class AppwriteSyncManager {
   Future<int> _syncPriceAdjustments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — تعديل سعر فاشل يتخطاه المؤشر فتبقى
+    // حسابات الحجز مغلوطة على هذا الجهاز بلا شفاء.
+    final failed = <String>[];
     // ✅ P1-13 إصلاح: تم نقل إنشاء الخدمة خارج الحلقة
     final derivedFieldsService = BookingDerivedFieldsService(database);
     for (final doc in documents) {
@@ -9411,10 +9636,16 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.priceAdjustments.upsertFromJson(
+        final upserted = await _adapterRegistry.priceAdjustments.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B: مرجع غير محلول (تخطٍّ لا نجاح) —
+        // المؤشر لا يتقدّم فوقه.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
 
         // ✅ إعادة حساب الحجوزات المتأثرة بعد سحب تغيير سعر الغرفة
         final targetType = data['targetType'] as String? ?? '';
@@ -9477,7 +9708,17 @@ class AppwriteSyncManager {
           'Failed to sync price adjustment ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'price_adjustments: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -9487,6 +9728,9 @@ class AppwriteSyncManager {
   Future<int> _syncAuditLogs(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — سجل تدقيق فاشل يتخطاه المؤشر يخلق
+    // فجوة في سلسلة التتبع المالي على هذا الجهاز.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -9513,10 +9757,16 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.auditLogs.upsertFromJson(
+        final upserted = await _adapterRegistry.auditLogs.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B: مرجع غير محلول (تخطٍّ لا نجاح) —
+        // المؤشر لا يتقدّم فوقه.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'audit_logs',
@@ -9528,7 +9778,17 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync audit log ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'audit_logs: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -9776,6 +10036,9 @@ class AppwriteSyncManager {
   Future<int> _syncPaymentVoids(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-05) درع فقدان صامت — إلغاء دفعة فاشل يتخطاه المؤشر يعني
+    // بقاء الدفعة «صحيحة» على هذا الجهاز (خلل مالي في التقارير).
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -9802,10 +10065,16 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.paymentVoids.upsertFromJson(
+        final upserted = await _adapterRegistry.paymentVoids.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        // ✅ (2026-11-05) المسار B: مرجع غير محلول (تخطٍّ لا نجاح) —
+        // المؤشر لا يتقدّم فوقه.
+        if (upserted == -1) {
+          failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'payment_voids',
@@ -9820,7 +10089,17 @@ class AppwriteSyncManager {
           'Failed to sync payment void ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-05) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'payment_voids: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -10586,6 +10865,13 @@ class AppwriteSyncManager {
     // الابتلاع يترك الموظف مفقوداً نهائياً بينما تحاول كيانات الرواتب
     // الاعتماد عليه كل دورة بلا شفاء. إعادة الرمي بعد استنفاد المحاولات
     // = إعادة سحب الموظف في الدورة التالية (upsert idempotent).
-    throw lastError!;
+    //
+    // ✅ (2026-11-05) لا `!` على قيمة قد تكون null في مسار نظري (لا محاولة
+    // فاشلة أصلاً): Null check operator على null يرمي TypeError غامضاً
+    // يُسجَّل كعطل غير متوقع بدل خطأ مزامنة مفهوم.
+    throw lastError ??
+        StateError(
+          'employees: exhausted $maxRetries retries without a captured error',
+        );
   }
 }

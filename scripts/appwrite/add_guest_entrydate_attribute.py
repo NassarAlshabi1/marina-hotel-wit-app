@@ -22,8 +22,12 @@ from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 ENDPOINT = os.environ.get("APPWRITE_ENDPOINT", "https://fra.cloud.appwrite.io/v1").rstrip("/")
-PROJECT_ID = os.environ.get("APPWRITE_PROJECT_ID", "6a4408f300217885fd7b")
-DATABASE_ID = os.environ.get("APPWRITE_DATABASE_ID", "6a4409b50019dd39dde5")
+# ✅ (2026-11-05) الافتراضيات تطابق AppwriteConfig الحالي (mobile/lib/services/
+# appwrite_config.dart). كانت تشير للمشروع القديم 6a4408f3/6a4409b5 — تشغيل
+# السكربت بلا متغيرات بيئة كان يضيف العمود في مشروع لا يستخدمه التطبيق،
+# فيظل سحب guest_infos بلا entryDate بلا أي خطأ ظاهر.
+PROJECT_ID = os.environ.get("APPWRITE_PROJECT_ID", "6ae118bc00263ddb1cd5")
+DATABASE_ID = os.environ.get("APPWRITE_DATABASE_ID", "6ae119d7001046bbdb3e")
 COLLECTION_ID = "guest_infos"
 ATTRIBUTE_KEY = "entryDate"
 ATTRIBUTE_TYPE = "string"

@@ -1,6 +1,7 @@
 import 'package:appwrite/models.dart' as models;
 
 import '../../utils/weak_device_optimizer.dart';
+import '../appwrite_logger.dart';
 import 'sync_checkpoint_store.dart';
 import 'sync_pull_service.dart';
 
@@ -126,10 +127,15 @@ typedef UnifiedPullTaskErrorHandler =
 ///     الأجهزة الضعيفة / yield للأجهزة القوية) تمنع تجويع حلقة الأحداث
 ///     واضطراب الواجهة أثناء سحب طويل.
 class UnifiedPullEngine {
-  UnifiedPullEngine({required this.checkpoints, required this.pullService});
+  UnifiedPullEngine({
+    required this.checkpoints,
+    required this.pullService,
+    AppwriteLogger? logger,
+  }) : _logger = logger ?? AppwriteLogger();
 
   final SyncCheckpointStore checkpoints;
   final SyncPullService pullService;
+  final AppwriteLogger _logger;
 
   /// حجم صفحة السحب الكامل التدفقي — مطابق لـ AppwriteConfig.maxPageSize
   /// (100). صفحة واحدة في الذاكرة في كل لحظة.
@@ -198,6 +204,15 @@ class UnifiedPullEngine {
   ///
   /// فشل مهمة لا يوقف الباقي — يُسجَّل في failedCollections فقط إذا كانت
   /// [CollectionPullTask.critical].
+  ///
+  /// ✅ (2026-11-05) **تراجع (Backoff) للمجموعة المتعثرة**: كل فشل متتالٍ
+  /// يُسجَّل في [SyncCheckpointStore.registerFailure]، وأول نجاح يُصفّره.
+  /// بعد [SyncCheckpointStore.directRetryCycles] محاولات فورية (تأخير صفر =
+  /// نفس السلوك السابق تماماً) تتباعد المحاولات تدريجياً حتى 6 ساعات.
+  /// **لا يتغيّر أي شيء في دلالات المؤشر**: المجموعة الفاشلة لا يتقدّم
+  /// مؤشرها (عقد «لا فقدان صامت» محفوظ) — الفرق أن إعادة المحاولة الفاشلة
+  /// لم تعد تُنفَّذ في كل دورة بلا نهاية، وبالتالي لا تتضخّم نافذة الدلتا
+  /// المُعاد سحبها ولا يتكرر سجل الأخطاء كل 15 دقيقة بلا فائدة.
   Future<PullRunResult> run(
     List<CollectionPullTask> tasks, {
     UnifiedPullTaskObserver? onTaskDone,
@@ -207,6 +222,23 @@ class UnifiedPullEngine {
     final failed = <String>[];
 
     for (final task in tasks) {
+      // ✅ مجموعة في فترة تراجع: لا نعيد محاولتها الآن.
+      // تُسجَّل مفقودة (نفس دلالة الفشل) كي تبقى ظاهرة في SyncResult ولا
+      // يتقدّم المؤشر الشرعي/العالمي — لكن بلا طلب شبكة ولا إعادة سحب.
+      if (task.critical && !await checkpoints.isRetryDue(task.name)) {
+        failed.add(task.name);
+        final failures = await checkpoints.getConsecutiveFailures(task.name);
+        _logger.warning(
+          '⏸️ تخطي سحب ${task.name}: $failures دورة فاشلة متتالية — '
+          'إعادة المحاولة بعد انتهاء فترة التراجع '
+          '(${SyncCheckpointStore.backoffSecondsFor(failures)}s). '
+          'المؤشر لم يتقدّم فوق الفشل (لا فقدان بيانات).',
+          tag: 'SYNC',
+        );
+        onTaskDone?.call(task.name, 0, false);
+        continue;
+      }
+
       final stopwatch = Stopwatch()..start();
       var success = false;
       try {
@@ -230,8 +262,32 @@ class UnifiedPullEngine {
           );
         }
         success = true;
+        if (task.critical) {
+          // نجاح هذه الدورة يمحو تاريخ الفشل (الشفاء الذاتي بعد وصول الأب).
+          try {
+            await checkpoints.registerSuccess(task.name);
+          } catch (_) {
+            // كتابة العدّاد ليست حرجة — لا تُفشل مهمة ناجحة.
+          }
+        }
       } catch (error, stackTrace) {
         if (task.critical) failed.add(task.name);
+        if (task.critical) {
+          try {
+            final failures = await checkpoints.registerFailure(task.name);
+            if (failures > SyncCheckpointStore.directRetryCycles) {
+              _logger.warning(
+                '⏳ ${task.name}: $failures دورة فاشلة متتالية — '
+                'المحاولة القادمة بعد '
+                '${SyncCheckpointStore.backoffSecondsFor(failures)}s '
+                '(المؤشر محجوب عند آخر نجاح: لا فقدان بيانات).',
+                tag: 'SYNC',
+              );
+            }
+          } catch (_) {
+            // تعذّر تحديث العدّاد لا يمنع تسجيل الفشل أو بقية المهام.
+          }
+        }
         if (onTaskError != null) {
           try {
             await onTaskError(task.name, error, stackTrace);

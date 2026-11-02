@@ -34,9 +34,12 @@ import '../local_db.dart';
 ///   أبداً → فقدان صامت لليالي التاريخية (فندق 20 غرفة × سنة ≈ 7000 ليلة).
 ///   الحل: المؤشر لا يُثبّت إلا عند النفاد الفعلي للمستندات.
 class SyncCheckpointStore {
-  SyncCheckpointStore(this.db);
+  SyncCheckpointStore(this.db, {int Function()? clock}) : _clock = clock;
 
   final AppDatabase db;
+
+  /// ساعة قابلة للاستبدال في الاختبارات فقط (الإنتاج = ساعة النظام).
+  final int Function()? _clock;
 
   bool _tableReady = false;
 
@@ -52,6 +55,8 @@ class SyncCheckpointStore {
       'full_sync_complete INTEGER NOT NULL DEFAULT 0, '
       'full_sync_cursor TEXT, '
       'full_sync_max_updated INTEGER NOT NULL DEFAULT 0, '
+      'consecutive_failures INTEGER NOT NULL DEFAULT 0, '
+      'retry_after_ts INTEGER NOT NULL DEFAULT 0, '
       'updated_at INTEGER NOT NULL DEFAULT 0'
       ')',
     );
@@ -60,6 +65,14 @@ class SyncCheckpointStore {
     await _tryAlter('ALTER TABLE $tableName ADD COLUMN full_sync_cursor TEXT');
     await _tryAlter(
       'ALTER TABLE $tableName ADD COLUMN full_sync_max_updated INTEGER '
+      'NOT NULL DEFAULT 0',
+    );
+    await _tryAlter(
+      'ALTER TABLE $tableName ADD COLUMN consecutive_failures INTEGER '
+      'NOT NULL DEFAULT 0',
+    );
+    await _tryAlter(
+      'ALTER TABLE $tableName ADD COLUMN retry_after_ts INTEGER '
       'NOT NULL DEFAULT 0',
     );
     _tableReady = true;
@@ -286,26 +299,157 @@ class SyncCheckpointStore {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // ✅ (2026-11-05) تراجع (Backoff) دفعات السحب الفاشلة.
+  //
+  // **المشكلة**: عقد «لا يتقدّم المؤشر فوق الفشل» (2026-11-02) صحيح في منع
+  // الفقدان الصامت، لكنه بلا صمام: مستند واحد يفشل تطبيقه دائماً (بيانات
+  // تالفة، أب لن يصل أبداً) يُبقي مؤشر المجموعة محجوباً إلى الأبد. النتيجة:
+  //   - كل دورة تعيد سحب نفس نافذة الدلتا من آخر مؤشر ناجح، وتتضخّم تدريجياً
+  //     (قراءات Appwrite متكررة ومتنامية — على جهاز 1GB هذا مؤثر فعلي).
+  //   - سجل الأخطاء يتكرر كل دورة بلا فائدة (المحاولة الفورية لن تنجح).
+  //   - لا توجد نقطة تصعيد: المجموعة تبقى فاشلة في كل مزامنة.
+  //
+  // **الحل**: عدّاد فشل متتالي + موعد إعادة محاولة (Truncated Exponential
+  // Backoff) — **بلا أي مساس بدلالات المؤشر**: لا يتقدّم فوق فشل أبداً،
+  // فهو ما زال يحمي من الفقدان؛ كل ما يتغيّر هو *تكرار المحاولة*.
+  //   - الدورتان الأولى والثانية: تأخير صفر = إعادة محاولة في الدورة
+  //     التالية تماماً كما كان السلوك (لا انحدار للشفاء العابر: أب يصل في
+  //     الدورة التالية يُشفى فوراً).
+  //   - من الثالثة: تأخير تصاعدي حتى سقف 6 ساعات = تكلفة محدودة ومقروءة.
+  //   - عند أول نجاح تُصفَّر الحالة تلقائياً.
+  // ─────────────────────────────────────────────────────────────────────
+
+  /// عدد الدورات التي تُعاد المحاولة فيها فوراً قبل تفعيل التراجع.
+  static const int directRetryCycles = 2;
+
+  /// سقف تأخير التراجع (6 ساعات).
+  static const int maxBackoffSeconds = 6 * 60 * 60;
+
+  /// جدول التراجع (بالثواني) لدورة فاشلة عددها [consecutiveFailures].
+  ///
+  /// نقي (pure) وقابل للاختبار وحده:
+  ///   1 → 0، 2 → 0 (مطابق للسلوك السابق: محاولة كل دورة)
+  ///   3 → 15د، 4 → 30د، 5 → ساعة، 6 → ساعتان، …
+  ///   ثم تضعيف حتى [maxBackoffSeconds].
+  static int backoffSecondsFor(int consecutiveFailures) {
+    if (consecutiveFailures <= directRetryCycles) return 0;
+    final step = consecutiveFailures - directRetryCycles - 1; // 0, 1, 2, …
+    const baseSeconds = 15 * 60;
+    if (step >= 16) return maxBackoffSeconds; // 15د × 2^16 يتجاوز السقف
+    final seconds = baseSeconds << step;
+    return seconds > maxBackoffSeconds ? maxBackoffSeconds : seconds;
+  }
+
+  /// عدد الدورات الفاشلة المتتالية لهذه المجموعة (0 = آخر دورة نجحت).
+  Future<int> getConsecutiveFailures(String collectionName) async {
+    await _ensureTable();
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT consecutive_failures FROM $tableName '
+            'WHERE collection_name = ?',
+            variables: [drift.Variable.withString(collectionName)],
+          )
+          .get();
+      if (rows.isEmpty) return 0;
+      return rows.first.read<int>('consecutive_failures');
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// موعد إعادة المحاولة القادم (ثواني epoch، 0 = الآن).
+  Future<int> getRetryAfterTs(String collectionName) async {
+    await _ensureTable();
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT retry_after_ts FROM $tableName WHERE collection_name = ?',
+            variables: [drift.Variable.withString(collectionName)],
+          )
+          .get();
+      if (rows.isEmpty) return 0;
+      return rows.first.read<int>('retry_after_ts');
+    } catch (_) {
+      // تحفظياً: لا نمنع المحاولة إذا تعذّرت قراءة الحالة.
+      return 0;
+    }
+  }
+
+  /// هل يحين موعد محاولة هذه المجموعة الآن؟
+  Future<bool> isRetryDue(String collectionName) async {
+    final retryAfter = await getRetryAfterTs(collectionName);
+    return retryAfter <= _nowSec();
+  }
+
+  /// يسجّل فشل دورة للمجموعة: يزيد العدّاد ويضبط موعد المحاولة القادمة وفق
+  /// [backoffSecondsFor]. يعيد العدّاد الجديد.
+  Future<int> registerFailure(String collectionName) async {
+    await _ensureTable();
+    final failures = await getConsecutiveFailures(collectionName) + 1;
+    final retryAfter = _nowSec() + backoffSecondsFor(failures);
+    await db.customStatement(
+      'INSERT INTO $tableName '
+      '(collection_name, consecutive_failures, retry_after_ts, updated_at) '
+      'VALUES (?, ?, ?, ?) '
+      'ON CONFLICT(collection_name) DO UPDATE SET '
+      'consecutive_failures = excluded.consecutive_failures, '
+      'retry_after_ts = excluded.retry_after_ts, '
+      'updated_at = excluded.updated_at',
+      [collectionName, failures, retryAfter, _nowSec()],
+    );
+    return failures;
+  }
+
+  /// يُصفّر عدّاد الفشل وموعد إعادة المحاولة (يُستدعى عند نجاح المجموعة).
+  Future<void> registerSuccess(String collectionName) async {
+    await _ensureTable();
+    await db.customStatement(
+      'UPDATE $tableName SET consecutive_failures = 0, retry_after_ts = 0 '
+      'WHERE collection_name = ?',
+      [collectionName],
+    );
+  }
+
+  /// هل يوجد أي صف مؤشر محفوظ؟ (يُستخدم لحرس تغيير هدف المزامنة: تثبيت
+  /// سابق يحمل مؤشرات لمشروع/قاعدة أخرى يجب ألا تُصدَّق).
+  Future<bool> hasAnyCheckpoint() async {
+    await _ensureTable();
+    try {
+      final rows = await db
+          .customSelect('SELECT COUNT(*) AS c FROM $tableName')
+          .get();
+      if (rows.isEmpty) return false;
+      return rows.first.read<int>('c') > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// يعيد ضبط checkpoint المجموعة (Full sync مطلوب لها في الدورة القادمة).
   ///
   /// يُستدعى عند: فشل متكرر، استعادة نسخة احتياطية، أو اكتشاف عدم تطابق schema.
   /// يمسح أيضاً حالة التقدّم القابلة للاستئناف (cursor/max) — دورة Full
-  /// القادمة تبدأ من الصفر فعلاً.
+  /// القادمة تبدأ من الصفر فعلاً — ويصفّر عدّاد الفشل/التراجع.
   Future<void> reset(String collectionName) async {
     await _ensureTable();
     await db.customStatement(
       'UPDATE $tableName SET last_pull_ts = 0, full_sync_complete = 0, '
       'full_sync_cursor = NULL, full_sync_max_updated = 0, '
+      'consecutive_failures = 0, retry_after_ts = 0, '
       'updated_at = ? WHERE collection_name = ?',
       [_nowSec(), collectionName],
     );
   }
 
-  /// يعيد ضبط كل المجموعات (مثلاً: تسجيل خروج + دخول بمستخدم جديد).
+  /// يعيد ضبط كل المجموعات (مثلاً: تسجيل خروج + دخول بمستخدم جديد، أو
+  /// تغيير مشروع/قاعدة Appwrite — انظر AppwriteSyncManager).
   Future<void> resetAll() async {
     await _ensureTable();
     await db.customStatement('DELETE FROM $tableName');
   }
 
-  int _nowSec() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  int _nowSec() =>
+      _clock?.call() ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
 }
