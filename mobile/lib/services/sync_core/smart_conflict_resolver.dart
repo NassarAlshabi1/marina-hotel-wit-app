@@ -406,6 +406,19 @@ class SmartConflictResolver {
     required Map<String, dynamic> remoteData,
     required ConflictDetectionResult detection,
   }) {
+    // ✅ (2026-11-02) درع دوران ping-pong: بعد استبعاد الحقول المحلية لكل
+    // جهاز (ConflictDetector._deviceLocalIdFields)، قد يظهر تعارض «متزامن»
+    // لا يحمل أي تغيير فعلي قابل للدمج (حالتا changed فارغتان). الدمج
+    // حينها كان يرفع version+1 وlastModified ويعيد الرفع بلا أي تغيير
+    // حقيقي — وقود دوراني لا ينتهي. القرار الصحيح: المحلي يفوز بلا رفع.
+    if (detection.localChangedFields.isEmpty &&
+        detection.remoteChangedFields.isEmpty) {
+      return ResolutionResult(
+        mergedData: localData,
+        strategy: ResolutionStrategy.localWins,
+      );
+    }
+
     final policy = _entityPolicies[entity] ?? _defaultPolicy;
     final merged = Map<String, dynamic>.from(localData);
 

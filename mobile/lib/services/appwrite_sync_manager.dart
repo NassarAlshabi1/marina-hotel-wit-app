@@ -3697,19 +3697,7 @@ class AppwriteSyncManager {
             appwriteService.deleteExpense(entry.localUuid),
       );
     }
-    final payload = _expenseToRemote(expense);
-    // ✅ إضافة employeeUuid لمصروفات الرواتب لربط الموظف عبر الأجهزة
-    if (expense.relatedId != null &&
-        _isSalaryExpenseType(expense.expenseType)) {
-      final employee =
-          await (database.select(database.employees)
-                ..where((e) => e.id.equals(expense.relatedId!))
-                ..limit(1))
-              .getSingleOrNull();
-      if (employee != null) {
-        payload['employeeUuid'] = employee.localUuid;
-      }
-    }
+    final payload = await _expenseToRemoteWithEmployeeLink(expense);
     // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
     final occPayload = await _occCheckAndMerge(
       collectionId: AppwriteConfig.expensesCollectionId,
@@ -4942,6 +4930,44 @@ class AppwriteSyncManager {
 
   Map<String, dynamic> _expenseToRemote(Expense expense) =>
       _payloadMapper.expenseToRemote(expense);
+
+  /// ✅ (2026-11-02) إثراء employeeUuid موحّد لمساري رفع المصروفات
+  /// (outbox + الشامل) — إصلاح جوهري لـ «تعارضات مصروفات الرواتب»:
+  ///
+  /// عمود employeeUuid قد يكون:
+  ///   1. فارغاً (صفوف قديمة قبل PR #601 / صفوف مسحوبة قبل إصلاح
+  ///      employee_uuid) — المسار الشامل كان يرفعها بلا أي رابط موظف
+  ///      → يتيمة على الأجهزة الأخرى لا يُعيد الـ relink ربطها (لا uuid).
+  ///   2. متقادماً (مسار عدّل relatedId دون تحديث العمود) — الرفع
+  ///      بقيمته القديمة يربط المصروف بموظف سابق على بقية الأجهزة.
+  ///
+  /// القاعدة هنا: الاشتقاق الطازج من relatedId الحالي هو المرجع عند
+  /// توفره؛ وعند تعذّر الحل (صف الموظف غائب محلياً) نُبقي قيمة العمود
+  /// إن وُجدت — لا نُسقط رابطاً صالحاً لأن جهازنا فقد صف الموظف.
+  Future<Map<String, dynamic>> _expenseToRemoteWithEmployeeLink(
+    Expense expense,
+  ) async {
+    final payload = _expenseToRemote(expense);
+    if (expense.relatedId != null &&
+        _isSalaryExpenseType(expense.expenseType)) {
+      final employee =
+          await (database.select(database.employees)
+                ..where((e) => e.id.equals(expense.relatedId!))
+                ..limit(1))
+              .getSingleOrNull();
+      if (employee != null && employee.localUuid.isNotEmpty) {
+        payload['employeeUuid'] = employee.localUuid;
+      }
+    }
+    return payload;
+  }
+
+  /// ✅ (2026-11-02) جسر اختباري لعقد إثراء employeeUuid — نفس نمط
+  /// syncBookingsForTesting (انظر expenses_device_local_ids_conflict_test.dart).
+  @visibleForTesting
+  Future<Map<String, dynamic>> expenseToRemoteWithEmployeeLinkForTesting(
+    Expense expense,
+  ) => _expenseToRemoteWithEmployeeLink(expense);
 
   Map<String, dynamic> _paymentToRemote(Payment payment) =>
       _payloadMapper.paymentToRemote(payment);
@@ -6413,7 +6439,12 @@ class AppwriteSyncManager {
       for (final expense in expenses) {
         if (skipDeleted && expense.deletedAt != null) continue;
         try {
-          final payload = _expenseToRemote(expense);
+          // ✅ (2026-11-02) نفس إثراء employeeUuid الخاص بمسار outbox —
+          // كان هذا المسار الشامل يرفع مصروفات الرواتب بقيمة العمود فقط:
+          // الصفوف القديمة (عمود فارغ) تُرفع بلا رابط → يتيمة على بقية
+          // الأجهزة؛ والمتقادمة تُرفع برابط خاطئ. الاشتقاق الطازج من
+          // relatedId الحالي يوحّد سلوك المسارين.
+          final payload = await _expenseToRemoteWithEmployeeLink(expense);
           await appwriteService.upsertExpense(
             expense.localUuid,
             _filterPayload('expenses', payload),
@@ -6728,7 +6759,21 @@ class AppwriteSyncManager {
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _payloadMapper.salaryWithdrawalToRemote(withdrawal);
+          // ✅ (2026-11-02) حل employeeUuid هنا أيضاً: بعد إزالة رفع
+          // employeeId الرقمي (معرّف محلي لا معنى له عبر الأجهزة)، هذا
+          // المسار الشامل كان سيرفع السحوبة بلا أي رابط موظف — الآن يحل
+          // الـ UUID من صف الموظف المحلي (نفس مسار outbox).
+          String? bulkEmployeeUuid;
+          final linkedEmp =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(withdrawal.employeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          bulkEmployeeUuid = linkedEmp?.localUuid;
+          final payload = _payloadMapper.salaryWithdrawalToRemote(
+            withdrawal,
+            employeeUuid: bulkEmployeeUuid,
+          );
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,

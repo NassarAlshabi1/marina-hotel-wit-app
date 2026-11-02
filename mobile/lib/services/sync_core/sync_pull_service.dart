@@ -347,6 +347,23 @@ class SyncPullService {
       '\$createdAt',
       '\$updatedAt',
       '\$permissions',
+      // ✅ (2026-11-02) معرفات FK الرقمية المحلية لكل جهاز — مطابقة لقائمة
+      // ConflictDetector._deviceLocalIdFields: بدون تخطيها كانت مقارنة
+      // المحتوى تفشل دائماً بين جهازين (relatedId/employeeId/… تختلف حتماً)
+      // فيُعاد تطبيق نفس السجل الذي لم يتغير فعلياً في كل دورة سحب، مع
+      // إشعارات «تغييرات جديدة» متكررة لنفس البيانات.
+      'relatedId',
+      'related_id',
+      'cashTransactionId',
+      'cash_transaction_id',
+      'employeeId',
+      'employee_id',
+      'expenseId',
+      'expense_id',
+      'bookingId',
+      'booking_id',
+      'cycleId',
+      'cycle_id',
     };
     final keys = <String>{...a.keys, ...b.keys}..removeWhere(skip.contains);
     const eq = DeepCollectionEquality();

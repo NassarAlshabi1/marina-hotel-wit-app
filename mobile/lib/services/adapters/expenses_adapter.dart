@@ -92,10 +92,47 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       }
     }
 
+    // ✅ (2026-11-02) إصلاح «تعارضات المصروفات»: حل حركة النقد عبر
+    // cashFlowUuid — نفس نمط الموظف أعلاه. cashTransactionId الخام الوارد
+    // من جهاز آخر هو autoincrement محلي عندهم: تخزينه كما هو كان يربط
+    // المصروف بحركة نقد مختلفة تماماً على هذا الجهاز (أو يتيمة) — تعارض
+    // ظاهر في تقارير النقد والمصروفات.
+    int? cashTransactionLocalId;
+    final remoteCashFlowUuid =
+        _asString(json, 'cashFlowUuid', src) ??
+        _asString(json, 'cash_flow_uuid', src);
+    final fromRemote = src == Source.appwrite || src == Source.drive;
+    if (remoteCashFlowUuid != null && remoteCashFlowUuid.isNotEmpty) {
+      final cashRow =
+          await (db.select(db.cashTransactions)
+                ..where((t) => t.localUuid.equals(remoteCashFlowUuid))
+                ..limit(1))
+              .getSingleOrNull();
+      if (cashRow != null) {
+        cashTransactionLocalId = cashRow.id;
+      }
+    } else if (!fromRemote) {
+      // مصدر محلي (استعادة نسخة احتياطية على نفس الجهاز): الـ id ذو معنى.
+      final rawCashId =
+          _asInt(json, 'cashTransactionId', src) ??
+          _asInt(json, 'cash_transaction_id', src);
+      if (rawCashId != null) {
+        final cashRow =
+            await (db.select(db.cashTransactions)
+                  ..where((t) => t.id.equals(rawCashId))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (cashRow != null) {
+          cashTransactionLocalId = cashRow.id;
+        }
+      }
+    }
+
     return ResolveResult(
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
       employeeRelatedId: employeeRelatedId,
+      cashTransactionLocalId: cashTransactionLocalId,
     );
   }
 
@@ -134,11 +171,24 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
             _asString(json, 'expenseType', src) ?? '',
           )
           ? d.Value<int?>(refs.employeeRelatedId)
-          : _vInt(json, 'relatedId', src),
+          // ✅ (2026-11-02) الأنواع غير الرواتب من مصدر بعيد: لا نخزّن
+          // relatedId الخام أبداً — autoincrement جهاز المصدر قد يطابق صفاً
+          // مختلفاً هنا (ربط خاطئ صامت). المصدر المحلي يبقى كما هو.
+          : (src == Source.appwrite || src == Source.drive
+                ? const d.Value<int?>(null)
+                : _vInt(json, 'relatedId', src)),
       description: _vStr(json, 'description', src, fallback: ''),
       amount: _vDouble(json, 'amount', src),
       date: _vStr(json, 'date', src, fallback: ''),
-      cashTransactionId: _vInt(json, 'cashTransactionId', src),
+      // ✅ (2026-11-02) cashTransactionId: من مصدر بعيد يُحل حصراً عبر
+      // cashFlowUuid (refs) — الرقم الخام الوارد لا معنى له هنا. عند فشل
+      // الحل نُبقيه null (وليس absent) لتوافق DoUpdate الذي يكتب القيمة
+      // المرسلة؛ القيمة المحلية الصحيحة يعاد حلها عند وصول حركة النقد
+      // عبر cashFlowUuid في دورة لاحقة (النموذج نفسه الذي اختير لـ
+      // relatedId أعلاه). المصدر المحلي يبقى بالقيمة الخام.
+      cashTransactionId: src == Source.appwrite || src == Source.drive
+          ? d.Value<int?>(refs.cashTransactionLocalId)
+          : _vInt(json, 'cashTransactionId', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       categoryUuid: _vStr(json, 'categoryUuid', src, altKey: 'category_uuid'),
       cashFlowUuid: _vStr(json, 'cashFlowUuid', src, altKey: 'cash_flow_uuid'),

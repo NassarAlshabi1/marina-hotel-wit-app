@@ -13,6 +13,9 @@
 //        بدل إسقاطهما صامتاً.
 //   R8 — مصروف الرواتب (بما فيه «سلفة») لا يأخذ relatedId البعيد الخام؛
 //        null عند فشل حل الـ UUID، وحلّ عبر UUID عند توفره.
+//        ✅ (2026-11-02) نفس المنطق صار يشمل الأنواع غير الرواتب من مصدر
+//        بعيد: relatedId الخام autoincrement جهاز المصدر لا يُخزّن (ربط
+//        خاطئ محتمل) — المصدر المحلي يبقى كما هو.
 
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
@@ -398,19 +401,47 @@ void main() {
       expect(companion.relatedId.value, empId);
     });
 
-    test('غير-R راتب (حجز) يبقى relatedId كما هو', () async {
-      final adapter = ExpensesAdapter(IdResolver(db));
-      const json = {'expenseType': 'ضيافة', 'relatedId': 9};
+    test(
+      'غير الرواتب من مصدر بعيد → relatedId null (لا الرقم الخام 2026-11-02)، ومن مصدر محلي يبقى',
+      () async {
+        final adapter = ExpensesAdapter(IdResolver(db));
+        const json = {'expenseType': 'ضيافة', 'relatedId': 9};
 
-      final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
-      final companion = adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+        final refs = await adapter.resolveRefs(db, json, src: Source.appwrite);
+        final companion = adapter.fromJson(
+          json,
+          src: Source.appwrite,
+          refs: refs,
+        );
 
-      expect(companion.relatedId.value, 9, reason: 'سلوك محفوظ لغير الرواتب');
-    });
+        expect(
+          companion.relatedId.value,
+          isNull,
+          reason:
+              'رقم جهاز المصدر لا معنى له هنا — كان يربط المصروف بصف خاطئ. '
+              'السلوك القديم (تخزين 9 خاماً) أُلغي مع إصلاح تعارضات '
+              'المصروفات 2026-11-02',
+        );
+
+        // المصدر المحلي (استعادة نسخة احتياطية على نفس الجهاز): الـ id
+        // ذو معنى — يُحل للصف المحلي المطابق إن وُجد.
+        final localRefs = await adapter.resolveRefs(
+          db,
+          json,
+          src: Source.local,
+        );
+        final localCompanion = adapter.fromJson(
+          json,
+          src: Source.local,
+          refs: localRefs,
+        );
+        expect(
+          localCompanion.relatedId.value,
+          9,
+          reason: 'سلوك محفوظ لغير الرواتب من المصدر المحلي',
+        );
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════

@@ -175,8 +175,14 @@ class PayloadMapper {
       'vectorClock': expense.vectorClock,
       'deviceId': expense.deviceId,
     };
-    putIfNotNull(data, 'relatedId', expense.relatedId);
-    putIfNotNull(data, 'cashTransactionId', expense.cashTransactionId);
+    // ✅ (2026-11-02) إصلاح «تعارضات المصروفات ومصروفات الرواتب»:
+    // أُزيل رفع relatedId و cashTransactionId — معرفات رقمية محلية لجهاز
+    // بعينه (autoincrement) لا معنى لها على الأجهزة الأخرى، ورفعها كان
+    // يشوّه مستند السحابة ويغذّي ping-pong الدمج (كل جهاز يرفع معرّفاته
+    // فوق معرّفات الآخر). روابط الهوية المحمولة هي:
+    //   employeeUuid (الموظف) / withdrawalUuid (سحبة الراتب) /
+    //   cashFlowUuid (حركة النقد) / categoryUuid (التصنيف).
+    // السحب يحلّ الروابط محلياً عبر هذه الـ UUIDs (expenses_adapter).
     putIfNotNull(data, 'serverId', expense.serverId);
     putIfNotNull(data, 'deletedAt', expense.deletedAt);
     putIfStringNotEmpty(data, 'hotelDayKey', expense.hotelDayKey);
@@ -789,7 +795,13 @@ class PayloadMapper {
       'vectorClock': withdrawal.vectorClock,
       'deviceId': withdrawal.deviceId,
       // تمت إزالة 'id'
-      'employeeId': withdrawal.employeeId,
+      // ✅ (2026-11-02) أُزيل رفع employeeId و expenseId الرقميين —
+      // معرفات محلية لجهاز بعينه (نفس مبررات migration 68: الرقمي لا
+      // يقابل أي صف على الأجهزة الأخرى). الروابط المحمولة:
+      //   employeeUuid / employeeLocalUuid (الموظف)
+      //   expenseUuid (مصروف المرآة).
+      // السحب يحل الموظف عبر IdResolver بالـ UUID أولاً
+      // (_syncSalaryWithdrawals)، والمرآة عبر _resolveAndWriteMirrorExpenseId.
       'amount': withdrawal.amount,
       'withdrawDate': effectiveWithdrawDate,
       'withdrawalDate': effectiveWithdrawDate,
@@ -803,7 +815,8 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'hotelDayKey', withdrawal.hotelDayKey);
     putIfStringNotEmpty(data, 'withdrawalType', withdrawal.withdrawalType);
     putIfStringNotEmpty(data, 'description', withdrawal.description);
-    putIfNotNull(data, 'expenseId', withdrawal.expenseId);
+    // ✅ (2026-11-02): expenseId الرقمي أُزيل من الرفع — نفس العلة أعلاه؛
+    // expenseUuid (migration 68) هو الرابط الدائم.
     // ✅ (migration 68) uuid المرآة الدائم — الرابط الذي ينجو من إعادة
     // ترقيم المعرفات عبر الأجهزة (نفس عائلة employeeUuid).
     putIfStringNotEmpty(data, 'expenseUuid', withdrawal.expenseUuid);
