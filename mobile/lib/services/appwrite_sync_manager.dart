@@ -247,8 +247,7 @@ class AppwriteSyncManager {
 
   /// مفتاح SharedPreferences لبصمة هدف المزامنة الفعّال
   /// (Endpoint + Project + Database).
-  static const String _syncTargetIdentityKey =
-      'appwrite_sync_target_identity';
+  static const String _syncTargetIdentityKey = 'appwrite_sync_target_identity';
 
   /// ✅ (2026-11-05) حرس تغيير هدف المزامنة (مشروع/قاعدة/Endpoint).
   ///
@@ -277,10 +276,7 @@ class AppwriteSyncManager {
       if (stored == identity) return;
 
       if (stored != null) {
-        await _resetPullStateForNewTarget(
-          previous: stored,
-          current: identity,
-        );
+        await _resetPullStateForNewTarget(previous: stored, current: identity);
       } else if (await _checkpointStore.hasAnyCheckpoint()) {
         // تثبيت ترقّى إلى أول نسخة تحمل هذا الحرس: المؤشرات موجودة لكن
         // هوية الهدف غير معروفة. لا يمكن إثبات تطابقها مع الهدف الحالي،
@@ -295,10 +291,7 @@ class AppwriteSyncManager {
       await prefs.setString(_syncTargetIdentityKey, identity);
     } catch (e) {
       // الحرس لا يُفشل التهيئة؛ إن فشل التخزين يُعاد الفحص في التشغيل القادم.
-      _logger.warning(
-        '⚠️ تعذّر التحقق من هوية هدف المزامنة: $e',
-        tag: 'SYNC',
-      );
+      _logger.warning('⚠️ تعذّر التحقق من هوية هدف المزامنة: $e', tag: 'SYNC');
     }
   }
 
@@ -319,13 +312,15 @@ class AppwriteSyncManager {
     // المؤشر العالمي القديم (صف SyncState id=1) وخريطة مؤشرات الكيانات
     // (SharedPreferences) قديمان بالعلة نفسها — يُصفَّران معه.
     try {
-      await database.into(database.syncState).insertOnConflictUpdate(
-        const SyncStateCompanion(
-          id: drift.Value(1),
-          lastPullTs: drift.Value(0),
-          fullSyncComplete: drift.Value(0),
-        ),
-      );
+      await database
+          .into(database.syncState)
+          .insertOnConflictUpdate(
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              lastPullTs: drift.Value(0),
+              fullSyncComplete: drift.Value(0),
+            ),
+          );
     } catch (e) {
       _logger.warning(
         '⚠️ تعذّر تصفير sync_state بعد تغيير الهدف: $e',
@@ -8387,10 +8382,8 @@ class AppwriteSyncManager {
         )).shouldApplyRemote) {
           continue;
         }
-        final result = await _adapterRegistry.inventoryTransactions.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
+        final result = await _adapterRegistry.inventoryTransactions
+            .upsertFromJson(data, src: Source.appwrite);
         if (result == -1) {
           // ✅ المسار B: صنف المخزون الأب غير محلول — تأجيل لا نجاح.
           _logger.debug(
@@ -8438,11 +8431,8 @@ class AppwriteSyncManager {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
           final localUuid = data['localUuid']?.toString() ?? '';
-          final result =
-              await _adapterRegistry.inventoryTransactions.upsertFromJson(
-                data,
-                src: Source.appwrite,
-              );
+          final result = await _adapterRegistry.inventoryTransactions
+              .upsertFromJson(data, src: Source.appwrite);
           if (result == -1) {
             failed.add('${doc.$id}: unresolved item parent (adapter skip)');
             continue;
@@ -9270,7 +9260,9 @@ class AppwriteSyncManager {
           if (result == -1) {
             // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
             // الـ adapter فشل؛ لا نجاحاً صامتاً.
-            failed.add('${data['localUuid']}: unresolved employee parent (adapter skip)');
+            failed.add(
+              '${data['localUuid']}: unresolved employee parent (adapter skip)',
+            );
             continue;
           }
           // ✅ Wave 7: notify remote change from another device
@@ -9407,7 +9399,9 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           if (result == -1) {
-            failed.add('${data['localUuid']}: unresolved cycle parent (adapter skip)');
+            failed.add(
+              '${data['localUuid']}: unresolved cycle parent (adapter skip)',
+            );
             continue;
           }
           // ✅ Wave 7: notify remote change from another device
@@ -10140,10 +10134,8 @@ class AppwriteSyncManager {
           continue;
         }
 
-        final result = await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
+        final result = await _adapterRegistry.salaryCarryOverLogs
+            .upsertFromJson(data, src: Source.appwrite);
         if (result == -1) {
           // ✅ المسار B: الموظف الأب غير محلول — تأجيل لا نجاح.
           _logger.debug(
@@ -10191,11 +10183,8 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
-          final result =
-              await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
-                data,
-                src: Source.appwrite,
-              );
+          final result = await _adapterRegistry.salaryCarryOverLogs
+              .upsertFromJson(data, src: Source.appwrite);
           if (result == -1) {
             failed.add('${doc.$id}: unresolved employee parent (adapter skip)');
             continue;

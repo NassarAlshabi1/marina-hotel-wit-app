@@ -26,7 +26,10 @@ import 'package:marina_hotel_mobile/services/sync_core/sync_checkpoint_store.dar
 import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
 import 'package:marina_hotel_mobile/services/sync_core/unified_pull_engine.dart';
 
-models.Document _doc(String id, {String updatedAt = '2026-11-01T10:00:00.000Z'}) {
+models.Document _doc(
+  String id, {
+  String updatedAt = '2026-11-01T10:00:00.000Z',
+}) {
   return models.Document(
     $id: id,
     $sequence: 1,
@@ -116,14 +119,17 @@ void main() {
       expect(await checkpoints.isRetryDue('expenses'), isTrue);
     });
 
-    test('أول فشلين: العدّاد يرتفع والمحاولة تبقى مستحقة (تأخير صفر)', () async {
-      expect(await checkpoints.registerFailure('expenses'), 1);
-      expect(await checkpoints.isRetryDue('expenses'), isTrue);
+    test(
+      'أول فشلين: العدّاد يرتفع والمحاولة تبقى مستحقة (تأخير صفر)',
+      () async {
+        expect(await checkpoints.registerFailure('expenses'), 1);
+        expect(await checkpoints.isRetryDue('expenses'), isTrue);
 
-      expect(await checkpoints.registerFailure('expenses'), 2);
-      expect(await checkpoints.isRetryDue('expenses'), isTrue);
-      expect(await checkpoints.getRetryAfterTs('expenses'), fakeNow);
-    });
+        expect(await checkpoints.registerFailure('expenses'), 2);
+        expect(await checkpoints.isRetryDue('expenses'), isTrue);
+        expect(await checkpoints.getRetryAfterTs('expenses'), fakeNow);
+      },
+    );
 
     test('الفشل الثالث: تراجع 15 دقيقة ثم يستحق بعد انقضائها', () async {
       await checkpoints.registerFailure('expenses');
@@ -131,10 +137,7 @@ void main() {
       expect(await checkpoints.registerFailure('expenses'), 3);
 
       expect(await checkpoints.isRetryDue('expenses'), isFalse);
-      expect(
-        await checkpoints.getRetryAfterTs('expenses'),
-        fakeNow + 15 * 60,
-      );
+      expect(await checkpoints.getRetryAfterTs('expenses'), fakeNow + 15 * 60);
 
       fakeNow += 15 * 60 + 1;
       expect(await checkpoints.isRetryDue('expenses'), isTrue);
