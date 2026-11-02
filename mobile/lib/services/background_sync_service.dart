@@ -9,8 +9,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'analytics_service.dart';
-import 'cloudflare_sync_manager.dart';
 import 'battery_optimizer.dart';
+import 'cloudflare_sync_manager.dart';
 
 /// معرف مهمة المزامنة في الخلفية
 const String backgroundSyncTask = 'marina-hotel-background-sync';

@@ -43,6 +43,12 @@ import 'worker_endpoints.dart';
 // كل imports القائمة دون تغيير في بقية الملفات.
 export 'cloudflare_realtime_sync.dart';
 
+// ✅ S2/P1-3 FIX: نصدّر SyncStatus (من sync_enums.dart) حتى تتمكّن الملفات
+// المستهلكة (sync_indicator, unified_sync_orchestrator, cloudflare_login_screen,
+// appwrite_providers, sync_service) من استيراده عبر
+// `import 'cloudflare_sync_manager.dart' show/hide SyncStatus` دون خطأ.
+export 'sync_enums.dart' show SyncStatus;
+
 // ─── SyncPullProgress (2026-09-10 مؤشر تقدم السحب) ─────────────
 
 /// لقطة تقدم السحب الحيّ — يبثّها المدير بعد كل صفحة تُطبَّق.

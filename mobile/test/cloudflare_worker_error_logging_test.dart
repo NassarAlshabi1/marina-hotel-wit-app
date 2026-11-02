@@ -26,7 +26,6 @@ import 'package:marina_hotel_mobile/screens/settings/error_tracker_screen.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
-import 'package:marina_hotel_mobile/services/sync_enums.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Map<String, dynamic> _syncFields(

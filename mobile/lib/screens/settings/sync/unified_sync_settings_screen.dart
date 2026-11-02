@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -11,8 +12,8 @@ import '../../../core/core.dart';
 import '../../../providers/appwrite_providers.dart' as ap;
 import '../../../providers/realtime_sync_provider.dart';
 import '../../../providers/repository_providers.dart' show databaseProvider;
-import '../../../services/cloudflare_sync_manager.dart';
 import '../../../services/cloudflare_config.dart';
+import '../../../services/cloudflare_sync_manager.dart';
 import '../../../services/daos/outbox_dao.dart';
 import '../../../services/sync/sync_gate.dart';
 import '../../../services/worker_endpoints.dart';

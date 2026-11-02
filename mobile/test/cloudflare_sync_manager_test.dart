@@ -7,7 +7,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
-import 'package:marina_hotel_mobile/services/sync_enums.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:sqlite3/sqlite3.dart' show Database;
 
 import 'db_encryption_key.dart';
 
@@ -42,17 +43,18 @@ QueryExecutor openAppDatabaseConnection(String dbFileName) {
     }
 
     // ✅ SQLCipher: فتح قاعدة البيانات مع تفعيل التشفير عبر PRAGMA key.
-    // setupProgramatic يسمح بتنفيذ PRAGMA قبل أي استعلام.
+    // المعامل `setup` يسمح بتنفيذ PRAGMA قبل أي استعلام (نوعه
+    // DatabaseSetup = void Function(Database) من package:sqlite3).
     return NativeDatabase.createInBackground(
       file,
-      setupProgrammatic: (db) async {
+      setup: (Database db) {
         // تفعيل مفتاح التشفير — SQLCipher يتطلب PRAGMA key كأول عملية.
         // المفتاح بصيغة hex مسبوق بـ x'' (تنسيق SQLCipher للـ hex keys).
-        await db.execute("PRAGMA key = \"x'$hexKey'\";");
+        db.execute("PRAGMA key = \"x'$hexKey'\";");
         // ✅ تحقق أن المفتاح صحيح (يفتح قاعدة موجودة أو ينشئ جديدة)
         // إن كان المفتاح خاطئاً لقاعدة موجودة، يفشل التحقق.
         try {
-          await db.execute('SELECT count(*) FROM sqlite_master;');
+          db.execute('SELECT count(*) FROM sqlite_master;');
         } catch (e) {
           // القاعدة موجودة وغير مشفّرة (هجرة أول مرة):
           // نُعيد التشفير عبر sqlcipher_export أو نتعامل معه لاحقاً.

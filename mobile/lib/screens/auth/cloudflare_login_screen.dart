@@ -28,8 +28,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/appwrite_providers.dart';
-import '../../services/cloudflare_sync_manager.dart' show SyncStatus;
 import '../../services/cloudflare_config.dart';
+import '../../services/cloudflare_sync_manager.dart' show SyncStatus;
 import '../../services/worker_endpoints.dart';
 import '../../utils/theme.dart';
 

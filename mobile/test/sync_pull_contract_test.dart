@@ -20,7 +20,6 @@ import 'package:http/http.dart' as http;
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
-import 'package:marina_hotel_mobile/services/sync_enums.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 http.Response _json(Map<String, dynamic> body) => http.Response(

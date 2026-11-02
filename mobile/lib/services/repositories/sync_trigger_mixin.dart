@@ -16,8 +16,8 @@
 import 'dart:async';
 
 import '../../utils/debug_log.dart';
-import '../cloudflare_sync_manager.dart';
 import '../auto_outbox_sync_watcher.dart';
+import '../cloudflare_sync_manager.dart';
 
 mixin SyncTriggerMixin {
   Timer? _syncDebounceTimer;

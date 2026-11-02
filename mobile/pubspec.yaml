@@ -61,8 +61,8 @@ dependencies:
   signals_flutter: ^6.0.0
   sqflite: ^2.3.3+1
   sqflite_common_ffi: ^2.3.3+1
-  sqlite3: any
   sqlcipher_flutter_libs: ^0.6.5  # ✅ S2 FIX: SQLCipher لتشفير قاعدة البيانات (بديل sqlite3_flutter_libs)
+  sqlite3: any
   synchronized: ^3.1.0+1
   url_launcher: ^6.3.2
   uuid: ^4.5.1

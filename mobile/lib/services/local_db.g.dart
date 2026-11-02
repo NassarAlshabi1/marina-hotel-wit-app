@@ -38743,7 +38743,9 @@ class $GuestInfosTable extends GuestInfos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _entryDateMeta = const VerificationMeta('entryDate');
+  static const VerificationMeta _entryDateMeta = const VerificationMeta(
+    'entryDate',
+  );
   @override
   late final GeneratedColumn<String> entryDate = GeneratedColumn<String>(
     'entry_date',
@@ -39189,6 +39191,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final String? issuePlace;
   final String? governorate;
   final String? notes;
+
+  /// تاريخ دخول النزيل؛ يبقى فارغاً للسجلات القديمة.
   final String? entryDate;
   final String? guestPhone;
   const GuestInfo({
@@ -39530,9 +39534,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ? data.governorate.value
           : this.governorate,
       notes: data.notes.present ? data.notes.value : this.notes,
-      entryDate: data.entryDate.present
-          ? data.entryDate.value
-          : this.entryDate,
+      entryDate: data.entryDate.present ? data.entryDate.value : this.entryDate,
       guestPhone: data.guestPhone.present
           ? data.guestPhone.value
           : this.guestPhone,
@@ -69337,6 +69339,7 @@ typedef $$GuestInfosTableCreateCompanionBuilder =
       Value<String?> issuePlace,
       Value<String?> governorate,
       Value<String?> notes,
+      Value<String?> entryDate,
       Value<String?> guestPhone,
     });
 typedef $$GuestInfosTableUpdateCompanionBuilder =
@@ -69368,6 +69371,7 @@ typedef $$GuestInfosTableUpdateCompanionBuilder =
       Value<String?> issuePlace,
       Value<String?> governorate,
       Value<String?> notes,
+      Value<String?> entryDate,
       Value<String?> guestPhone,
     });
 
@@ -69512,6 +69516,11 @@ class $$GuestInfosTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entryDate => $composableBuilder(
+    column: $table.entryDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -69665,6 +69674,11 @@ class $$GuestInfosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get entryDate => $composableBuilder(
+    column: $table.entryDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get guestPhone => $composableBuilder(
     column: $table.guestPhone,
     builder: (column) => ColumnOrderings(column),
@@ -69787,6 +69801,9 @@ class $$GuestInfosTableAnnotationComposer
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
+  GeneratedColumn<String> get entryDate =>
+      $composableBuilder(column: $table.entryDate, builder: (column) => column);
+
   GeneratedColumn<String> get guestPhone => $composableBuilder(
     column: $table.guestPhone,
     builder: (column) => column,
@@ -69851,6 +69868,7 @@ class $$GuestInfosTableTableManager
                 Value<String?> issuePlace = const Value.absent(),
                 Value<String?> governorate = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> entryDate = const Value.absent(),
                 Value<String?> guestPhone = const Value.absent(),
               }) => GuestInfosCompanion(
                 localUuid: localUuid,
@@ -69880,6 +69898,7 @@ class $$GuestInfosTableTableManager
                 issuePlace: issuePlace,
                 governorate: governorate,
                 notes: notes,
+                entryDate: entryDate,
                 guestPhone: guestPhone,
               ),
           createCompanionCallback:
@@ -69911,6 +69930,7 @@ class $$GuestInfosTableTableManager
                 Value<String?> issuePlace = const Value.absent(),
                 Value<String?> governorate = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> entryDate = const Value.absent(),
                 Value<String?> guestPhone = const Value.absent(),
               }) => GuestInfosCompanion.insert(
                 localUuid: localUuid,
@@ -69940,6 +69960,7 @@ class $$GuestInfosTableTableManager
                 issuePlace: issuePlace,
                 governorate: governorate,
                 notes: notes,
+                entryDate: entryDate,
                 guestPhone: guestPhone,
               ),
           withReferenceMapper: (p0) => p0

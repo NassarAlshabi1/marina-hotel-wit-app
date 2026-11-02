@@ -15,10 +15,9 @@
 //  التشفير يُفعّل عبر PRAGMA key قبل أي عملية.
 //
 
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -78,7 +77,3 @@ class DbEncryptionKey {
     return existing != null && existing.isNotEmpty;
   }
 }
-
-// ── shim: kIsWeb غير متوفر بدون package:flutter/foundation ──
-// نستورده هنا بدل أن نعتمد على ملف آخر.
-import 'package:flutter/foundation.dart' show kIsWeb;

@@ -1,8 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/cloudflare_sync_manager.dart';
+
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
+import '../services/cloudflare_sync_manager.dart';
 import '../services/payment_session_context.dart';
 import '../utils/app_logger.dart';
 import '../utils/debug_log.dart';
