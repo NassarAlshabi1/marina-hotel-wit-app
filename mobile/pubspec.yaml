@@ -88,8 +88,11 @@ dev_dependencies:
   # StateNotifierProvider محذوف، ref.read يتطلب أنواع صريحة).
   # TODO: أضف riverpod_lint بعد ترقية Riverpod إلى 3.x (refactor كبير).
   very_good_analysis: ^10.3.0
-
-  
+  # ✅ (2026-11-03) تعريفات صريحة للاختبارات (depend_on_referenced_packages):
+  # كانت تُستورد عبر التبعية المتعدية فقط — القيود مطابقة للمحلول في lock.
+  # any: يتبع النسخة المتعدية من connectivity_plus (واجهة اختبار فقط).
+  connectivity_plus_platform_interface: any
+  fake_async: ^1.3.1
 flutter:
   uses-material-design: true
   assets:

@@ -178,6 +178,7 @@ void main() {
       };
       results.add(result);
       // Machine-readable output consumed by CI logs and the stress report.
+      // ignore: avoid_print — مخرجات آلية مقصودة لتحليل CI، لا رسالة تشخيص.
       print('CRUD_SYNC_STRESS ${jsonEncode(result)}');
 
       expect(bookingId, greaterThan(0));

@@ -238,7 +238,7 @@ void main() {
         reason: 'exp_1001',
         expenseId: 1001,
       );
-      final second = SalaryWithdrawal(
+      const second = SalaryWithdrawal(
         localUuid: 'uuid-2',
         createdAt: 1000,
         updatedAt: 1000,

@@ -106,7 +106,7 @@ void main() {
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
 
-      expect(php['items'], isA<List>());
+      expect(php['items'], isA<List<dynamic>>());
       final items = php['items'] as List;
       expect(items[0]['is_active'], 1);
       expect(items[1]['is_active'], 0);
@@ -119,7 +119,7 @@ void main() {
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
 
-      expect(php['meta'], isA<Map>());
+      expect(php['meta'], isA<Map<dynamic, dynamic>>());
       final meta = php['meta'] as Map;
       expect(meta['is_active'], 1);
       expect(meta['count'], 5);

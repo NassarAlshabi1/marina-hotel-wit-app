@@ -39,9 +39,9 @@ void main() {
             status: d.Value('active'),
             hireDate: d.Value('2026-01-01'),
             localUuid: d.Value('emp-uuid-edit'),
-            createdAt: const d.Value(1000),
-            updatedAt: const d.Value(1000),
-            lastModified: const d.Value(1000),
+            createdAt: d.Value(1000),
+            updatedAt: d.Value(1000),
+            lastModified: d.Value(1000),
           ),
         );
 

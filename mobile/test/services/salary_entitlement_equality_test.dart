@@ -39,14 +39,14 @@ void main() {
   // مساعدات
   // ═══════════════════════════════════════════════════════════════════════
 
-  String _padded(int n) => n.toString().padLeft(2, '0');
+  String padded(int n) => n.toString().padLeft(2, '0');
 
   /// موظف براتب 1000 وتعيين منذ 12 شهراً بالضبط (اليوم 1 من الشهر)
   /// → إجمالي الاستحقاق = 12 × 1000 = 12000 بشكل حتمي.
   Future<int> createEmployee() async {
     final now = DateTime.now();
     final hire = DateTime(now.year - 1, now.month, 1);
-    final hireStr = '${hire.year}-${_padded(hire.month)}-01';
+    final hireStr = '${hire.year}-${padded(hire.month)}-01';
     return db
         .into(db.employees)
         .insert(
@@ -55,10 +55,10 @@ void main() {
             basicSalary: const d.Value(1000),
             status: const d.Value('active'),
             hireDate: d.Value(hireStr),
-            localUuid: d.Value('emp-uuid-test'),
-            createdAt: d.Value(1000),
-            updatedAt: d.Value(1000),
-            lastModified: d.Value(1000),
+            localUuid: const d.Value('emp-uuid-test'),
+            createdAt: const d.Value(1000),
+            updatedAt: const d.Value(1000),
+            lastModified: const d.Value(1000),
           ),
         );
   }
@@ -77,7 +77,7 @@ void main() {
           ExpensesCompanion(
             expenseType: d.Value(type),
             relatedId: d.Value(employeeId),
-            employeeUuid: d.Value('emp-uuid-test'),
+            employeeUuid: const d.Value('emp-uuid-test'),
             description: d.Value(description),
             amount: d.Value(amount),
             date: d.Value(date),
@@ -86,9 +86,9 @@ void main() {
             localUuid: d.Value(
               'exp-uuid-${DateTime.now().microsecondsSinceEpoch}-$amount',
             ),
-            createdAt: d.Value(1000),
-            updatedAt: d.Value(1000),
-            lastModified: d.Value(1000),
+            createdAt: const d.Value(1000),
+            updatedAt: const d.Value(1000),
+            lastModified: const d.Value(1000),
           ),
         );
   }
@@ -115,9 +115,9 @@ void main() {
             localUuid: d.Value(
               'sw-uuid-${DateTime.now().microsecondsSinceEpoch}-$amount',
             ),
-            createdAt: d.Value(1000),
-            updatedAt: d.Value(1000),
-            lastModified: d.Value(1000),
+            createdAt: const d.Value(1000),
+            updatedAt: const d.Value(1000),
+            lastModified: const d.Value(1000),
           ),
         );
   }
@@ -130,9 +130,9 @@ void main() {
     );
   }
 
-  String _today() {
+  String today() {
     final now = DateTime.now();
-    return '${now.year}-${_padded(now.month)}-${_padded(now.day)}';
+    return '${now.year}-${padded(now.month)}-${padded(now.day)}';
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -164,7 +164,7 @@ void main() {
         await createDirectWithdrawal(
           employeeId: empId,
           amount: 4000,
-          date: _today(),
+          date: today(),
         );
 
         final ent = await service.calculateEmployeeEntitlement(emp);
@@ -315,7 +315,7 @@ void main() {
       await createDirectWithdrawal(
         employeeId: empId,
         amount: 300,
-        date: _today(),
+        date: today(),
       );
       // سحب مباشر قديم (خارج الدورة الحالية)
       await createDirectWithdrawal(

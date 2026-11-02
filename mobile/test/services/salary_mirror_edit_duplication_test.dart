@@ -113,7 +113,7 @@ void main() {
             expenseUuid: d.Value(expenseUuid),
             createdAt: const d.Value(1000),
             updatedAt: const d.Value(1000),
-            lastModified: d.Value(1000),
+            lastModified: const d.Value(1000),
           ),
         );
   }

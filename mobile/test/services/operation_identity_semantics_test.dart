@@ -62,8 +62,8 @@ void main() {
             relatedId: d.Value(employeeId),
             employeeUuid: const d.Value('emp-uuid-identity'),
             amount: d.Value(amount),
-            date: d.Value(day),
-            hotelDayKey: d.Value(day),
+            date: const d.Value(day),
+            hotelDayKey: const d.Value(day),
             description: const d.Value('سحب راتب'),
             localUuid: d.Value(localUuid),
             withdrawalUuid: withdrawalUuid == null
@@ -560,7 +560,7 @@ void main() {
             SalaryWithdrawalsCompanion(
               employeeId: d.Value(empId),
               amount: d.Value(amount),
-              withdrawDate: d.Value(day),
+              withdrawDate: const d.Value(day),
               withdrawalType: const d.Value('سحب راتب'),
               reason: d.Value(reason.isEmpty ? 'exp_1' : reason),
               expenseId: expenseId == null
@@ -569,7 +569,7 @@ void main() {
               expenseUuid: expenseUuid == null
                   ? const d.Value.absent()
                   : d.Value(expenseUuid),
-              hotelDayKey: d.Value(day),
+              hotelDayKey: const d.Value(day),
               localUuid: d.Value(localUuid),
               createdAt: d.Value(updatedAt),
               updatedAt: d.Value(updatedAt),
@@ -891,11 +891,11 @@ void main() {
             SalaryWithdrawalsCompanion(
               employeeId: d.Value(empId),
               amount: const d.Value(100),
-              withdrawDate: d.Value(day),
+              withdrawDate: const d.Value(day),
               withdrawalType: const d.Value('سحب راتب'),
               reason: const d.Value('exp_1'),
               expenseUuid: d.Value(expenseUuid),
-              hotelDayKey: d.Value(day),
+              hotelDayKey: const d.Value(day),
               localUuid: d.Value(localUuid),
               deletedAt: deleted ? const d.Value(5000) : const d.Value(null),
               createdAt: const d.Value(1000),

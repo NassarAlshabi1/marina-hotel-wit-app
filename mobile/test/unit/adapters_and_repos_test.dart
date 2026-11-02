@@ -109,32 +109,32 @@ void main() {
         await db
             .into(db.salaryWithdrawals)
             .insert(
-              SalaryWithdrawalsCompanion(
-                localUuid: const d.Value('mirror-a'),
-                employeeId: const d.Value(1),
-                employeeUuid: const d.Value('emp-1'),
-                amount: const d.Value(100),
-                withdrawDate: const d.Value('2025-06-01'),
-                expenseUuid: const d.Value('expense-a'),
-                createdAt: const d.Value(1),
-                updatedAt: const d.Value(1),
-                lastModified: const d.Value(1),
+              const SalaryWithdrawalsCompanion(
+                localUuid: d.Value('mirror-a'),
+                employeeId: d.Value(1),
+                employeeUuid: d.Value('emp-1'),
+                amount: d.Value(100),
+                withdrawDate: d.Value('2025-06-01'),
+                expenseUuid: d.Value('expense-a'),
+                createdAt: d.Value(1),
+                updatedAt: d.Value(1),
+                lastModified: d.Value(1),
               ),
             );
         await expectLater(
           db
               .into(db.salaryWithdrawals)
               .insert(
-                SalaryWithdrawalsCompanion(
-                  localUuid: const d.Value('mirror-b'),
-                  employeeId: const d.Value(1),
-                  employeeUuid: const d.Value('emp-1'),
-                  amount: const d.Value(200),
-                  withdrawDate: const d.Value('2025-06-01'),
-                  expenseUuid: const d.Value('expense-a'),
-                  createdAt: const d.Value(2),
-                  updatedAt: const d.Value(2),
-                  lastModified: const d.Value(2),
+                const SalaryWithdrawalsCompanion(
+                  localUuid: d.Value('mirror-b'),
+                  employeeId: d.Value(1),
+                  employeeUuid: d.Value('emp-1'),
+                  amount: d.Value(200),
+                  withdrawDate: d.Value('2025-06-01'),
+                  expenseUuid: d.Value('expense-a'),
+                  createdAt: d.Value(2),
+                  updatedAt: d.Value(2),
+                  lastModified: d.Value(2),
                 ),
               ),
           throwsA(isA<Exception>()),

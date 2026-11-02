@@ -31,7 +31,7 @@ void main() {
       HotelDayTicker.instance.manualTick();
 
       // انتظار معالجة الحدث
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(receivedEvents, greaterThan(0));
       await sub.cancel();
@@ -45,7 +45,7 @@ void main() {
       final sub2 = HotelDayTicker.instance.stream.listen((_) => count2++);
 
       HotelDayTicker.instance.manualTick();
-      await Future.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(count1, greaterThan(0));
       expect(count2, greaterThan(0));

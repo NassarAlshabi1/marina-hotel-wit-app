@@ -21,10 +21,14 @@
 //      مطبَّقة (تطبيق جزئي محفوظ)؛ الشفاء الذاتي عند وصول الحجز لاحقاً.
 //   2) salary_cycles (المسار C): دورة يتيمة الموظف → StateError ولا
 //      تُدرَج، وإعادة الاستدعاء ترمي ثانية (لا حالة عالقة ولا فقدان).
+//
+// ⚠️ قاعدة واحدة لكل الملف (نفس قيد phase0_data_integrity_test):
+// AppwriteSyncManager singleton بمُنشئ factory يتجاهل المعامل بعد أول
+// إنشاء — إقفال القاعدة لكل اختبار يترك المدير يشير لقاعدة مُغلقة
+// («Can't re-open a database after closing it»)، فكان الاختبار الثاني
+// يفشل بعزلٍ زائف. التنظيف بين الاختبارين (الأبناء قبل الآباء).
 
 // ignore_for_file: lines_longer_than_80_chars
-
-import 'dart:io';
 
 import 'package:appwrite/models.dart' as models;
 import 'package:drift/drift.dart' as d;
@@ -122,66 +126,59 @@ models.Document _cycleDoc({
   );
 }
 
-Future<void> _seedRoom(AppDatabase db, String roomNumber, String uuid) async {
-  await db
-      .into(db.rooms)
-      .insert(
-        RoomsCompanion(
-          roomNumber: d.Value(roomNumber),
-          type: const d.Value('عادية'),
-          price: const d.Value(120.0),
-          status: const d.Value('شاغرة'),
-          localUuid: d.Value(uuid),
-          createdAt: const d.Value(_kBaseEpochSec),
-          updatedAt: const d.Value(_kBaseEpochSec),
-          lastModified: const d.Value(_kBaseEpochSec),
-        ),
-      );
-}
-
-Future<BookingNote?> _noteByUuid(AppDatabase db, String uuid) {
-  return (db.select(
-    db.bookingNotes,
-  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
-}
-
-Future<SalaryCycle?> _cycleByUuid(AppDatabase db, String uuid) {
-  return (db.select(
-    db.salaryCycles,
-  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  late AppDatabase db;
+
+  // ⚠️ قاعدة واحدة للملف كله (قيد singleton المدير — انظر الترويسة).
+  setUpAll(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    AdapterRegistry.initialize(db);
+  });
+
+  tearDownAll(() async {
+    await db.close();
+  });
+
+  // تنظيف بين الاختبارين — الأبناء قبل الآباء لقيود FK (سحب الحجوزات
+  // النشطة يبني لياليها عبر refreshForBookingId، فحذف bookings يتطلب
+  // مسح booking_nights أولاً؛ بقية الأبناء احترازياً).
+  setUp(() async {
+    await db.delete(db.bookingNotes).go();
+    await db.delete(db.bookingNights).go();
+    await db.delete(db.bookingPriceAdjustments).go();
+    await db.delete(db.payments).go();
+    await db.delete(db.debts).go();
+    await db.delete(db.salaryCycles).go();
+    await db.delete(db.bookings).go();
+    await db.delete(db.rooms).go();
+    await db.delete(db.outbox).go();
+  });
 
   test(
     'درع فقدان booking_notes الصامت (المسار B): تخطّي adapter بسبب أب مفقود '
     'يُؤجَّل ثم يفشل المهمة — والملاحظة السليمة تطبَّق وتُشفى اليتيمة لاحقاً',
     () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      final tmpDir = await Directory.systemTemp.createTemp(
-        'notes_silent_loss',
-      );
-      addTearDown(() async {
-        try {
-          await tmpDir.delete(recursive: true);
-        } catch (_) {
-          // أفضل-جهد — أنظمة CI المختلفة قد تبقي مقابض مؤقتة.
-        }
-      });
-
-      final db = AppDatabase.forTesting(
-        NativeDatabase(File('${tmpDir.path}/app.db')),
-      );
-      addTearDown(db.close);
-      AdapterRegistry.initialize(db);
       final manager = AppwriteSyncManager(
         appwriteService: AppwriteService(),
         database: db,
       );
 
-      // الأب الموجود: غرفة 211 وحجزها. الملاحظة اليتيمة تشير لحجز غير موجود.
-      await _seedRoom(db, '211', 'room-uuid-211');
+      // غرفة 211 + حجزها. الملاحظة اليتيمة تشير لحجز غير موجود.
+      await db.into(db.rooms).insert(
+            const RoomsCompanion(
+              roomNumber: d.Value('211'),
+              type: d.Value('عادية'),
+              price: d.Value(120.0),
+              status: d.Value('شاغرة'),
+              localUuid: d.Value('room-uuid-211'),
+              createdAt: d.Value(_kBaseEpochSec),
+              updatedAt: d.Value(_kBaseEpochSec),
+              lastModified: d.Value(_kBaseEpochSec),
+            ),
+          );
       await manager.syncBookingsForTesting([
         _bookingDoc(
           uuid: 'booking-uuid-good',
@@ -270,23 +267,8 @@ void main() {
     'درع فقدان salary_cycles الصامت (المسار C): يتيم الموظف يفشل المهمة '
     'ولا يُدرَج — وإعادة المحاولة ترمي ثانية بلا حالة عالقة',
     () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      final tmpDir = await Directory.systemTemp.createTemp(
-        'cycles_silent_loss',
-      );
-      addTearDown(() async {
-        try {
-          await tmpDir.delete(recursive: true);
-        } catch (_) {
-          // أفضل-جهد.
-        }
-      });
-
-      final db = AppDatabase.forTesting(
-        NativeDatabase(File('${tmpDir.path}/app.db')),
-      );
-      addTearDown(db.close);
-      AdapterRegistry.initialize(db);
+      // مُنشئ factory: نفس نسخة الاختبار الأول (قاعدة الملف المشتركة،
+      // لا تزال مفتوحة — انظر الترويسة).
       final manager = AppwriteSyncManager(
         appwriteService: AppwriteService(),
         database: db,
@@ -329,4 +311,16 @@ void main() {
       expect(await _cycleByUuid(db, 'cycle-uuid-1'), isNull);
     },
   );
+}
+
+Future<BookingNote?> _noteByUuid(AppDatabase db, String uuid) {
+  return (db.select(
+    db.bookingNotes,
+  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
+}
+
+Future<SalaryCycle?> _cycleByUuid(AppDatabase db, String uuid) {
+  return (db.select(
+    db.salaryCycles,
+  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
 }

@@ -392,7 +392,7 @@ void main() {
                 movementCount: 5,
               ),
           ],
-          summary: InventoryReportSummary(
+          summary: const InventoryReportSummary(
             itemCount: 8,
             lowStockCount: 1,
             totalIn: 800,

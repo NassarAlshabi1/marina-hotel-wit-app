@@ -17,7 +17,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/adapters/debts_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
-import 'package:marina_hotel_mobile/services/adapters/resolve_result.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';

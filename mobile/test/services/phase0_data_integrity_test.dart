@@ -242,10 +242,10 @@ void main() {
               SalaryWithdrawalsCompanion(
                 employeeId: d.Value(x),
                 amount: const d.Value(300),
-                withdrawDate: d.Value(day),
+                withdrawDate: const d.Value(day),
                 withdrawalType: const d.Value('سحب راتب'),
                 reason: const d.Value('exp_5'),
-                hotelDayKey: d.Value(day),
+                hotelDayKey: const d.Value(day),
                 localUuid: const d.Value('sw-legacy-reason'),
                 origin: const d.Value('local'),
                 deviceId: const d.Value(currentDevice),
@@ -747,7 +747,7 @@ void main() {
           );
           expect(
             txn!.itemId,
-            item!.id,
+            item.id,
             reason: 'رابط البند يُحل محلياً عبر itemLocalUuid',
           );
         },
@@ -759,15 +759,15 @@ void main() {
           await db
               .into(db.guestInfos)
               .insert(
-                GuestInfosCompanion(
-                  roomNumber: const d.Value('702'),
-                  guestName: const d.Value('حذف دلتا'),
-                  nationality: const d.Value(''),
-                  idNumber: const d.Value('ID-2'),
-                  localUuid: const d.Value('gi-del-1'),
-                  createdAt: const d.Value(1000),
-                  updatedAt: const d.Value(1000),
-                  lastModified: const d.Value(1000),
+                const GuestInfosCompanion(
+                  roomNumber: d.Value('702'),
+                  guestName: d.Value('حذف دلتا'),
+                  nationality: d.Value(''),
+                  idNumber: d.Value('ID-2'),
+                  localUuid: d.Value('gi-del-1'),
+                  createdAt: d.Value(1000),
+                  updatedAt: d.Value(1000),
+                  lastModified: d.Value(1000),
                 ),
               );
 
@@ -804,15 +804,15 @@ void main() {
       await db
           .into(db.salaryWithdrawals)
           .insert(
-            SalaryWithdrawalsCompanion(
-              employeeId: const d.Value(999),
-              amount: const d.Value(777),
-              withdrawDate: const d.Value('2026-10-03'),
-              reason: const d.Value('exp_999'),
-              localUuid: const d.Value('sw-orphan-fk'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
+            const SalaryWithdrawalsCompanion(
+              employeeId: d.Value(999),
+              amount: d.Value(777),
+              withdrawDate: d.Value('2026-10-03'),
+              reason: d.Value('exp_999'),
+              localUuid: d.Value('sw-orphan-fk'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
             ),
           );
 
