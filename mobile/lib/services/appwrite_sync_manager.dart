@@ -2551,6 +2551,18 @@ class AppwriteSyncManager {
         );
       } catch (e) {
         _logger.warning('⚠️ فشل تحديث حالة الغرف المتأثرة: $e', tag: 'SYNC');
+        // ✅ (2026-11-03) لا ابتلاع: حالة الإشغال المشتقة بقيت قديمة بعد
+        // تطبيق الحجوزات (غرفة تُعرض متاحة وهي محجوزة أو العكس — قرار
+        // حجز خاطئ على الاستقبال). لا يوجد أي مسار محلي آخر يعيد بناءها،
+        // فالرمي هنا هو الطريقة الوحيدة لضمان إعادة المحاولة: لا يتقدّم
+        // مؤشر bookings ⇒ تُعاد نفس الدفعة في الدورة التالية (upsert
+        // idempotent) وتُعاد معها إعادة حساب الإشغال.
+        failed.add('room_occupancy: $e');
+        throw StateError(
+          'bookings: room occupancy refresh failed for '
+          '${affectedRoomNumbers.length} room(s) — checkpoint must not '
+          'advance past them; will retry next cycle. First: $e',
+        );
       }
     }
 
@@ -2587,6 +2599,17 @@ class AppwriteSyncManager {
   @visibleForTesting
   Future<int> syncGuestInfosForTesting(List<models.Document> documents) =>
       _syncGuestInfos(documents);
+
+  /// ✅ (2026-11-03) جسرا اختبار للكيانين المتبقيين اللذين كانا يبتلعان
+  /// الفشل: `app_settings` (غير حرجة لكن مؤشرها كان يتقدّم فوق الإعداد
+  /// الفاشل) و`price_adjustments` (فشل إعادة حساب الحجوزات المشتقة).
+  @visibleForTesting
+  Future<int> syncAppSettingsForTesting(List<models.Document> documents) =>
+      _syncAppSettings(documents);
+
+  @visibleForTesting
+  Future<int> syncPriceAdjustmentsForTesting(List<models.Document> documents) =>
+      _syncPriceAdjustments(documents);
 
   /// ✅ إعادة حساب حالة إشغال غرفة واحدة بناءً على الحجوزات النشطة
   /// يستخدم RoomsRepository لضمان تحديث version و lastModified
@@ -4653,10 +4676,27 @@ class AppwriteSyncManager {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
     } catch (e) {
-      _logger.warning(
-        '⚠️ فشل قراءة طابور يتامى مسحوبات الرواتب المعلّق: $e',
+      // ✅ (2026-11-03) لا ابتلاع ولا تدمير: العودة بقائمة فارغة مع بقاء
+      // الحمولة الأصلية في التخزين يعني أن أول حفظ لاحق سيستبدلها
+      // (سحب جديد بلا يتامى ⇒ prefs.remove) فتُفقد السحوبات المعلّقة
+      // نهائياً. نحفظ نسخة احتياطية من الحمولة الخام قبل أي كتابة.
+      _logger.error(
+        '⚠️ فشل قراءة طابور يتامى مسحوبات الرواتب المعلّق — '
+        'سيُحفظ نسخ احتياطي من الحمولة الخام قبل أي استبدال: $e',
         tag: 'SYNC',
       );
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString(_pendingSalaryWithdrawalOrphansKey);
+        if (raw != null && raw.isNotEmpty) {
+          await prefs.setString(
+            '${_pendingSalaryWithdrawalOrphansKey}_corrupt_backup',
+            raw,
+          );
+        }
+      } catch (_) {
+        // تعذّر النسخ الاحتياطي لا يمنع مواصلة السحب.
+      }
       return <Map<String, dynamic>>[];
     }
   }
@@ -7571,6 +7611,10 @@ class AppwriteSyncManager {
             createdAtIso;
 
         // تحويل ISO إلى epoch seconds لقاعدة البيانات المحلية
+        // ملاحظة (2026-11-03): الـ catch أدناه **ليس ابتلاع فشل مستند** —
+        // هو قيمة بديلة (fallback) لحقل تاريخ غير صالح، والمستند يُطبَّق
+        // بنجاح في الحالتين ولا شيء يُفقد من الكيان (لا يُسجَّل في failed
+        // حتى لا تتعطّل مجموعة blacklist إلى الأبد بسبب تاريخ تالف).
         int? createdAtEpoch;
         try {
           createdAtEpoch =
@@ -7606,6 +7650,7 @@ class AppwriteSyncManager {
               deletedAtEpoch =
                   DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
             } catch (_) {
+              // قيمة بديلة (epoch رقمي) لا ابتلاع — نفس ملاحظة ما سبق.
               deletedAtEpoch = _asIntNullable(deletedAtVal);
             }
           } else {
@@ -9681,10 +9726,17 @@ class AppwriteSyncManager {
               }
             }
           } catch (e) {
+            // ✅ (2026-11-03) لا ابتلاع: فشل إعادة حساب الحجوزات المتأثرة
+            // يعني بقاء إجمالياتها المالية مغلوطة على هذا الجهاز (سعر
+            // الغرفة تغيّر في القاعدة والشتقاقات لم تُبنَ). يُسجَّل الفشل
+            // فيمنع المؤشر من التقدّم ⇒ تُعاد المحاولة في دورة لاحقة
+            // (بإيقاع التراجع) بدل بقاء الخلل صامتاً إلى الأبد.
             _logger.warning(
               'فشل إعادة حساب الحجوزات بعد سحب price_adjustment $localUuid: $e',
               tag: 'SYNC',
             );
+            failed.add('${doc.$id}: room price recalculation failed: $e');
+            continue;
           }
         }
 
@@ -9944,6 +9996,13 @@ class AppwriteSyncManager {
   Future<int> _syncAppSettings(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) لا ابتلاع: كانت أخطاء الإعدادات تُسجَّل تحذيراً فقط
+    // ثم يتقدّم مؤشر المجموعة فوقها ⇒ إعداد لا يُطبَّق على هذا الجهاز
+    // إلى الأبد (رمز واتساب/تلجرام قديم، تقارير خاطئة) بلا أي إشارة.
+    // المجموعة غير حرجة (critical: false) في المحرك: رميها هنا لا يُسقط
+    // بقية المجموعات ولا يُلوّث SyncResult — لكنه يمنع تقدّم مؤشرها
+    // فتُعاد المحاولة بالدورة التالية (بإيقاع التراجع) حتى تُطبَّق فعلاً.
+    final failed = <String>[];
     final prefs = await SharedPreferences.getInstance();
 
     for (final doc in documents) {
@@ -9965,10 +10024,13 @@ class AppwriteSyncManager {
               });
             }
           } catch (e) {
+            // config_json هو مصدر الحقيقة الجديد: تعذّر فكّه يعني تطبيق
+            // أعمدة قديمة ناقصة فقط ⇒ يُسجَّل فشلاً كي يُعاد السحب.
             _logger.warning(
               'app_settings: تعذّر فكّ config_json: $e',
               tag: 'SYNC',
             );
+            failed.add('${doc.$id}: config_json parse failed: $e');
           }
         }
 
@@ -10022,7 +10084,19 @@ class AppwriteSyncManager {
           'Failed to sync app_settings ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // عقد «لا يتقدّم المؤشر فوق الفشل» معمَّم على app_settings أيضاً
+    // (غير حرجة ⇒ المحرك يتجاهل فشلها في failedCollections ولا يوقف
+    // بقية المجموعات، لكن مؤشرها لا يتقدّم ⇒ لا إعداد مفقود بصمت).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'app_settings: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
