@@ -429,7 +429,7 @@ throw StateError(
 | ترتيب آمن لقواعد FK | `priorityCase`: rooms(1) ← employees(2) ← bookings(3) ← payments(4) ← expenses(5) ← debts(6) ← booking_notes(7) ← shift_notes(8) ← cash_transactions(9) ← الباقي(10) |
 | لا تسليم مزدوج | `delivered_to_primary = 0` شرط إلزامي في `takeBatch`؛ وبعد النجاح `markDeliveredToPrimary` يحذف السجل فوراً (الثانوي no-op ⇒ العلامتان مكتملتان دائماً) فلا يتراكم outbox |
 | لا فقدان لتغيير محلي عند فشل الرفع | `_processOutboxEntry` يلتفّ حول كل معالج: يعيد Vector Clock كما كان، ثم `setError(...)` + `markFailed([id])` |
-| الشفاء الذاتي من الانقطاع | `cleanupStuckEntries` (كل دقيقة في `sync()` + مؤقّت)، `reclaimForPush` للعالقة، `retryFailedWithBackoff` للفاشلة، ولا تُستخدم `markDead` في أي مسار (لا سجلات ميتة) |
+| الشفاء الذاتي من الانقطاع | `cleanupStuckEntries` (مؤقّت كل دقيقة بعتبة 60ث + عند `initialize`) للعالقة في `processing`، `retryFailedWithBackoff` (مؤقّت كل 5 دقائق + في كل طور رفع) للفاشلة، `cleanupCompleted/cleanupOrphanedEntries` كل 24 ساعة، ولا تُستخدم `markDead` في أي مسار (لا سجلات ميتة) |
 | لا رفع فوق تعارض معلّق | `OutboxPullPolicy.canPull` يمنع السحب ما دام هناك تغيير محلي غير مُسلَّم |
 | إعادة المحاولة آمنة | كل حمولة تحمل `idempotencyKey` والمعرّف = `localUuid` ⇒ upsert idempotent |
 | تنظيف outbox بعد السحب لا يحذف تغييراً غير مُرفوع | `_cleanupOutboxAfterPull` لا يحذف إلا بعد `_isEntryDeliveredToServer` (Fix C) |
