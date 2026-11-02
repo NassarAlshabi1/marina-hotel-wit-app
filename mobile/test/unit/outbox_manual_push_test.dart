@@ -38,10 +38,7 @@ void main() {
     await db.close();
   });
 
-  Future<int> seed({
-    required String uuid,
-    required int clientTs,
-  }) {
+  Future<int> seed({required String uuid, required int clientTs}) {
     return dao.merge(
       entity: 'rooms',
       op: 'create',
@@ -83,43 +80,37 @@ void main() {
       expect(await statusOf(id), 'pending');
     });
 
-    test(
-      'يُعيد السجل الفاشل كثير المحاولات بعد انقضاء مهلة التراجع',
-      () async {
-        // clientTs قبل ساعتين ⇒ تجاوز مهلة التراجع (30 دقيقة).
-        final id = await seed(uuid: 'r-many-old', clientTs: _nowSec() - 7200);
-        await dao.setError(id, 'chronic', 12);
+    test('يُعيد السجل الفاشل كثير المحاولات بعد انقضاء مهلة التراجع', () async {
+      // clientTs قبل ساعتين ⇒ تجاوز مهلة التراجع (30 دقيقة).
+      final id = await seed(uuid: 'r-many-old', clientTs: _nowSec() - 7200);
+      await dao.setError(id, 'chronic', 12);
 
-        // قبل الإصلاح: reclaimForPush لا يلمسه ⇒ يبقى failed للأبد.
-        final onlyReclaim = await dao.reclaimForPush();
-        expect(onlyReclaim, 0, reason: 'سلوك ما قبل الإصلاح — توثيق للسبب');
-        expect(await statusOf(id), 'failed');
+      // قبل الإصلاح: reclaimForPush لا يلمسه ⇒ يبقى failed للأبد.
+      final onlyReclaim = await dao.reclaimForPush();
+      expect(onlyReclaim, 0, reason: 'سلوك ما قبل الإصلاح — توثيق للسبب');
+      expect(await statusOf(id), 'failed');
 
-        await dao.prepareForManualPush();
+      await dao.prepareForManualPush();
 
-        expect(
-          await statusOf(id),
-          'pending',
-          reason: 'زر الرفع يجب أن يستطيع إعادة محاولة ما تجاوز سقف المحاولات',
-        );
-      },
-    );
+      expect(
+        await statusOf(id),
+        'pending',
+        reason: 'زر الرفع يجب أن يستطيع إعادة محاولة ما تجاوز سقف المحاولات',
+      );
+    });
 
-    test(
-      'لا يخترق مهلة التراجع: السجل الفاشل حديثاً يبقى failed',
-      () async {
-        final id = await seed(uuid: 'r-many-new', clientTs: _nowSec());
-        await dao.setError(id, 'chronic', 12);
+    test('لا يخترق مهلة التراجع: السجل الفاشل حديثاً يبقى failed', () async {
+      final id = await seed(uuid: 'r-many-new', clientTs: _nowSec());
+      await dao.setError(id, 'chronic', 12);
 
-        await dao.prepareForManualPush();
+      await dao.prepareForManualPush();
 
-        expect(
-          await statusOf(id),
-          'failed',
-          reason: 'التراجع الأسّي محفوظ — لا إغراق الخادم بسجل فاشل حديثاً',
-        );
-      },
-    );
+      expect(
+        await statusOf(id),
+        'failed',
+        reason: 'التراجع الأسّي محفوظ — لا إغراق الخادم بسجل فاشل حديثاً',
+      );
+    });
 
     test('لا يلمس السجلات المُسلَّمة للرئيسي', () async {
       final id = await seed(uuid: 'r-delivered', clientTs: _nowSec());

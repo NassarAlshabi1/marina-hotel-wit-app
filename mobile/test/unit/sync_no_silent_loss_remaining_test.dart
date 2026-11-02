@@ -122,39 +122,36 @@ void main() {
       );
     });
 
-    test(
-      'config_json تالف يُسجَّل فشلاً رغم تطبيق الحقول القديمة',
-      () async {
-        final manager = AppwriteSyncManager(
-          appwriteService: AppwriteService(),
-          database: db,
-        );
+    test('config_json تالف يُسجَّل فشلاً رغم تطبيق الحقول القديمة', () async {
+      final manager = AppwriteSyncManager(
+        appwriteService: AppwriteService(),
+        database: db,
+      );
 
-        // config_json هو مصدر الحقيقة الجديد: تعذّر فكّه يعني تطبيق أعمدة
-        // قديمة ناقصة فقط. يُسجَّل فشلاً (فلا يتقدّم المؤشر) مع إبقاء
-        // التطبيق الجزئي كما كان — لا ابتلاع صامت.
-        final doc = _doc(
-          collectionId: 'app_settings',
-          uuid: 'settings-bad-json',
-          data: <String, dynamic>{
-            'config_json': '{not-json',
-            'telegram_enabled': true,
-          },
-        );
+      // config_json هو مصدر الحقيقة الجديد: تعذّر فكّه يعني تطبيق أعمدة
+      // قديمة ناقصة فقط. يُسجَّل فشلاً (فلا يتقدّم المؤشر) مع إبقاء
+      // التطبيق الجزئي كما كان — لا ابتلاع صامت.
+      final doc = _doc(
+        collectionId: 'app_settings',
+        uuid: 'settings-bad-json',
+        data: <String, dynamic>{
+          'config_json': '{not-json',
+          'telegram_enabled': true,
+        },
+      );
 
-        await expectLater(
-          manager.syncAppSettingsForTesting([doc]),
-          throwsA(isA<StateError>()),
-        );
+      await expectLater(
+        manager.syncAppSettingsForTesting([doc]),
+        throwsA(isA<StateError>()),
+      );
 
-        final prefs = await SharedPreferences.getInstance();
-        expect(
-          prefs.getBool('telegram_enabled'),
-          isTrue,
-          reason: 'الحقول القديمة طُبِّقت فعلاً — الفشل من فكّ config_json',
-        );
-      },
-    );
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getBool('telegram_enabled'),
+        isTrue,
+        reason: 'الحقول القديمة طُبِّقت فعلاً — الفشل من فكّ config_json',
+      );
+    });
   });
 
   group('price_adjustments — فشل إعادة الحساب المشتق', () {
