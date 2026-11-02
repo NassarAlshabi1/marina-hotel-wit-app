@@ -1,0 +1,88 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  Auto Format (dart) — مُنسّق تلقائي لملفات Dart
+#
+#  لماذا هذا الـ workflow؟
+#  -----------------------
+#  خطوة «Dart Format» في ci.yml تفرض معيار المشروع: 120 عموداً
+#  على الملفات المكتوبة يدوياً (بعد استثناء المولّدة بـ
+#  build_runner). لا يوجد Dart SDK في كل بيئات التطوير، لذا
+#  الطريقة الوحيدة الآمنة (بلا تخمين) لتنسيق الشجرة هي تشغيل
+#  الأداة الرسمية هنا على runner فيه Flutter 3.44.6، ثم دفع
+#  الناتج إلى الفرع نفسه.
+#
+#  التشغيل:
+#    1) يدوياً: Actions → Auto Format (dart) → Run workflow
+#    2) أو تلقائياً: أي push يلمس الملف .github/format-request
+#       (هذا يتيح التشغيل حتى قبل وجود الـ workflow على الفرع
+#        الافتراضي).
+#
+#  الأمان: لا يدفع شيئاً إذا لم يكن هناك تغيير ⇒ لا حلقات
+#  لا نهائية، ولا يلمس ملفات *.g.dart / *.freezed.dart.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+name: Auto Format (dart)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/format-request'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-format-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Format Dart sources (120 cols)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: 💾 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: 🖋️ Format hand-written Dart (120 cols)
+        run: |
+          set -uo pipefail
+          FILES=$(git ls-files '*.dart' | grep -v -E '\.(g|freezed|gr|mocks)\.dart$' || true)
+          if [ -z "$FILES" ]; then
+            echo "لا ملفات Dart للتنسيق"
+            exit 0
+          fi
+          echo "🖋️ تنسيق $(printf '%s\n' "$FILES" | wc -l) ملف Dart بعرض 120 عموداً..."
+          printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 \
+            dart format --line-length 120
+          echo "--- git status ---"
+          git status --porcelain | head -50
+          echo "إجمالي الملفات المتغيّرة: $(git status --porcelain | wc -l)"
+
+      - name: 🚀 Commit & push (only if changed)
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "✅ لا تغييرات — الشجرة منسّقة أصلاً"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style(dart): تطبيق dart format --line-length 120 على ملفات Dart المكتوبة يدوياً"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "✅ تم دفع التنسيق إلى ${{ github.ref_name }}"

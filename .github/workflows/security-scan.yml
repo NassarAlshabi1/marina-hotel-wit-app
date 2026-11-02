@@ -218,16 +218,25 @@ jobs:
           fetch-depth: 0
 
       - name: Install Trivy
+        env:
+          # إصدار مثبَّت + حزمة .deb من GitHub Releases (المصدر الرسمي).
+          TRIVY_VERSION: 'v0.76.1'
         run: |
-          # Install Trivy binary directly (avoids aquasecurity/trivy-action
-          # setup issues — the action's container-based setup fails on
-          # public repos without GHCR auth).
+          set -euo pipefail
+          # ✅ إصلاح (2026-11-02): كانت الخطوة تفشل دائماً على ubuntu-latest
+          #    (24.04 / noble) لأنها تعتمد مستودع apt القديم
+          #    (aquasecurity.github.io/trivy-repo) الذي لا ينشر حزمة لهذا
+          #    التوزيع، وتستخدم apt-key المهجور ⇒ 404 / فشل تثبيت، فيسقط
+          #    الـ workflow كله من خطوة التثبيت قبل أي فحص فعلي.
+          #    البديل: تنزيل حزمة .deb الرسمية بإصدار مثبَّت من GitHub
+          #    Releases (مصدر ثابت ومتاح من runners دون مفاتيح apt).
           sudo apt-get update -qq
-          sudo apt-get install -y -qq wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq trivy
+          sudo apt-get install -y -qq wget ca-certificates
+          VER="${TRIVY_VERSION#v}"
+          URL="https://github.com/aquasecurity/trivy/releases/download/${TRIVY_VERSION}/trivy_${VER}_Linux-64bit.deb"
+          echo "⬇️ تحميل Trivy ${TRIVY_VERSION} من: ${URL}"
+          sudo wget -q --tries=3 --timeout=60 -O /tmp/trivy.deb "${URL}"
+          sudo dpkg -i /tmp/trivy.deb || sudo apt-get install -fy -qq
           trivy --version
 
       - name: Trivy — Filesystem scan (vulns + secrets)

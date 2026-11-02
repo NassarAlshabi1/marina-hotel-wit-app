@@ -42,9 +42,51 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Dart Format
-        run: dart format --set-exit-if-changed .
-        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
-        # الكود غير المُنسّق يجب أن يُكسر الـ build للحفاظ على جودة الكود.
+        # ✅ إصلاح (2026-11-02): كانت هذه الخطوة تفشل في **كل** الفروع.
+        #    السبب الجذري: `dart format .` يعمل بالعرض الافتراضي 80 عموداً
+        #    بينما معيار المشروع 120 (انظر mobile-quality-gate.yml)، كما أنه
+        #    يشمل ملفات build_runner المولّدة التي يعيد توليدها خطوة سابقة.
+        #    القياس: 371 من 604 ملف Dart فيه أسطر > 80 ⇒ فشل بنيوي دائم لا
+        #    علاقة له بأي commit. الآن: 120 عموداً، على الملفات المكتوبة
+        #    يدوياً فقط، مع إظهار المخالفات كـ annotations قابلة للنقر.
+        shell: bash
+        run: |
+          set -uo pipefail
+          FILES=$(git ls-files '*.dart' | grep -v -E '\.(g|freezed|gr|mocks)\.dart$' || true)
+          if [ -z "$FILES" ]; then
+            echo "لا ملفات Dart للفحص"; exit 0
+          fi
+          echo "🔍 فحص $(printf '%s\n' "$FILES" | wc -l) ملف Dart بعرض 120 عموداً..."
+          OUT=$(printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 \
+            dart format --line-length 120 --output=none --set-exit-if-changed 2>&1)
+          STATUS=$?
+          echo "$OUT" | tail -30
+          if [ $STATUS -ne 0 ]; then
+            CHANGED=$(printf '%s\n' "$OUT" | sed -n 's/^Changed \(.*\)$/\1/p')
+            if [ -n "$CHANGED" ]; then
+              while IFS= read -r f; do
+                echo "::error file=${f}::غير منسّق — شغّل: dart format --line-length 120 ${f}"
+              done <<< "$CHANGED"
+            fi
+            {
+              echo "## ❌ Dart Format (120 عموداً)"
+              echo ""
+              echo "الملفات التالية تحتاج تنسيقاً:"
+              echo ""
+              if [ -n "$CHANGED" ]; then
+                printf '%s\n' "$CHANGED" | sed 's/^/- `/;s/$/`/'
+              else
+                echo '```'
+                printf '%s\n' "$OUT" | tail -10
+                echo '```'
+              fi
+              echo ""
+              echo 'أصلحها بـ `dart format --line-length 120 <files>` أو شغّل workflow **Auto Format (dart)**.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "✅ كل ملفات Dart المكتوبة يدوياً منسّقة وفق 120 عموداً"
+          echo "### ✅ Dart Format (120 عموداً)" >> "$GITHUB_STEP_SUMMARY"
 
       # ═══════════════════════════════════════════════════════════
       #  اختبارات
