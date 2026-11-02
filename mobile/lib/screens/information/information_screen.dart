@@ -435,8 +435,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                         labelText: 'تاريخ الدخول',
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.date_range),
-                          onPressed: () =>
-                              _pickEntryDate(entryDateController),
+                          onPressed: () => _pickEntryDate(entryDateController),
                         ),
                       ),
                     ),

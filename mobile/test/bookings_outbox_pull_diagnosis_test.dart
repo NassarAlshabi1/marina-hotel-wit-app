@@ -121,8 +121,8 @@ class _StatefulWorker extends http.BaseClient {
     pushLog.add(body);
     return _json({
       'results': [
-        for (final op in (body['operations'] as List)
-            .cast<Map<String, dynamic>>())
+        for (final op
+            in (body['operations'] as List).cast<Map<String, dynamic>>())
           {'idempotencyKey': op['idempotencyKey'], 'success': true},
       ],
     });
@@ -154,10 +154,10 @@ class _StatefulWorker extends http.BaseClient {
 }
 
 http.Response _json(Map<String, dynamic> body) => http.Response(
-      jsonEncode(body),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
+  jsonEncode(body),
+  200,
+  headers: {'content-type': 'application/json'},
+);
 
 // ═══════════════════════════════════════════════════════════════
 //  أدوات القياس
@@ -171,9 +171,11 @@ Future<int> outboxCount(AppDatabase db) async {
 }
 
 Future<List<Map<String, dynamic>>> outboxRows(AppDatabase db) async {
-  final rows = await db.customSelect(
-    'SELECT entity, op, local_uuid, payload FROM outbox',
-  ).get();
+  final rows = await db
+      .customSelect(
+        'SELECT entity, op, local_uuid, payload FROM outbox',
+      )
+      .get();
   return [
     for (final r in rows)
       {
@@ -227,7 +229,9 @@ void main() {
   /// المدير 3463): قيد FK على bookings.room_number يتطلب الغرفة
   Future<void> seedLocalRoom(String number) async {
     final now = Time.nowEpoch();
-    await db.into(db.rooms).insert(
+    await db
+        .into(db.rooms)
+        .insert(
           RoomsCompanion(
             localUuid: d.Value('room-$number'),
             roomNumber: d.Value(number),
@@ -261,44 +265,60 @@ void main() {
         await manager.sync(push: false); // سحب دلتا فقط — عزل أثر السحب
 
         // الحجز وصل محلياً (يحرس ضد نجاح زيف بسبب فشل تطبيق صامت)
-        final local = await db.customSelect(
-          "SELECT id, status FROM bookings WHERE local_uuid = 'bk-pull-001'",
-        ).getSingleOrNull();
+        final local = await db
+            .customSelect(
+              "SELECT id, status FROM bookings WHERE local_uuid = 'bk-pull-001'",
+            )
+            .getSingleOrNull();
         expect(local, isNotNull, reason: 'الحجز المسحوب يجب أن يُطبَّق محلياً');
         expect(
           local!.data['status'],
           afterCutoff ? 'محجوزة' : 'مؤقت',
           reason: afterCutoff
               ? 'بعد 14:01: المشتق بعد السحب (ساعة حقيقية) يرقّى المؤقت '
-                  '→ محجوزة — نفس مصدر فرع العدّاد أدناه (W3)'
+                    '→ محجوزة — نفس مصدر فرع العدّاد أدناه (W3)'
               : 'قبل 14:01: لا ترقية → الحالة تبقى مؤقت',
         );
 
         // إثبات أن إعادة البناء المشتق بعد السحب اشتغلت فعلاً (الأسلاك
         // بين السحب و _refreshDerivedAfterPull تعمل): الليالي بُنيت
-        final nights = await db.customSelect(
-          'SELECT COUNT(*) AS c FROM booking_nights WHERE booking_local_id = ?',
-          variables: [d.Variable<int>(local.data['id'] as int)],
-        ).getSingle();
-        expect(nights.data['c'] as int, greaterThan(0),
-            reason: 'إعادة البناء المشتق بعد السحب يجب أن تكون قد شغلت');
+        final nights = await db
+            .customSelect(
+              'SELECT COUNT(*) AS c FROM booking_nights WHERE booking_local_id = ?',
+              variables: [d.Variable<int>(local.data['id'] as int)],
+            )
+            .getSingle();
+        expect(
+          nights.data['c'] as int,
+          greaterThan(0),
+          reason: 'إعادة البناء المشتق بعد السحب يجب أن تكون قد شغلت',
+        );
 
         final count = await outboxCount(db);
         // ignore: avoid_print
-        print('── T6 وقت التشغيل المحلي: ${DateTime.now()} '
-            '(بعد الحدّ: $afterCutoff) ──');
+        print(
+          '── T6 وقت التشغيل المحلي: ${DateTime.now()} '
+          '(بعد الحدّ: $afterCutoff) ──',
+        );
         for (final r in await outboxRows(db)) {
           // ignore: avoid_print
           print('── T6 outbox: ${r['entity']}/${r['op']}');
         }
 
         if (!afterCutoff) {
-          expect(count, 0,
-              reason: 'قبل 14:01: لا ترقية مؤقت → السحب + المشتق صفر outbox');
+          expect(
+            count,
+            0,
+            reason: 'قبل 14:01: لا ترقية مؤقت → السحب + المشتق صفر outbox',
+          );
         } else {
-          expect(count, 1,
-              reason: 'بعد 14:01: الترقية المحلية للحجز المؤقت تكتب سجل '
-                  'outbox واحد (bookings/update) — سلوك الترقية لا السحب');
+          expect(
+            count,
+            1,
+            reason:
+                'بعد 14:01: الترقية المحلية للحجز المؤقت تكتب سجل '
+                'outbox واحد (bookings/update) — سلوك الترقية لا السحب',
+          );
         }
       },
     );
@@ -310,7 +330,9 @@ void main() {
         // حجز محلي «مؤقت» نشط (نفس ما ينتجه السحب)
         final now = Time.nowEpoch();
         await seedLocalRoom('102');
-        await db.into(db.bookings).insert(
+        await db
+            .into(db.bookings)
+            .insert(
               BookingsCompanion(
                 localUuid: const d.Value('bk-local-001'),
                 roomNumber: const d.Value('102'),
@@ -341,27 +363,42 @@ void main() {
         final rows = await outboxRows(db);
         for (final r in rows) {
           // ignore: avoid_print
-          print('── T7 outbox: ${r['entity']}/${r['op']} '
-              'status=${(r['payload'] as Map?)?['status']}');
+          print(
+            '── T7 outbox: ${r['entity']}/${r['op']} '
+            'status=${(r['payload'] as Map?)?['status']}',
+          );
         }
 
-        expect(rows.length, 1,
-            reason: 'الترقية المحلية (مؤقت→محجوزة) تكتب outbox رغم '
-                'enqueueOutbox:false — هذه هي الكتابة غير المشروطة W3 '
-                '(_promoteProvisionalBooking:233) الوحيدة في مسار ما بعد السحب');
+        expect(
+          rows.length,
+          1,
+          reason:
+              'الترقية المحلية (مؤقت→محجوزة) تكتب outbox رغم '
+              'enqueueOutbox:false — هذه هي الكتابة غير المشروطة W3 '
+              '(_promoteProvisionalBooking:233) الوحيدة في مسار ما بعد السحب',
+        );
         expect(rows.single['entity'], 'bookings');
         expect(rows.single['op'], 'update');
-        expect((rows.single['payload'] as Map)['status'], 'محجوزة',
-            reason: 'الحمولة تحمل الحالة الجديدة — تغيير دلالي حقيقي '
-                'يستحق البث للأجهزة الأخرى');
+        expect(
+          (rows.single['payload'] as Map)['status'],
+          'محجوزة',
+          reason:
+              'الحمولة تحمل الحالة الجديدة — تغيير دلالي حقيقي '
+              'يستحق البث للأجهزة الأخرى',
+        );
 
         // الحالة المحلية ترقّت وساعة الصف bumped → الدفع مكتمل الأهلية
-        final row = await db.customSelect(
-          "SELECT status, vector_clock FROM bookings WHERE local_uuid = 'bk-local-001'",
-        ).getSingle();
+        final row = await db
+            .customSelect(
+              "SELECT status, vector_clock FROM bookings WHERE local_uuid = 'bk-local-001'",
+            )
+            .getSingle();
         expect(row.data['status'], 'محجوزة');
-        expect(row.data['vector_clock'], isNot('{}'),
-            reason: 'merge رفع ساعة متجه الصف → الدفع لن يُرفض كقديم');
+        expect(
+          row.data['vector_clock'],
+          isNot('{}'),
+          reason: 'merge رفع ساعة متجه الصف → الدفع لن يُرفض كقديم',
+        );
       },
     );
 
@@ -370,7 +407,9 @@ void main() {
       () async {
         final now = Time.nowEpoch();
         await seedLocalRoom('103');
-        await db.into(db.bookings).insert(
+        await db
+            .into(db.bookings)
+            .insert(
               BookingsCompanion(
                 localUuid: const d.Value('bk-local-002'),
                 roomNumber: const d.Value('103'),
@@ -396,12 +435,18 @@ void main() {
           enqueueOutbox: false,
         );
 
-        expect(await outboxCount(db), 0,
-            reason: 'بلا ترقية: المشتق كله بلا outbox (enqueueOutbox:false '
-                'محترم في كل الكتابات ما عدا الترقية)');
-        final row = await db.customSelect(
-          "SELECT status FROM bookings WHERE local_uuid = 'bk-local-002'",
-        ).getSingle();
+        expect(
+          await outboxCount(db),
+          0,
+          reason:
+              'بلا ترقية: المشتق كله بلا outbox (enqueueOutbox:false '
+              'محترم في كل الكتابات ما عدا الترقية)',
+        );
+        final row = await db
+            .customSelect(
+              "SELECT status FROM bookings WHERE local_uuid = 'bk-local-002'",
+            )
+            .getSingle();
         expect(row.data['status'], 'مؤقت');
       },
     );

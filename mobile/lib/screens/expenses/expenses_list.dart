@@ -975,11 +975,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       if (missingEmployeeId != null &&
           !availableEmployees.any((e) => e.id == missingEmployeeId)) {
         final db = ref.read(databaseProvider);
-        archivedEmployee =
-            await (db.select(
-              db.employees,
-            )..where((tbl) => tbl.id.equals(missingEmployeeId)))
-                .getSingleOrNull();
+        archivedEmployee = await (db.select(
+          db.employees,
+        )..where((tbl) => tbl.id.equals(missingEmployeeId))).getSingleOrNull();
       }
 
       final ok = await showDialog<bool>(
@@ -1006,16 +1004,17 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                         labelText: 'نوع المصروف',
                       ),
                       style: dropdownTextStyle,
-                          items: [
-                            // ✅ (2026-09-30) حماية عرض: نوع قديم/مخصص من
-                            // القاعدة لا يطابق عناصر القائمة فيظهر الحقل فارغاً
-                            // (عائلة خطأ حالة الموظف) — نضيفه ديناميكياً حفظاً
-                            // للبيانات بدل إسكات نوع المستخدم.
-                            ..._expenseTypes,
-                            if (!_isSalaryAction(selectedType) &&
-                                !_expenseTypes.contains(selectedType))
-                              selectedType,
-                          ]
+                      items:
+                          [
+                                // ✅ (2026-09-30) حماية عرض: نوع قديم/مخصص من
+                                // القاعدة لا يطابق عناصر القائمة فيظهر الحقل فارغاً
+                                // (عائلة خطأ حالة الموظف) — نضيفه ديناميكياً حفظاً
+                                // للبيانات بدل إسكات نوع المستخدم.
+                                ..._expenseTypes,
+                                if (!_isSalaryAction(selectedType) &&
+                                    !_expenseTypes.contains(selectedType))
+                                  selectedType,
+                              ]
                               .map(
                                 (type) => DropdownMenuItem<String>(
                                   value: type,

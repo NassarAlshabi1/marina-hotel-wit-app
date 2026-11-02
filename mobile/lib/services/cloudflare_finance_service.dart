@@ -45,7 +45,8 @@ class FinanceSnapshotMeta {
       totalOutflow: (m['total_outflow'] as num?)?.toDouble() ?? 0,
       financingNeed: (m['financing_need'] as num?)?.toDouble() ?? 0,
       approvedBy: m['approved_by'] as String? ?? '',
-      approvedAt: DateTime.tryParse(
+      approvedAt:
+          DateTime.tryParse(
             m['approved_at']?.toString() ?? '',
           ) ??
           DateTime.fromMillisecondsSinceEpoch(
@@ -169,8 +170,8 @@ class FinanceVarianceReport {
 /// عميل HTTP لنقاط التمويل على الـ Worker (D1 الحية).
 class CloudflareFinanceService {
   CloudflareFinanceService({required String? token, http.Client? client})
-      : _token = token,
-        _client = client ?? http.Client();
+    : _token = token,
+      _client = client ?? http.Client();
 
   final String? _token;
   final http.Client _client;
@@ -178,14 +179,15 @@ class CloudflareFinanceService {
   static const Duration _timeout = Duration(seconds: 25);
 
   Uri _uri(String path, [Map<String, String>? query]) {
-    return Uri.parse('${CloudflareConfig.workerUrl}$path')
-        .replace(queryParameters: query);
+    return Uri.parse(
+      '${CloudflareConfig.workerUrl}$path',
+    ).replace(queryParameters: query);
   }
 
   Map<String, String> get _headers => {
-        'Authorization': 'Bearer $_token',
-        'Accept': 'application/json',
-      };
+    'Authorization': 'Bearer $_token',
+    'Accept': 'application/json',
+  };
 
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
     final resp = await _client.get(uri, headers: _headers).timeout(_timeout);
@@ -235,12 +237,14 @@ class CloudflareFinanceService {
   // ── اللقطات الأسبوعية ─────────────────────────────────────────────
 
   Future<List<FinanceSnapshotMeta>> fetchSnapshots({int limit = 26}) async {
-    final body =
-        await _getJson(_uri('/api/finance/snapshots', {'limit': '$limit'}));
+    final body = await _getJson(
+      _uri('/api/finance/snapshots', {'limit': '$limit'}),
+    );
     final raw = body['snapshots'] as List? ?? [];
     return [
       for (final s in raw)
-        if (s is Map) FinanceSnapshotMeta.fromJson(Map<String, dynamic>.from(s)),
+        if (s is Map)
+          FinanceSnapshotMeta.fromJson(Map<String, dynamic>.from(s)),
     ];
   }
 
@@ -275,7 +279,8 @@ class CloudflareFinanceService {
         statusCode: resp.statusCode,
       );
     }
-    final body = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+    final body =
+        jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
     final snap = body['snapshot'];
     if (snap is! Map) {
       throw const CloudflareFinanceException('snapshot missing in response');
@@ -286,8 +291,9 @@ class CloudflareFinanceService {
   // ── الفعلي مقابل المتوقع ──────────────────────────────────────────
 
   Future<FinanceVarianceReport> fetchVariance(int snapshotId) async {
-    final body =
-        await _getJson(_uri('/api/finance/variance', {'snapshot_id': '$snapshotId'}));
+    final body = await _getJson(
+      _uri('/api/finance/variance', {'snapshot_id': '$snapshotId'}),
+    );
     return FinanceVarianceReport.fromJson(body);
   }
 
@@ -318,11 +324,8 @@ class CloudflareFinanceService {
           }(),
     ];
     return PaymentProfile(
-      methods: methods.isEmpty
-          ? PaymentProfile.fallback.methods
-          : methods,
-      historicalOccupancy:
-          (p['historicalOccupancy'] as num?)?.toDouble() ?? 0,
+      methods: methods.isEmpty ? PaymentProfile.fallback.methods : methods,
+      historicalOccupancy: (p['historicalOccupancy'] as num?)?.toDouble() ?? 0,
       historicalAdr: (p['historicalAdr'] as num?)?.toDouble() ?? 0,
       sampleDays: (p['sampleDays'] as num?)?.toInt() ?? 0,
     );
@@ -345,28 +348,30 @@ class CloudflareFinanceService {
       final w = Map<String, dynamic>.from(rawW);
       final inflow = Map<String, dynamic>.from(w['inflow'] as Map? ?? {});
       final outflow = Map<String, dynamic>.from(w['outflow'] as Map? ?? {});
-      weeks.add(WeeklyForecast(
-        index: (w['index'] as num?)?.toInt() ?? 0,
-        start: _parseDay(w['start'] as String?),
-        end: _parseDay(w['end'] as String?),
-        inflow: WeeklyInflow(
-          confirmed: (inflow['confirmed'] as num?)?.toDouble() ?? 0,
-          probable: (inflow['probable'] as num?)?.toDouble() ?? 0,
-          estimated: (inflow['estimated'] as num?)?.toDouble() ?? 0,
+      weeks.add(
+        WeeklyForecast(
+          index: (w['index'] as num?)?.toInt() ?? 0,
+          start: _parseDay(w['start'] as String?),
+          end: _parseDay(w['end'] as String?),
+          inflow: WeeklyInflow(
+            confirmed: (inflow['confirmed'] as num?)?.toDouble() ?? 0,
+            probable: (inflow['probable'] as num?)?.toDouble() ?? 0,
+            estimated: (inflow['estimated'] as num?)?.toDouble() ?? 0,
+          ),
+          outflow: WeeklyOutflow(
+            salaries: (outflow['salaries'] as num?)?.toDouble() ?? 0,
+            diesel: (outflow['diesel'] as num?)?.toDouble() ?? 0,
+            utilities: (outflow['utilities'] as num?)?.toDouble() ?? 0,
+            maintenance: (outflow['maintenance'] as num?)?.toDouble() ?? 0,
+            other: (outflow['other'] as num?)?.toDouble() ?? 0,
+          ),
+          openingBalance: (w['openingBalance'] as num?)?.toDouble() ?? 0,
+          closingBalance: (w['closingBalance'] as num?)?.toDouble() ?? 0,
+          avgWeeklyOutflow: (w['avgWeeklyOutflow'] as num?)?.toDouble() ?? 0,
+          liquidityThreshold:
+              (w['liquidityThreshold'] as num?)?.toDouble() ?? 0,
         ),
-        outflow: WeeklyOutflow(
-          salaries: (outflow['salaries'] as num?)?.toDouble() ?? 0,
-          diesel: (outflow['diesel'] as num?)?.toDouble() ?? 0,
-          utilities: (outflow['utilities'] as num?)?.toDouble() ?? 0,
-          maintenance: (outflow['maintenance'] as num?)?.toDouble() ?? 0,
-          other: (outflow['other'] as num?)?.toDouble() ?? 0,
-        ),
-        openingBalance: (w['openingBalance'] as num?)?.toDouble() ?? 0,
-        closingBalance: (w['closingBalance'] as num?)?.toDouble() ?? 0,
-        avgWeeklyOutflow: (w['avgWeeklyOutflow'] as num?)?.toDouble() ?? 0,
-        liquidityThreshold:
-            (w['liquidityThreshold'] as num?)?.toDouble() ?? 0,
-      ));
+      );
     }
 
     return ForecastResult(
@@ -375,11 +380,11 @@ class CloudflareFinanceService {
       openingBalance: (m['openingBalance'] as num?)?.toDouble() ?? 0,
       avgWeeklyOutflow: (m['avgWeeklyOutflow'] as num?)?.toDouble() ?? 0,
       liquidityThreshold: (m['liquidityThreshold'] as num?)?.toDouble() ?? 0,
-      coverageTargetWeeks:
-          (m['coverageTargetWeeks'] as num?)?.toInt() ?? 4,
+      coverageTargetWeeks: (m['coverageTargetWeeks'] as num?)?.toInt() ?? 4,
       weeks: weeks,
       paymentProfile: _profileFromJson(m),
-      generatedAt: DateTime.tryParse(m['generatedAt'] as String? ?? '') ??
+      generatedAt:
+          DateTime.tryParse(m['generatedAt'] as String? ?? '') ??
           DateTime.now().toUtc(),
     );
   }
@@ -416,7 +421,8 @@ class CloudflareFinanceService {
     ];
     return KpiSnapshot(
       rows: rows,
-      generatedAt: DateTime.tryParse(m['generatedAt'] as String? ?? '') ??
+      generatedAt:
+          DateTime.tryParse(m['generatedAt'] as String? ?? '') ??
           DateTime.now().toUtc(),
       currentPeriodText: m['currentPeriodText'] as String? ?? '',
       previousPeriodText: m['previousPeriodText'] as String? ?? '',

@@ -20,7 +20,6 @@
 
 library marina_hotel_mobile.test.performance_monitor_test;
 
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/performance_monitor.dart';
 
@@ -141,23 +140,33 @@ void main() {
   group('PerformanceMonitor — التتبعات', () {
     test('startTrace/endTrace يُسجلان تتبعاً مكتملًا', () {
       final monitor = PerformanceMonitor.instance;
-      final before = (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int;
+      final before =
+          (monitor.exportReport()['traces']
+                  as Map<String, dynamic>)['completed']
+              as int;
 
       final started = monitor.startTrace('unit-trace-ok');
       final ended = monitor.endTrace('unit-trace-ok');
 
       expect(identical(started, ended), isTrue);
-      final after = (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int;
+      final after =
+          (monitor.exportReport()['traces']
+                  as Map<String, dynamic>)['completed']
+              as int;
       expect(after, before + 1);
     });
 
     test('endTrace لاسم غير موجود يُرجع null ولا يُسجل شيئاً', () {
       final monitor = PerformanceMonitor.instance;
-      final before = (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int;
+      final before =
+          (monitor.exportReport()['traces']
+                  as Map<String, dynamic>)['completed']
+              as int;
 
       expect(monitor.endTrace('unit-trace-ghost'), isNull);
       expect(
-        (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int,
+        (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed']
+            as int,
         before,
       );
     });
@@ -166,13 +175,18 @@ void main() {
       'measure يُرجع قيمة الـ action ويُنهي التتبع حتى مع الاستثناء',
       () async {
         final monitor = PerformanceMonitor.instance;
-        final before = (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int;
+        final before =
+            (monitor.exportReport()['traces']
+                    as Map<String, dynamic>)['completed']
+                as int;
 
         final result = await monitor.measure('unit-measure-ok', () async => 7);
 
         expect(result, 7);
         expect(
-          (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int,
+          (monitor.exportReport()['traces']
+                  as Map<String, dynamic>)['completed']
+              as int,
           before + 1,
         );
 
@@ -184,7 +198,9 @@ void main() {
           throwsStateError,
         );
         expect(
-          (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int,
+          (monitor.exportReport()['traces']
+                  as Map<String, dynamic>)['completed']
+              as int,
           before + 2,
         );
       },
@@ -192,13 +208,17 @@ void main() {
 
     test('measureSync يُرجع القيمة ويُنهي التتبع', () {
       final monitor = PerformanceMonitor.instance;
-      final before = (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int;
+      final before =
+          (monitor.exportReport()['traces']
+                  as Map<String, dynamic>)['completed']
+              as int;
 
       final result = monitor.measureSync('unit-measure-sync', () => 'ناتج');
 
       expect(result, 'ناتج');
       expect(
-        (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed'] as int,
+        (monitor.exportReport()['traces'] as Map<String, dynamic>)['completed']
+            as int,
         before + 1,
       );
     });

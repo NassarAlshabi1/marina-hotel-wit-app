@@ -95,8 +95,8 @@ class ForecastEngine {
       // ليالي الإشغال داخل نافذة النموذج
       for (var d = 0; d < 7 * weeksCount; d++) {
         final day = start.add(Duration(days: d));
-        final occupies = !day.isBefore(dayStart(checkin)) &&
-            dayStart(checkout).isAfter(day);
+        final occupies =
+            !day.isBefore(dayStart(checkin)) && dayStart(checkout).isAfter(day);
         if (occupies) bookedNightsByDay[d]++;
       }
 
@@ -127,8 +127,8 @@ class ForecastEngine {
     if (availableRooms > 0 && profile.historicalAdr > 0) {
       final expectedSoldPerDay = availableRooms * profile.historicalOccupancy;
       for (var d = 0; d < 7 * weeksCount; d++) {
-        final incrementalNights =
-            (expectedSoldPerDay - bookedNightsByDay[d]).clamp(0.0, availableRooms.toDouble());
+        final incrementalNights = (expectedSoldPerDay - bookedNightsByDay[d])
+            .clamp(0.0, availableRooms.toDouble());
         if (incrementalNights <= 0) continue;
         final dayRevenue = incrementalNights * profile.historicalAdr;
         final day = start.add(Duration(days: d));
@@ -238,8 +238,9 @@ class ForecastEngine {
 
     // فئات المصروفات من التاريخ الحديث (بعد استبعاد مصروفات الرواتب
     // لتجنب الاحتساب المزدوج مع رواتب الموظفين)
-    final historyStart =
-        dayStart(forecastStart).subtract(Duration(days: lookbackDays));
+    final historyStart = dayStart(
+      forecastStart,
+    ).subtract(Duration(days: lookbackDays));
     var diesel = 0.0, utilities = 0.0, maintenance = 0.0, other = 0.0;
 
     for (final e in expenses) {
@@ -251,7 +252,9 @@ class ForecastEngine {
       final t = e.expenseType.trim();
       if (t.contains('ديزل')) {
         diesel += e.amount;
-      } else if (t.contains('كهرباء') || t.contains('مياه') || t.contains('فاتورة')) {
+      } else if (t.contains('كهرباء') ||
+          t.contains('مياه') ||
+          t.contains('فاتورة')) {
         utilities += e.amount;
       } else if (t.contains('صيانة')) {
         maintenance += e.amount;

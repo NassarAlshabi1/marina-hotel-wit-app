@@ -50,9 +50,7 @@ class DbEncryptionKey {
     // توليد مفتاح عشوائي 32 بايت (256-bit) بصيغة hex
     final random = Random.secure();
     final bytes = List<int>.generate(32, (_) => random.nextInt(256));
-    final hexKey = bytes
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final hexKey = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
     await _secure.write(key: _keyStoreKey, value: hexKey);
     return hexKey;

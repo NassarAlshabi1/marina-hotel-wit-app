@@ -42,8 +42,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 // ═══════════════════════════════════════════════════════════════
 
 class _WorkerSim extends http.BaseClient {
-
   _WorkerSim({this.poisonLocalUuids = const {}, this.failHttpWith});
+
   /// uuids تُرفض دائماً برفض دائم (validation_error) — عقد fix M4.
   final Set<String> poisonLocalUuids;
 
@@ -62,7 +62,8 @@ class _WorkerSim extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    if (request.method == 'POST' && request.url.path.endsWith('/api/sync/push')) {
+    if (request.method == 'POST' &&
+        request.url.path.endsWith('/api/sync/push')) {
       final r = await _handlePush(request as http.Request);
       return http.StreamedResponse(
         Stream.value(r.bodyBytes),
@@ -80,17 +81,29 @@ class _WorkerSim extends http.BaseClient {
   Future<http.Response> _handlePush(http.Request request) async {
     pushRequestCount++;
     if (failHttpWith != null) {
-      return http.Response(jsonEncode({'error': 'simulated outage'}), failHttpWith!,
-          headers: {'content-type': 'application/json'});
+      return http.Response(
+        jsonEncode({'error': 'simulated outage'}),
+        failHttpWith!,
+        headers: {'content-type': 'application/json'},
+      );
     }
     // نفس عقد الحجم الخادمي: readBodyTextWithLimit + MAX_BATCH_SIZE=100
     final raw = request.bodyBytes;
     final isGzip = raw.length >= 2 && raw[0] == 0x1f && raw[1] == 0x8b;
-    expect(isGzip, isTrue, reason: 'العميل يجب أن يرسل gzip (Content-Encoding)');
-    final body = jsonDecode(utf8.decode(gzip.decode(raw))) as Map<String, dynamic>;
-    final operations = (body['operations'] as List).cast<Map<String, dynamic>>();
-    expect(operations.length, lessThanOrEqualTo(100),
-        reason: 'سقف الخادم MAX_BATCH_SIZE=100 — أي دفعة أكبر تُرفض 400');
+    expect(
+      isGzip,
+      isTrue,
+      reason: 'العميل يجب أن يرسل gzip (Content-Encoding)',
+    );
+    final body =
+        jsonDecode(utf8.decode(gzip.decode(raw))) as Map<String, dynamic>;
+    final operations = (body['operations'] as List)
+        .cast<Map<String, dynamic>>();
+    expect(
+      operations.length,
+      lessThanOrEqualTo(100),
+      reason: 'سقف الخادم MAX_BATCH_SIZE=100 — أي دفعة أكبر تُرفض 400',
+    );
     pushBatchSizes.add(operations.length);
 
     final results = <Map<String, dynamic>>[];
@@ -119,8 +132,11 @@ class _WorkerSim extends http.BaseClient {
       delivered.putIfAbsent(entity, () => {}).add(localUuid);
       results.add({'idempotencyKey': idem, 'success': true});
     }
-    return http.Response(jsonEncode({'results': results}), 200,
-        headers: {'content-type': 'application/json'});
+    return http.Response(
+      jsonEncode({'results': results}),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
   }
 }
 
@@ -166,7 +182,11 @@ void main() {
       final isPoison = poisonIndexes.contains(i);
       await roomsDao.insertOne(
         RoomsCompanion(
-          roomNumber: d.Value(isPoison ? '9${i.toString().padLeft(3, '0')}' : '7${i.toString().padLeft(3, '0')}'),
+          roomNumber: d.Value(
+            isPoison
+                ? '9${i.toString().padLeft(3, '0')}'
+                : '7${i.toString().padLeft(3, '0')}',
+          ),
           type: const d.Value('standard'),
           price: d.Value(100.0 + i),
           status: const d.Value('شاغرة'),
@@ -198,70 +218,109 @@ void main() {
       final manager = await makeManager(worker);
 
       // عدّاد الزر نفسه (dashboard_sync_button._loadPendingChangesCount)
-      expect(await undeliveredCount(), 500,
-          reason: 'الزر يجب أن يرى السجلات الخمسمئة قبل الرفع');
+      expect(
+        await undeliveredCount(),
+        500,
+        reason: 'الزر يجب أن يرى السجلات الخمسمئة قبل الرفع',
+      );
 
       // ✅ نفس الاستدعاء الحرفي للزر: dashboard_sync_button.dart:612
       final pushed = await manager.pushLocalChanges();
 
       expect(pushed, 500, reason: 'يجب أن يُرفع كل السجلات بضغطة واحدة');
-      expect(worker.pushBatchSizes.length, 5,
-          reason: '500 ÷ سقف 100 = 5 طلبات HTTP بالضبط');
+      expect(
+        worker.pushBatchSizes.length,
+        5,
+        reason: '500 ÷ سقف 100 = 5 طلبات HTTP بالضبط',
+      );
       for (final size in worker.pushBatchSizes) {
         expect(size, lessThanOrEqualTo(100));
       }
       expect(worker.pushBatchSizes.reduce((a, b) => a + b), 500);
-      expect(await undeliveredCount(), 0, reason: 'الـ outbox يجب أن يفرغ تماماً');
-      expect(worker.delivered['rooms']!.length, 500,
-          reason: 'الخادم استلم 500 صف فريداً — لا فقد ولا تكرار');
+      expect(
+        await undeliveredCount(),
+        0,
+        reason: 'الـ outbox يجب أن يفرغ تماماً',
+      );
+      expect(
+        worker.delivered['rooms']!.length,
+        500,
+        reason: 'الخادم استلم 500 صف فريداً — لا فقد ولا تكرار',
+      );
       final statusCounts = await outboxStatusCounts();
       expect(statusCounts['pending'] ?? 0, 0);
       expect(statusCounts['failed'] ?? 0, 0);
       expect(statusCounts['dead'] ?? 0, 0);
     });
 
-    test('B: 497 سليمة + 3 سموم خادمية — التسليم 497 والسموم dead بلا تعطيل',
-        () async {
-      await seedRooms(500, poisonIndexes: {10, 250, 490});
-      final worker = _WorkerSim(
-        poisonLocalUuids: {'poison-room-10', 'poison-room-250', 'poison-room-490'},
-      );
-      final manager = await makeManager(worker);
+    test(
+      'B: 497 سليمة + 3 سموم خادمية — التسليم 497 والسموم dead بلا تعطيل',
+      () async {
+        await seedRooms(500, poisonIndexes: {10, 250, 490});
+        final worker = _WorkerSim(
+          poisonLocalUuids: {
+            'poison-room-10',
+            'poison-room-250',
+            'poison-room-490',
+          },
+        );
+        final manager = await makeManager(worker);
 
-      final pushed = await manager.pushLocalChanges();
+        final pushed = await manager.pushLocalChanges();
 
-      expect(pushed, 497,
-          reason: 'الرفض الدائم لثلاث عمليات لا يمنع تسليم البقية');
-      expect(worker.pushBatchSizes.length, 5,
-          reason: 'الحلقة تُكمل تفريغ السليم رغم الرفض الدائم (عزل per-op)');
-      expect(worker.delivered['rooms']!.length, 497);
-      final statusCounts = await outboxStatusCounts();
-      expect(statusCounts['dead'], 3,
-          reason: 'السموم تبلغ dead-letter فوراً (عقد M4) — بلا إعادة دفع أبدية');
-      expect(statusCounts['pending'] ?? 0, 0);
-      expect(statusCounts['failed'] ?? 0, 0);
-    });
+        expect(
+          pushed,
+          497,
+          reason: 'الرفض الدائم لثلاث عمليات لا يمنع تسليم البقية',
+        );
+        expect(
+          worker.pushBatchSizes.length,
+          5,
+          reason: 'الحلقة تُكمل تفريغ السليم رغم الرفض الدائم (عزل per-op)',
+        );
+        expect(worker.delivered['rooms']!.length, 497);
+        final statusCounts = await outboxStatusCounts();
+        expect(
+          statusCounts['dead'],
+          3,
+          reason:
+              'السموم تبلغ dead-letter فوراً (عقد M4) — بلا إعادة دفع أبدية',
+        );
+        expect(statusCounts['pending'] ?? 0, 0);
+        expect(statusCounts['failed'] ?? 0, 0);
+      },
+    );
 
-    test('C: انقطاع خادمي (503) — الزر يرمي، السجلات تبقى pending بلا فقد',
-        () async {
-      await seedRooms(500);
-      final worker = _WorkerSim(failHttpWith: 503);
-      final manager = await makeManager(worker);
+    test(
+      'C: انقطاع خادمي (503) — الزر يرمي، السجلات تبقى pending بلا فقد',
+      () async {
+        await seedRooms(500);
+        final worker = _WorkerSim(failHttpWith: 503);
+        final manager = await makeManager(worker);
 
-      await expectLater(
-        manager.pushLocalChanges(),
-        throwsA(isA<StateError>()),
-        reason: 'العقد الصادق: فشل خادمي → استثناء (زر أحمر + زر إعادة)، '
-            'ليس snackbar أخضر زائفاً',
-      );
+        await expectLater(
+          manager.pushLocalChanges(),
+          throwsA(isA<StateError>()),
+          reason:
+              'العقد الصادق: فشل خادمي → استثناء (زر أحمر + زر إعادة)، '
+              'ليس snackbar أخضر زائفاً',
+        );
 
-      expect(await undeliveredCount(), 500,
-          reason: 'لا فقد: السجلات تبقى pending قابلة لإعادة الرفع');
-      expect(worker.pushRequestCount, 1,
-          reason: 'أول فشل يوقف الدورة فوراً — لا صرف بقية الطلبات على خادم ميت');
-      expect(worker.delivered, isEmpty);
-      final statusCounts = await outboxStatusCounts();
-      expect(statusCounts['pending'], 500);
-    });
+        expect(
+          await undeliveredCount(),
+          500,
+          reason: 'لا فقد: السجلات تبقى pending قابلة لإعادة الرفع',
+        );
+        expect(
+          worker.pushRequestCount,
+          1,
+          reason:
+              'أول فشل يوقف الدورة فوراً — لا صرف بقية الطلبات على خادم ميت',
+        );
+        expect(worker.delivered, isEmpty);
+        final statusCounts = await outboxStatusCounts();
+        expect(statusCounts['pending'], 500);
+      },
+    );
   });
 }

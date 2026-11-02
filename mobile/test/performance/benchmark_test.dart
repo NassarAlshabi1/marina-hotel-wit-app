@@ -197,9 +197,13 @@ void main() {
               as List<dynamic>;
       expect(slowest, isNotEmpty);
 
-      final paymentTrace = slowest.firstWhere(
-        (t) => (t as Map<String, dynamic>)['name'] == 'payment_aggregation',
-      ) as Map<String, dynamic>;
+      final paymentTrace =
+          slowest.firstWhere(
+                (t) =>
+                    (t as Map<String, dynamic>)['name'] ==
+                    'payment_aggregation',
+              )
+              as Map<String, dynamic>;
       final elapsed = paymentTrace['elapsedMs'] as int;
       debugPrint('✓ Payment aggregation time: ${elapsed}ms');
       expect(elapsed, lessThan(500));

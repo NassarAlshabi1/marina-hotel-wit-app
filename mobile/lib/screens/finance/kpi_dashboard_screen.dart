@@ -87,13 +87,13 @@ class _Legend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget dot(Color c, String t) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(radius: 4.5, backgroundColor: c),
-            const SizedBox(width: 4),
-            Text(t, style: const TextStyle(fontSize: 10.5)),
-          ],
-        );
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(radius: 4.5, backgroundColor: c),
+        const SizedBox(width: 4),
+        Text(t, style: const TextStyle(fontSize: 10.5)),
+      ],
+    );
 
     return Card(
       child: Padding(
@@ -141,11 +141,19 @@ class _HeaderRow extends StatelessWidget {
           Expanded(flex: 5, child: Text('المؤشر', style: style)),
           Expanded(
             flex: 3,
-            child: Text('الأسبوع الحالي', style: style, textAlign: TextAlign.center),
+            child: Text(
+              'الأسبوع الحالي',
+              style: style,
+              textAlign: TextAlign.center,
+            ),
           ),
           Expanded(
             flex: 3,
-            child: Text('السابق / الهدف', style: style, textAlign: TextAlign.center),
+            child: Text(
+              'السابق / الهدف',
+              style: style,
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -303,20 +311,23 @@ class _VarianceSectionState extends ConsumerState<_VarianceSection> {
       final service = ref.read(cloudflareFinanceServiceProvider);
       await service
           .approveSnapshot(
-              label: 'نسخة ${DateTime.now().toIso8601String().substring(0, 10)}')
+            label: 'نسخة ${DateTime.now().toIso8601String().substring(0, 10)}',
+          )
           .timeout(const Duration(seconds: 40));
       ref.invalidate(financeSnapshotsProvider);
       messenger.showSnackBar(
         const SnackBar(content: Text('تم اعتماد نسخة الأسبوع بنجاح')),
       );
     } on CloudflareFinanceException catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          e.isForbidden
-              ? 'اعتماد النسخة يتطلب صلاحية مدير'
-              : 'فشل الاعتماد: ${e.message}',
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            e.isForbidden
+                ? 'اعتماد النسخة يتطلب صلاحية مدير'
+                : 'فشل الاعتماد: ${e.message}',
+          ),
         ),
-      ));
+      );
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('تعذر الاتصال بالخادم: $e')),
@@ -359,8 +370,10 @@ class _VarianceSectionState extends ConsumerState<_VarianceSection> {
                           child: CircularProgressIndicator(strokeWidth: 1.6),
                         )
                       : const Icon(Icons.verified_outlined, size: 15),
-                  label: const Text('اعتماد نسخة الأسبوع',
-                      style: TextStyle(fontSize: 11.5)),
+                  label: const Text(
+                    'اعتماد نسخة الأسبوع',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
                 ),
               ],
             ),
@@ -386,15 +399,16 @@ class _VarianceSectionState extends ConsumerState<_VarianceSection> {
                       child: Text(
                         'اللقطات الأسبوعية تتطلب اتصالاً بالخادم وصلاحية '
                         'مدير أو أعلى.',
-                        style:
-                            TextStyle(fontSize: 10.5, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ),
                     IconButton(
                       tooltip: 'إعادة المحاولة',
                       visualDensity: VisualDensity.compact,
-                      onPressed: () =>
-                          ref.invalidate(financeSnapshotsProvider),
+                      onPressed: () => ref.invalidate(financeSnapshotsProvider),
                       icon: const Icon(Icons.refresh, size: 17),
                     ),
                   ],
@@ -473,8 +487,7 @@ class _SnapshotTile extends ConsumerWidget {
             ),
           ),
           data: (report) {
-            final ended =
-                report.weeks.where((w) => w.actual != null).toList();
+            final ended = report.weeks.where((w) => w.actual != null).toList();
             if (ended.isEmpty) {
               return Padding(
                 padding: const EdgeInsets.all(6),
@@ -491,18 +504,26 @@ class _SnapshotTile extends ConsumerWidget {
                   Container(
                     margin: const EdgeInsets.only(bottom: 4),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 6),
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor(w.status).withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(6),
                       border: Border(
-                        left: BorderSide(color: statusColor(w.status), width: 3),
+                        left: BorderSide(
+                          color: statusColor(w.status),
+                          width: 3,
+                        ),
                       ),
                     ),
                     child: Row(
                       children: [
-                        Icon(_statusIconFor(w.status),
-                            size: 14, color: statusColor(w.status)),
+                        Icon(
+                          _statusIconFor(w.status),
+                          size: 14,
+                          color: statusColor(w.status),
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           flex: 4,
@@ -512,8 +533,9 @@ class _SnapshotTile extends ConsumerWidget {
                               Text(
                                 'الأسبوع ${w.index}  (${w.start} ← ${w.end})',
                                 style: const TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w600),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
@@ -523,7 +545,9 @@ class _SnapshotTile extends ConsumerWidget {
                                 '${CurrencyFormatter.formatAmount(w.actual!.inflow)}'
                                 '${w.varianceNetPct == null ? '' : '  |  صافي الانحراف ${w.varianceNetPct!.toStringAsFixed(1)}%'}',
                                 style: TextStyle(
-                                    fontSize: 10, color: Colors.grey[700]),
+                                  fontSize: 10,
+                                  color: Colors.grey[700],
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
@@ -531,7 +555,9 @@ class _SnapshotTile extends ConsumerWidget {
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor(w.status),
                             borderRadius: BorderRadius.circular(10),

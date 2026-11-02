@@ -243,7 +243,9 @@ void main() {
               cycleId: cycB,
               paymentDateIso: '2026-09-10',
               localUuid: 'pay-b',
-              employeeUuid: const d.Value('bbbb1111-2222-3333-4444-555566667777'),
+              employeeUuid: const d.Value(
+                'bbbb1111-2222-3333-4444-555566667777',
+              ),
               createdAt: now,
               updatedAt: now,
               lastModified: now,

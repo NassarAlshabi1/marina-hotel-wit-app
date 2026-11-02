@@ -25,7 +25,10 @@
 
 import 'cloudflare_d1_identity_validator.dart';
 import 'cloudflare_d1_service.dart'
-    show CloudflareD1SourceTable, CloudflareD1Progress, CloudflareD1UploadResult;
+    show
+        CloudflareD1SourceTable,
+        CloudflareD1Progress,
+        CloudflareD1UploadResult;
 import 'cloudflare_sync_manager.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';

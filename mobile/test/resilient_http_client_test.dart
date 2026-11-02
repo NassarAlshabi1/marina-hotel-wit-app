@@ -239,7 +239,10 @@ void main() {
           )
           .toList();
       expect(gateway.length, equals(1));
-      expect(gateway.first['hostname'], equals('nassaralshabi.cloudflare-gateway.com'));
+      expect(
+        gateway.first['hostname'],
+        equals('nassaralshabi.cloudflare-gateway.com'),
+      );
       expect(gateway.first['path'], equals('/dns-query'));
       expect(
         gateway.first['ips'],
@@ -247,21 +250,24 @@ void main() {
       );
     });
 
-    test('every provider is fully specified (hardcoded IPs, JSON API path)', () {
-      for (final e in ResilientHttpClient.describeDohEndpointsForTests()) {
-        expect((e['hostname']! as String).isNotEmpty, isTrue);
-        expect(
-          e['path']! as String,
-          anyOf(equals('/dns-query'), equals('/resolve')),
-          reason: '${e['hostname']} path غير متوقع',
-        );
-        expect(
-          (e['ips']! as List<String>).where((ip) => ip.isNotEmpty),
-          isNotEmpty,
-          reason: '${e['hostname']} بلا عناوين مثبتة',
-        );
-      }
-    });
+    test(
+      'every provider is fully specified (hardcoded IPs, JSON API path)',
+      () {
+        for (final e in ResilientHttpClient.describeDohEndpointsForTests()) {
+          expect((e['hostname']! as String).isNotEmpty, isTrue);
+          expect(
+            e['path']! as String,
+            anyOf(equals('/dns-query'), equals('/resolve')),
+            reason: '${e['hostname']} path غير متوقع',
+          );
+          expect(
+            (e['ips']! as List<String>).where((ip) => ip.isNotEmpty),
+            isNotEmpty,
+            reason: '${e['hostname']} بلا عناوين مثبتة',
+          );
+        }
+      },
+    );
 
     test('google resolver keeps its dedicated /resolve JSON path', () {
       final roster = ResilientHttpClient.describeDohEndpointsForTests();

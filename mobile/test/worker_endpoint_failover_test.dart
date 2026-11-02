@@ -187,30 +187,33 @@ void main() {
     const relayHost = 'marina-hotel-api-relay.pages.dev';
     const relayUrl = 'https://$relayHost';
 
-    test('بدون نطاق مخصص: الجسر أول مرشح وفعّال فوراً (تركيبة يمنية جديدة)', () async {
-      WorkerEndpoints.setRelayForTests(relayUrl);
-      await WorkerEndpoints.load();
-      expect(WorkerEndpoints.active, relayUrl);
-      expect(WorkerEndpoints.hasRelay, isTrue);
+    test(
+      'بدون نطاق مخصص: الجسر أول مرشح وفعّال فوراً (تركيبة يمنية جديدة)',
+      () async {
+        WorkerEndpoints.setRelayForTests(relayUrl);
+        await WorkerEndpoints.load();
+        expect(WorkerEndpoints.active, relayUrl);
+        expect(WorkerEndpoints.hasRelay, isTrue);
 
-      // طلب بُني على المدمج المحجوب → الجسر يليه فوراً.
-      final fromBuiltin = WorkerEndpoints.candidatesFor(
-        Uri.parse('https://$builtinHost/x'),
-      );
-      expect(fromBuiltin.map((u) => u.host).toList(), <String>[
-        builtinHost,
-        relayHost,
-      ]);
+        // طلب بُني على المدمج المحجوب → الجسر يليه فوراً.
+        final fromBuiltin = WorkerEndpoints.candidatesFor(
+          Uri.parse('https://$builtinHost/x'),
+        );
+        expect(fromBuiltin.map((u) => u.host).toList(), <String>[
+          builtinHost,
+          relayHost,
+        ]);
 
-      // طلب بُني على الجسر → الجسر أولاً ثم المدمج.
-      final fromRelay = WorkerEndpoints.candidatesFor(
-        Uri.parse('$relayUrl/x'),
-      );
-      expect(fromRelay.map((u) => u.host).toList(), <String>[
-        relayHost,
-        builtinHost,
-      ]);
-    });
+        // طلب بُني على الجسر → الجسر أولاً ثم المدمج.
+        final fromRelay = WorkerEndpoints.candidatesFor(
+          Uri.parse('$relayUrl/x'),
+        );
+        expect(fromRelay.map((u) => u.host).toList(), <String>[
+          relayHost,
+          builtinHost,
+        ]);
+      },
+    );
 
     test('سلسلة الفشل تلتف: الجسر → المدمج → (التفاف) الجسر', () async {
       WorkerEndpoints.setRelayForTests(relayUrl);

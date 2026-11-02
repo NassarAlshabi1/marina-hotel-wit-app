@@ -195,109 +195,114 @@ void main() {
   //  Group 1: Backup JSON schema + checksum
   // ═════════════════════════════════════════════════════════════════════════
   group('Backup JSON schema + checksum', () {
-    test('backup map preserves guest entry dates and detects tampering', () async {
-      final legacyGuestId = await db
-          .into(db.guestInfos)
-          .insert(
-            GuestInfosCompanion.insert(
-              localUuid: 'backup-legacy-guest',
-              createdAt: 1,
-              updatedAt: 1,
-              lastModified: 1,
-              roomNumber: '101',
-              guestName: 'سجل قديم',
-              nationality: 'يمني',
-              idNumber: 'old-id',
-            ),
-          );
-      final newGuestId = await db
-          .into(db.guestInfos)
-          .insert(
-            GuestInfosCompanion.insert(
-              localUuid: 'backup-current-guest',
-              createdAt: 2,
-              updatedAt: 2,
-              lastModified: 2,
-              roomNumber: '102',
-              guestName: 'سجل جديد',
-              nationality: 'يمني',
-              idNumber: 'new-id',
-              entryDate: const d.Value('2026-10-21'),
-            ),
-          );
-      final guestInfosData = await db.select(db.guestInfos).get();
-      final metadata = BackupMetadata(
-        appVersion: '1.2.0+3',
-        databaseVersion: db.schemaVersion,
-        backupTimestamp: DateTime(2026, 8, 28),
-        totalRecords: 2,
-        deviceInfo: 'Test Device',
-      ).toJson();
-      final backupData = buildBackupDataMap(
-        metadata: metadata,
-        roomsData: const [],
-        bookingsData: const [],
-        bookingNotesData: const [],
-        bookingNightsData: const [],
-        ledgerData: const [],
-        shiftNotesData: const [],
-        employeesData: const [],
-        expensesData: const [],
-        cashTransactionsData: const [],
-        paymentsData: const [],
-        debtsData: const [],
-        salaryCyclesData: const [],
-        salaryPaymentsData: const [],
-        priceAdjustmentsData: const [],
-        bookingPriceAdjData: const [],
-        auditLogsData: const [],
-        paymentVoidsData: const [],
-        guestInfosData: guestInfosData,
-        salaryWithdrawalsData: const [],
-        salaryCarryOverLogsData: const [],
-        inventoryItemsData: const [],
-        inventoryTransactionsData: const [],
-      );
-      expect(backupData, containsPair('inventory_items', isEmpty));
-      expect(backupData, containsPair('inventory_transactions', isEmpty));
-      final guestRows = (backupData['guest_infos'] as List<dynamic>)
-          .cast<Map<String, dynamic>>();
-      final legacyBackupRow = guestRows.singleWhere(
-        (row) => row['id'] == legacyGuestId,
-      );
-      final newBackupRow = guestRows.singleWhere(
-        (row) => row['id'] == newGuestId,
-      );
-      expect(legacyBackupRow['entryDate'], isNull);
-      expect(newBackupRow['entryDate'], '2026-10-21');
-
-      await db.delete(db.guestInfos).go();
-      for (final row in guestRows) {
-        await db
+    test(
+      'backup map preserves guest entry dates and detects tampering',
+      () async {
+        final legacyGuestId = await db
             .into(db.guestInfos)
-            .insertOnConflictUpdate(
-              GuestInfo.fromJson(row, serializer: lenientValueSerializer),
+            .insert(
+              GuestInfosCompanion.insert(
+                localUuid: 'backup-legacy-guest',
+                createdAt: 1,
+                updatedAt: 1,
+                lastModified: 1,
+                roomNumber: '101',
+                guestName: 'سجل قديم',
+                nationality: 'يمني',
+                idNumber: 'old-id',
+              ),
             );
-      }
-      final restoredGuests = await db.select(db.guestInfos).get();
-      expect(
-        restoredGuests.singleWhere((guest) => guest.id == legacyGuestId)
-            .entryDate,
-        isNull,
-      );
-      expect(
-        restoredGuests.singleWhere((guest) => guest.id == newGuestId)
-            .entryDate,
-        '2026-10-21',
-      );
+        final newGuestId = await db
+            .into(db.guestInfos)
+            .insert(
+              GuestInfosCompanion.insert(
+                localUuid: 'backup-current-guest',
+                createdAt: 2,
+                updatedAt: 2,
+                lastModified: 2,
+                roomNumber: '102',
+                guestName: 'سجل جديد',
+                nationality: 'يمني',
+                idNumber: 'new-id',
+                entryDate: const d.Value('2026-10-21'),
+              ),
+            );
+        final guestInfosData = await db.select(db.guestInfos).get();
+        final metadata = BackupMetadata(
+          appVersion: '1.2.0+3',
+          databaseVersion: db.schemaVersion,
+          backupTimestamp: DateTime(2026, 8, 28),
+          totalRecords: 2,
+          deviceInfo: 'Test Device',
+        ).toJson();
+        final backupData = buildBackupDataMap(
+          metadata: metadata,
+          roomsData: const [],
+          bookingsData: const [],
+          bookingNotesData: const [],
+          bookingNightsData: const [],
+          ledgerData: const [],
+          shiftNotesData: const [],
+          employeesData: const [],
+          expensesData: const [],
+          cashTransactionsData: const [],
+          paymentsData: const [],
+          debtsData: const [],
+          salaryCyclesData: const [],
+          salaryPaymentsData: const [],
+          priceAdjustmentsData: const [],
+          bookingPriceAdjData: const [],
+          auditLogsData: const [],
+          paymentVoidsData: const [],
+          guestInfosData: guestInfosData,
+          salaryWithdrawalsData: const [],
+          salaryCarryOverLogsData: const [],
+          inventoryItemsData: const [],
+          inventoryTransactionsData: const [],
+        );
+        expect(backupData, containsPair('inventory_items', isEmpty));
+        expect(backupData, containsPair('inventory_transactions', isEmpty));
+        final guestRows = (backupData['guest_infos'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final legacyBackupRow = guestRows.singleWhere(
+          (row) => row['id'] == legacyGuestId,
+        );
+        final newBackupRow = guestRows.singleWhere(
+          (row) => row['id'] == newGuestId,
+        );
+        expect(legacyBackupRow['entryDate'], isNull);
+        expect(newBackupRow['entryDate'], '2026-10-21');
 
-      final hash = BackupDataService.computeBackupChecksum(backupData);
-      (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
-      expect(BackupDataService.verifyBackupChecksum(backupData), isTrue);
+        await db.delete(db.guestInfos).go();
+        for (final row in guestRows) {
+          await db
+              .into(db.guestInfos)
+              .insertOnConflictUpdate(
+                GuestInfo.fromJson(row, serializer: lenientValueSerializer),
+              );
+        }
+        final restoredGuests = await db.select(db.guestInfos).get();
+        expect(
+          restoredGuests
+              .singleWhere((guest) => guest.id == legacyGuestId)
+              .entryDate,
+          isNull,
+        );
+        expect(
+          restoredGuests
+              .singleWhere((guest) => guest.id == newGuestId)
+              .entryDate,
+          '2026-10-21',
+        );
 
-      (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
-      expect(BackupDataService.verifyBackupChecksum(backupData), isFalse);
-    });
+        final hash = BackupDataService.computeBackupChecksum(backupData);
+        (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
+        expect(BackupDataService.verifyBackupChecksum(backupData), isTrue);
+
+        (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
+        expect(BackupDataService.verifyBackupChecksum(backupData), isFalse);
+      },
+    );
   });
 
   // ═════════════════════════════════════════════════════════════════════════

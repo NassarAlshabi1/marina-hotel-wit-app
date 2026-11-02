@@ -215,7 +215,8 @@ void main() {
           expenseType: 'خصم من الراتب',
         );
         // إنشاء سحب بـ reason فقط (محاكاة pre-migration 40)
-        await db.into(db.salaryWithdrawals)
+        await db
+            .into(db.salaryWithdrawals)
             .insert(
               SalaryWithdrawalsCompanion(
                 employeeId: d.Value(empId),

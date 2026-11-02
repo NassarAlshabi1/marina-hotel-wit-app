@@ -135,7 +135,7 @@ Future<void> addCustomListItem(
   String listKey,
   String name,
 ) async {
-      final db = ref.watch(databaseProvider);
+  final db = ref.watch(databaseProvider);
   // فحص التكرار: هل يوجد عنصر بنفس الاسم في نفس القائمة؟
   final existing = await db
       .customSelect(

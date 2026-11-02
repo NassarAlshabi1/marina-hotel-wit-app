@@ -21,7 +21,9 @@ class MaintenanceService {
       final cloudflareManager = CloudflareSyncManager.instance;
       final orchestrator = UnifiedSyncOrchestrator.instance;
       if (orchestrator.isSyncing) {
-        throw StateError('توجد دورة Cloudflare قيد التنفيذ؛ أعد المحاولة لاحقاً');
+        throw StateError(
+          'توجد دورة Cloudflare قيد التنفيذ؛ أعد المحاولة لاحقاً',
+        );
       }
 
       await cloudflareManager.resetSyncState();
