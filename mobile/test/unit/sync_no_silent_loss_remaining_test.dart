@@ -124,66 +124,71 @@ void main() {
   });
 
   group('price_adjustments — فشل إعادة الحساب المشتق', () {
-    test('فشل إعادة حساب الحجوزات بعد تطبيق التعديل يمنع تقدّم المؤشر', () async {
-      await db.into(db.rooms).insert(
-        RoomsCompanion.insert(
-          localUuid: 'room-uuid-1',
-          roomNumber: '101',
-          type: 'single',
-          price: 100.0,
-          status: 'available',
-          createdAt: _kBaseEpochSec,
-          updatedAt: _kBaseEpochSec,
-          lastModified: _kBaseEpochSec,
-        ),
-      );
+    test(
+      'فشل إعادة حساب الحجوزات بعد تطبيق التعديل يمنع تقدّم المؤشر',
+      () async {
+        await db
+            .into(db.rooms)
+            .insert(
+              RoomsCompanion.insert(
+                localUuid: 'room-uuid-1',
+                roomNumber: '101',
+                type: 'single',
+                price: 100.0,
+                status: 'available',
+                createdAt: _kBaseEpochSec,
+                updatedAt: _kBaseEpochSec,
+                lastModified: _kBaseEpochSec,
+              ),
+            );
 
-      final manager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: db,
-      );
+        final manager = AppwriteSyncManager(
+          appwriteService: AppwriteService(),
+          database: db,
+        );
 
-      // newValue كنص رقمي: المحوّل يفكّه ويُخزّنه (150.0) فينجح الإدراج،
-      // لكن كتلة إعادة الحساب تقرأ القيمة الخام من بيانات المستند البعيدة
-      // وتُنفّذ `as num` ⇒ TypeError ⇒ مسار الفشل الجديد.
-      final doc = _doc(
-        collectionId: 'price_adjustments',
-        uuid: 'pa-uuid-1',
-        data: <String, dynamic>{
-          'targetType': 'room',
-          'targetUuid': 'room-uuid-1',
-          'adjustmentType': 'increase',
-          'previousValue': '100',
-          'newValue': '150',
-          'effectiveDate': '2026-11-01',
-          'appliedBy': 'device-A',
-        },
-      );
+        // newValue كنص رقمي: المحوّل يفكّه ويُخزّنه (150.0) فينجح الإدراج،
+        // لكن كتلة إعادة الحساب تقرأ القيمة الخام من بيانات المستند البعيدة
+        // وتُنفّذ `as num` ⇒ TypeError ⇒ مسار الفشل الجديد.
+        final doc = _doc(
+          collectionId: 'price_adjustments',
+          uuid: 'pa-uuid-1',
+          data: <String, dynamic>{
+            'targetType': 'room',
+            'targetUuid': 'room-uuid-1',
+            'adjustmentType': 'increase',
+            'previousValue': '100',
+            'newValue': '150',
+            'effectiveDate': '2026-11-01',
+            'appliedBy': 'device-A',
+          },
+        );
 
-      await expectLater(
-        manager.syncPriceAdjustmentsForTesting([doc]),
-        throwsA(isA<StateError>()),
-        reason:
-            'فشل إعادة الحساب يعني بقاء إجماليات الحجز مغلوطة محلياً — يجب '
-            'أن يُعاد السحب بدل تقدّم المؤشر فوقها',
-      );
+        await expectLater(
+          manager.syncPriceAdjustmentsForTesting([doc]),
+          throwsA(isA<StateError>()),
+          reason:
+              'فشل إعادة الحساب يعني بقاء إجماليات الحجز مغلوطة محلياً — يجب '
+              'أن يُعاد السحب بدل تقدّم المؤشر فوقها',
+        );
 
-      final rows = await db.select(db.priceAdjustments).get();
-      expect(
-        rows.length,
-        1,
-        reason: 'التعديل نفسه طُبِّق — الفشل من إعادة الحساب لا من الإدراج',
-      );
+        final rows = await db.select(db.priceAdjustments).get();
+        expect(
+          rows.length,
+          1,
+          reason: 'التعديل نفسه طُبِّق — الفشل من إعادة الحساب لا من الإدراج',
+        );
 
-      final room = await (db.select(
-        db.rooms,
-      )..where((r) => r.localUuid.equals('room-uuid-1'))).getSingle();
-      expect(
-        room.price,
-        100.0,
-        reason: 'لم يُحدَّث السعر: الرمي حدث قبل كتابة السعر الجديد',
-      );
-    });
+        final room = await (db.select(
+          db.rooms,
+        )..where((r) => r.localUuid.equals('room-uuid-1'))).getSingle();
+        expect(
+          room.price,
+          100.0,
+          reason: 'لم يُحدَّث السعر: الرمي حدث قبل كتابة السعر الجديد',
+        );
+      },
+    );
 
     test('تعديل بلا هدف غرفة لا يرمي (لا إيجابيات كاذبة)', () async {
       final manager = AppwriteSyncManager(
