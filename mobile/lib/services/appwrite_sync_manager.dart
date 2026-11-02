@@ -2178,6 +2178,9 @@ class AppwriteSyncManager {
           }
         : <String, Room>{};
 
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2213,7 +2216,20 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync room ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // rooms أب FK للحجوزات — غرفة فشل تطبيقها وتقدّم مؤشرها يعني أن
+    // حجوزاتها سترمي StateError كل دورة إلى الأبد بلا شفاء (الغرفة لن
+    // تُعاد أبداً). الفشل المرئي أفضل من الفقدان الصامت.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'rooms: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -2454,6 +2470,18 @@ class AppwriteSyncManager {
   Future<int> syncBookingsForTesting(List<models.Document> documents) =>
       _syncBookings(documents);
 
+  /// ✅ (2026-11-03) جسور اختبارية — نفس نمط [syncBookingsForTesting]:
+  /// الكود الإنتاجي نفسه بلا محاكاة، لاختبار عقد «فشل تطبيق المستند لا
+  /// يتخطاه المؤشر» المعمَّم على بقية الكيانات (انظر
+  /// silent_loss_checkpoint_regression_test.dart).
+  @visibleForTesting
+  Future<int> syncBookingNotesForTesting(List<models.Document> documents) =>
+      _syncBookingNotes(documents);
+
+  @visibleForTesting
+  Future<int> syncSalaryCyclesForTesting(List<models.Document> documents) =>
+      _syncSalaryCycles(documents);
+
   /// ✅ إعادة حساب حالة إشغال غرفة واحدة بناءً على الحجوزات النشطة
   /// يستخدم RoomsRepository لضمان تحديث version و lastModified
   Future<void> _refreshSingleRoomOccupancy(String roomNumber) async {
@@ -2496,6 +2524,8 @@ class AppwriteSyncManager {
   Future<int> _syncEmployees(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
 
     // ✅ تحسين أداء: batch lookup — جلب كل الموظفين المحليين مرة واحدة
     final uuids = documents
@@ -2562,7 +2592,19 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) موظف فشل تطبيقه لا يُتخطى: employees أب FK لكل
+    // كيانات الرواتب (cycles/payments/withdrawals) — ابتلاعه كان يتركها
+    // يتيمة نهائياً. الرمي يجعل failedCollections يظهر والمؤشر ينتظر.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'employees: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -2674,6 +2716,8 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <models.Document>[];
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
 
     // المرحلة الأولى: معالجة الدفعات
     for (final doc in documents) {
@@ -2762,6 +2806,7 @@ class AppwriteSyncManager {
           deferred.add(doc);
         } else {
           _logger.warning('Failed to sync payment ${doc.$id}: $e', tag: 'SYNC');
+          failed.add('${doc.$id}: $e');
         }
       }
     }
@@ -2795,8 +2840,19 @@ class AppwriteSyncManager {
             'Failed to sync deferred payment ${doc.$id} after retry: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // دفعة فشلت تطبيقاً (غير FK) لا يجوز تخطيها بالمؤشر — إهمال مالي صامت.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'payments: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     return processed;
@@ -2806,6 +2862,8 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <models.Document>[];
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
 
     // المرحلة الأولى: معالجة الديون
     for (final doc in documents) {
@@ -2867,6 +2925,7 @@ class AppwriteSyncManager {
           deferred.add(doc);
         } else {
           _logger.warning('Failed to sync debt ${doc.$id}: $e', tag: 'SYNC');
+          failed.add('${doc.$id}: $e');
         }
       }
     }
@@ -2900,8 +2959,19 @@ class AppwriteSyncManager {
             'Failed to sync deferred debt ${doc.$id} after retry: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // دين فشل تطبيقاً لا يجوز تخطيه بالمؤشر — إهمال مالي صامت.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'debts: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     return processed;
@@ -4148,6 +4218,9 @@ class AppwriteSyncManager {
   Future<int> _syncSalaryWithdrawals(List<models.Document> documents) async {
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
+    // ✅ (2026-11-03) درع فقدان صامت — يغطي ما عدا مسار طابور اليتامى
+    // الدائم (المسار المقصود للشفاء عبر الدورات ويبقى كما هو).
+    final failed = <String>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     // (بيانات قديمة بلا employeeUuid — تُشفى عبر
     // scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js)
@@ -4321,12 +4394,14 @@ class AppwriteSyncManager {
             'Failed to sync salary_withdrawal ${doc.$id}: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       } catch (e) {
         _logger.warning(
           'Failed to sync salary_withdrawal ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
     }
 
@@ -4350,6 +4425,15 @@ class AppwriteSyncManager {
         try {
           final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
               .upsertFromJson(data, src: Source.appwrite);
+          if (deferredInsertedId == -1) {
+            // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
+            // الـ adapter فشل؛ لا نجاحاً صامتاً (كان -1 يُمرَّر للأختام
+            // كمعرف صف ويُحسب processed++).
+            failed.add(
+              '${data['localUuid']}: unresolved employee parent (adapter skip)',
+            );
+            continue;
+          }
           // ✅ (migration 68) كتابة expense_id عبر حل uuid المرآة أولاً
           // (نفس منطق الموقع الرئيسي أعلاه — راجع التوثيق هناك).
           await _resolveAndWriteMirrorExpenseId(
@@ -4373,8 +4457,20 @@ class AppwriteSyncManager {
             '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف ${data['employeeId'] ?? data['employee_id']} غير موجود - $e',
             tag: 'SYNC',
           );
+          failed.add('${data['localUuid']}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // مسار طابور اليتامى الدائم (أعلاه) هو آلية الشفاء المقصودة ويبقى كما
+    // هو؛ هذا الرمي يغطي ما عداه فقط — فشل upsert/الأختام بعد التأجيل.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'salary_withdrawals: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     return processed;
@@ -8080,6 +8176,11 @@ class AppwriteSyncManager {
   ) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت (تعميم عقد bookings — 724610cf):
+    // المساران A (استثناء مبتلع) و B (‎-1 من shouldSkip يُتجاهل) يُزالان —
+    // تأجيل ثم رمي StateError عند بقاء أي فشل (itemId أب NOT NULL FK).
+    final deferred = <models.Document>[];
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8102,10 +8203,19 @@ class AppwriteSyncManager {
         )).shouldApplyRemote) {
           continue;
         }
-        await _adapterRegistry.inventoryTransactions.upsertFromJson(
+        final result = await _adapterRegistry.inventoryTransactions.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        if (result == -1) {
+          // ✅ المسار B: صنف المخزون الأب غير محلول — تأجيل لا نجاح.
+          _logger.debug(
+            'Deferring inventory transaction ${doc.$id}: unresolved item parent (adapter skip)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+          continue;
+        }
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'inventory_transactions',
           localUuid: localUuid,
@@ -8115,11 +8225,69 @@ class AppwriteSyncManager {
         );
         processed++;
       } catch (e) {
-        _logger.warning(
-          'Failed to sync inventory transaction ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
+          _logger.debug(
+            'Deferring inventory transaction ${doc.$id}: FK/NOT NULL constraint (missing item)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning(
+            'Failed to sync inventory transaction ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+          failed.add('${doc.$id}: $e');
+        }
       }
+    }
+
+    // ✅ المرحلة الثانية: إعادة محاولة المؤجلة بعد اكتمال الدفعة.
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred inventory transactions',
+        tag: 'SYNC',
+      );
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          final localUuid = data['localUuid']?.toString() ?? '';
+          final result =
+              await _adapterRegistry.inventoryTransactions.upsertFromJson(
+                data,
+                src: Source.appwrite,
+              );
+          if (result == -1) {
+            failed.add('${doc.$id}: unresolved item parent (adapter skip)');
+            continue;
+          }
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'inventory_transactions',
+            localUuid: localUuid,
+            remoteDeviceId: data['deviceId']?.toString() ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred inventory transaction ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+          failed.add('${doc.$id}: $e');
+        }
+      }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل».
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'inventory_transactions: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8186,6 +8354,15 @@ class AppwriteSyncManager {
   Future<int> _syncBookingNotes(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت (تعميم عقد bookings — 724610cf):
+    // مساران كانا يفقدان الملاحظة نهائياً:
+    //   A) استثناء تطبيق يُبتلع بتحذير → المؤشر يتقدم فوق الملاحظة.
+    //   B) BaseRepository.shouldSkip يُرجع -1 (حجز أب غير محلول) وكان
+    //      يُتجاهل تماماً → المؤشر يتقدم فوق الملاحظة أيضاً.
+    // الآن: كلا المسارين تأجيل، وبعد إعادة المحاولة أي فشل متبقٍ يرمي
+    // StateError كي لا يتقدم مؤشر booking_notes فوقه (يُشفى عند وصول الحجز).
+    final deferred = <models.Document>[];
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8212,10 +8389,19 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.bookingNotes.upsertFromJson(
+        final result = await _adapterRegistry.bookingNotes.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        if (result == -1) {
+          // ✅ (2026-11-03) المسار B: الحجز الأب غير محلول — تأجيل لا نجاح.
+          _logger.debug(
+            'Deferring booking note ${doc.$id}: unresolved booking parent (adapter skip)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'booking_notes',
@@ -8226,11 +8412,68 @@ class AppwriteSyncManager {
         );
         processed++;
       } catch (e) {
-        _logger.warning(
-          'Failed to sync booking note ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
+          _logger.debug(
+            'Deferring booking note ${doc.$id}: FK/NOT NULL constraint (missing booking)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning(
+            'Failed to sync booking note ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+          failed.add('${doc.$id}: $e');
+        }
       }
+    }
+
+    // ✅ المرحلة الثانية: إعادة محاولة المؤجلة بعد اكتمال الدفعة — قد يكون
+    // الحجز الأب وصل ضمن نفس الدفعة أو عبر دورة سابقة.
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred booking notes',
+        tag: 'SYNC',
+      );
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          final result = await _adapterRegistry.bookingNotes.upsertFromJson(
+            data,
+            src: Source.appwrite,
+          );
+          if (result == -1) {
+            failed.add('${doc.$id}: unresolved booking parent (adapter skip)');
+            continue;
+          }
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'booking_notes',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred booking note ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+          failed.add('${doc.$id}: $e');
+        }
+      }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل».
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'booking_notes: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8287,6 +8530,8 @@ class AppwriteSyncManager {
 
     final appliedNotifications = <RemoteRecordApplied>[];
     final deferred = <models.Document>[];
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي بعد المرحلة 6.
+    final failed = <String>[];
     var processed = 0;
     try {
       // ── المرحلة 3: تصنيف + بناء companions في الذاكرة ──────────────────
@@ -8391,12 +8636,13 @@ class AppwriteSyncManager {
               'Failed to sync booking night ${doc.$id}: $e',
               tag: 'SYNC',
             );
+            failed.add('${doc.$id}: $e');
           }
         }
       }
 
       // ── المرحلة 4: كتابة مجمّعة db.batch (ذرة واحدة لكل دفعة) ─────────
-      processed = await _applyNightBatchEntries(batchEntries);
+      processed = await _applyNightBatchEntries(batchEntries, failed);
     } finally {
       resolver.clearBookingIndex();
     }
@@ -8444,8 +8690,20 @@ class AppwriteSyncManager {
             'Failed to sync deferred booking night ${doc.$id} after retry: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf)
+    // لأعلى الكيانات حجماً: ليلة (أو صف fallback فاشل ضمن دفعة batch) يجب
+    // ألا يتخطاها مؤشر booking_nights — ثغرة P0 سابقة هنا بالضبط.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'booking_nights: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     await _refreshCompletedStaysForNights(uuids);
@@ -8520,7 +8778,10 @@ class AppwriteSyncManager {
 
   /// كتابة دفعات الليالي مجمّعة: `db.batch` ذرّي لكل 250 سجل، مع fallback
   /// فردي عند فشل دفعة (عزل الأخطاء — نفس نمط BaseRepository.batchUpsertFromJson).
-  Future<int> _applyNightBatchEntries(List<_NightUpsertEntry> entries) async {
+  Future<int> _applyNightBatchEntries(
+    List<_NightUpsertEntry> entries,
+    List<String> failed,
+  ) async {
     if (entries.isEmpty) return 0;
     var inserted = 0;
     const chunkSize = SyncConstants.bookingNightsApplyChunkSize;
@@ -8571,9 +8832,12 @@ class AppwriteSyncManager {
             inserted++;
           } catch (e2) {
             _logger.warning(
-              'Per-row fallback failed for a booking night: $e2',
+              'Per-row fallback failed for a booking night (uuid=${e.localUuid}): $e2',
               tag: 'SYNC',
             );
+            // ✅ (2026-11-03) لا ابتلاع: صف الـ fallback الفاشل يُسجَّل كي
+            // لا يتقدّم مؤشر المجموعة فوقه (نفس عقد bookings).
+            failed.add('${e.localUuid}: $e2');
           }
         }
       }
@@ -8637,6 +8901,9 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
+    // ✅ (2026-11-03) درع فقدان صامت — اليتيم هنا بلا طابور دائم (بعكس
+    // salary_withdrawals): يجب أن يُسجَّل فشلاً كي لا يتقدّم المؤشر فوقه.
+    final failed = <String>[];
     // ✅ تقليل السبام: جمع السجلات اليتيمة لتسجيلها بتحذير واحد بعد الحلقة
     final orphans = <String>[];
     // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
@@ -8704,6 +8971,12 @@ class AppwriteSyncManager {
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
           );
+          // ✅ (2026-11-03) يتيم الموظف فشل تطبيق لا نجاح — بدون هذا يبتلعه
+          // المؤشر نهائياً (لا طابور دائماً لهذا الكيان بعكس withdrawals).
+          failed.add(
+            '${doc.$id}: orphan — employee unresolved '
+            '(employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
+          );
           continue;
         }
 
@@ -8739,12 +9012,14 @@ class AppwriteSyncManager {
             'Failed to sync salary cycle ${doc.$id}: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       } catch (e) {
         _logger.warning(
           'Failed to sync salary cycle ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
     }
 
@@ -8766,10 +9041,16 @@ class AppwriteSyncManager {
       );
       for (final data in deferred) {
         try {
-          await _adapterRegistry.salaryCycles.upsertFromJson(
+          final result = await _adapterRegistry.salaryCycles.upsertFromJson(
             data,
             src: Source.appwrite,
           );
+          if (result == -1) {
+            // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
+            // الـ adapter فشل؛ لا نجاحاً صامتاً.
+            failed.add('${data['localUuid']}: unresolved employee parent (adapter skip)');
+            continue;
+          }
           // ✅ Wave 7: notify remote change from another device
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
             entity: 'salary_cycles',
@@ -8784,8 +9065,19 @@ class AppwriteSyncManager {
             '⏭️ فشل نهائي لـ salary_cycle (يتيم): $e',
             tag: 'SYNC',
           );
+          failed.add('${data['localUuid']}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // دورة راتب يتيمة/فاشلة تُعاد محاولتها عند وصول الموظف في دورة تالية.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'salary_cycles: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     return processed;
@@ -8795,6 +9087,8 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
 
     for (final doc in documents) {
       try {
@@ -8829,10 +9123,21 @@ class AppwriteSyncManager {
         // وإذا فشل يستخدم d.Value.absent() مما يسبب NOT NULL constraint
         // الذي يتم التقاطه في on SqliteException أدناه ويُؤجل السجل
 
-        await _adapterRegistry.salaryPayments.upsertFromJson(
+        final result = await _adapterRegistry.salaryPayments.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        if (result == -1) {
+          // ✅ (2026-11-03) المسار B: BaseRepository.shouldSkip — دورة الأب
+          // غير محلولة — تأجيل لا نجاحاً؛ كان -1 يُبتلع فيتقدم المؤشر فوق
+          // الدفعة نهائياً (لا طابور دائماً هنا بعكس withdrawals).
+          _logger.debug(
+            'Deferring salary payment ${doc.$id}: unresolved cycle parent (adapter skip)',
+            tag: 'SYNC',
+          );
+          deferred.add(data);
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'salary_payments',
@@ -8856,12 +9161,14 @@ class AppwriteSyncManager {
             'Failed to sync salary payment ${doc.$id}: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       } catch (e) {
         _logger.warning(
           'Failed to sync salary payment ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
     }
 
@@ -8873,10 +9180,14 @@ class AppwriteSyncManager {
       );
       for (final data in deferred) {
         try {
-          await _adapterRegistry.salaryPayments.upsertFromJson(
+          final result = await _adapterRegistry.salaryPayments.upsertFromJson(
             data,
             src: Source.appwrite,
           );
+          if (result == -1) {
+            failed.add('${data['localUuid']}: unresolved cycle parent (adapter skip)');
+            continue;
+          }
           // ✅ Wave 7: notify remote change from another device
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
             entity: 'salary_payments',
@@ -8891,8 +9202,18 @@ class AppwriteSyncManager {
             '⏭️ فشل نهائي لـ salary_payment (يتيم): $e',
             tag: 'SYNC',
           );
+          failed.add('${data['localUuid']}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'salary_payments: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     return processed;
@@ -8904,6 +9225,8 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <models.Document>[];
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
 
     // المرحلة الأولى: معالجة تعديلات الأسعار
     for (final doc in documents) {
@@ -8936,6 +9259,16 @@ class AppwriteSyncManager {
 
         final result = await _adapterRegistry.bookingPriceAdjustments
             .upsertFromJson(data, src: Source.appwrite);
+        if (result == -1) {
+          // ✅ (2026-11-03) BaseRepository.shouldSkip: الحجز الأب غير محلول —
+          // تأجيل لا نجاحاً؛ كان -1 يُبتلع فيتقدّم المؤشر فوق التعديل نهائياً.
+          _logger.debug(
+            'Deferring booking price adjustment ${doc.$id}: unresolved booking parent (adapter skip)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+          continue;
+        }
 
         // Refresh calculations for the affected booking
         if (result > 0) {
@@ -8976,6 +9309,7 @@ class AppwriteSyncManager {
             'Failed to sync booking price adjustment ${doc.$id}: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       }
     }
@@ -8995,6 +9329,10 @@ class AppwriteSyncManager {
 
           final result = await _adapterRegistry.bookingPriceAdjustments
               .upsertFromJson(data, src: Source.appwrite);
+          if (result == -1) {
+            failed.add('${doc.$id}: unresolved booking parent (adapter skip)');
+            continue;
+          }
 
           if (result > 0) {
             final adj = await (database.select(
@@ -9023,8 +9361,18 @@ class AppwriteSyncManager {
             'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
             tag: 'SYNC',
           );
+          failed.add('${doc.$id}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'booking_price_adjustments: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
 
     return processed;
@@ -9484,6 +9832,11 @@ class AppwriteSyncManager {
   Future<int> _syncSalaryCarryOverLogs(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت (تعميم عقد bookings — 724610cf):
+    // المساران A (استثناء مبتلع) و B (‎-1 من shouldSkip يُتجاهل) يُزالان —
+    // employeeId أب NOT NULL FK بلا طابور يتامى هنا.
+    final deferred = <models.Document>[];
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -9508,10 +9861,19 @@ class AppwriteSyncManager {
           continue;
         }
 
-        await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
+        final result = await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        if (result == -1) {
+          // ✅ المسار B: الموظف الأب غير محلول — تأجيل لا نجاح.
+          _logger.debug(
+            'Deferring salary carry over log ${doc.$id}: unresolved employee parent (adapter skip)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+          continue;
+        }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'salary_carry_over_logs',
@@ -9522,11 +9884,68 @@ class AppwriteSyncManager {
         );
         processed++;
       } catch (e) {
-        _logger.warning(
-          'Failed to sync salary carry over log ${doc.$id}: $e',
-          tag: 'SYNC',
-        );
+        final errStr = e.toString();
+        if (errStr.contains('FOREIGN KEY constraint failed') ||
+            errStr.contains('NOT NULL constraint failed')) {
+          _logger.debug(
+            'Deferring salary carry over log ${doc.$id}: FK/NOT NULL constraint (missing employee)',
+            tag: 'SYNC',
+          );
+          deferred.add(doc);
+        } else {
+          _logger.warning(
+            'Failed to sync salary carry over log ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+          failed.add('${doc.$id}: $e');
+        }
       }
+    }
+
+    // ✅ المرحلة الثانية: إعادة محاولة المؤجلة بعد اكتمال الدفعة.
+    if (deferred.isNotEmpty) {
+      _logger.info(
+        'Retrying ${deferred.length} deferred salary carry over logs',
+        tag: 'SYNC',
+      );
+      for (final doc in deferred) {
+        try {
+          final data = Map<String, dynamic>.from(doc.data);
+          data['localUuid'] ??= doc.$id;
+          final result =
+              await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
+                data,
+                src: Source.appwrite,
+              );
+          if (result == -1) {
+            failed.add('${doc.$id}: unresolved employee parent (adapter skip)');
+            continue;
+          }
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'salary_carry_over_logs',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
+        } catch (e) {
+          _logger.warning(
+            'Failed to sync deferred salary carry over log ${doc.$id}: $e',
+            tag: 'SYNC',
+          );
+          failed.add('${doc.$id}: $e');
+        }
+      }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل».
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'salary_carry_over_logs: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -10159,12 +10578,14 @@ class AppwriteSyncManager {
     }
     _logger.error(
       '❌ _syncEmployees فشل بعد $maxRetries إعادة محاولة — '
-      'المتابعة إلى المصروفات قد تترك بعض مصروفات الرواتب غير مربوطة مؤقتًا. '
-      'آخر خطأ: $lastError',
+      'مطبَّق جزئياً: $lastCount. آخر خطأ: $lastError',
       tag: 'SYNC',
     );
-    // لا نُعيد رمي الاستثناء للحفاظ على متانة المزامنة (نفس فلسفة الـ catch
-    // الموجودة في تدفقات السحب/الدفع). يُعالَج لاحقًا عبر _relinkOrphanSalaryExpenses.
-    return lastCount ?? 0;
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل»: نرمي آخر خطأ كي
+    // يسجّل المحرك employees في failedCollections ولا يتقدّم مؤشرها — كان
+    // الابتلاع يترك الموظف مفقوداً نهائياً بينما تحاول كيانات الرواتب
+    // الاعتماد عليه كل دورة بلا شفاء. إعادة الرمي بعد استنفاد المحاولات
+    // = إعادة سحب الموظف في الدورة التالية (upsert idempotent).
+    throw lastError!;
   }
 }
