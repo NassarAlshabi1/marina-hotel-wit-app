@@ -499,6 +499,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       setState(() {});
     }
 
+    // ✅ (2026-11-03) تحديث العدّاد **قبل** الحكم: كان الفحص يعتمد على
+    // قيمة محفوظة يُحدّثها مؤقّت كل 15 ثانية (أو آخر عملية سابقة). فإذا
+    // أنشأ المستخدم تغييراً ثم ضغط «رفع التغييرات» خلال تلك المهلة يرى
+    // «✅ لا توجد تغييرات جديدة للرفع» ولا يُرفع شيء — رغم أن الـ outbox
+    // يحتوي التغيير فعلاً. العدّ الفوري يُطابق `takeBatch` تماماً.
+    await _loadPendingChangesCount();
+
     // ✅ P1-1 fix: كل الفحوص قبل كتابة سجل in_progress
     if (_pendingChangesCount == 0) {
       if (mounted) {

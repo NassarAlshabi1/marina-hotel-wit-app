@@ -3197,7 +3197,13 @@ class AppwriteSyncManager {
     // فلا تُرفع أبداً رغم أن المستخدم يضغط "رفع التغييرات" مراراً.
     // الرفع مُسلسَل عبر قفل المزامنة، لذا لا توجد دفعة أخرى قيد المعالجة الآن.
     try {
-      final reclaimed = await outboxDao.reclaimForPush();
+      // ✅ (2026-11-03) طور الرفع يستهلك **كل** ما لم يُسلَّم للرئيسي:
+      // reclaimForPush (عالقة في processing + فاشلة ≤5 محاولات) +
+      // retryFailedWithBackoff (فاشلة أكثر من 5 **بعد** انقضاء مهلة التراجع).
+      // قبل هذا كان الزر لا يستطيع إعادة محاولة السجلات كثيرة الفشل إن لم
+      // يكن مؤقّت المزامنة التلقائية يعمل ⇒ شارة «تغييرات معلّقة» دائمة
+      // وتغيير محلي لا يمكن رفعه إطلاقاً.
+      final reclaimed = await outboxDao.prepareForManualPush();
       if (reclaimed > 0) {
         _logger.info(
           '♻️ أُعيد $reclaimed سجل عالق/فاشل إلى pending قبل الرفع',

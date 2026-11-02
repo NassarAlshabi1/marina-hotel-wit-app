@@ -172,6 +172,38 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return reclaimedProcessing + reclaimedFailed;
   }
 
+  /// ✅ (2026-11-03) تهيئة الـ outbox لرفع **يدوي صريح** (زر «رفع التغييرات»).
+  ///
+  /// **المشكلة**: `reclaimForPush` لا يُعيد السجلات التي تجاوزت
+  /// `maxFailedAttempts` (5) — وهي تُترك عمداً لمؤقّت `retryFailedWithBackoff`
+  /// الدوري. لكن المؤقّت يعمل فقط مع المزامنة التلقائية (`startAutoSync`).
+  /// فعند تعطيل المزامنة التلقائية، أو قبل انقضاء دورة المؤقّت، يبقى السجل
+  /// «غير مُسلَّم للرئيسي» ⇒ يظهر في شارة الزر كتغيير معلّق، لكن الضغط على
+  /// الزر لا يرفعه أبداً (لا `takeBatch` ولا `reclaimForPush` يلمسانه)
+  /// ⇒ تغيير محلي لا يستطيع المستخدم رفعه بأي طريقة، وشارة «معلّق» دائمة.
+  ///
+  /// **الحل**: الرفع اليدوي = طلب صريح من المستخدم بإعادة المحاولة، فيجمع
+  /// بين `reclaimForPush` (العالقة + الفاشلة القليلة) و`retryFailedWithBackoff`
+  /// (الفاشلة الكثيرة **بعد** انقضاء مهلة التراجع فقط). التراجع الأسّي محفوظ
+  /// كما هو: لا نُعيد محاولة سجل فشل قبل [backoffMinutes] من إنشائه.
+  ///
+  /// يُرجع إجمالي عدد السجلات التي أُعيدت إلى `pending`.
+  Future<int> prepareForManualPush({
+    Duration stuckAfter = const Duration(seconds: 30),
+    int maxFailedAttempts = 5,
+    int backoffMinutes = 30,
+  }) async {
+    final reclaimed = await reclaimForPush(
+      stuckAfter: stuckAfter,
+      maxFailedAttempts: maxFailedAttempts,
+    );
+    final retried = await retryFailedWithBackoff(
+      maxAttempts: maxFailedAttempts,
+      backoffMinutes: backoffMinutes,
+    );
+    return reclaimed + retried;
+  }
+
   Future<void> resetErrors() async {
     await (update(
       outbox,
