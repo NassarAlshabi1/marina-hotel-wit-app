@@ -187,6 +187,16 @@ appwrite.config.json
 *.pfx
 *.cer
 
+# ✅ S1 FIX: قواعد صريحة لملفات المفاتيح المتتبَّعة تاريخياً.
+# هذه لا تحل التسريب في الـ history (يلزم git-filter-repo) لكنها تمنع
+# تكرار التتبّع في أي commit مستقبلي.
+Keystore.txt
+android/key.properties
+*.keystore.txt
+.env.local
+.env.production
+secrets.json
+
 # ============================================
 # LOGS & TEMPORARY FILES
 # ============================================

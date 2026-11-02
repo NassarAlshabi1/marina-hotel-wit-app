@@ -119,54 +119,11 @@ class EnhancedBookingCalculationService {
     );
   }
 
-  /// إعادة حساب تابعة لسحب مزامنة — قراءة محلية صِرفة بلا أي كتابة
-  /// outbox: الليالي عبر enqueueOutbox:false، وحقول bookings المشتقة
-  /// بلا رفع lastModified. أي دفع هنا يعيد البيانات المسحوبة صدىً
-  /// إلى الأجهزة. (مواءمة مع تحصين c1dd9003 في فرع refactor.)
-  Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {
-    final booking = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
-    if (booking == null) {
-      return;
-    }
-
-    final calculation = await calculateForBooking(booking, now: now);
-    // لا نعيد دفع الليالي إلى outbox — هذا التحويل نتيجة سحب، والدفع
-    // يعيد البيانات المسحوبة صدىً عبر الأجهزة (مواءمة مع c1dd9003).
-    await _replaceBookingNights(
-      booking: booking,
-      breakdown: calculation.breakdown,
-      forceRebuild: true,
-      enqueueOutbox: false,
-    );
-
-    final summary = calculation.financialSummary;
-    final remaining = summary.remainingBalance;
-    final isFullyPaid = remaining <= 0;
-
-    final int stamp = Time.nowEpoch();
-    final String stampIso = DateTime.now().toUtc().toIso8601String();
-
-    await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
-      BookingsCompanion(
-        totalDueCached: d.Value(summary.totalDue.toDouble()),
-        totalPaidCached: d.Value(summary.totalPaid.toDouble()),
-        remainingBalanceCached: d.Value(remaining.toDouble()),
-        isFullyPaid: d.Value(isFullyPaid),
-        calculatedNights: d.Value(summary.totalNights),
-        totalNightsCached: d.Value(summary.totalNights),
-        stayDurationIso: d.Value(calculation.stayDurationIso),
-        lastNightEpoch: d.Value(calculation.lastNightEpoch),
-        hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
-        hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
-        updatedAt: d.Value(stamp),
-        // ✅ لا نحدّث lastModified للحقول المشتقة — نفس السبب
-        // المذكور في BookingDerivedFieldsService.refreshForBooking
-        updatedAtIso: d.Value(stampIso),
-      ),
-    );
-  }
+  // NOTE: recalculateAfterSync (كود ميت، صفر مستدعٍ) أُزيل في P2-1.
+  // وظيفته تُؤدّى بالكامل بواسطة BookingDerivedFieldsService
+  // .refreshAllActiveBookings(enqueueOutbox: false) التي يستدعيها
+  // _refreshDerivedAfterPull() في cloudflare_sync_manager.dart بعد كل
+  // سحب. إبقاؤه يضيف سطح هجوم/صيانة بلا فائدة.
 
   Future<List<NightlyBreakdown>> _buildNightlyBreakdown(
     Booking booking, {

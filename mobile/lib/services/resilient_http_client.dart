@@ -150,6 +150,50 @@ class ResilientHttpClient extends http.BaseClient {
   /// مدة تبريد فشل الحل الكامل قبل إعادة تجربة ساحة DoH.
   static const Duration _resolutionBlockCooldown = Duration(minutes: 3);
 
+  // ── P2-2: Global circuit breaker (cumulative failure counter) ──
+  // على عكس قواطع per-host أعلاه، هذا يراقب الفشل المتتابع على مستوى
+  // العميل كله بغضّ النظر عن النطاق. عند تجاوز العتبة خلال النافذة
+  // يُفتح القاطع لمدة أطول، فيُفشل الطلبات فوراً دون إعادة خوض ساحة
+  // DoH/النفق بالكامل — يحمي من حلقات إعادة محاولة جائعة عند انقطاع
+  // الشبكة كلياً (كل النطاقات تفشل معاً).
+  static final List<DateTime> _globalFailures = [];
+  static DateTime? _globalCircuitOpenUntil;
+  static const int _globalFailureThreshold = 5;
+  static const Duration _globalFailureWindow = Duration(minutes: 2);
+  static const Duration _globalOpenDuration = Duration(minutes: 2);
+
+  /// يُسجَّل فشل طلب ويفتح القاطع العمومي عند تجاوز العتبة.
+  static void _recordGlobalFailure() {
+    final now = DateTime.now();
+    _globalFailures.add(now);
+    // تنظيف النافذة
+    _globalFailures.removeWhere(
+      (t) => now.difference(t) > _globalFailureWindow,
+    );
+    if (_globalFailures.length >= _globalFailureThreshold &&
+        (_globalCircuitOpenUntil == null ||
+            now.isAfter(_globalCircuitOpenUntil!))) {
+      _globalCircuitOpenUntil = now.add(_globalOpenDuration);
+    }
+  }
+
+  /// يُسجَّل نجاح طلب ويُصفّر عدّاد الفشل المتتابع (ويغلق القاطع إن مفتوح).
+  static void _recordGlobalSuccess() {
+    _globalFailures.clear();
+    _globalCircuitOpenUntil = null;
+  }
+
+  /// هل القاطع العمومي مفتوح الآن؟
+  static bool get _isGlobalCircuitOpen {
+    final until = _globalCircuitOpenUntil;
+    if (until == null) return false;
+    if (DateTime.now().isBefore(until)) return true;
+    // انتهت المدة → نصفّر ونسمح بمحاولة
+    _globalCircuitOpenUntil = null;
+    _globalFailures.clear();
+    return false;
+  }
+
   // ── Fallback infrastructure (lazy, per instance) ──
   ServerSocket? _tunnelServer;
   http.Client? _activeFallbackClient;
@@ -168,6 +212,16 @@ class ResilientHttpClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final uri = request.url;
 
+    // ✅ P2-2: القاطع العمومي — إن كان مفتوحاً أفشل فوراً دون إعادة
+    // خوض ساحة DoH/النفق بالكامل. يحفظ ثوانٍ ثمينة في انقطاع الشبكة
+    // الكلي ويمنع حلقات إعادة محاولة جائعة.
+    if (_isGlobalCircuitOpen) {
+      throw SocketException(
+        'Global circuit breaker open: network appears unreachable '
+        '(will retry in ~${_globalCircuitOpenUntil?.difference(DateTime.now()).inSeconds ?? 0}s)',
+      );
+    }
+
     // Only intercept HTTPS requests with a hostname
     if (uri.scheme != 'https' || uri.host.isEmpty) {
       return _inner.send(request);
@@ -182,11 +236,25 @@ class ResilientHttpClient extends http.BaseClient {
     if (planner != null) {
       final candidates = planner(uri);
       if (candidates.length > 1) {
-        return _sendWithEndpointRotation(request, candidates);
+        try {
+          final r = await _sendWithEndpointRotation(request, candidates);
+          _recordGlobalSuccess();
+          return r;
+        } catch (e) {
+          _recordGlobalFailure();
+          rethrow;
+        }
       }
     }
 
-    return _sendWithFastPathAndTunnel(request, uri);
+    try {
+      final r = await _sendWithFastPathAndTunnel(request, uri);
+      _recordGlobalSuccess();
+      return r;
+    } catch (e) {
+      _recordGlobalFailure();
+      rethrow;
+    }
   }
 
   /// حلقة التدوير بين مرشحي نقاط النهاية.

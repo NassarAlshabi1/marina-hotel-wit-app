@@ -719,12 +719,11 @@ class BookingPriceAdjustmentService {
     dlog(() => '🔄 تم إعادة حساب الحجز #$bookingId');
   }
 
-  /// إعادة حساب تابعة لسحب مزامنة: البيانات مصدرها البعيد أصلاً، لذا
-  /// لا نعيد دفع الحقول المشتقة إلى outbox وإلا صرنا صدى تحديثات عبر
-  /// الأجهزة. (مواءمة مع تحصين c1dd9003 في فرع refactor — 2026-10-30.)
-  Future<void> recalculateAfterSync(int bookingId) async {
-    await _recalculateBookingNights(bookingId, enqueueOutbox: false);
-  }
+  // NOTE: recalculateAfterSync (كود ميت، صفر مستدعٍ) أُزيل في P2-1.
+  // وظيفته تُؤدّى بالكامل بواسطة BookingDerivedFieldsService
+  // .refreshAllActiveBookings(enqueueOutbox: false) التي يستدعيها
+  // _refreshDerivedAfterPull() في cloudflare_sync_manager.dart بعد كل
+  // سحب.
 
   Future<List<Booking>> getLongStayBookingsWithoutSurcharge({
     int minimumNights = 30,
