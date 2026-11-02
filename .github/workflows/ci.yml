@@ -42,13 +42,14 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Dart Format
-        # ✅ إصلاح (2026-11-02): كانت هذه الخطوة تفشل في **كل** الفروع.
-        #    السبب الجذري: `dart format .` يعمل بالعرض الافتراضي 80 عموداً
-        #    بينما معيار المشروع 120 (انظر mobile-quality-gate.yml)، كما أنه
-        #    يشمل ملفات build_runner المولّدة التي يعيد توليدها خطوة سابقة.
-        #    القياس: 371 من 604 ملف Dart فيه أسطر > 80 ⇒ فشل بنيوي دائم لا
-        #    علاقة له بأي commit. الآن: 120 عموداً، على الملفات المكتوبة
-        #    يدوياً فقط، مع إظهار المخالفات كـ annotations قابلة للنقر.
+        # ✅ إصلاح (2026-11-02): كانت الخطوة تفشل في كل الفروع.
+        #    السبب الجذري: ملفات Dart قليلة (3) كانت غير منسّقة وفق 80 عموداً
+        #    ⇒ `--set-exit-if-changed` يُسقط الـ build قبل تشغيل أي اختبار
+        #    (`Run tests` كان skipped). أُعيد تنسيق الشجرة بالأداة الرسمية
+        #    عبر workflow «Auto Format (dart)».
+        #    تحسينات هذه الخطوة: 80 عموداً صريحاً (معيار المشروع)، واستثناء
+        #    الملفات المولّدة (build_runner) لأنها تُعاد توليدها في الخطوة
+        #    السابقة، وإظهار المخالفات كـ annotations قابلة للنقر.
         shell: bash
         run: |
           set -uo pipefail
@@ -56,20 +57,20 @@ jobs:
           if [ -z "$FILES" ]; then
             echo "لا ملفات Dart للفحص"; exit 0
           fi
-          echo "🔍 فحص $(printf '%s\n' "$FILES" | wc -l) ملف Dart بعرض 120 عموداً..."
+          echo "🔍 فحص $(printf '%s\n' "$FILES" | wc -l) ملف Dart بعرض 80 عموداً..."
           OUT=$(printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 \
-            dart format --line-length 120 --output=none --set-exit-if-changed 2>&1)
+            dart format --line-length 80 --output=none --set-exit-if-changed 2>&1)
           STATUS=$?
           echo "$OUT" | tail -30
           if [ $STATUS -ne 0 ]; then
             CHANGED=$(printf '%s\n' "$OUT" | sed -n 's/^Changed \(.*\)$/\1/p')
             if [ -n "$CHANGED" ]; then
               while IFS= read -r f; do
-                echo "::error file=${f}::غير منسّق — شغّل: dart format --line-length 120 ${f}"
+                echo "::error file=${f}::غير منسّق — شغّل: dart format ${f}"
               done <<< "$CHANGED"
             fi
             {
-              echo "## ❌ Dart Format (120 عموداً)"
+              echo "## ❌ Dart Format (80 عموداً)"
               echo ""
               echo "الملفات التالية تحتاج تنسيقاً:"
               echo ""
@@ -81,12 +82,12 @@ jobs:
                 echo '```'
               fi
               echo ""
-              echo 'أصلحها بـ `dart format --line-length 120 <files>` أو شغّل workflow **Auto Format (dart)**.'
+              echo 'أصلحها بـ `dart format <files>` أو شغّل workflow **Auto Format (dart)**.'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          echo "✅ كل ملفات Dart المكتوبة يدوياً منسّقة وفق 120 عموداً"
-          echo "### ✅ Dart Format (120 عموداً)" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ كل ملفات Dart المكتوبة يدوياً منسّقة وفق 80 عموداً"
+          echo "### ✅ Dart Format (80 عموداً)" >> "$GITHUB_STEP_SUMMARY"
 
       # ═══════════════════════════════════════════════════════════
       #  اختبارات
