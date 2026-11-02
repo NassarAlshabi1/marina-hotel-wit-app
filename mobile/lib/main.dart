@@ -166,18 +166,9 @@ Future<void> main() async {
     ]);
     // تأجيل بقية الخدمات لما بعد أول frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(
-        _safeInit(
-          'RemoteConfigService',
-          RemoteConfigService.instance.initialize,
-        ),
-      );
-      unawaited(
-        _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
-      );
-      unawaited(
-        _safeInit('PostHogService', PostHogService.instance.initialize),
-      );
+      unawaited(_safeInit('RemoteConfigService', RemoteConfigService.instance.initialize));
+      unawaited(_safeInit('ApiConfigService', ApiConfigService.instance.initialize));
+      unawaited(_safeInit('PostHogService', PostHogService.instance.initialize));
     });
   } else {
     // جهاز قوي: كل الخدمات بالتوازي كما كان
@@ -193,11 +184,7 @@ Future<void> main() async {
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
   // الخطأ بدل تركه silent (البوت أشار لهذا بشكل صحيح).
-  unawaited(
-    AlarmBackup.initAlarmSystem().catchError(
-      (Object e) => dwarn(() => 'Alarm system init failed: $e'),
-    ),
-  );
+  unawaited(AlarmBackup.initAlarmSystem().catchError((Object e) => dwarn(() => 'Alarm system init failed: $e')));
 
   // ✅ Performance Fix: LatePaymentNotificationService يُؤججل لما بعد أول frame
   // على الأجهزة الضعيفة لتسريع الإقلاع.
@@ -221,10 +208,7 @@ Future<void> main() async {
   // استدعاء لـ ref.read(appwriteSyncManagerProvider) من الـ UI.
   // الـ factory يستخدم `_instance ??= ...` لذا Riverpod provider
   // سيعيد استخدام نفس الـ instance لاحقاً بدون تعارض.
-  AppwriteSyncManager(
-    appwriteService: AppwriteService(),
-    database: DatabaseManager.instance,
-  );
+  AppwriteSyncManager(appwriteService: AppwriteService(), database: DatabaseManager.instance);
   AutoOutboxSyncWatcher.pushFunction = () async {
     final syncManager = AppwriteSyncManager.instance;
     if (syncManager == null) {
@@ -266,46 +250,26 @@ Future<void> main() async {
       FlutterError.presentError(details);
     },
     originalPlatformHandler: (error, stack) {
-      DiagnosticsLogger.instance.recordError(
-        error,
-        stack,
-        tag: 'PLATFORM',
-        level: LogLevel.critical,
-      );
+      DiagnosticsLogger.instance.recordError(error, stack, tag: 'PLATFORM', level: LogLevel.critical);
     },
     originalZonedHandler: (error, stack) {
-      DiagnosticsLogger.instance.recordError(
-        error,
-        stack,
-        tag: 'ZONED',
-        level: LogLevel.critical,
-      );
+      DiagnosticsLogger.instance.recordError(error, stack, tag: 'ZONED', level: LogLevel.critical);
     },
   );
 
   if (Platform.isAndroid || Platform.isIOS) {
-    unawaited(
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]),
-    );
+    unawaited(SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]));
   }
 
   // مراقب التطوير يجمع FrameTiming واتجاه الذاكرة لاختبارات الأداء.
   // profileInstrumentationEnabled لا يُفعّل إلا عبر dart-define في اختبار profile.
-  PerformanceMonitor.instance.start(
-    forceInProfile: profileInstrumentationEnabled,
-  );
+  PerformanceMonitor.instance.start(forceInProfile: profileInstrumentationEnabled);
   if (profileInstrumentationEnabled) {
     unawaited(_startProfilePerformanceReportWriter());
   }
 
   dlog(() => 'BASE_API_URL=${Env.baseApiUrl}');
-  runZonedGuarded(() => runApp(const ProviderScope(child: App())), (
-    error,
-    stack,
-  ) async {
+  runZonedGuarded(() => runApp(const ProviderScope(child: App())), (error, stack) async {
     // إرسال الخطأ إلى Crashlytics
     await CrashlyticsService.instance.recordUnexpectedError(
       error: error,
@@ -313,18 +277,9 @@ Future<void> main() async {
       context: 'runZonedGuarded',
     );
     // إرسال الخطأ إلى PostHog (يظهر في session replay مع باقي الأحداث)
-    await PostHogService.instance.captureError(
-      error,
-      stack,
-      context: 'runZonedGuarded',
-    );
+    await PostHogService.instance.captureError(error, stack, context: 'runZonedGuarded');
     // تسجيل محلي
-    DiagnosticsLogger.instance.recordError(
-      error,
-      stack,
-      tag: 'ZONED',
-      level: LogLevel.critical,
-    );
+    DiagnosticsLogger.instance.recordError(error, stack, tag: 'ZONED', level: LogLevel.critical);
   });
 
   // ✅ Performance Fix (2026-08-10): على الأجهزة الضعيفة، نؤجل نظام المزامنة
@@ -404,9 +359,7 @@ void _startHealthChecker() {
 // ignore: unused_element
 Future<void> _initializeSecondarySync() async {
   // Secondary sync مُعطّل بالكامل. لا تنفّذ أي شيء.
-  dlog(
-    '🔵 [Main] Secondary sync disabled — Appwrite primary is sole authority',
-  );
+  dlog('🔵 [Main] Secondary sync disabled — Appwrite primary is sole authority');
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
@@ -434,18 +387,14 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       final syncManager = AppwriteSyncManager.instance;
       if (syncManager != null) {
-        FcmService.injectDependencies(
-          syncManager: syncManager,
-          realtimeSync: AppwriteRealtimeSync(),
-        );
+        FcmService.injectDependencies(syncManager: syncManager, realtimeSync: AppwriteRealtimeSync());
       }
       await _safeInit('FcmService', FcmService().initialize);
     } else {
       dlog('ℹ️ FCM skipped on ${Platform.operatingSystem}');
     }
 
-    final driveSyncEnabled =
-        prefs.getBool('google_drive_sync_enabled') ?? false;
+    final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!driveSyncEnabled) {
       // لا يوجد سبب لإنشاء logger أو محاولة sign-in أو إعداد coordinator
       // ومؤقتاته عندما لا يستخدم العميل Google Drive. مزامنة Appwrite تبدأ
@@ -488,11 +437,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     dlog('🎯 [5/7] Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
-    await coordinator.initialize(
-      backupService: backupService,
-      database: database,
-      logger: driveLogger,
-    );
+    await coordinator.initialize(backupService: backupService, database: database, logger: driveLogger);
     dlog('✅ Coordinator initialized');
 
     dlog('🤝 [6/7] Initializing Conflict Resolver...');
@@ -506,11 +451,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     dlog('🧠 [7/8] Initializing SmartSyncManager...');
     final smartSync = SmartSyncManager.instance;
     await smartSync.initialize(backupService);
-    await unifiedOrchestrator.initialize(
-      smart: smartSync,
-      driveCoordinator: coordinator,
-      database: database,
-    );
+    await unifiedOrchestrator.initialize(smart: smartSync, driveCoordinator: coordinator, database: database);
     dlog('✅ SmartSyncManager initialized');
 
     // ✅ تفعيل SyncGuardian — الحارس الذي يدير المزامنة الخلفية وإعادة التشغيل
@@ -544,11 +485,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     dlog('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
 
-    await autoSyncEngine.initialize(
-      backupService: backupService,
-      database: database,
-      logger: driveLogger,
-    );
+    await autoSyncEngine.initialize(backupService: backupService, database: database, logger: driveLogger);
 
     await _configureAutoSyncEngine(autoSyncEngine);
 
@@ -560,9 +497,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await smartSync.onGoogleDriveSignInChanged(true);
       dlog('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
     } else {
-      dlog(
-        'ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية',
-      );
+      dlog('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
     }
 
     await SyncQueueService.instance.initialize();
@@ -701,13 +636,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // ref.listen خارج build غير مسموح (Riverpod 2.6.1) — كان يكسر إقلاع
     // Windows بشاشة حمراء. listenManual هو المكافئ المشروع داخل initState.
-    _databaseSub = ref.listenManual<AppDatabase>(databaseProvider, (
-      previous,
-      database,
-    ) {
-      if (_sessionConfigured &&
-          previous != null &&
-          identical(previous, database)) {
+    _databaseSub = ref.listenManual<AppDatabase>(databaseProvider, (previous, database) {
+      if (_sessionConfigured && previous != null && identical(previous, database)) {
         return;
       }
       _enqueueDatabase(database);
@@ -803,8 +733,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // Realtime WebSocket (عند تفعيله) يوفر إشعارات فورية بين الأدوار.
         final syncPrefs = await SharedPreferences.getInstance();
         final intervalMinutes =
-            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ??
-            SyncConstants.autoSyncIntervalDefaultMinutes;
+            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ?? SyncConstants.autoSyncIntervalDefaultMinutes;
         final clampedMinutes = intervalMinutes.clamp(
           SyncConstants.autoSyncIntervalMinMinutes,
           SyncConstants.autoSyncIntervalMaxMinutes,
@@ -819,15 +748,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
           final prefs = await SharedPreferences.getInstance();
-          final lastPullEpochMs = prefs.getInt(
-            SyncConstants.lastAppOpenPullKey,
-          );
+          final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
           bool shouldSync = true;
 
           if (lastPullEpochMs != null) {
-            final lastPull = DateTime.fromMillisecondsSinceEpoch(
-              lastPullEpochMs,
-            );
+            final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
             final elapsed = DateTime.now().difference(lastPull);
             if (elapsed < SyncConstants.appOpenSyncInterval) {
               final remaining = SyncConstants.appOpenSyncInterval - elapsed;
@@ -845,10 +770,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             // push + pull معاً — لا نرفع بدون سحب
             await syncManager.sync();
             // تسجيل وقت هذا السحب
-            await prefs.setInt(
-              SyncConstants.lastAppOpenPullKey,
-              DateTime.now().millisecondsSinceEpoch,
-            );
+            await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
             dlog('✅ Initial sync on app start completed');
           }
         } catch (e) {
@@ -858,19 +780,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         var deviceId = syncManager.currentDeviceId;
         if (deviceId == null) {
           final prefs = await SharedPreferences.getInstance();
-          deviceId =
-              prefs.getString('appwrite_device_id') ??
-              prefs.getString('appwrite_realtime_device_id');
+          deviceId = prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
           if (deviceId == null) {
             deviceId = IdGen.uuid();
             await prefs.setString('appwrite_realtime_device_id', deviceId);
           }
         }
 
-        await AppwriteRealtimeSync().initialize(
-          deviceId: deviceId,
-          deltaPull: syncManager.pullRemoteChanges,
-        );
+        await AppwriteRealtimeSync().initialize(deviceId: deviceId, deltaPull: syncManager.pullRemoteChanges);
         await AppwriteRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
@@ -906,9 +823,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   StreamSubscription<SyncConflictEvent>? _conflictSubscription;
   void _listenForSyncConflicts() {
     _conflictSubscription?.cancel();
-    _conflictSubscription = SyncConflictEventBus.instance.events.listen((
-      event,
-    ) {
+    _conflictSubscription = SyncConflictEventBus.instance.events.listen((event) {
       if (!mounted || !_sessionConfigured) {
         return;
       }
@@ -925,9 +840,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         'employees': 'موظفين',
       };
       final tableName = tableNames[event.table] ?? event.table;
-      final sideText = event.winnerSide == 'local'
-          ? 'الإصدار المحلي'
-          : 'إصدار السيرفر';
+      final sideText = event.winnerSide == 'local' ? 'الإصدار المحلي' : 'إصدار السيرفر';
       messenger.showSnackBar(
         SnackBar(
           content: Text('تضارب في $tableName: تم تفضيل $sideText'),
@@ -943,10 +856,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     _localAutoSyncDebounce?.cancel();
-    _localAutoSyncDebounce = Timer(
-      const Duration(seconds: 2),
-      () => unawaited(_runLocalAutoSync()),
-    );
+    _localAutoSyncDebounce = Timer(const Duration(seconds: 2), () => unawaited(_runLocalAutoSync()));
   }
 
   Future<void> _runLocalAutoSync() async {
@@ -1010,9 +920,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       // push فقط — pull يُغطَّى بواسطة UnifiedSyncOrchestrator.onAppForeground()
       await syncManager.sync(pull: false);
-      dlog(
-        '✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)',
-      );
+      dlog('✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)');
     } catch (e) {
       dwarn(() => 'Sync on resume error: $e');
     }
@@ -1067,9 +975,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // ستُرفع للسحابة حتى لو قُتل التطبيق فوراً بعد dispose().
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
-          (Object e, StackTrace s) => derr(
-            () => 'Error scheduling sync continuation on dispose: $e\n$s',
-          ),
+          (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation on dispose: $e\n$s'),
         ),
       );
     }
@@ -1185,16 +1091,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       dlog('📱 التطبيق عاد للواجهة...');
-      AppSessionManager.onAppOpen().catchError(
-        (Object e, StackTrace s) => derr(() => 'Error in onAppOpen: $e\n$s'),
-      );
+      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => derr(() => 'Error in onAppOpen: $e\n$s'));
       ref
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
-          .catchError(
-            (Object e, StackTrace s) =>
-                derr(() => 'Error in refreshSignInStatus: $e\n$s'),
-          );
+          .catchError((Object e, StackTrace s) => derr(() => 'Error in refreshSignInStatus: $e\n$s'));
       // ✅ تحسين أداء: تقليل تكرار المزامنة عند العودة — مزامنة واحدة فقط
       // سابقاً: 4 عمليات مزامنة متوازية (consumePendingAndSync + _syncOnResume +
       // UnifiedSyncOrchestrator.onAppForeground + SyncGuardian.onAppForeground)
@@ -1206,12 +1107,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       unawaited(AppwriteRealtimeSync().start());
       // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) =>
-            derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) => derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
       );
       SyncGuardian.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) =>
-            derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) => derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
@@ -1229,15 +1128,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // حتى لو قُتل التطبيق قبل اكتمال _pushPendingChangesOnPause
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
-          (Object e, StackTrace s) =>
-              derr(() => 'Error scheduling sync continuation: $e\n$s'),
+          (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation: $e\n$s'),
         ),
       );
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
-      Future.microtask(AppSessionManager.onAppCloseOrBackground).catchError(
-        (Object e, StackTrace s) =>
-            derr(() => 'Error in onAppCloseOrBackground: $e\n$s'),
-      );
+      Future.microtask(
+        AppSessionManager.onAppCloseOrBackground,
+      ).catchError((Object e, StackTrace s) => derr(() => 'Error in onAppCloseOrBackground: $e\n$s'));
     }
   }
 
@@ -1262,8 +1159,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             // ✅ يغطي كل المسارات (بما فيها الشاشات المدفوعة عبر Navigator
             // خارج AdminLayout): على الشاشات الواسعة يُقصّر عرض المحتوى
             // ويُمركزه — لا أثر على مسار الهاتف (<768).
-            builder: (context, child) =>
-                ResponsiveContent(child: child ?? const SizedBox.shrink()),
+            builder: (context, child) => ResponsiveContent(child: child ?? const SizedBox.shrink()),
             home: const RootRouter(),
           );
         },
@@ -1370,63 +1266,39 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
-    final body = allowed
-        ? _buildRoute(_currentRoute)
-        : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
+    final body = allowed ? _buildRoute(_currentRoute) : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
     final actions = _buildGlobalActions(context);
 
-    return AdminLayout(
-      currentRoute: _currentRoute,
-      body: body,
-      actions: actions,
-      onRouteSelected: _navigateToRoute,
-    );
+    return AdminLayout(currentRoute: _currentRoute, body: body, actions: actions, onRouteSelected: _navigateToRoute);
   }
 
   List<Widget> _buildGlobalActions(BuildContext context) {
     final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
-    final unreadCount = unreadCountAsync.maybeWhen(
-      data: (count) => count,
-      orElse: () => 0,
-    );
+    final unreadCount = unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
     final hasUnread = unreadCount > 0;
 
     return [
       IconButton(
         onPressed: () {
-          Navigator.of(context).push<void>(
-            MaterialPageRoute<void>(builder: (_) => const NotesScreen()),
-          );
+          Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
         },
         tooltip: 'التنبيهات',
         icon: Stack(
           clipBehavior: Clip.none,
           children: [
-            Icon(
-              hasUnread ? Icons.notifications_active : Icons.notifications_none,
-            ),
+            Icon(hasUnread ? Icons.notifications_active : Icons.notifications_none),
             if (hasUnread)
               Positioned(
                 right: -2,
                 top: -2,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
+                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                   child: Text(
                     unreadCount > 9 ? '9+' : '$unreadCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1509,19 +1381,11 @@ void _unifiedCallbackDispatcher() {
           return await _executeLegacySyncTask(task, inputData);
 
         default:
-          developer.log(
-            '⚠️ [WorkManager] Unknown task: $task → fallback to sync',
-            name: 'WorkManager',
-          );
+          developer.log('⚠️ [WorkManager] Unknown task: $task → fallback to sync', name: 'WorkManager');
           return await _executeLegacySyncTask(task, inputData);
       }
     } catch (e, st) {
-      developer.log(
-        '❌ [WorkManager] Task $task failed',
-        name: 'WorkManager',
-        error: e,
-        stackTrace: st,
-      );
+      developer.log('❌ [WorkManager] Task $task failed', name: 'WorkManager', error: e, stackTrace: st);
       return false;
     }
   });
@@ -1533,20 +1397,14 @@ void _unifiedCallbackDispatcher() {
 /// kSyncPendingPullFlag, kSyncActiveFlag, kSyncStartTimeKey) — لا string literals.
 /// ✅ تتحقق من المدة المنقضية (kMaxSyncDuration) لتجنّب المزامنات القديمة جداً.
 /// ✅ تنظيف flags عند النجاح فقط — عند الفشل، WorkManager يُعيد المحاولة تلقائياً.
-Future<bool> _executeSyncCompletionTask(
-  String task,
-  Map<String, dynamic>? inputData,
-) async {
+Future<bool> _executeSyncCompletionTask(String task, Map<String, dynamic>? inputData) async {
   try {
     final prefs = await SharedPreferences.getInstance();
     final hasPendingPush = prefs.getBool(kSyncPendingPushFlag) ?? false;
     final hasPendingPull = prefs.getBool(kSyncPendingPullFlag) ?? false;
 
     if (!hasPendingPush && !hasPendingPull) {
-      developer.log(
-        'ℹ️ [SyncContinuation] لا توجد عمليات معلّقة',
-        name: 'SyncContinuation',
-      );
+      developer.log('ℹ️ [SyncContinuation] لا توجد عمليات معلّقة', name: 'SyncContinuation');
       return true;
     }
 
@@ -1568,10 +1426,7 @@ Future<bool> _executeSyncCompletionTask(
       }
     }
 
-    developer.log(
-      '🔄 [SyncContinuation] تنفيذ push=$hasPendingPush, pull=$hasPendingPull',
-      name: 'SyncContinuation',
-    );
+    developer.log('🔄 [SyncContinuation] تنفيذ push=$hasPendingPush, pull=$hasPendingPull', name: 'SyncContinuation');
 
     // ✅ UnifiedSyncOrchestrator.instance هو singleton — syncNow() يُهيّئ
     // _appwrite و _database داخلياً عبر _ensureAppwriteManager() إن كانا null.
@@ -1587,104 +1442,59 @@ Future<bool> _executeSyncCompletionTask(
       await prefs.setBool(kSyncPendingPushFlag, false);
       await prefs.setBool(kSyncPendingPullFlag, false);
       await prefs.remove(kSyncStartTimeKey);
-      developer.log(
-        '✅ [SyncContinuation] اكتملت المزامنة في الخلفية',
-        name: 'SyncContinuation',
-      );
+      developer.log('✅ [SyncContinuation] اكتملت المزامنة في الخلفية', name: 'SyncContinuation');
     } else {
-      developer.log(
-        '⚠️ [SyncContinuation] فشلت — سيُعيد WorkManager المحاولة',
-        name: 'SyncContinuation',
-      );
+      developer.log('⚠️ [SyncContinuation] فشلت — سيُعيد WorkManager المحاولة', name: 'SyncContinuation');
     }
 
     return success;
   } catch (e, st) {
-    developer.log(
-      '❌ [SyncContinuation] فشل',
-      name: 'SyncContinuation',
-      error: e,
-      stackTrace: st,
-    );
+    developer.log('❌ [SyncContinuation] فشل', name: 'SyncContinuation', error: e, stackTrace: st);
     return false;
   }
 }
 
 /// تنفيذ مهمة AutoSyncTask (Google Drive)
-Future<bool> _executeAutoSyncTask(
-  String task,
-  Map<String, dynamic>? inputData,
-) async {
+Future<bool> _executeAutoSyncTask(String task, Map<String, dynamic>? inputData) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final googleDriveEnabled =
-        prefs.getBool('google_drive_sync_enabled') ?? false;
+    final googleDriveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
 
     if (!googleDriveEnabled) {
-      developer.log(
-        'ℹ️ [AutoSyncTask] Google Drive معطّل — تخطّي',
-        name: 'AutoSyncTask',
-      );
+      developer.log('ℹ️ [AutoSyncTask] Google Drive معطّل — تخطّي', name: 'AutoSyncTask');
       return true;
     }
 
-    final success = await UnifiedSyncOrchestrator.instance.syncNow(
-      reason: 'workmanager_auto_sync',
-    );
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(reason: 'workmanager_auto_sync');
 
     // ✅ تحديث flag المعلّق (يُستخدم من SyncGuardian)
     await prefs.setBool('auto_sync_pending', !success);
 
     return success;
   } catch (e, st) {
-    developer.log(
-      '❌ [AutoSyncTask] فشل',
-      name: 'AutoSyncTask',
-      error: e,
-      stackTrace: st,
-    );
+    developer.log('❌ [AutoSyncTask] فشل', name: 'AutoSyncTask', error: e, stackTrace: st);
     return false;
   }
 }
 
 /// تنفيذ مهمة backupAfterInactivity (AppSessionManager)
-Future<bool> _executeBackupAfterInactivity(
-  String task,
-  Map<String, dynamic>? inputData,
-) async {
+Future<bool> _executeBackupAfterInactivity(String task, Map<String, dynamic>? inputData) async {
   try {
-    final success = await UnifiedSyncOrchestrator.instance.syncNow(
-      reason: 'workmanager_backup_inactivity',
-    );
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(reason: 'workmanager_backup_inactivity');
     return success;
   } catch (e, st) {
-    developer.log(
-      '❌ [BackupInactivity] فشل',
-      name: 'BackupInactivity',
-      error: e,
-      stackTrace: st,
-    );
+    developer.log('❌ [BackupInactivity] فشل', name: 'BackupInactivity', error: e, stackTrace: st);
     return false;
   }
 }
 
 /// تنفيذ مهمة legacy sync
-Future<bool> _executeLegacySyncTask(
-  String task,
-  Map<String, dynamic>? inputData,
-) async {
+Future<bool> _executeLegacySyncTask(String task, Map<String, dynamic>? inputData) async {
   try {
-    final success = await UnifiedSyncOrchestrator.instance.syncNow(
-      reason: 'workmanager_legacy_$task',
-    );
+    final success = await UnifiedSyncOrchestrator.instance.syncNow(reason: 'workmanager_legacy_$task');
     return success;
   } catch (e, st) {
-    developer.log(
-      '❌ [LegacySync] فشل ($task)',
-      name: 'LegacySync',
-      error: e,
-      stackTrace: st,
-    );
+    developer.log('❌ [LegacySync] فشل ($task)', name: 'LegacySync', error: e, stackTrace: st);
     return false;
   }
 }

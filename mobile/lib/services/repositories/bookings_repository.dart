@@ -85,9 +85,7 @@ class BookingsRepository {
             status: d.Value(status),
             notes: d.Value(notes),
             expectedNights: d.Value(expectedNights),
-            calculatedNights: calculatedNights != null
-                ? d.Value(calculatedNights)
-                : const d.Value.absent(),
+            calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
             discount: d.Value(discount),
             discountType: d.Value(discountType),
             discountStartDate: d.Value(discountStartDate),
@@ -98,13 +96,7 @@ class BookingsRepository {
         return id;
       });
 
-      unawaited(
-        AutoBackupManager.instance.onDataChange(
-          'bookings',
-          'INSERT',
-          recordData: {'id': result},
-        ),
-      );
+      unawaited(AutoBackupManager.instance.onDataChange('bookings', 'INSERT', recordData: {'id': result}));
       // إشعارات فورية (fire-and-forget)
       unawaited(_notifyNewBooking(result));
       return result;
@@ -170,14 +162,9 @@ class BookingsRepository {
         final recorded = current?.actualCheckout;
         final hasRecordedCheckout = recorded != null && recorded.isNotEmpty;
         final isFirstCheckout =
-            current != null &&
-            !hasRecordedCheckout &&
-            actualCheckout != null &&
-            actualCheckout.isNotEmpty;
+            current != null && !hasRecordedCheckout && actualCheckout != null && actualCheckout.isNotEmpty;
         if (current != null) {
-          if (hasRecordedCheckout &&
-              actualCheckout != null &&
-              actualCheckout != recorded) {
+          if (hasRecordedCheckout && actualCheckout != null && actualCheckout != recorded) {
             throw StateError(
               'لا يمكن تسجيل المغادرة مرتين للحجز $id — '
               'غادر فعلياً بتاريخ $recorded '
@@ -188,84 +175,39 @@ class BookingsRepository {
         final updated = await dao.updateById(
           id,
           BookingsCompanion(
-            roomNumber: roomNumber != null
-                ? d.Value(roomNumber)
-                : const d.Value.absent(),
-            guestName: guestName != null
-                ? d.Value(guestName)
-                : const d.Value.absent(),
-            guestPhone: guestPhone != null
-                ? d.Value(guestPhone)
-                : const d.Value.absent(),
-            guestIdType: guestIdType != null
-                ? d.Value(guestIdType)
-                : const d.Value.absent(),
-            guestIdNumber: guestIdNumber != null
-                ? d.Value(guestIdNumber)
-                : const d.Value.absent(),
-            guestIdIssueDate: guestIdIssueDate != null
-                ? d.Value(guestIdIssueDate)
-                : const d.Value.absent(),
-            guestIdIssuePlace: guestIdIssuePlace != null
-                ? d.Value(guestIdIssuePlace)
-                : const d.Value.absent(),
-            guestNationality: guestNationality != null
-                ? d.Value(guestNationality)
-                : const d.Value.absent(),
-            guestEmail: guestEmail != null
-                ? d.Value(guestEmail)
-                : const d.Value.absent(),
-            guestAddress: guestAddress != null
-                ? d.Value(guestAddress)
-                : const d.Value.absent(),
-            checkinDate: checkinDate != null
-                ? d.Value(checkinDate)
-                : const d.Value.absent(),
-            checkoutDate: checkoutDate != null
-                ? d.Value(checkoutDate)
-                : const d.Value.absent(),
-            actualCheckout: actualCheckout != null
-                ? d.Value(actualCheckout)
-                : const d.Value.absent(),
+            roomNumber: roomNumber != null ? d.Value(roomNumber) : const d.Value.absent(),
+            guestName: guestName != null ? d.Value(guestName) : const d.Value.absent(),
+            guestPhone: guestPhone != null ? d.Value(guestPhone) : const d.Value.absent(),
+            guestIdType: guestIdType != null ? d.Value(guestIdType) : const d.Value.absent(),
+            guestIdNumber: guestIdNumber != null ? d.Value(guestIdNumber) : const d.Value.absent(),
+            guestIdIssueDate: guestIdIssueDate != null ? d.Value(guestIdIssueDate) : const d.Value.absent(),
+            guestIdIssuePlace: guestIdIssuePlace != null ? d.Value(guestIdIssuePlace) : const d.Value.absent(),
+            guestNationality: guestNationality != null ? d.Value(guestNationality) : const d.Value.absent(),
+            guestEmail: guestEmail != null ? d.Value(guestEmail) : const d.Value.absent(),
+            guestAddress: guestAddress != null ? d.Value(guestAddress) : const d.Value.absent(),
+            checkinDate: checkinDate != null ? d.Value(checkinDate) : const d.Value.absent(),
+            checkoutDate: checkoutDate != null ? d.Value(checkoutDate) : const d.Value.absent(),
+            actualCheckout: actualCheckout != null ? d.Value(actualCheckout) : const d.Value.absent(),
             status: status != null ? d.Value(status) : const d.Value.absent(),
             notes: notes != null ? d.Value(notes) : const d.Value.absent(),
-            expectedNights: expectedNights != null
-                ? d.Value(expectedNights)
-                : const d.Value.absent(),
-            calculatedNights: calculatedNights != null
-                ? d.Value(calculatedNights)
-                : const d.Value.absent(),
-            discount: discount != null
-                ? d.Value(discount)
-                : const d.Value.absent(),
-            discountType: discountType != null
-                ? d.Value(discountType)
-                : const d.Value.absent(),
-            discountStartDate: discountStartDate != null
-                ? d.Value(discountStartDate)
-                : const d.Value.absent(),
+            expectedNights: expectedNights != null ? d.Value(expectedNights) : const d.Value.absent(),
+            calculatedNights: calculatedNights != null ? d.Value(calculatedNights) : const d.Value.absent(),
+            discount: discount != null ? d.Value(discount) : const d.Value.absent(),
+            discountType: discountType != null ? d.Value(discountType) : const d.Value.absent(),
+            discountStartDate: discountStartDate != null ? d.Value(discountStartDate) : const d.Value.absent(),
           ),
         );
         if (updated > 0) {
           await syncLegacyDiscountToAdjustments(id);
           // The first checkout must trim nights to the actual departure time.
           // Later refreshes (for example after a payment) must preserve them.
-          await derivedFields.refreshForBookingId(
-            id,
-            forceRebuild: isFirstCheckout,
-          );
+          await derivedFields.refreshForBookingId(id, forceRebuild: isFirstCheckout);
         }
         return updated;
       });
 
       if (result > 0) {
-        unawaited(
-          AutoBackupManager.instance.onDataChange(
-            'bookings',
-            'UPDATE',
-            recordData: {'id': id},
-          ),
-        );
+        unawaited(AutoBackupManager.instance.onDataChange('bookings', 'UPDATE', recordData: {'id': id}));
         if (status != null) {
           unawaited(_notifyBookingUpdate(id, status));
         }
@@ -277,11 +219,7 @@ class BookingsRepository {
         action: 'update',
         error: e,
         stackTrace: stack,
-        extra: {
-          'id': '$id',
-          'newStatus': status ?? '',
-          'newRoom': roomNumber ?? '',
-        },
+        extra: {'id': '$id', 'newStatus': status ?? '', 'newRoom': roomNumber ?? ''},
       );
       rethrow;
     }
@@ -291,13 +229,7 @@ class BookingsRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(
-          AutoBackupManager.instance.onDataChange(
-            'bookings',
-            'DELETE',
-            recordData: {'id': id},
-          ),
-        );
+        unawaited(AutoBackupManager.instance.onDataChange('bookings', 'DELETE', recordData: {'id': id}));
       }
       return result;
     } catch (e, stack) {
@@ -325,9 +257,7 @@ class BookingsRepository {
   /// استيراد بيانات الحجوزات
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data'] as List),
-      );
+      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
     }
   }
 
@@ -351,13 +281,8 @@ class BookingsRepository {
   /// لذلك هذه الدالة تقوم بـ:
   /// 1. إلغاء أي سجلات legacy_discount يتيمة (عند عدم وجود تخفيض)
   /// 2. عدم إنشاء سجلات جديدة (كانت ميتة ولا فائدة منها)
-  Future<void> syncLegacyDiscountToAdjustments(
-    int bookingId, {
-    bool enqueueOutbox = true,
-  }) async {
-    final booking = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+  Future<void> syncLegacyDiscountToAdjustments(int bookingId, {bool enqueueOutbox = true}) async {
+    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) {
       return;
     }
@@ -365,10 +290,7 @@ class BookingsRepository {
     final discount = booking.discount;
     if (discount <= 0 || booking.discountType == 'total') {
       // لا يوجد تخفيض — ألغِ أي سجلات يتيمة
-      await _cancelLegacyDiscountAdjustments(
-        bookingId,
-        enqueueOutbox: enqueueOutbox,
-      );
+      await _cancelLegacyDiscountAdjustments(bookingId, enqueueOutbox: enqueueOutbox);
       return;
     }
 
@@ -376,18 +298,12 @@ class BookingsRepository {
     // 1. EnhancedBookingCalculationService يستبعدها دائماً
     // 2. التخفيض يُطبق مباشرة عبر booking.discount في المسار القديم
     // فقط تأكد من تنظيف أي سجلات يتيمة بمبلغ مختلف
-    await _cancelLegacyDiscountAdjustments(
-      bookingId,
-      enqueueOutbox: enqueueOutbox,
-    );
+    await _cancelLegacyDiscountAdjustments(bookingId, enqueueOutbox: enqueueOutbox);
   }
 
   /// إلغاء جميع سجلات legacy_discount النشطة لحجز معين.
   /// تُستدعى عندما يُزال التخفيض من الحجز (discount <= 0) لمنع سجلات يتيمة.
-  Future<void> _cancelLegacyDiscountAdjustments(
-    int bookingId, {
-    bool enqueueOutbox = true,
-  }) async {
+  Future<void> _cancelLegacyDiscountAdjustments(int bookingId, {bool enqueueOutbox = true}) async {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
@@ -430,11 +346,7 @@ class BookingsRepository {
                 'entity': 'booking_price_adjustments',
                 'op': 'update',
                 'localUuid': orphan.localUuid,
-                'payload': <String, dynamic>{
-                  'isActive': false,
-                  'cancelledAt': nowIso,
-                  'cancelledBy': 'auto_cleanup',
-                },
+                'payload': <String, dynamic>{'isActive': false, 'cancelledAt': nowIso, 'cancelledBy': 'auto_cleanup'},
                 'clientTs': now,
               },
             )
@@ -457,9 +369,7 @@ class BookingsRepository {
   /// إرسال إشعارات (WhatsApp + Telegram) لحجز جديد
   Future<void> _notifyNewBooking(int id) async {
     try {
-      final booking = await (db.select(
-        db.bookings,
-      )..where((b) => b.id.equals(id))).getSingleOrNull();
+      final booking = await (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingleOrNull();
       if (booking == null) return;
 
       final roomNumber = booking.roomNumber;
@@ -497,18 +407,14 @@ class BookingsRepository {
   /// إرسال إشعارات (WhatsApp + Telegram) عند تغيير حالة الحجز
   Future<void> _notifyBookingUpdate(int id, String newStatus) async {
     try {
-      final booking = await (db.select(
-        db.bookings,
-      )..where((b) => b.id.equals(id))).getSingleOrNull();
+      final booking = await (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingleOrNull();
       if (booking == null) return;
 
       final roomNumber = booking.roomNumber;
       final guestName = booking.guestName;
 
       // حالة تسجيل دخول (check-in): نشط/active/confirmed
-      if (newStatus == 'نشط' ||
-          newStatus == 'active' ||
-          newStatus == 'confirmed') {
+      if (newStatus == 'نشط' || newStatus == 'active' || newStatus == 'confirmed') {
         unawaited(
           WhatsAppNotificationService.instance.notifyCheckIn(
             roomNumber: roomNumber,

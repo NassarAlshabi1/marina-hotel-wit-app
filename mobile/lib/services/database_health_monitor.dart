@@ -70,9 +70,7 @@ class DatabaseHealthMonitor {
   }
 
   /// مراقبة مستمرة (Stream)
-  Stream<HealthReport> watchHealth({
-    Duration interval = const Duration(minutes: 5),
-  }) async* {
+  Stream<HealthReport> watchHealth({Duration interval = const Duration(minutes: 5)}) async* {
     while (true) {
       yield await quickScan();
       await Future<void>.delayed(interval);
@@ -82,24 +80,12 @@ class DatabaseHealthMonitor {
   /// جمع مقاييس سريعة بدون فحص عميق
   Future<HealthMetrics> _collectQuickMetrics() async {
     try {
-      final results = await Future.wait([
-        _countInvalidServerIds(),
-        _countOrphanPayments(),
-        _countOrphanExpenses(),
-      ]);
+      final results = await Future.wait([_countInvalidServerIds(), _countOrphanPayments(), _countOrphanExpenses()]);
 
-      return HealthMetrics(
-        invalidServerIds: results[0],
-        orphanPayments: results[1],
-        orphanExpenses: results[2],
-      );
+      return HealthMetrics(invalidServerIds: results[0], orphanPayments: results[1], orphanExpenses: results[2]);
     } catch (e) {
       dlog(() => 'Error collecting metrics: $e');
-      return HealthMetrics(
-        invalidServerIds: 0,
-        orphanPayments: 0,
-        orphanExpenses: 0,
-      );
+      return HealthMetrics(invalidServerIds: 0, orphanPayments: 0, orphanExpenses: 0);
     }
   }
 
@@ -247,17 +233,13 @@ class DatabaseHealthMonitor {
         ORDER BY scanned_at DESC
         LIMIT 100
         ''',
-            variables: [
-              Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000),
-            ],
+            variables: [Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000)],
           )
           .get();
 
       return rows.map((row) {
         return HealthSnapshot(
-          timestamp: DateTime.fromMillisecondsSinceEpoch(
-            (row.data['scanned_at'] as int) * 1000,
-          ),
+          timestamp: DateTime.fromMillisecondsSinceEpoch((row.data['scanned_at'] as int) * 1000),
           healthScore: row.data['health_score'] as double,
           totalIssues: row.data['total_issues'] as int,
           status: row.data['status'] as String,
@@ -289,11 +271,7 @@ class DatabaseHealthMonitor {
       concerns.add('تدهور في الصحة بنسبة ${change.abs()}%');
     }
 
-    return HealthTrend(
-      improving: change >= 0,
-      changeRate: change,
-      concerns: concerns,
-    );
+    return HealthTrend(improving: change >= 0, changeRate: change, concerns: concerns);
   }
 }
 
@@ -372,11 +350,7 @@ $statusEmoji صحة قاعدة البيانات: ${healthScore.toStringAsFixed(1
 
 /// مقاييس الصحة
 class HealthMetrics {
-  HealthMetrics({
-    required this.invalidServerIds,
-    required this.orphanPayments,
-    required this.orphanExpenses,
-  });
+  HealthMetrics({required this.invalidServerIds, required this.orphanPayments, required this.orphanExpenses});
   final int invalidServerIds;
   final int orphanPayments;
   final int orphanExpenses;
@@ -386,12 +360,7 @@ class HealthMetrics {
 
 /// لقطة سجل الصحة
 class HealthSnapshot {
-  HealthSnapshot({
-    required this.timestamp,
-    required this.healthScore,
-    required this.totalIssues,
-    required this.status,
-  });
+  HealthSnapshot({required this.timestamp, required this.healthScore, required this.totalIssues, required this.status});
   final DateTime timestamp;
   final double healthScore;
   final int totalIssues;
@@ -400,11 +369,7 @@ class HealthSnapshot {
 
 /// اتجاه الصحة
 class HealthTrend {
-  HealthTrend({
-    required this.improving,
-    required this.changeRate,
-    required this.concerns,
-  });
+  HealthTrend({required this.improving, required this.changeRate, required this.concerns});
   final bool improving;
   final double changeRate;
   final List<String> concerns;

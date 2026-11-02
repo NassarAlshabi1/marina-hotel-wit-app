@@ -42,8 +42,7 @@ class RemoteChangeQueue {
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance = AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -84,10 +83,7 @@ class AppwriteRealtimeSync {
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 
-  Future<void> initialize({
-    required String deviceId,
-    DeltaPullCallback? deltaPull,
-  }) async {
+  Future<void> initialize({required String deviceId, DeltaPullCallback? deltaPull}) async {
     _currentDeviceId = deviceId;
     _deltaPull = deltaPull;
     _intentionallyStopped = false;
@@ -103,12 +99,9 @@ class AppwriteRealtimeSync {
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
 
     _intentionallyStopped = false;
-    final realtimeEnabled =
-        prefs.getBool('appwrite_realtime_ws_enabled') ?? false;
+    final realtimeEnabled = prefs.getBool('appwrite_realtime_ws_enabled') ?? false;
     if (!realtimeEnabled) {
-      dlog(
-        '[Realtime] WebSocket disabled; polling fallback remains non-invasive',
-      );
+      dlog('[Realtime] WebSocket disabled; polling fallback remains non-invasive');
       _startPollingFallback();
       return;
     }
@@ -120,10 +113,7 @@ class AppwriteRealtimeSync {
     _realtime ??= Realtime(AppwriteService().client);
 
     final channels = _collections
-        .map(
-          (c) =>
-              'databases.${AppwriteConfig.databaseId}.collections.$c.documents',
-        )
+        .map((c) => 'databases.${AppwriteConfig.databaseId}.collections.$c.documents')
         .toList();
     try {
       _subscription = _realtime!.subscribe(channels);
@@ -180,19 +170,13 @@ class AppwriteRealtimeSync {
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
     if (sourceDevice == _currentDeviceId) return;
     final isDataChange = message.events.any(
-      (e) =>
-          e.endsWith('.create') ||
-          e.endsWith('.update') ||
-          e.endsWith('.delete'),
+      (e) => e.endsWith('.create') || e.endsWith('.update') || e.endsWith('.delete'),
     );
     if (!isDataChange) return;
 
     final collection = _collectionFromEvents(message.events);
     final event = message.events.firstWhere(
-      (e) =>
-          e.endsWith('.create') ||
-          e.endsWith('.update') ||
-          e.endsWith('.delete'),
+      (e) => e.endsWith('.create') || e.endsWith('.update') || e.endsWith('.delete'),
       orElse: () => 'change',
     );
     final documentId = payload[r'$id']?.toString();
@@ -201,8 +185,7 @@ class AppwriteRealtimeSync {
     final updatedAt = payload[r'$updatedAt'] ?? payload[r'$createdAt'];
     if (updatedAt is String) {
       final parsed = DateTime.tryParse(updatedAt);
-      if (parsed != null &&
-          (_lastServerUpdate == null || parsed.isAfter(_lastServerUpdate!))) {
+      if (parsed != null && (_lastServerUpdate == null || parsed.isAfter(_lastServerUpdate!))) {
         _lastServerUpdate = parsed;
       }
     }
@@ -218,11 +201,7 @@ class AppwriteRealtimeSync {
   }
 
   void _markPending(String collection, String? documentId, String event) {
-    remoteChangeQueue.add(
-      collection: collection,
-      documentId: documentId,
-      event: event,
-    );
+    remoteChangeQueue.add(collection: collection, documentId: documentId, event: event);
     hasRemoteChanges.value = true;
     pendingRemoteChangesCount.value = remoteChangeQueue.length;
     dlog('[Realtime] queued: $collection/$documentId');
@@ -266,11 +245,7 @@ class AppwriteRealtimeSync {
   }
 
   @visibleForTesting
-  void enqueueForTesting({
-    required String collection,
-    String? documentId,
-    String event = 'update',
-  }) {
+  void enqueueForTesting({required String collection, String? documentId, String event = 'update'}) {
     _markPending(collection, documentId, event);
   }
 

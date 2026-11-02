@@ -14,12 +14,7 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 /// وتعطّل نفسها تلقائياً طالما البوّابة مشغولة.
 @immutable
 class SyncGateState {
-  const SyncGateState({
-    this.isBusy = false,
-    this.operation,
-    this.source,
-    this.startedAt,
-  });
+  const SyncGateState({this.isBusy = false, this.operation, this.source, this.startedAt});
 
   /// هل توجد عملية مزامنة جارية الآن من أي مصدر؟
   final bool isBusy;
@@ -35,9 +30,7 @@ class SyncGateState {
   final DateTime? startedAt;
 
   /// مدة العملية الحالية بالمللي ثانية، أو null إذا لم تكن مشغولة.
-  int? get elapsedMs => isBusy && startedAt != null
-      ? DateTime.now().difference(startedAt!).inMilliseconds
-      : null;
+  int? get elapsedMs => isBusy && startedAt != null ? DateTime.now().difference(startedAt!).inMilliseconds : null;
 
   SyncGateState copyWith({
     bool? isBusy,
@@ -90,9 +83,7 @@ class SyncGate {
   static final SyncGate instance = SyncGate._();
 
   /// منفذ عام يمكن لأي عنصر واجهة مراقبته عبر `ValueListenableBuilder`.
-  final ValueNotifier<SyncGateState> notifier = ValueNotifier<SyncGateState>(
-    const SyncGateState(),
-  );
+  final ValueNotifier<SyncGateState> notifier = ValueNotifier<SyncGateState>(const SyncGateState());
 
   /// اختصار للحالة الحالية.
   SyncGateState get state => notifier.value;
@@ -115,12 +106,7 @@ class SyncGate {
       }
       return false;
     }
-    notifier.value = SyncGateState(
-      isBusy: true,
-      operation: operation,
-      source: source,
-      startedAt: DateTime.now(),
-    );
+    notifier.value = SyncGateState(isBusy: true, operation: operation, source: source, startedAt: DateTime.now());
     if (kDebugMode) {
       dlog(() => '🔒 [SyncGate] entered: $operation from $source');
     }

@@ -109,44 +109,24 @@ void main() {
   }
 
   group('حالة «الاورمو محمد»: سحوبات مرآة عبر الأجهزة', () {
-    test(
-      'المرآة exp_962 بلا مصروف محلي 962 لا تُعَد مرتين (مطابقة بيانات)',
-      () async {
-        final empId = await createEmployee();
-        final emp = await (db.select(
-          db.employees,
-        )..where((e) => e.id.equals(empId))).getSingle();
+    test('المرآة exp_962 بلا مصروف محلي 962 لا تُعَد مرتين (مطابقة بيانات)', () async {
+      final empId = await createEmployee();
+      final emp = await (db.select(db.employees)..where((e) => e.id.equals(empId))).getSingle();
 
-        // الجهاز الثاني سحب المصروف: id محلي جديد ≠ 962، serverId = null
-        await createPulledMirrorExpense(
-          employeeId: empId,
-          amount: 5000,
-          date: '2026-08-02',
-        );
-        // والسحبة المرآة من جهاز المصدر تشير لمعرف جهاز المصدر:
-        await createMirrorWithdrawal(
-          employeeId: empId,
-          amount: 5000,
-          date: '2026-08-02',
-          originReason: 'exp_962',
-        );
+      // الجهاز الثاني سحب المصروف: id محلي جديد ≠ 962، serverId = null
+      await createPulledMirrorExpense(employeeId: empId, amount: 5000, date: '2026-08-02');
+      // والسحبة المرآة من جهاز المصدر تشير لمعرف جهاز المصدر:
+      await createMirrorWithdrawal(employeeId: empId, amount: 5000, date: '2026-08-02', originReason: 'exp_962');
 
-        final ent = await service.calculateEmployeeEntitlement(emp);
-        // بدون الإصلاح: السحبة تُعَد مرتين → totalWithdrawals = 10000
-        expect(
-          ent.totalWithdrawals,
-          5000,
-          reason: 'المرآة يجب ألا تُعَد مرتين',
-        );
-        expect(ent.netEntitlement, 7000, reason: '12000 - 5000 مرة واحدة فقط');
-      },
-    );
+      final ent = await service.calculateEmployeeEntitlement(emp);
+      // بدون الإصلاح: السحبة تُعَد مرتين → totalWithdrawals = 10000
+      expect(ent.totalWithdrawals, 5000, reason: 'المرآة يجب ألا تُعَد مرتين');
+      expect(ent.netEntitlement, 7000, reason: '12000 - 5000 مرة واحدة فقط');
+    });
 
     test('مرايا متعددة بمبالغ مختلفة وأيام مختلفة تُطابَق كلها', () async {
       final empId = await createEmployee();
-      final emp = await (db.select(
-        db.employees,
-      )..where((e) => e.id.equals(empId))).getSingle();
+      final emp = await (db.select(db.employees)..where((e) => e.id.equals(empId))).getSingle();
 
       // ثلاث مرايا حقيقية (مثل بيانات الأورمو محمد الفعلية)
       final pairs = [
@@ -155,17 +135,8 @@ void main() {
         ('15000', '2026-08-31', 'exp_1187'),
       ];
       for (final (amount, date, reason) in pairs) {
-        await createPulledMirrorExpense(
-          employeeId: empId,
-          amount: double.parse(amount),
-          date: date,
-        );
-        await createMirrorWithdrawal(
-          employeeId: empId,
-          amount: double.parse(amount),
-          date: date,
-          originReason: reason,
-        );
+        await createPulledMirrorExpense(employeeId: empId, amount: double.parse(amount), date: date);
+        await createMirrorWithdrawal(employeeId: empId, amount: double.parse(amount), date: date, originReason: reason);
       }
 
       final ent = await service.calculateEmployeeEntitlement(emp);
@@ -175,29 +146,13 @@ void main() {
 
     test('نفس المبلغ في يومين مختلفين لا يُخلط بينهما', () async {
       final empId = await createEmployee();
-      final emp = await (db.select(
-        db.employees,
-      )..where((e) => e.id.equals(empId))).getSingle();
+      final emp = await (db.select(db.employees)..where((e) => e.id.equals(empId))).getSingle();
 
       // مصروف 25000 يوم 24 فقط — والسحبة يوم 25 (لا مصروف لها)
-      await createPulledMirrorExpense(
-        employeeId: empId,
-        amount: 25000,
-        date: '2026-08-24',
-      );
-      await createMirrorWithdrawal(
-        employeeId: empId,
-        amount: 25000,
-        date: '2026-08-24',
-        originReason: 'exp_1138',
-      );
+      await createPulledMirrorExpense(employeeId: empId, amount: 25000, date: '2026-08-24');
+      await createMirrorWithdrawal(employeeId: empId, amount: 25000, date: '2026-08-24', originReason: 'exp_1138');
       // سحبة حقيقية (يتيمة) 25000 يوم 25 — يجب أن تُعَد
-      await createMirrorWithdrawal(
-        employeeId: empId,
-        amount: 25000,
-        date: '2026-08-25',
-        originReason: 'exp_1148',
-      );
+      await createMirrorWithdrawal(employeeId: empId, amount: 25000, date: '2026-08-25', originReason: 'exp_1148');
 
       final ent = await service.calculateEmployeeEntitlement(emp);
       // 25000 (المرآة) + 25000 (اليتيمة) = 50000 — اليتيمة لا تُختلس بالخطأ
@@ -205,46 +160,36 @@ void main() {
       expect(ent.netEntitlement, 12000 - 50000);
     });
 
-    test(
-      'حارس direct_withdrawal_: سحبة مباشرة بنفس مبلغ ويوم مصروف قائم تُعَد',
-      () async {
-        final empId = await createEmployee();
-        final emp = await (db.select(
-          db.employees,
-        )..where((e) => e.id.equals(empId))).getSingle();
+    test('حارس direct_withdrawal_: سحبة مباشرة بنفس مبلغ ويوم مصروف قائم تُعَد', () async {
+      final empId = await createEmployee();
+      final emp = await (db.select(db.employees)..where((e) => e.id.equals(empId))).getSingle();
 
-        // مصروف سلفة قديم بنفس مبلغ ويوم سحبة مباشرة لاحقة — لا علاقة بينهما
-        await createPulledMirrorExpense(
-          employeeId: empId,
-          amount: 19000,
-          date: '2026-09-13',
-          type: 'سلفة',
-        );
-        await db
-            .into(db.salaryWithdrawals)
-            .insert(
-              SalaryWithdrawalsCompanion(
-                employeeId: d.Value(empId),
-                amount: const d.Value(19000),
-                withdrawDate: const d.Value('2026-09-13'),
-                withdrawalType: const d.Value('سحب راتب'),
-                reason: const d.Value('direct_withdrawal_emp-uuid-cross'),
-                hotelDayKey: const d.Value('2026-09-13'),
-                localUuid: const d.Value('sw-direct-uuid-19000'),
-                createdAt: const d.Value(1000),
-                updatedAt: const d.Value(1000),
-                lastModified: const d.Value(1000),
-              ),
-            );
+      // مصروف سلفة قديم بنفس مبلغ ويوم سحبة مباشرة لاحقة — لا علاقة بينهما
+      await createPulledMirrorExpense(employeeId: empId, amount: 19000, date: '2026-09-13', type: 'سلفة');
+      await db
+          .into(db.salaryWithdrawals)
+          .insert(
+            SalaryWithdrawalsCompanion(
+              employeeId: d.Value(empId),
+              amount: const d.Value(19000),
+              withdrawDate: const d.Value('2026-09-13'),
+              withdrawalType: const d.Value('سحب راتب'),
+              reason: const d.Value('direct_withdrawal_emp-uuid-cross'),
+              hotelDayKey: const d.Value('2026-09-13'),
+              localUuid: const d.Value('sw-direct-uuid-19000'),
+              createdAt: const d.Value(1000),
+              updatedAt: const d.Value(1000),
+              lastModified: const d.Value(1000),
+            ),
+          );
 
-        final ent = await service.calculateEmployeeEntitlement(emp);
-        // السلفة (19000) ضمن totalAdvances + السحبة المباشرة (19000) ضمن
-        // totalWithdrawals — كلٌّ مرة واحدة، ولا يُختلطان
-        expect(ent.totalAdvances, 19000);
-        expect(ent.totalWithdrawals, 19000);
-        expect(ent.netEntitlement, 12000 - 19000 - 19000);
-      },
-    );
+      final ent = await service.calculateEmployeeEntitlement(emp);
+      // السلفة (19000) ضمن totalAdvances + السحبة المباشرة (19000) ضمن
+      // totalWithdrawals — كلٌّ مرة واحدة، ولا يُختلطان
+      expect(ent.totalAdvances, 19000);
+      expect(ent.totalWithdrawals, 19000);
+      expect(ent.netEntitlement, 12000 - 19000 - 19000);
+    });
   });
 
   group('المرحلة 2-ب: exp_N يطابق serverId المصروف', () {

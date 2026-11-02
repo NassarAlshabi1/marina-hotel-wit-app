@@ -131,11 +131,7 @@ void main() {
     await $.tester.ensureVisible(statementFinder);
 
     // التحقق من وجود الزر
-    expect(
-      $('إرسال كشف حساب'),
-      findsOneWidget,
-      reason: 'زر إرسال كشف حساب يجب أن يكون ظاهراً',
-    );
+    expect($('إرسال كشف حساب'), findsOneWidget, reason: 'زر إرسال كشف حساب يجب أن يكون ظاهراً');
   });
 
   patrolTest('يفتح نافذة "إرسال كشف حساب" عند الضغط على الزر', ($) async {
@@ -245,18 +241,10 @@ void main() {
     await $('معاينة رسالة WhatsApp').tap();
 
     // ✅ التحقق من ظهور معاينة الرسالة
-    expect(
-      $('إخفاء المعاينة'),
-      findsOneWidget,
-      reason: 'زر المعاينة يجب أن يتحول إلى "إخفاء المعاينة"',
-    );
+    expect($('إخفاء المعاينة'), findsOneWidget, reason: 'زر المعاينة يجب أن يتحول إلى "إخفاء المعاينة"');
 
     // ✅ التحقق من ظهور عدّاد الأحرف
-    expect(
-      find.textContaining('1000 حرف'),
-      findsOneWidget,
-      reason: 'عدّاد الأحرف يجب أن يظهر في معاينة WhatsApp',
-    );
+    expect(find.textContaining('1000 حرف'), findsOneWidget, reason: 'عدّاد الأحرف يجب أن يظهر في معاينة WhatsApp');
 
     // ✅ التحقق من ظهور رأس رسالة كشف الحساب في المعاينة
     expect(find.textContaining('كشف حساب'), findsWidgets);
@@ -293,10 +281,6 @@ void main() {
     await $.pumpAndSettle();
 
     // ✅ النافذة أُغلقت
-    expect(
-      find.byType(AlertDialog),
-      findsNothing,
-      reason: 'نافذة الحوار يجب أن تُغلق عند الضغط على إلغاء',
-    );
+    expect(find.byType(AlertDialog), findsNothing, reason: 'نافذة الحوار يجب أن تُغلق عند الضغط على إلغاء');
   });
 }

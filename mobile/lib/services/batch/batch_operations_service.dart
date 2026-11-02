@@ -56,12 +56,7 @@ class BatchOperationsService {
       }
     });
 
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: successes,
-      failures: failures,
-    );
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: successes, failures: failures);
   }
 
   /// Insert payments in batch (15x faster than individual)
@@ -103,22 +98,13 @@ class BatchOperationsService {
       }
     });
 
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: rooms,
-      failures: [],
-    );
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: rooms, failures: []);
   }
 
   /// ─── BATCH DELETE ───
 
   /// Delete by IDs (much faster than SELECT then DELETE)
-  Future<int> batchDeleteByIds(
-    String tableName,
-    List<int> ids, {
-    int batchSize = 500,
-  }) async {
+  Future<int> batchDeleteByIds(String tableName, List<int> ids, {int batchSize = 500}) async {
     int totalDeleted = 0;
 
     for (var i = 0; i < ids.length; i += batchSize) {
@@ -161,12 +147,7 @@ class BatchOperationsService {
       }
     });
 
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: items,
-      failures: [],
-    );
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: items, failures: []);
   }
 
   /// ─── HELPER ───
@@ -190,12 +171,7 @@ class BatchOperationsService {
       }
     });
 
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: <T>[],
-      failures: [],
-    );
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: <T>[], failures: []);
   }
 
   /// ─── SMART BATCH: Auto-sized based on record size ───
@@ -243,10 +219,7 @@ extension BatchExtensions on BatchOperationsService {
           final chunk = records.skip(i).take(batchSize);
           for (final record in chunk) {
             final values = keys.map((k) => record[k]).toList();
-            batch.customStatement(
-              'INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)',
-              values,
-            );
+            batch.customStatement('INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)', values);
           }
         }
       });

@@ -24,8 +24,7 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class LatePaymentNotificationService {
   LatePaymentNotificationService._();
-  static final LatePaymentNotificationService instance =
-      LatePaymentNotificationService._();
+  static final LatePaymentNotificationService instance = LatePaymentNotificationService._();
 
   Timer? _timer;
   bool _isRunning = false;
@@ -40,8 +39,7 @@ class LatePaymentNotificationService {
   /// قناة الإشعارات المخصصة لتنبيهات السداد.
   static const String _channelId = 'marina_late_payment_channel';
   static const String _channelName = 'تنبيهات السداد المتأخر';
-  static const String _channelDescription =
-      'تنبيهات عند تأخر سداد الغرف المحجوزة (22:00+)';
+  static const String _channelDescription = 'تنبيهات عند تأخر سداد الغرف المحجوزة (22:00+)';
 
   /// IDs ثابتة للإشعارات حتى نتمكن من تحديثها بدل تكرارها.
   static const int _lateNotificationId = 9001;
@@ -181,9 +179,7 @@ class LatePaymentNotificationService {
 
       // ✅ تأكد من التهيئة — نُفترض أن SyncNotificationManager سبق وفعّلها،
       // لكن نضيف تهيئة احتياطية هنا لضمان عمل الإشعار حتى لو لم تُفعّل.
-      const androidSettings = AndroidInitializationSettings(
-        '@mipmap/ic_launcher',
-      );
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidSettings);
       await plugin.initialize(initSettings);
 
@@ -205,16 +201,9 @@ class LatePaymentNotificationService {
         ledOffMs: 1000,
       );
 
-      const iosDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
+      const iosDetails = DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true);
 
-      final details = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
+      final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
       await plugin.show(id, title, body, details);
     } catch (e, st) {

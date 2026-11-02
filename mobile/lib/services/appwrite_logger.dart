@@ -46,8 +46,7 @@ class AppwriteLogger {
         await logsDir.create(recursive: true);
       }
 
-      final fileName =
-          'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
+      final fileName = 'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
       dlog(() => 'Error initializing log file: $e');
@@ -60,11 +59,7 @@ class AppwriteLogger {
   /// الإجراء أي ملف آخر في مجلد المستندات.
   Future<void> pruneLogs({required int retentionDays}) async {
     if (retentionDays < 1) {
-      throw ArgumentError.value(
-        retentionDays,
-        'retentionDays',
-        'must be at least one day',
-      );
+      throw ArgumentError.value(retentionDays, 'retentionDays', 'must be at least one day');
     }
 
     try {
@@ -145,13 +140,7 @@ class AppwriteLogger {
     }
     message.write('   الخطأ: $errorMessage');
 
-    log(
-      message.toString(),
-      level: LogLevel.error,
-      tag: 'TABLE_ERROR',
-      error: errorMessage,
-      stackTrace: stackTrace,
-    );
+    log(message.toString(), level: LogLevel.error, tag: 'TABLE_ERROR', error: errorMessage, stackTrace: stackTrace);
   }
 
   /// تسجيل خطأ في الحقل
@@ -173,13 +162,7 @@ class AppwriteLogger {
       message.writeln('   قيمة الحقل: $fieldValue');
     }
 
-    log(
-      message.toString(),
-      level: LogLevel.error,
-      tag: 'FIELD_ERROR',
-      error: errorMessage,
-      stackTrace: stackTrace,
-    );
+    log(message.toString(), level: LogLevel.error, tag: 'FIELD_ERROR', error: errorMessage, stackTrace: stackTrace);
   }
 
   /// تسجيل خطأ في المخطط (Schema)
@@ -200,13 +183,7 @@ class AppwriteLogger {
       message.writeln('   الحقل الفعلي: $actualField');
     }
 
-    log(
-      message.toString(),
-      level: LogLevel.warning,
-      tag: 'SCHEMA_ERROR',
-      error: errorMessage,
-      stackTrace: stackTrace,
-    );
+    log(message.toString(), level: LogLevel.warning, tag: 'SCHEMA_ERROR', error: errorMessage, stackTrace: stackTrace);
   }
 
   /// تسجيل عدم تطابق الحقول
@@ -254,13 +231,7 @@ class AppwriteLogger {
     }
     message.write('   الخطأ: $errorMessage');
 
-    log(
-      message.toString(),
-      level: LogLevel.error,
-      tag: 'SYNC_ERROR',
-      error: errorMessage,
-      stackTrace: stackTrace,
-    );
+    log(message.toString(), level: LogLevel.error, tag: 'SYNC_ERROR', error: errorMessage, stackTrace: stackTrace);
   }
 
   /// طباعة إلى Console
@@ -272,10 +243,7 @@ class AppwriteLogger {
   /// كتابة إلى الملف
   Future<void> _writeToFile(LogEntry entry) async {
     try {
-      await _logFile?.writeAsString(
-        '${entry.toFormattedString()}\n',
-        mode: FileMode.append,
-      );
+      await _logFile?.writeAsString('${entry.toFormattedString()}\n', mode: FileMode.append);
     } catch (e) {
       dlog(() => 'Error writing to log file: $e');
     }
@@ -306,49 +274,16 @@ class AppwriteLogger {
     log(message, tag: tag);
   }
 
-  void warning(
-    String message, {
-    String tag = 'APPWRITE',
-    dynamic error,
-    StackTrace? stackTrace,
-  }) {
-    log(
-      message,
-      level: LogLevel.warning,
-      tag: tag,
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void warning(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message, level: LogLevel.warning, tag: tag, error: error, stackTrace: stackTrace);
   }
 
-  void error(
-    String message, {
-    String tag = 'APPWRITE',
-    dynamic error,
-    StackTrace? stackTrace,
-  }) {
-    log(
-      message,
-      level: LogLevel.error,
-      tag: tag,
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void error(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message, level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
   }
 
-  void critical(
-    String message, {
-    String tag = 'APPWRITE',
-    dynamic error,
-    StackTrace? stackTrace,
-  }) {
-    log(
-      message,
-      level: LogLevel.critical,
-      tag: tag,
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void critical(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message, level: LogLevel.critical, tag: tag, error: error, stackTrace: stackTrace);
   }
 
   /// الحصول على جميع السجلات
@@ -380,8 +315,7 @@ class AppwriteLogger {
   Future<File?> exportLogs() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final fileName =
-          'appwrite_logs_export_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
+      final fileName = 'appwrite_logs_export_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
       final file = File('${directory.path}/$fileName');
 
       final buffer = StringBuffer();

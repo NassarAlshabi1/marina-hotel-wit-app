@@ -44,46 +44,39 @@ import 'package:marina_hotel_mobile/src/pdf/report_templates/payments_report_pdf
 import 'package:marina_hotel_mobile/src/pdf/report_templates/salary_withdrawals_report_pdf.dart';
 
 /// التقاطات Printing.sharePdf المُحاكاة.
-final List<({String filename, Uint8List bytes})> _sharedPdfs =
-    <({String filename, Uint8List bytes})>[];
+final List<({String filename, Uint8List bytes})> _sharedPdfs = <({String filename, Uint8List bytes})>[];
 
 /// يخدّم قناة flutter/assets من ملفات المشروع الحقيقية — حتى يعمل
 /// rootBundle.load (مسار تحميل الخطوط الفعلي في الإنتاج) داخل الاختبارات.
 void _serveRealAssets() {
   const assetChannel = 'flutter/assets';
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMessageHandler(assetChannel, (ByteData? message) async {
-        final path = utf8.decode(
-          message!.buffer.asUint8List(
-            message.offsetInBytes,
-            message.lengthInBytes,
-          ),
-        );
-        final file = File(path);
-        if (!file.existsSync()) {
-          throw StateError('الأصل المطلوب غير موجود على القرص: $path');
-        }
-        final bytes = await file.readAsBytes();
-        return ByteData.sublistView(bytes);
-      });
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMessageHandler(assetChannel, (
+    ByteData? message,
+  ) async {
+    final path = utf8.decode(message!.buffer.asUint8List(message.offsetInBytes, message.lengthInBytes));
+    final file = File(path);
+    if (!file.existsSync()) {
+      throw StateError('الأصل المطلوب غير موجود على القرص: $path');
+    }
+    final bytes = await file.readAsBytes();
+    return ByteData.sublistView(bytes);
+  });
 }
 
 /// يحاكي البرنامج المساعد printing: يلتقط استدعاءات sharePdf بدل فتح
 /// نافذة المشاركة، ويعيد 1 (نجاح) كما تتوقعه طبقة Dart.
 void _mockPrintingPlugin() {
   const channel = MethodChannel('net.nfet.printing');
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'sharePdf') {
-          final args = call.arguments as Map<dynamic, dynamic>;
-          _sharedPdfs.add((
-            filename: args['name'] as String? ?? '',
-            bytes: args['doc'] as Uint8List,
-          ));
-          return 1;
-        }
-        return null;
-      });
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+    MethodCall call,
+  ) async {
+    if (call.method == 'sharePdf') {
+      final args = call.arguments as Map<dynamic, dynamic>;
+      _sharedPdfs.add((filename: args['name'] as String? ?? '', bytes: args['doc'] as Uint8List));
+      return 1;
+    }
+    return null;
+  });
 }
 
 void main() {
@@ -100,16 +93,8 @@ void main() {
   void expectOneValidPdf({int minBytes = 2000}) {
     expect(_sharedPdfs, hasLength(1), reason: 'يجب إنتاج ملف PDF واحد');
     final pdf = _sharedPdfs.single;
-    expect(
-      String.fromCharCodes(pdf.bytes.take(5)),
-      '%PDF-',
-      reason: 'الملف يجب أن يبدأ بتوقيع %PDF',
-    );
-    expect(
-      pdf.bytes.length,
-      greaterThan(minBytes),
-      reason: 'حجم PDF صغير جداً — المحتوى غير مولَّد',
-    );
+    expect(String.fromCharCodes(pdf.bytes.take(5)), '%PDF-', reason: 'الملف يجب أن يبدأ بتوقيع %PDF');
+    expect(pdf.bytes.length, greaterThan(minBytes), reason: 'حجم PDF صغير جداً — المحتوى غير مولَّد');
     expect(pdf.filename, isNotEmpty);
     expect(pdf.filename.endsWith('.pdf'), isTrue);
   }
@@ -121,44 +106,33 @@ void main() {
   //  1. اختبار الانحدار — الخلل الأصلي (Infinity height)
   // ═══════════════════════════════════════════════════════════════════════
   group('🔧 اختبار انحدار: بطاقة buildInfoCard داخل MultiPage', () {
-    test(
-      'لا تنتج ارتفاعاً لا نهائياً (كانت ترمي Widget won\'t fit Infinity)',
-      () async {
-        final fonts = await EnhancedPdfUtils.loadArabicFonts();
-        final doc = pw.Document();
-        doc.addPage(
-          pw.MultiPage(
-            pageFormat: PdfPageFormat.a4,
-            textDirection: pw.TextDirection.rtl,
-            theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
-            build: (context) => [
-              // قبل الإصلاح (Row + stretch) كان هذا السطر بالضبط يرمي:
-              // Exception: Widget won't fit into the page as its height
-              //   (Infinity) exceed a page height (751.8897637795275)
-              EnhancedPdfUtils.buildInfoCard(
-                title: 'بطاقة معلومات تجريبية',
-                fonts: fonts,
-                content: [
-                  EnhancedPdfUtils.buildKeyValueRow(
-                    fonts: fonts,
-                    label: 'الفترة',
-                    value: 'من 2026-10-01 إلى 2026-10-31',
-                  ),
-                  EnhancedPdfUtils.buildKeyValueRow(
-                    fonts: fonts,
-                    label: 'الموظف',
-                    value: 'الكل',
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-            ],
-          ),
-        );
-        final bytes = await doc.save();
-        expect(bytes.length, greaterThan(1500));
-      },
-    );
+    test('لا تنتج ارتفاعاً لا نهائياً (كانت ترمي Widget won\'t fit Infinity)', () async {
+      final fonts = await EnhancedPdfUtils.loadArabicFonts();
+      final doc = pw.Document();
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          textDirection: pw.TextDirection.rtl,
+          theme: pw.ThemeData.withFont(base: fonts.regular, bold: fonts.bold),
+          build: (context) => [
+            // قبل الإصلاح (Row + stretch) كان هذا السطر بالضبط يرمي:
+            // Exception: Widget won't fit into the page as its height
+            //   (Infinity) exceed a page height (751.8897637795275)
+            EnhancedPdfUtils.buildInfoCard(
+              title: 'بطاقة معلومات تجريبية',
+              fonts: fonts,
+              content: [
+                EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'الفترة', value: 'من 2026-10-01 إلى 2026-10-31'),
+                EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'الموظف', value: 'الكل'),
+              ],
+            ),
+            pw.SizedBox(height: 12),
+          ],
+        ),
+      );
+      final bytes = await doc.save();
+      expect(bytes.length, greaterThan(1500));
+    });
 
     test('مربع الإحصاءات وبطاقة القيم تعملان معاً في نفس المستند', () async {
       final fonts = await EnhancedPdfUtils.loadArabicFonts();
@@ -169,30 +143,15 @@ void main() {
           build: (context) => [
             EnhancedPdfUtils.buildStatisticsGrid(
               items: [
-                EnhancedPdfUtils.buildStatisticsBox(
-                  title: 'إجمالي',
-                  value: '12,500',
-                  fonts: fonts,
-                ),
-                EnhancedPdfUtils.buildStatisticsBox(
-                  title: 'عدد',
-                  value: '3',
-                  fonts: fonts,
-                  color: PdfColors.accent,
-                ),
+                EnhancedPdfUtils.buildStatisticsBox(title: 'إجمالي', value: '12,500', fonts: fonts),
+                EnhancedPdfUtils.buildStatisticsBox(title: 'عدد', value: '3', fonts: fonts, color: PdfColors.accent),
               ],
             ),
             pw.SizedBox(height: 8),
             EnhancedPdfUtils.buildInfoCard(
               title: 'ملخص',
               fonts: fonts,
-              content: [
-                EnhancedPdfUtils.buildKeyValueRow(
-                  fonts: fonts,
-                  label: 'عدد السجلات',
-                  value: '3',
-                ),
-              ],
+              content: [EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'عدد السجلات', value: '3')],
             ),
           ],
         ),
@@ -319,12 +278,7 @@ void main() {
               employeeName: 'موظف 1',
               isSalaryWithdrawal: true,
             ),
-            ExpensesReportRow(
-              date: DateTime(2026, 10, 12),
-              amount: 3200,
-              type: 'كهرباء',
-              description: 'فاتورة كهرباء',
-            ),
+            ExpensesReportRow(date: DateTime(2026, 10, 12), amount: 3200, type: 'كهرباء', description: 'فاتورة كهرباء'),
           ],
           totalAmount: 18200,
           hasSalaryData: true,
@@ -342,12 +296,7 @@ void main() {
       await DebtsReportPdf.share(
         DebtsReportData(
           guestSummaries: [
-            DebtsReportGuestSummary(
-              guestName: 'نزيل أول',
-              totalAmount: 5000,
-              paidAmount: 2000,
-              remainingAmount: 3000,
-            ),
+            DebtsReportGuestSummary(guestName: 'نزيل أول', totalAmount: 5000, paidAmount: 2000, remainingAmount: 3000),
           ],
           detailRows: [
             DebtsReportDetailRow(
@@ -528,10 +477,7 @@ void main() {
     });
 
     test('التقرير التفصيلي المجمّع يومياً (shareGrouped) ينجح', () async {
-      await IncomeExpenseReportPdf.shareGrouped(
-        buildData(),
-        mode: IncomeExpenseGroupMode.daily,
-      );
+      await IncomeExpenseReportPdf.shareGrouped(buildData(), mode: IncomeExpenseGroupMode.daily);
       expectOneValidPdf(minBytes: 5000);
     });
   });
@@ -584,11 +530,7 @@ void main() {
       expectOneValidPdf(minBytes: 1000);
       final filename = _sharedPdfs.single.filename;
       for (final ch in r'\/:*?"<>|'.split('')) {
-        expect(
-          filename,
-          isNot(contains(ch)),
-          reason: 'اسم الملف $filename يجب ألا يحتوي $ch',
-        );
+        expect(filename, isNot(contains(ch)), reason: 'اسم الملف $filename يجب ألا يحتوي $ch');
       }
     });
   });

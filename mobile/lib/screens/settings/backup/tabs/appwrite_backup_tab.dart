@@ -51,9 +51,7 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                 Expanded(
                   child: Text(
                     'رفع نسخة إلى Appwrite',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -74,10 +72,7 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'يُحفظ ملف النسخة في الذاكرة الخارجية',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      const Text('يُحفظ ملف النسخة في الذاكرة الخارجية', style: TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Text(
                         'المسار: Documents/MarinaHotelBackups/Appwrite\n'
@@ -110,16 +105,10 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
         ElevatedButton.icon(
           onPressed: _isUploading ? null : _confirmAndUpload,
           icon: _isUploading
-              ? const SizedBox(
-                  height: 18,
-                  width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.cloud_upload),
           label: Text(_isUploading ? 'جاري الرفع...' : 'إنشاء ورفع نسخة الآن'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
+          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
         ),
         if (_lastExportedFile != null) ...[
           const SizedBox(height: 20),
@@ -132,13 +121,9 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                   Row(
                     children: [
                       Icon(
-                        _lastSavedToExternal
-                            ? Icons.sd_card
-                            : Icons.folder_special,
+                        _lastSavedToExternal ? Icons.sd_card : Icons.folder_special,
                         size: 20,
-                        color: _lastSavedToExternal
-                            ? Colors.green
-                            : Colors.orange,
+                        color: _lastSavedToExternal ? Colors.green : Colors.orange,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -149,9 +134,7 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                                     'صلاحية الوصول لجميع الملفات)',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: _lastSavedToExternal
-                                ? Colors.green
-                                : Colors.orange,
+                            color: _lastSavedToExternal ? Colors.green : Colors.orange,
                           ),
                         ),
                       ),
@@ -160,16 +143,11 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
                   const SizedBox(height: 8),
                   SelectableText(
                     _lastExportedFile!.path,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
                   ),
                   if (_lastFileSize != null) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      'الحجم: $_lastFileSize',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text('الحجم: $_lastFileSize', style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ],
               ),
@@ -209,14 +187,8 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
           'هل تريد المتابعة؟',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('إنشاء ورفع'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('إنشاء ورفع')),
         ],
       ),
     );
@@ -291,12 +263,9 @@ class _AppwriteBackupTabState extends ConsumerState<AppwriteBackupTab> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل رفع النسخة إلى Appwrite: $error'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل رفع النسخة إلى Appwrite: $error'), backgroundColor: Colors.red));
     } finally {
       if (mounted) {
         setState(() => _isUploading = false);

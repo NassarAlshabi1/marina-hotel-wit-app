@@ -16,10 +16,7 @@ class SyncQueueService {
     dlog('⚠️ [SyncQueue] Service deprecated - initializing as no-op');
   }
 
-  Future<void> addToQueue({
-    required String screenId,
-    required Map<String, dynamic> data,
-  }) async {
+  Future<void> addToQueue({required String screenId, required Map<String, dynamic> data}) async {
     dlog('⚠️ [SyncQueue] addToQueue ignored (using Outbox instead)');
   }
 
@@ -35,8 +32,7 @@ class SyncQueueService {
 
   Future<int> getQueueCount() async => 0;
 
-  Future<QueueStats> getStats() async =>
-      const QueueStats(totalItems: 0, pendingItems: 0, processingItems: 0);
+  Future<QueueStats> getStats() async => const QueueStats(totalItems: 0, pendingItems: 0, processingItems: 0);
 
   void dispose() {
     _queueController.close();

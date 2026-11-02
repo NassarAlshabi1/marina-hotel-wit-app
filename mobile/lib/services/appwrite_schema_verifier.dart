@@ -12,21 +12,14 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 class AppwriteSchemaVerifier {
   /// ✅ موصّل قراءة عام (للاختبارات والأدوات) — خريطة المخطط المطلوب.
   /// لا تُعدِّل الخريطة المُعادة (unmodifiable wrapper).
-  static Map<String, dynamic> get requiredCollections =>
-      Map.unmodifiable(_requiredCollections);
+  static Map<String, dynamic> get requiredCollections => Map.unmodifiable(_requiredCollections);
 
   static final _requiredCollections = {
     'inventory_items': {
       'name': 'Inventory Items',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'name', 'type': 'string', 'size': 200, 'required': true},
         {'key': 'unit', 'type': 'string', 'size': 50, 'default': 'قطعة'},
         {'key': 'category', 'type': 'string', 'size': 100},
@@ -39,13 +32,7 @@ class AppwriteSchemaVerifier {
       'name': 'Inventory Transactions',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'itemLocalUuid', 'type': 'string', 'size': 36},
         {'key': 'itemId', 'type': 'integer', 'required': true},
         {'key': 'movementType', 'type': 'string', 'size': 20, 'required': true},
@@ -60,30 +47,13 @@ class AppwriteSchemaVerifier {
       'name': 'Rooms',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
-        {
-          'key': 'roomNumber',
-          'type': 'string',
-          'size': 50,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {'key': 'roomNumber', 'type': 'string', 'size': 50, 'required': true, 'unique': true},
         {'key': 'type', 'type': 'string', 'size': 512, 'required': true},
         {'key': 'price', 'type': 'double', 'required': true},
         {'key': 'status', 'type': 'string', 'size': 512, 'required': true},
         {'key': 'imageUrl', 'type': 'string', 'size': 500},
-        {
-          'key': 'cleaningStatus',
-          'type': 'string',
-          'size': 20,
-          'default': 'clean',
-        },
+        {'key': 'cleaningStatus', 'type': 'string', 'size': 20, 'default': 'clean'},
         {'key': 'lastCleanedHotelDay', 'type': 'string', 'size': 50},
         {'key': 'lastOccupiedHotelDay', 'type': 'string', 'size': 50},
         {'key': 'requiresMaintenance', 'type': 'boolean', 'default': false},
@@ -93,32 +63,16 @@ class AppwriteSchemaVerifier {
       'name': 'Bookings',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'serverBookingId', 'type': 'integer'},
         {'key': 'roomNumber', 'type': 'string', 'size': 512, 'required': true},
         {'key': 'guestName', 'type': 'string', 'size': 512, 'required': true},
         {'key': 'guestPhone', 'type': 'string', 'size': 512, 'required': true},
-        {
-          'key': 'guestIdType',
-          'type': 'string',
-          'size': 50,
-          'default': 'بطاقة شخصية',
-        },
+        {'key': 'guestIdType', 'type': 'string', 'size': 50, 'default': 'بطاقة شخصية'},
         {'key': 'guestIdNumber', 'type': 'string', 'size': 100, 'default': ''},
         {'key': 'guestIdIssueDate', 'type': 'string', 'size': 50},
         {'key': 'guestIdIssuePlace', 'type': 'string', 'size': 100},
-        {
-          'key': 'guestNationality',
-          'type': 'string',
-          'size': 512,
-          'required': true,
-        },
+        {'key': 'guestNationality', 'type': 'string', 'size': 512, 'required': true},
         {'key': 'guestEmail', 'type': 'string', 'size': 100},
         {'key': 'guestAddress', 'type': 'string', 'size': 200},
         {'key': 'checkinDate', 'type': 'string', 'size': 64, 'required': true},
@@ -138,12 +92,7 @@ class AppwriteSchemaVerifier {
         {'key': 'remainingBalanceCached', 'type': 'double', 'default': 0},
         {'key': 'isFullyPaid', 'type': 'boolean', 'default': false},
         {'key': 'discount', 'type': 'double', 'default': 0},
-        {
-          'key': 'discountType',
-          'type': 'string',
-          'size': 20,
-          'default': 'per_night',
-        },
+        {'key': 'discountType', 'type': 'string', 'size': 20, 'default': 'per_night'},
         {'key': 'discountStartDate', 'type': 'string', 'size': 50},
         {'key': 'hotelDayCheckin', 'type': 'string', 'size': 50},
         {'key': 'hotelDayCheckout', 'type': 'string', 'size': 50},
@@ -157,13 +106,7 @@ class AppwriteSchemaVerifier {
       'name': 'Booking Notes',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'bookingId', 'type': 'integer', 'required': true},
         {'key': 'noteText', 'type': 'string', 'size': 1000, 'required': true},
         {'key': 'alertType', 'type': 'string', 'size': 20, 'required': true},
@@ -175,13 +118,7 @@ class AppwriteSchemaVerifier {
       'name': 'Booking Nights',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'bookingLocalId', 'type': 'integer'},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 64, 'required': true},
         {'key': 'nightStart', 'type': 'string', 'size': 255, 'required': true},
@@ -201,13 +138,7 @@ class AppwriteSchemaVerifier {
       'name': 'Employees',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'name', 'type': 'string', 'size': 255, 'required': true},
         {'key': 'basicSalary', 'type': 'double', 'required': true},
         {'key': 'position', 'type': 'string', 'size': 50, 'default': 'موظف'},
@@ -226,13 +157,7 @@ class AppwriteSchemaVerifier {
       'name': 'Expenses',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'expenseType', 'type': 'string', 'size': 255, 'required': true},
         {'key': 'relatedId', 'type': 'integer'},
         {'key': 'description', 'type': 'string', 'size': 255, 'required': true},
@@ -255,24 +180,14 @@ class AppwriteSchemaVerifier {
       'attributes': [
         {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'registerId', 'type': 'integer'},
-        {
-          'key': 'transactionType',
-          'type': 'string',
-          'size': 100,
-          'required': true,
-        },
+        {'key': 'transactionType', 'type': 'string', 'size': 100, 'required': true},
         // ⚠️ amount على Appwrite Cloud هو integer (وليس double)
         // كود المزامنة يحول القيمة تلقائياً عبر AppwriteSyncUtils.convertAmountTypesForAppwrite
         {'key': 'amount', 'type': 'integer', 'required': false},
         {'key': 'referenceType', 'type': 'string', 'size': 100},
         {'key': 'referenceId', 'type': 'integer'},
         {'key': 'description', 'type': 'string', 'size': 500},
-        {
-          'key': 'transactionTime',
-          'type': 'string',
-          'size': 50,
-          'required': true,
-        },
+        {'key': 'transactionTime', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'createdBy', 'type': 'integer'},
       ],
     },
@@ -288,12 +203,7 @@ class AppwriteSchemaVerifier {
         {'key': 'amount', 'type': 'double', 'required': true},
         {'key': 'paymentDate', 'type': 'string', 'size': 64, 'required': true},
         {'key': 'notes', 'type': 'string', 'size': 500},
-        {
-          'key': 'paymentMethod',
-          'type': 'string',
-          'size': 255,
-          'required': true,
-        },
+        {'key': 'paymentMethod', 'type': 'string', 'size': 255, 'required': true},
         {'key': 'revenueType', 'type': 'string', 'size': 255, 'required': true},
         {'key': 'cashTransactionLocalId', 'type': 'integer'},
         {'key': 'cashTransactionServerId', 'type': 'integer'},
@@ -358,13 +268,7 @@ class AppwriteSchemaVerifier {
       'name': 'Salary Cycles',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'employeeId', 'type': 'integer', 'required': true},
         // ✅ D1-path audit fix (2026-10-04) — الفجوة F4: محاذاة المواصفات
         // مع collectionSchema (appwrite_sync_utils.dart) ومخطط السحابة
@@ -387,13 +291,7 @@ class AppwriteSchemaVerifier {
       'name': 'Salary Payments',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'cycleId', 'type': 'integer', 'required': true},
         // ✅ D1-path audit fix (2026-10-04) — الفجوة F4: نفس محاذاة
         // collectionSchema — حقول الربط عبر UUID لدفعات الرواتب.
@@ -404,12 +302,7 @@ class AppwriteSchemaVerifier {
         // المحلي يستخدم IntColumn لذلك النوع متطابق
         {'key': 'amount', 'type': 'integer', 'default': 0},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
-        {
-          'key': 'paymentDateIso',
-          'type': 'string',
-          'size': 50,
-          'required': true,
-        },
+        {'key': 'paymentDateIso', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'method', 'type': 'string', 'size': 50},
         {'key': 'isAutoGenerated', 'type': 'boolean', 'default': false},
       ],
@@ -436,25 +329,14 @@ class AppwriteSchemaVerifier {
       'name': 'Blacklist',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'name', 'type': 'string', 'size': 200, 'required': true},
         {'key': 'nationality', 'type': 'string', 'size': 100},
         {'key': 'nationalId', 'type': 'string', 'size': 100},
         {'key': 'phone', 'type': 'string', 'size': 30},
         {'key': 'reason', 'type': 'string', 'size': 500},
         {'key': 'notes', 'type': 'string', 'size': 1000},
-        {
-          'key': 'reportedBy',
-          'type': 'string',
-          'size': 50,
-          'default': 'police',
-        },
+        {'key': 'reportedBy', 'type': 'string', 'size': 50, 'default': 'police'},
         {'key': 'active', 'type': 'boolean', 'default': true},
       ],
     },
@@ -462,30 +344,14 @@ class AppwriteSchemaVerifier {
       'name': 'Price Adjustments',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'targetType', 'type': 'string', 'size': 20, 'required': true},
         {'key': 'targetUuid', 'type': 'string', 'size': 36, 'required': true},
-        {
-          'key': 'adjustmentType',
-          'type': 'string',
-          'size': 30,
-          'required': true,
-        },
+        {'key': 'adjustmentType', 'type': 'string', 'size': 30, 'required': true},
         {'key': 'previousValue', 'type': 'double', 'required': true},
         {'key': 'newValue', 'type': 'double', 'required': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
-        {
-          'key': 'effectiveDate',
-          'type': 'string',
-          'size': 30,
-          'required': true,
-        },
+        {'key': 'effectiveDate', 'type': 'string', 'size': 30, 'required': true},
         {'key': 'appliedBy', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 10, 'required': true},
         {'key': 'isReversed', 'type': 'boolean', 'default': false},
@@ -497,19 +363,8 @@ class AppwriteSchemaVerifier {
       'name': 'Audit Logs',
       'includeSyncFields': false,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
-        {
-          'key': 'operationType',
-          'type': 'string',
-          'size': 30,
-          'required': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {'key': 'operationType', 'type': 'string', 'size': 30, 'required': true},
         {'key': 'entityType', 'type': 'string', 'size': 30, 'required': true},
         {'key': 'entityUuid', 'type': 'string', 'size': 36, 'required': true},
         {'key': 'entityId', 'type': 'integer'},
@@ -532,12 +387,7 @@ class AppwriteSchemaVerifier {
       'includeSyncFields': true,
       'attributes': [
         {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
-        {
-          'key': 'originalPaymentUuid',
-          'type': 'string',
-          'size': 100,
-          'required': true,
-        },
+        {'key': 'originalPaymentUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'originalPaymentId', 'type': 'integer', 'required': true},
         {'key': 'bookingUuid', 'type': 'string', 'size': 100, 'required': true},
         // ⚠️ voidedAmount على Appwrite Cloud هو integer (وليس double)
@@ -560,43 +410,19 @@ class AppwriteSchemaVerifier {
       'includeSyncFields': true,
       'attributes': [
         {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
-        {
-          'key': 'bookingLocalUuid',
-          'type': 'string',
-          'size': 100,
-          'required': true,
-        },
+        {'key': 'bookingLocalUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'bookingLocalId', 'type': 'integer'},
-        {
-          'key': 'adjustmentType',
-          'type': 'integer',
-          'required': true,
-        }, // 0=discount, 1=surcharge
-        {
-          'key': 'adjustmentMode',
-          'type': 'string',
-          'size': 20,
-          'default': 'per_night',
-        },
+        {'key': 'adjustmentType', 'type': 'integer', 'required': true}, // 0=discount, 1=surcharge
+        {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'},
         // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
         // ⚠️ على Cloud هو integer (وليس double) — كود المزامنة يحول تلقائياً
         {'key': 'amount', 'type': 'integer', 'required': true},
         // ✅ roomNumber أُضيف إلى Appwrite Cloud (2026-05-15)
         {'key': 'roomNumber', 'type': 'string', 'size': 20},
-        {
-          'key': 'effectiveHotelDay',
-          'type': 'string',
-          'size': 50,
-          'required': true,
-        },
+        {'key': 'effectiveHotelDay', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'endHotelDay', 'type': 'string', 'size': 50},
         {'key': 'adjustmentType', 'type': 'integer', 'required': true},
-        {
-          'key': 'adjustmentMode',
-          'type': 'string',
-          'size': 20,
-          'default': 'per_night',
-        },
+        {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'},
         // ✅ amount: double (ليس integer)، optional، default 0
         {'key': 'amount', 'type': 'double', 'default': 0},
         {'key': 'roomNumber', 'type': 'string', 'size': 50},
@@ -623,20 +449,10 @@ class AppwriteSchemaVerifier {
         // ⚠️ amount على Appwrite Cloud هو double
         {'key': 'amount', 'type': 'double', 'required': true},
         // ✅ حقول المحلية المتوافقة مع Adapter (2026-05-17)
-        {
-          'key': 'withdrawDate',
-          'type': 'string',
-          'size': 255,
-          'required': true,
-        },
+        {'key': 'withdrawDate', 'type': 'string', 'size': 255, 'required': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
-        {
-          'key': 'withdrawalType',
-          'type': 'string',
-          'size': 30,
-          'default': 'withdrawal',
-        },
+        {'key': 'withdrawalType', 'type': 'string', 'size': 30, 'default': 'withdrawal'},
         {'key': 'description', 'type': 'string', 'size': 500},
         // ✅ حقول employeeUuid لحل FK عبر الأجهزة
         {'key': 'employeeUuid', 'type': 'string', 'size': 36},
@@ -688,13 +504,7 @@ class AppwriteSchemaVerifier {
       'name': 'App Users',
       'includeSyncFields': true,
       'attributes': [
-        {
-          'key': 'localUuid',
-          'type': 'string',
-          'size': 36,
-          'required': true,
-          'unique': true,
-        },
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
         {'key': 'userId', 'type': 'string', 'size': 100},
         {'key': 'username', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'displayName', 'type': 'string', 'size': 100},
@@ -745,13 +555,7 @@ class AppwriteSchemaVerifier {
   };
 
   static final _syncFields = [
-    {
-      'key': 'localUuid',
-      'type': 'string',
-      'size': 36,
-      'required': true,
-      'unique': true,
-    },
+    {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
     {'key': 'serverId', 'type': 'integer'},
     {'key': 'createdAt', 'type': 'integer', 'required': true},
     {'key': 'updatedAt', 'type': 'integer', 'required': true},
@@ -830,10 +634,7 @@ class AppwriteSchemaVerifier {
         missingCollections++;
         dlog(() => '   ❌ غير موجود: $collectionId');
         results['missing'].add(collectionId);
-        results['collections'][collectionId] = {
-          'found': false,
-          'error': e.toString(),
-        };
+        results['collections'][collectionId] = {'found': false, 'error': e.toString()};
       }
 
       dlog('');
@@ -843,8 +644,7 @@ class AppwriteSchemaVerifier {
       'total': totalCollections,
       'found': foundCollections,
       'missing': missingCollections,
-      'percentage': ((foundCollections / totalCollections) * 100)
-          .toStringAsFixed(1),
+      'percentage': ((foundCollections / totalCollections) * 100).toStringAsFixed(1),
     };
 
     dlog('═══════════════════════════════════════');
@@ -886,10 +686,7 @@ class AppwriteSchemaVerifier {
 
     debugPrint('# إنشاء Attributes:');
     final includeSyncFields = schema['includeSyncFields'] != false;
-    final allAttributes = [
-      ...(schema['attributes']! as List),
-      if (includeSyncFields) ..._syncFields,
-    ];
+    final allAttributes = [...(schema['attributes']! as List), if (includeSyncFields) ..._syncFields];
 
     for (final attr in allAttributes) {
       final key = attr['key'];

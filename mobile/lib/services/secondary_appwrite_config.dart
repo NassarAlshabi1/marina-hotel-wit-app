@@ -27,9 +27,7 @@ class SecondaryAppwriteConfig {
   static const String defaultProjectId = '6a4408f300217885fd7b';
   static const String defaultDatabaseId = '6a4409b50019dd39dde5';
   // ✅ SECURITY: API key via --dart-define, NOT hardcoded.
-  static const String defaultApiKey = String.fromEnvironment(
-    'SECONDARY_APPWRITE_API_KEY',
-  );
+  static const String defaultApiKey = String.fromEnvironment('SECONDARY_APPWRITE_API_KEY');
   static const bool defaultEnabled = false;
   static const bool defaultPushEnabled = false;
   static const bool defaultPullEnabled = false;

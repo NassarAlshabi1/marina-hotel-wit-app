@@ -42,10 +42,7 @@ class TombstoneParentsRepull {
   ///
   /// يعيد true إذا نُفذت إعادة الضبط في هذا الاستدعاء، وfalse إذا كان
   /// منفذاً سابقاً (أو اعتُبر غير لازم).
-  static Future<bool> runIfNeeded({
-    required SyncCheckpointStore checkpoints,
-    required SharedPreferences prefs,
-  }) async {
+  static Future<bool> runIfNeeded({required SyncCheckpointStore checkpoints, required SharedPreferences prefs}) async {
     if (prefs.getBool(doneKey) ?? false) return false;
 
     await checkpoints.reset(collection);

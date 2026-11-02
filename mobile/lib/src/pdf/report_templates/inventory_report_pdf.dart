@@ -55,13 +55,7 @@ class InventoryReportSummary {
 
 /// بيانات التقرير المخزني.
 class InventoryReportData {
-  InventoryReportData({
-    required this.rows,
-    required this.summary,
-    this.fromDate,
-    this.toDate,
-    this.categoryLabel,
-  });
+  InventoryReportData({required this.rows, required this.summary, this.fromDate, this.toDate, this.categoryLabel});
 
   final List<InventoryReportRow> rows;
   final InventoryReportSummary summary;
@@ -104,26 +98,14 @@ class InventoryReportPdf {
             title: 'ملخص التقرير',
             fonts: fonts,
             content: [
-              EnhancedPdfUtils.buildKeyValueRow(
-                fonts: fonts,
-                label: 'عدد الأصناف',
-                value: '${data.summary.itemCount}',
-              ),
+              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'عدد الأصناف', value: '${data.summary.itemCount}'),
               EnhancedPdfUtils.buildKeyValueRow(
                 fonts: fonts,
                 label: 'تحت الحد الأدنى',
                 value: '${data.summary.lowStockCount}',
               ),
-              EnhancedPdfUtils.buildKeyValueRow(
-                fonts: fonts,
-                label: 'إجمالي الوارد',
-                value: '${data.summary.totalIn}',
-              ),
-              EnhancedPdfUtils.buildKeyValueRow(
-                fonts: fonts,
-                label: 'إجمالي الصرف',
-                value: '${data.summary.totalOut}',
-              ),
+              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'إجمالي الوارد', value: '${data.summary.totalIn}'),
+              EnhancedPdfUtils.buildKeyValueRow(fonts: fonts, label: 'إجمالي الصرف', value: '${data.summary.totalOut}'),
               EnhancedPdfUtils.buildKeyValueRow(
                 fonts: fonts,
                 label: 'إجمالي التسويات',
@@ -138,17 +120,7 @@ class InventoryReportPdf {
           ),
           pw.SizedBox(height: 12),
           ...EnhancedPdfUtils.buildChunkedTable(
-            headers: [
-              'م',
-              'الصنف',
-              'التصنيف',
-              'الرصيد',
-              'الحد الأدنى',
-              'وارد',
-              'صرف',
-              'تسويات',
-              'الحركات',
-            ],
+            headers: ['م', 'الصنف', 'التصنيف', 'الرصيد', 'الحد الأدنى', 'وارد', 'صرف', 'تسويات', 'الحركات'],
             data: dataRows,
             fonts: fonts,
           ),

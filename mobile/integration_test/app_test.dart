@@ -10,28 +10,21 @@ import 'package:patrol/patrol.dart';
 import 'package:marina_hotel_mobile/screens/auth/login_screen.dart';
 
 void main() {
-  patrolTest(
-    'يعرض شاشة تسجيل الدخول بكامل عناصرها',
-    config: const PatrolTesterConfig(),
-    ($) async {
-      await $.pumpWidgetAndSettle(
-        const ProviderScope(
-          child: MaterialApp(
-            home: Directionality(
-              textDirection: TextDirection.rtl,
-              child: LoginScreen(),
-            ),
-          ),
+  patrolTest('يعرض شاشة تسجيل الدخول بكامل عناصرها', config: const PatrolTesterConfig(), ($) async {
+    await $.pumpWidgetAndSettle(
+      const ProviderScope(
+        child: MaterialApp(
+          home: Directionality(textDirection: TextDirection.rtl, child: LoginScreen()),
         ),
-      );
+      ),
+    );
 
-      expect($(LoginScreen), findsOneWidget);
-      expect($('تسجيل الدخول'), findsOneWidget);
-      expect($('اسم المستخدم'), findsOneWidget);
-      expect($('كلمة المرور'), findsOneWidget);
-      expect($('دخول'), findsOneWidget);
-      expect($('تذكرني'), findsOneWidget);
-      expect($(Icons.lock), findsOneWidget);
-    },
-  );
+    expect($(LoginScreen), findsOneWidget);
+    expect($('تسجيل الدخول'), findsOneWidget);
+    expect($('اسم المستخدم'), findsOneWidget);
+    expect($('كلمة المرور'), findsOneWidget);
+    expect($('دخول'), findsOneWidget);
+    expect($('تذكرني'), findsOneWidget);
+    expect($(Icons.lock), findsOneWidget);
+  });
 }

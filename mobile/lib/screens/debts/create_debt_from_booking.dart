@@ -15,12 +15,10 @@ class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
   const CreateDebtFromBookingScreen({super.key});
 
   @override
-  ConsumerState<CreateDebtFromBookingScreen> createState() =>
-      _CreateDebtFromBookingScreenState();
+  ConsumerState<CreateDebtFromBookingScreen> createState() => _CreateDebtFromBookingScreenState();
 }
 
-class _CreateDebtFromBookingScreenState
-    extends ConsumerState<CreateDebtFromBookingScreen> {
+class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBookingScreen> {
   Booking? _selectedBooking;
   final ValueNotifier<bool> _isComputing = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isProcessing = ValueNotifier<bool>(false);
@@ -31,18 +29,9 @@ class _CreateDebtFromBookingScreenState
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   final _dateFormat = DateFormat('yyyy-MM-dd');
-  static const _titleStyle = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.bold,
-  );
-  static const _labelStyle = TextStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.bold,
-  );
-  static const _fieldStyle = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.bold,
-  );
+  static const _titleStyle = TextStyle(fontSize: 14, fontWeight: FontWeight.bold);
+  static const _labelStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.bold);
+  static const _fieldStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.bold);
 
   @override
   void dispose() {
@@ -110,10 +99,7 @@ class _CreateDebtFromBookingScreenState
     }
     if (bookings.isEmpty) {
       return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Text('لا توجد حجوزات نشطة'),
-        ),
+        child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد حجوزات نشطة')),
       );
     }
     final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
@@ -126,17 +112,12 @@ class _CreateDebtFromBookingScreenState
             const Text('اختر الحجز', style: _titleStyle),
             const SizedBox(height: 8),
             DropdownButtonFormField<Booking>(
-              initialValue: bookings.contains(_selectedBooking)
-                  ? _selectedBooking
-                  : null,
+              initialValue: bookings.contains(_selectedBooking) ? _selectedBooking : null,
               isExpanded: true,
               style: _fieldStyle.copyWith(color: dropdownColor),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: bookings.map((booking) {
                 return DropdownMenuItem(
@@ -182,24 +163,11 @@ class _CreateDebtFromBookingScreenState
             _buildInfoRow('الضيف', booking.guestName),
             _buildInfoRow('الهوية', booking.guestIdNumber),
             _buildInfoRow('تاريخ الدخول', booking.checkinDate.split(' ')[0]),
-            if (booking.checkoutDate != null)
-              _buildInfoRow(
-                'تاريخ الخروج',
-                booking.checkoutDate!.split(' ')[0],
-              ),
+            if (booking.checkoutDate != null) _buildInfoRow('تاريخ الخروج', booking.checkoutDate!.split(' ')[0]),
             _buildInfoRow('الحالة', booking.status),
-            _buildInfoRow(
-              'الإجمالي المستحق',
-              CurrencyFormatter.formatAmount(booking.totalDueCached),
-            ),
-            _buildInfoRow(
-              'المدفوع',
-              CurrencyFormatter.formatAmount(booking.totalPaidCached),
-            ),
-            _buildInfoRow(
-              'المتبقي',
-              CurrencyFormatter.formatAmount(booking.remainingBalanceCached),
-            ),
+            _buildInfoRow('الإجمالي المستحق', CurrencyFormatter.formatAmount(booking.totalDueCached)),
+            _buildInfoRow('المدفوع', CurrencyFormatter.formatAmount(booking.totalPaidCached)),
+            _buildInfoRow('المتبقي', CurrencyFormatter.formatAmount(booking.remainingBalanceCached)),
           ],
         ),
       ),
@@ -215,11 +183,7 @@ class _CreateDebtFromBookingScreenState
             width: 110,
             child: Text(
               '$label:',
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(child: Text(value, style: _fieldStyle)),
@@ -239,21 +203,9 @@ class _CreateDebtFromBookingScreenState
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: _buildDateField(
-                    'من',
-                    _fromDate,
-                    (date) => setState(() => _fromDate = date),
-                  ),
-                ),
+                Expanded(child: _buildDateField('من', _fromDate, (date) => setState(() => _fromDate = date))),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: _buildDateField(
-                    'إلى',
-                    _toDate,
-                    (date) => setState(() => _toDate = date),
-                  ),
-                ),
+                Expanded(child: _buildDateField('إلى', _toDate, (date) => setState(() => _toDate = date))),
               ],
             ),
           ],
@@ -262,11 +214,7 @@ class _CreateDebtFromBookingScreenState
     );
   }
 
-  Widget _buildDateField(
-    String label,
-    DateTime date,
-    ValueChanged<DateTime> onChanged,
-  ) {
+  Widget _buildDateField(String label, DateTime date, ValueChanged<DateTime> onChanged) {
     return InkWell(
       onTap: () async {
         final picked = await showDatePicker(
@@ -299,11 +247,7 @@ class _CreateDebtFromBookingScreenState
         return ElevatedButton.icon(
           onPressed: isComputing ? null : _computeDebt,
           icon: isComputing
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.calculate),
           label: Text(isComputing ? 'جاري الحساب...' : 'احسب الدين'),
         );
@@ -326,23 +270,14 @@ class _CreateDebtFromBookingScreenState
         return;
       }
 
-      final nightlyRate = booking.totalNightsCached > 0
-          ? booking.totalDueCached / booking.totalNightsCached
-          : 0.0;
+      final nightlyRate = booking.totalNightsCached > 0 ? booking.totalDueCached / booking.totalNightsCached : 0.0;
 
       final total = nightlyRate * nights;
       final paid = booking.totalPaidCached;
 
       setState(() {
-        _debtData = _DebtData(
-          nights: nights,
-          roomRate: nightlyRate,
-          total: total,
-          paid: paid,
-        );
-        _amountController.text = CurrencyFormatter.formatAmount(
-          _debtData!.remaining,
-        );
+        _debtData = _DebtData(nights: nights, roomRate: nightlyRate, total: total, paid: paid);
+        _amountController.text = CurrencyFormatter.formatAmount(_debtData!.remaining);
       });
     } finally {
       _isComputing.value = false;
@@ -361,20 +296,11 @@ class _CreateDebtFromBookingScreenState
             const Text('ملخص الدين', style: _titleStyle),
             const SizedBox(height: 8),
             _buildInfoRow('عدد الليالي', '${data.nights}'),
-            _buildInfoRow(
-              'سعر الليلة',
-              CurrencyFormatter.formatAmount(data.roomRate),
-            ),
-            _buildInfoRow(
-              'الإجمالي',
-              CurrencyFormatter.formatAmount(data.total),
-            ),
+            _buildInfoRow('سعر الليلة', CurrencyFormatter.formatAmount(data.roomRate)),
+            _buildInfoRow('الإجمالي', CurrencyFormatter.formatAmount(data.total)),
             _buildInfoRow('المدفوع', CurrencyFormatter.formatAmount(data.paid)),
             const Divider(),
-            _buildInfoRow(
-              'المتبقي (الدين)',
-              CurrencyFormatter.formatAmount(data.remaining),
-            ),
+            _buildInfoRow('المتبقي (الدين)', CurrencyFormatter.formatAmount(data.remaining)),
           ],
         ),
       ),
@@ -427,10 +353,7 @@ class _CreateDebtFromBookingScreenState
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
               : const Icon(Icons.add),
           label: Text(isProcessing ? 'جاري الإنشاء...' : 'إنشاء الدين'),
@@ -477,9 +400,7 @@ class _CreateDebtFromBookingScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'تم إنشاء الدين بمبلغ ${CurrencyFormatter.formatAmount(amount)}',
-            ),
+            content: Text('تم إنشاء الدين بمبلغ ${CurrencyFormatter.formatAmount(amount)}'),
             backgroundColor: Colors.green,
           ),
         );
@@ -495,9 +416,7 @@ class _CreateDebtFromBookingScreenState
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
   }
 
   DateTime _resolveCheckout(Booking booking) {
@@ -531,10 +450,7 @@ class _CreateDebtFromBookingScreenState
           title: const Text('تأكيد'),
           content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('لا'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('لا')),
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
@@ -550,12 +466,7 @@ class _CreateDebtFromBookingScreenState
 }
 
 class _DebtData {
-  const _DebtData({
-    required this.nights,
-    required this.roomRate,
-    required this.total,
-    required this.paid,
-  });
+  const _DebtData({required this.nights, required this.roomRate, required this.total, required this.paid});
   final int nights;
   final double roomRate;
   final double total;

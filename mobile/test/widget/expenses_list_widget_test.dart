@@ -18,11 +18,7 @@ Widget _buildTestWidget({required List<Override> overrides}) {
 }
 
 /// Helper: بناء موظف للاختبار
-Employee _testEmployee({
-  int id = 1,
-  String uuid = 'emp-1',
-  String name = 'أحمد',
-}) {
+Employee _testEmployee({int id = 1, String uuid = 'emp-1', String name = 'أحمد'}) {
   return Employee(
     id: id,
     localUuid: uuid,
@@ -80,9 +76,7 @@ List<Override> _baseOverrides(AppDatabase db, {List<Employee>? employees}) {
     authProvider.overrideWith((ref) => _ExpenseCreateAuthNotifier()),
     databaseProvider.overrideWithValue(db),
     employeesListProvider.overrideWith((ref) => Stream.value(employees ?? [])),
-    customListNamesProvider(
-      kListKeyExpenseType,
-    ).overrideWith((ref) async => ['اخرى', 'صيانة', 'رواتب']),
+    customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى', 'صيانة', 'رواتب']),
     // ✅ إصلاح Timer معلّق: استبدال debounceStream بـ Stream.value ثابت
     simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
     // ✅ إصلاح Timer معلّق: استبدال SyncService الكامل بـ Stream.value ثابت
@@ -108,21 +102,13 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ExpensesListScreen — عرض الشاشة الأساسية', () {
     testWidgets('يعرض عنوان المصروفات في شريط التطبيق', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       expect(find.text('المصروفات'), findsOneWidget);
     });
 
     testWidgets('يعرض أزرار المزامنة والإضافة', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       // يوجد أيقونتان للمزامنة: واحدة من AppScaffold.SyncActionButton
       // وواحدة من ExpensesListScreen.actions — كلاهما مشروع
@@ -131,44 +117,28 @@ void main() {
     });
 
     testWidgets('يعرض شريط البحث', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       expect(find.byType(TextField), findsWidgets);
       expect(find.text('ابحث بالوصف أو النوع...'), findsOneWidget);
     });
 
     testWidgets('يعرض رسالة عندما لا توجد مصروفات', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       expect(find.text('لا توجد مصروفات ضمن الفترة'), findsOneWidget);
     });
 
-    testWidgets('يعرض مؤشر تحميل عندما يكون الموظفون قيد التحميل', (
-      tester,
-    ) async {
+    testWidgets('يعرض مؤشر تحميل عندما يكون الموظفون قيد التحميل', (tester) async {
       await tester.pumpWidget(
         _buildTestWidget(
           overrides: [
             databaseProvider.overrideWithValue(db),
             employeesListProvider.overrideWith((ref) => const Stream.empty()),
-            customListNamesProvider(
-              kListKeyExpenseType,
-            ).overrideWith((ref) async => ['اخرى']),
+            customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى']),
             // ✅ إصلاح Timer معلّق (انظر _baseOverrides للتوثيق الكامل)
-            simpleNotesUnreadCountProvider.overrideWith(
-              (ref) => Stream.value(0),
-            ),
-            syncStatusProvider.overrideWith(
-              (ref) => Stream.value(SyncStatus.idle),
-            ),
+            simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
+            syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
           ],
         ),
       );
@@ -181,19 +151,11 @@ void main() {
         _buildTestWidget(
           overrides: [
             databaseProvider.overrideWithValue(db),
-            employeesListProvider.overrideWith(
-              (ref) => Stream.error('خطأ في الاتصال'),
-            ),
-            customListNamesProvider(
-              kListKeyExpenseType,
-            ).overrideWith((ref) async => ['اخرى']),
+            employeesListProvider.overrideWith((ref) => Stream.error('خطأ في الاتصال')),
+            customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى']),
             // ✅ إصلاح Timer معلّق (انظر _baseOverrides للتوثيق الكامل)
-            simpleNotesUnreadCountProvider.overrideWith(
-              (ref) => Stream.value(0),
-            ),
-            syncStatusProvider.overrideWith(
-              (ref) => Stream.value(SyncStatus.idle),
-            ),
+            simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
+            syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
           ],
         ),
       );
@@ -206,19 +168,11 @@ void main() {
         _buildTestWidget(
           overrides: [
             databaseProvider.overrideWithValue(db),
-            employeesListProvider.overrideWith(
-              (ref) => Stream.value([_testEmployee()]),
-            ),
-            customListNamesProvider(
-              kListKeyExpenseType,
-            ).overrideWith((ref) async => ['اخرى']),
+            employeesListProvider.overrideWith((ref) => Stream.value([_testEmployee()])),
+            customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى']),
             // ✅ إصلاح Timer معلّق (انظر _baseOverrides للتوثيق الكامل)
-            simpleNotesUnreadCountProvider.overrideWith(
-              (ref) => Stream.value(0),
-            ),
-            syncStatusProvider.overrideWith(
-              (ref) => Stream.value(SyncStatus.idle),
-            ),
+            simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
+            syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
           ],
         ),
       );
@@ -233,11 +187,7 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ExpensesListScreen — التفاعل مع البحث', () {
     testWidgets('إدخال نص في حقل البحث يحدث الحالة', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
 
       final searchField = find.byType(TextField).first;
@@ -251,11 +201,7 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ExpensesListScreen — فلتر النوع', () {
     testWidgets('يعرض قائمة فلتر الأنواع مع "كل الأنواع"', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       expect(find.text('كل الأنواع'), findsOneWidget);
     });
@@ -266,21 +212,13 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ExpensesListScreen — ملخص المصروفات', () {
     testWidgets('يعرض كلمة "عملية" في الملخص', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       expect(find.text('عملية'), findsOneWidget);
     });
 
     testWidgets('يعرض "0" كعدد عندما لا توجد مصروفات', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       // يوجد نصان "0": واحد للعدد وواحد للمجموع — كلاهما مشروع
       expect(find.text('0'), findsAtLeastNWidgets(1));
@@ -292,11 +230,7 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ExpensesListScreen — فلتر التاريخ', () {
     testWidgets('يعرض أزرار التاريخ "من" و "إلى"', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
       // textContaining قد يطابق نصوصاً متعددة (مثل tooltip أو label إضافي)
       expect(find.textContaining('من'), findsAtLeastNWidgets(1));
@@ -309,11 +243,7 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ExpensesListScreen — زر الإضافة', () {
     testWidgets('الضغط على زر الإضافة يفتح حوار إضافة مصروف', (tester) async {
-      await tester.pumpWidget(
-        _buildTestWidget(
-          overrides: _baseOverrides(db, employees: [_testEmployee()]),
-        ),
-      );
+      await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
       await tester.pumpAndSettle();
 
       // الضغط على زر الإضافة

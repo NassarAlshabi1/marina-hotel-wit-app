@@ -7,26 +7,18 @@ import '../local_db.dart';
 
 String _normalizeArabic(String input) {
   var s = input.trim();
-  s = s.replaceAll(
-    RegExp('[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F\u06D6-\u06ED]'),
-    '',
-  ); // tashkeel
+  s = s.replaceAll(RegExp('[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F\u06D6-\u06ED]'), ''); // tashkeel
   s = s.replaceAll('\u0640', ''); // tatweel
   s = s.replaceAll(RegExp('[إأٱآ]'), 'ا');
   s = s.replaceAll('ؤ', 'و');
   s = s.replaceAll('ئ', 'ي');
   s = s.replaceAll('ى', 'ي');
-  s = s.replaceAll(
-    RegExp('[^\u0621-\u064A0-9 ]+'),
-    ' ',
-  ); // keep arabic letters, digits, space
+  s = s.replaceAll(RegExp('[^\u0621-\u064A0-9 ]+'), ' '); // keep arabic letters, digits, space
   s = s.replaceAll(RegExp(' +'), ' ').trim();
   return s.toLowerCase();
 }
 
-List<String> _tokens(String name) => _normalizeArabic(
-  name,
-).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+List<String> _tokens(String name) => _normalizeArabic(name).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
 
 bool _tripleMatch(List<String> a, List<String> b) {
   if (a.length < 3 || b.length < 3) {
@@ -83,8 +75,7 @@ class BlacklistRepository {
       reportedBy: row.reportedBy,
       active: row.active,
       createdAt: row.createdAtIso != null
-          ? DateTime.tryParse(row.createdAtIso!) ??
-                DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000)
+          ? DateTime.tryParse(row.createdAtIso!) ?? DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000)
           : DateTime.fromMillisecondsSinceEpoch(row.createdAt * 1000),
       localUuid: row.localUuid,
       serverId: row.serverId,
@@ -167,24 +158,20 @@ class BlacklistRepository {
 
   Future<bool> updateActive(int id, bool active) async {
     return db.transaction(() async {
-      final row = await (db.select(
-        db.blacklist,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final row = await (db.select(db.blacklist)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
       }
       final now = Time.nowEpoch();
-      final updated =
-          await (db.update(db.blacklist)
-                ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
-              .write(
-                BlacklistCompanion(
-                  active: d.Value(active),
-                  updatedAt: d.Value(now),
-                  lastModified: d.Value(now),
-                  version: d.Value(row.version + 1),
-                ),
-              );
+      final updated = await (db.update(db.blacklist)..where((t) => t.id.equals(id) & t.version.equals(row.version)))
+          .write(
+            BlacklistCompanion(
+              active: d.Value(active),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              version: d.Value(row.version + 1),
+            ),
+          );
 
       if (updated > 0) {
         await _outboxDao.merge(
@@ -212,30 +199,26 @@ class BlacklistRepository {
     String? reportedBy,
   }) async {
     return db.transaction(() async {
-      final row = await (db.select(
-        db.blacklist,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final row = await (db.select(db.blacklist)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
       }
       final now = Time.nowEpoch();
-      final updated =
-          await (db.update(db.blacklist)
-                ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
-              .write(
-                BlacklistCompanion(
-                  name: d.Value(name.trim()),
-                  nationality: d.Value(nationality?.trim()),
-                  nationalId: d.Value(nationalId?.trim()),
-                  phone: d.Value(phone?.trim()),
-                  reason: d.Value(reason?.trim()),
-                  notes: d.Value(notes?.trim()),
-                  reportedBy: d.Value(reportedBy ?? row.reportedBy),
-                  updatedAt: d.Value(now),
-                  lastModified: d.Value(now),
-                  version: d.Value(row.version + 1),
-                ),
-              );
+      final updated = await (db.update(db.blacklist)..where((t) => t.id.equals(id) & t.version.equals(row.version)))
+          .write(
+            BlacklistCompanion(
+              name: d.Value(name.trim()),
+              nationality: d.Value(nationality?.trim()),
+              nationalId: d.Value(nationalId?.trim()),
+              phone: d.Value(phone?.trim()),
+              reason: d.Value(reason?.trim()),
+              notes: d.Value(notes?.trim()),
+              reportedBy: d.Value(reportedBy ?? row.reportedBy),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              version: d.Value(row.version + 1),
+            ),
+          );
 
       if (updated > 0) {
         await _outboxDao.merge(
@@ -266,9 +249,7 @@ class BlacklistRepository {
   /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   Future<bool> delete(int id) async {
     return db.transaction(() async {
-      final row = await (db.select(
-        db.blacklist,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final row = await (db.select(db.blacklist)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) {
         return false;
       }
@@ -276,16 +257,15 @@ class BlacklistRepository {
       final now = Time.nowEpoch();
       final nowIso = DateTime.now().toUtc().toIso8601String();
 
-      final updated =
-          await (db.update(db.blacklist)..where((t) => t.id.equals(id))).write(
-            BlacklistCompanion(
-              deletedAt: d.Value(now),
-              deletedAtIso: d.Value(nowIso),
-              updatedAt: d.Value(now),
-              lastModified: d.Value(now),
-              version: d.Value(row.version + 1),
-            ),
-          );
+      final updated = await (db.update(db.blacklist)..where((t) => t.id.equals(id))).write(
+        BlacklistCompanion(
+          deletedAt: d.Value(now),
+          deletedAtIso: d.Value(nowIso),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
+          version: d.Value(row.version + 1),
+        ),
+      );
 
       if (updated > 0) {
         await _outboxDao.merge(
@@ -310,9 +290,7 @@ class BlacklistRepository {
   /// تطابق: الاسم الكامل أو أول 3 أسماء متطابقة
   /// ✅ إصلاح: استبعاد المحذوفة ناعماً
   Future<BlacklistEntry?> findBlacklistMatch(String name) async {
-    final rows = await (db.select(
-      db.blacklist,
-    )..where((t) => t.deletedAt.isNull())).get();
+    final rows = await (db.select(db.blacklist)..where((t) => t.deletedAt.isNull())).get();
     final nNorm = _normalizeArabic(name);
     final nTokens = _tokens(name);
     for (final row in rows) {

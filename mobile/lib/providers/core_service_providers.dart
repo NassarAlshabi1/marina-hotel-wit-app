@@ -28,19 +28,16 @@ import '../services/whatsapp_settings_sync.dart';
 import 'appwrite_providers.dart';
 import 'repository_providers.dart';
 
-final bookingDerivedFieldsServiceProvider =
-    Provider<BookingDerivedFieldsService>((ref) {
-      final db = ref.read(databaseProvider);
-      return BookingDerivedFieldsService(db);
-    });
+final bookingDerivedFieldsServiceProvider = Provider<BookingDerivedFieldsService>((ref) {
+  final db = ref.read(databaseProvider);
+  return BookingDerivedFieldsService(db);
+});
 
 final authLocalStoreProvider = Provider<AuthLocalStore>((ref) {
   return AuthLocalStore();
 });
 
-final salaryEntitlementServiceProvider = Provider<SalaryEntitlementService>((
-  ref,
-) {
+final salaryEntitlementServiceProvider = Provider<SalaryEntitlementService>((ref) {
   final db = ref.read(databaseProvider);
   return SalaryEntitlementService(db);
 });
@@ -54,19 +51,17 @@ final priceAdjustmentServiceProvider = Provider<PriceAdjustmentService>((ref) {
   return PriceAdjustmentService(db);
 });
 
-final screenSyncControllerProvider =
-    Provider.family<ScreenSyncController, String>((ref, screenId) {
-      return ScreenSyncController(screenId: screenId);
-    });
+final screenSyncControllerProvider = Provider.family<ScreenSyncController, String>((ref, screenId) {
+  return ScreenSyncController(screenId: screenId);
+});
 
 final geminiServiceProvider = Provider<GeminiService>((ref) {
   return GeminiService.instance;
 });
 
-final googleDriveConflictResolverProvider =
-    Provider<GoogleDriveConflictResolver>((ref) {
-      return GoogleDriveConflictResolver.instance;
-    });
+final googleDriveConflictResolverProvider = Provider<GoogleDriveConflictResolver>((ref) {
+  return GoogleDriveConflictResolver.instance;
+});
 
 final alarmBackupProvider = Provider<AlarmBackup>((ref) {
   return AlarmBackup();
@@ -76,26 +71,21 @@ final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {
   return AppwriteLogger();
 });
 
-final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((
-  ref,
-) {
+final googleDriveBackupServiceProvider = Provider<GoogleDriveBackupService>((ref) {
   return GoogleDriveBackupService();
 });
 
-final bookingPriceAdjustmentServiceProvider =
-    Provider<BookingPriceAdjustmentService>((ref) {
-      final db = ref.read(databaseProvider);
-      return BookingPriceAdjustmentService(db);
-    });
+final bookingPriceAdjustmentServiceProvider = Provider<BookingPriceAdjustmentService>((ref) {
+  final db = ref.read(databaseProvider);
+  return BookingPriceAdjustmentService(db);
+});
 
 final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
   final db = ref.read(databaseProvider);
   return PaymentsRepository(db);
 });
 
-final secondaryAppwriteConfigProvider = Provider<SecondaryAppwriteConfig>((
-  ref,
-) {
+final secondaryAppwriteConfigProvider = Provider<SecondaryAppwriteConfig>((ref) {
   return SecondaryAppwriteConfig();
 });
 
@@ -104,9 +94,7 @@ final secondaryAppwriteConfigProvider = Provider<SecondaryAppwriteConfig>((
 // secondaryAppwriteService و secondaryBackupService ما زالا موجودتين لأن
 // AppwriteHealthChecker يستخدمهما لفحص الـ failover (مسار قراءة فقط).
 
-final secondaryAppwriteServiceProvider = Provider<SecondaryAppwriteService>((
-  ref,
-) {
+final secondaryAppwriteServiceProvider = Provider<SecondaryAppwriteService>((ref) {
   return SecondaryAppwriteService.instance;
 });
 
@@ -117,10 +105,7 @@ final secondaryBackupServiceProvider = Provider<SecondaryBackupService>((ref) {
 final appwriteSyncManagerProvider2 = Provider<AppwriteSyncManager>((ref) {
   final service = ref.read(appwriteServiceProvider);
   final database = ref.read(databaseProvider);
-  final manager = AppwriteSyncManager(
-    appwriteService: service,
-    database: database,
-  );
+  final manager = AppwriteSyncManager(appwriteService: service, database: database);
   ref.onDispose(manager.dispose);
   return manager;
 });
@@ -139,9 +124,7 @@ final syncLogDaoProvider = Provider<SyncLogDao>((ref) {
   return SyncLogDao(db);
 });
 
-final syncPerformanceSettingsProvider = Provider<SyncPerformanceSettings>((
-  ref,
-) {
+final syncPerformanceSettingsProvider = Provider<SyncPerformanceSettings>((ref) {
   return SyncPerformanceSettings();
 });
 

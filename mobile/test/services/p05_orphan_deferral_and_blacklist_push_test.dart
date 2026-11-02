@@ -64,10 +64,7 @@ class _RecordingAppwriteService implements AppwriteService {
   }
 
   @override
-  Future<models.Document> upsertBlacklist(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertBlacklist(String documentId, Map<String, dynamic> data) async {
     upsertedBlacklist.add(documentId);
     return _fakeDoc(documentId, 'blacklist', data);
   }
@@ -83,11 +80,7 @@ class _RecordingAppwriteService implements AppwriteService {
     '${invocation.memberName} — راجع مسار الاختبار',
   );
 
-  models.Document _fakeDoc(
-    String id,
-    String collectionId,
-    Map<String, dynamic> data,
-  ) => models.Document(
+  models.Document _fakeDoc(String id, String collectionId, Map<String, dynamic> data) => models.Document(
     $id: id,
     $sequence: 1,
     $collectionId: collectionId,
@@ -138,30 +131,27 @@ void main() {
     fakeService.getDocumentCalls = 0;
   });
 
-  Future<int> addEmployeeWithServerId({int id = 42, String uuid = 'uuid-42'}) =>
-      db
-          .into(db.employees)
-          .insert(
-            EmployeesCompanion(
-              id: d.Value(id),
-              name: const d.Value('أحمد'),
-              basicSalary: const d.Value(6000),
-              status: const d.Value('active'),
-              hireDate: const d.Value('2026-01-01'),
-              localUuid: d.Value(uuid),
-              serverId: d.Value(id),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-            ),
-          );
+  Future<int> addEmployeeWithServerId({int id = 42, String uuid = 'uuid-42'}) => db
+      .into(db.employees)
+      .insert(
+        EmployeesCompanion(
+          id: d.Value(id),
+          name: const d.Value('أحمد'),
+          basicSalary: const d.Value(6000),
+          status: const d.Value('active'),
+          hireDate: const d.Value('2026-01-01'),
+          localUuid: d.Value(uuid),
+          serverId: d.Value(id),
+          createdAt: const d.Value(1000),
+          updatedAt: const d.Value(1000),
+          lastModified: const d.Value(1000),
+        ),
+      );
 
   /// سحبة يتيمة بموظف ميت — إدراج SQL خام مع إطفاء FK مؤقتاً
   /// (نفس منهجية employee_link_consistency_test — اليتائم الواقعية
   /// موجودة في قواعد الأجهزة من مسارات ما قبل القيد).
-  Future<String> createOrphanWithdrawalRaw({
-    required int deadEmployeeId,
-  }) async {
+  Future<String> createOrphanWithdrawalRaw({required int deadEmployeeId}) async {
     final localUuid = 'sw-orphan-${DateTime.now().microsecondsSinceEpoch}';
     await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
@@ -171,16 +161,7 @@ void main() {
         'reason, local_uuid, created_at, updated_at, last_modified, '
         'version, origin) '
         'VALUES (?, ?, ?, ?, ?, ?, ?, 1000, 1000, 1000, 1, ?)',
-        [
-          deadEmployeeId,
-          5000.0,
-          '2026-10-01',
-          'سحب راتب',
-          '2026-10-01',
-          null,
-          localUuid,
-          'local',
-        ],
+        [deadEmployeeId, 5000.0, '2026-10-01', 'سحب راتب', '2026-10-01', null, localUuid, 'local'],
       );
     } finally {
       await db.customStatement('PRAGMA foreign_keys = ON');
@@ -188,11 +169,7 @@ void main() {
     return localUuid;
   }
 
-  Future<int> enqueueOutbox({
-    required String entity,
-    required String localUuid,
-    String op = 'create',
-  }) => db
+  Future<int> enqueueOutbox({required String entity, required String localUuid, String op = 'create'}) => db
       .into(db.outbox)
       .insert(
         OutboxCompanion(
@@ -204,93 +181,58 @@ void main() {
         ),
       );
 
-  Future<OutboxData?> outboxByLocalUuid(String localUuid) => (db.select(
-    db.outbox,
-  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Future<OutboxData?> outboxByLocalUuid(String localUuid) =>
+      (db.select(db.outbox)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
 
   // ═══════════════════════════════════════════════════════════════════════
   group('P0.5 (R6): سحبة راتب بموظف غائب تبقى في الطابور', () {
-    test(
-      'return false + صفر كتابات سحابية + العنصر يبقى محجوزاً بلا تسليم',
-      () async {
-        final uuid = await createOrphanWithdrawalRaw(deadEmployeeId: 999);
-        await enqueueOutbox(entity: 'salary_withdrawals', localUuid: uuid);
+    test('return false + صفر كتابات سحابية + العنصر يبقى محجوزاً بلا تسليم', () async {
+      final uuid = await createOrphanWithdrawalRaw(deadEmployeeId: 999);
+      await enqueueOutbox(entity: 'salary_withdrawals', localUuid: uuid);
 
-        // حجز العنصر من الطابور كما تفعل حلقة الدفع الحقيقية (takeBatch).
-        final batch = await outboxDao.takeBatch(5, sources: const ['local']);
-        expect(batch, hasLength(1));
+      // حجز العنصر من الطابور كما تفعل حلقة الدفع الحقيقية (takeBatch).
+      final batch = await outboxDao.takeBatch(5, sources: const ['local']);
+      expect(batch, hasLength(1));
 
-        final ok = await manager.processSalaryWithdrawalEntryForTesting(
-          batch.first,
-        );
+      final ok = await manager.processSalaryWithdrawalEntryForTesting(batch.first);
 
-        expect(ok, isFalse, reason: 'الموظف غائب → العنصر لم يُسلَّم');
+      expect(ok, isFalse, reason: 'الموظف غائب → العنصر لم يُسلَّم');
 
-        final row = await outboxByLocalUuid(uuid);
-        expect(row, isNotNull, reason: 'العنصر يجب أن يبقى في الطابور');
-        expect(
-          row!.processingStatus,
-          'processing',
-          reason: 'يبقى محجوزاً حتى يسترجعه reclaimForPush في الدورة التالية',
-        );
-        expect(
-          row.deliveredToPrimary,
-          isFalse,
-          reason: 'لا علامة تسليم — السجل لم يُرفع ولم يُحذف من الطابور',
-        );
-        expect(
-          fakeService.upsertedDocuments,
-          isEmpty,
-          reason: 'صفر كتابات سحابية — لا رفع سحبة بلا موظف (FK)',
-        );
-        expect(
-          fakeService.getDocumentCalls,
-          0,
-          reason: 'حارس غياب الموظف يسبق أي وصول للشبكة',
-        );
-      },
-    );
+      final row = await outboxByLocalUuid(uuid);
+      expect(row, isNotNull, reason: 'العنصر يجب أن يبقى في الطابور');
+      expect(row!.processingStatus, 'processing', reason: 'يبقى محجوزاً حتى يسترجعه reclaimForPush في الدورة التالية');
+      expect(row.deliveredToPrimary, isFalse, reason: 'لا علامة تسليم — السجل لم يُرفع ولم يُحذف من الطابور');
+      expect(fakeService.upsertedDocuments, isEmpty, reason: 'صفر كتابات سحابية — لا رفع سحبة بلا موظف (FK)');
+      expect(fakeService.getDocumentCalls, 0, reason: 'حارس غياب الموظف يسبق أي وصول للشبكة');
+    });
 
-    test(
-      'reclaimForPush يُعيده إلى pending ثم ينجح الرفع بعد وصول الموظف',
-      () async {
-        final uuid = await createOrphanWithdrawalRaw(deadEmployeeId: 42);
-        await enqueueOutbox(entity: 'salary_withdrawals', localUuid: uuid);
-        final batch = await outboxDao.takeBatch(5, sources: const ['local']);
-        expect(
-          await manager.processSalaryWithdrawalEntryForTesting(batch.first),
-          isFalse,
-        );
-        expect(fakeService.upsertedDocuments, isEmpty);
+    test('reclaimForPush يُعيده إلى pending ثم ينجح الرفع بعد وصول الموظف', () async {
+      final uuid = await createOrphanWithdrawalRaw(deadEmployeeId: 42);
+      await enqueueOutbox(entity: 'salary_withdrawals', localUuid: uuid);
+      final batch = await outboxDao.takeBatch(5, sources: const ['local']);
+      expect(await manager.processSalaryWithdrawalEntryForTesting(batch.first), isFalse);
+      expect(fakeService.upsertedDocuments, isEmpty);
 
-        // تقادم الحجز ثم الاسترجاع — محاكاة الدورة التالية للمزامنة.
-        await (db.update(db.outbox)..where((t) => t.localUuid.equals(uuid)))
-            .write(const OutboxCompanion(processingStartedAt: d.Value(1000)));
-        final reclaimed = await outboxDao.reclaimForPush(
-          stuckAfter: const Duration(seconds: 1),
-        );
-        expect(reclaimed, 1, reason: 'العنصر العالق يُسترجع');
-        final pendingRow = await outboxByLocalUuid(uuid);
-        expect(pendingRow!.processingStatus, 'pending');
+      // تقادم الحجز ثم الاسترجاع — محاكاة الدورة التالية للمزامنة.
+      await (db.update(
+        db.outbox,
+      )..where((t) => t.localUuid.equals(uuid))).write(const OutboxCompanion(processingStartedAt: d.Value(1000)));
+      final reclaimed = await outboxDao.reclaimForPush(stuckAfter: const Duration(seconds: 1));
+      expect(reclaimed, 1, reason: 'العنصر العالق يُسترجع');
+      final pendingRow = await outboxByLocalUuid(uuid);
+      expect(pendingRow!.processingStatus, 'pending');
 
-        // ✅ وصول الموظف (عبر المزامنة) ثم إعادة المحاولة → نجاح كامل.
-        await addEmployeeWithServerId(id: 42, uuid: 'uuid-42');
-        final ok = await manager.processSalaryWithdrawalEntryForTesting(
-          pendingRow,
-        );
-        expect(ok, isTrue, reason: 'بعد وصول الموظف تُرفع السحبة بنجاح');
-        expect(
-          fakeService.upsertedDocuments.where((u) => u.documentId == uuid),
-          hasLength(1),
-          reason: 'السحبة وصلت السحابة مرة واحدة بالضبط',
-        );
-        expect(
-          fakeService.getDocumentCalls,
-          1,
-          reason: 'فحص OCC واحد قبل الرفع (404 → create)',
-        );
-      },
-    );
+      // ✅ وصول الموظف (عبر المزامنة) ثم إعادة المحاولة → نجاح كامل.
+      await addEmployeeWithServerId(id: 42, uuid: 'uuid-42');
+      final ok = await manager.processSalaryWithdrawalEntryForTesting(pendingRow);
+      expect(ok, isTrue, reason: 'بعد وصول الموظف تُرفع السحبة بنجاح');
+      expect(
+        fakeService.upsertedDocuments.where((u) => u.documentId == uuid),
+        hasLength(1),
+        reason: 'السحبة وصلت السحابة مرة واحدة بالضبط',
+      );
+      expect(fakeService.getDocumentCalls, 1, reason: 'فحص OCC واحد قبل الرفع (404 → create)');
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -317,32 +259,22 @@ void main() {
           ),
         );
 
-    test(
-      'رفع إنشاء صف blacklist → upsert واحد، صفر حذف، والعنصر يُسلَّم',
-      () async {
-        await addBlacklistRow();
-        await enqueueOutbox(entity: 'blacklist', localUuid: 'bl-1');
-        final batch = await outboxDao.takeBatch(5, sources: const ['local']);
+    test('رفع إنشاء صف blacklist → upsert واحد، صفر حذف، والعنصر يُسلَّم', () async {
+      await addBlacklistRow();
+      await enqueueOutbox(entity: 'blacklist', localUuid: 'bl-1');
+      final batch = await outboxDao.takeBatch(5, sources: const ['local']);
 
-        final ok = await manager.processBlacklistEntryForTesting(batch.first);
+      final ok = await manager.processBlacklistEntryForTesting(batch.first);
 
-        expect(ok, isTrue, reason: 'الصف موجود محلياً → يُرفع بنجاح');
-        expect(fakeService.upsertedBlacklist, [
-          'bl-1',
-        ], reason: 'رفع واحد للمستند السحابي');
-        expect(
-          fakeService.deletedBlacklist,
-          isEmpty,
-          reason:
-              'العلة القديمة كانت تحذف المستند السحابي عند كل رفع إنشاء/تحديث',
-        );
-        expect(
-          fakeService.getDocumentCalls,
-          1,
-          reason: 'فحص OCC واحد قبل الرفع (404 → create)',
-        );
-      },
-    );
+      expect(ok, isTrue, reason: 'الصف موجود محلياً → يُرفع بنجاح');
+      expect(fakeService.upsertedBlacklist, ['bl-1'], reason: 'رفع واحد للمستند السحابي');
+      expect(
+        fakeService.deletedBlacklist,
+        isEmpty,
+        reason: 'العلة القديمة كانت تحذف المستند السحابي عند كل رفع إنشاء/تحديث',
+      );
+      expect(fakeService.getDocumentCalls, 1, reason: 'فحص OCC واحد قبل الرفع (404 → create)');
+    });
 
     test('رفع تحديث صف blacklist → upsert ولا حذف (نفس حارس العلة)', () async {
       await addBlacklistRow();
@@ -356,33 +288,26 @@ void main() {
       expect(fakeService.deletedBlacklist, isEmpty);
     });
 
-    test(
-      'فلاتر المُلقّين: مُلقٍ blacklist يرى الصف ومُلقٍ shift_notes لا يراه',
-      () async {
-        await addBlacklistRow(uuid: 'bl-2');
+    test('فلاتر المُلقّين: مُلقٍ blacklist يرى الصف ومُلقٍ shift_notes لا يراه', () async {
+      await addBlacklistRow(uuid: 'bl-2');
 
-        final viaBlacklist = await manager.blacklistEntryByLocalUuidForTesting(
-          'bl-2',
-        );
-        final viaShiftNote = await manager.shiftNoteByLocalUuidForTesting(
-          'bl-2',
-        );
+      final viaBlacklist = await manager.blacklistEntryByLocalUuidForTesting('bl-2');
+      final viaShiftNote = await manager.shiftNoteByLocalUuidForTesting('bl-2');
 
-        expect(
-          viaBlacklist,
-          isNotNull,
-          reason:
-              "المُلقٍ المخصص (createdBy='blacklist') يجد الصف → الرفع يكمل "
-              'مسار upsert بدل السقوط في مسار الحذف',
-        );
-        expect(
-          viaShiftNote,
-          isNull,
-          reason:
-              "المُلقٍ القديم (createdBy='user') أعمى عن الصف — هذه العمى "
-              'كانت مصدر علة الحذف قبل إصلاح 2026-10-04',
-        );
-      },
-    );
+      expect(
+        viaBlacklist,
+        isNotNull,
+        reason:
+            "المُلقٍ المخصص (createdBy='blacklist') يجد الصف → الرفع يكمل "
+            'مسار upsert بدل السقوط في مسار الحذف',
+      );
+      expect(
+        viaShiftNote,
+        isNull,
+        reason:
+            "المُلقٍ القديم (createdBy='user') أعمى عن الصف — هذه العمى "
+            'كانت مصدر علة الحذف قبل إصلاح 2026-10-04',
+      );
+    });
   });
 }

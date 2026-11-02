@@ -14,12 +14,10 @@ class InventoryReportScreen extends ConsumerStatefulWidget {
   const InventoryReportScreen({super.key});
 
   @override
-  ConsumerState<InventoryReportScreen> createState() =>
-      _InventoryReportScreenState();
+  ConsumerState<InventoryReportScreen> createState() => _InventoryReportScreenState();
 }
 
-class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
-    with PdfExportGuardMixin {
+class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> with PdfExportGuardMixin {
   final DateFilterController _filterController = DateFilterController();
   final NumberFormat _numberFormat = NumberFormat('#,##0', 'en_US');
 
@@ -194,9 +192,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
         ),
         fromDate: _fromDate,
         toDate: _toDate,
-        categoryLabel: _selectedCategory?.isNotEmpty == true
-            ? 'التصنيف: $_selectedCategory'
-            : 'الأصناف النشطة',
+        categoryLabel: _selectedCategory?.isNotEmpty == true ? 'التصنيف: $_selectedCategory' : 'الأصناف النشطة',
       ),
     );
   }
@@ -223,11 +219,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
           child: DropdownButtonFormField<String?>(
             initialValue: _selectedCategory,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'التصنيف',
-              isDense: true,
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(labelText: 'التصنيف', isDense: true, border: OutlineInputBorder()),
             items: [
               const DropdownMenuItem<String?>(child: Text('كل التصنيفات')),
               ..._categories.map(
@@ -237,9 +229,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
                 ),
               ),
             ],
-            onChanged: _loading
-                ? null
-                : (value) => setState(() => _selectedCategory = value),
+            onChanged: _loading ? null : (value) => setState(() => _selectedCategory = value),
           ),
         ),
       ],
@@ -250,10 +240,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
 
   Widget _buildSummary() {
     if (_error != null && _rows.isEmpty) {
-      return Text(
-        _error!,
-        style: TextStyle(color: Theme.of(context).colorScheme.error),
-      );
+      return Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error));
     }
     return Wrap(
       spacing: 6,
@@ -273,10 +260,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
     return Container(
       constraints: const BoxConstraints(minWidth: 92, maxWidth: 150),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -300,11 +284,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
     }
     if (_error != null && _rows.isEmpty) {
       return Center(
-        child: EmptyState(
-          title: 'تعذر تحميل التقرير المخزني',
-          subtitle: _error,
-          icon: Icons.error_outline,
-        ),
+        child: EmptyState(title: 'تعذر تحميل التقرير المخزني', subtitle: _error, icon: Icons.error_outline),
       );
     }
     if (_rows.isEmpty) {
@@ -318,10 +298,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen>
     }
     return ListView.builder(
       itemCount: _rows.length,
-      itemBuilder: (context, index) => _InventoryReportRowTile(
-        row: _rows[index],
-        numberFormat: _numberFormat,
-      ),
+      itemBuilder: (context, index) => _InventoryReportRowTile(row: _rows[index], numberFormat: _numberFormat),
     );
   }
 }
@@ -411,19 +388,14 @@ class _InventoryReportSummary {
 }
 
 class _InventoryReportRowTile extends StatelessWidget {
-  const _InventoryReportRowTile({
-    required this.row,
-    required this.numberFormat,
-  });
+  const _InventoryReportRowTile({required this.row, required this.numberFormat});
 
   final _InventoryReportRow row;
   final NumberFormat numberFormat;
 
   @override
   Widget build(BuildContext context) {
-    final color = row.isLowStock
-        ? Colors.orange.shade800
-        : Colors.green.shade700;
+    final color = row.isLowStock ? Colors.orange.shade800 : Colors.green.shade700;
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       child: Padding(
@@ -433,32 +405,19 @@ class _InventoryReportRowTile extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  row.isLowStock
-                      ? Icons.warning_amber_rounded
-                      : Icons.inventory_2_outlined,
-                  color: color,
-                  size: 19,
-                ),
+                Icon(row.isLowStock ? Icons.warning_amber_rounded : Icons.inventory_2_outlined, color: color, size: 19),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     row.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
                 Text(
                   '${numberFormat.format(row.quantity)} ${row.unit}',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
               ],
             ),
@@ -488,9 +447,6 @@ class _InventoryReportRowTile extends StatelessWidget {
   }
 
   Widget _metric(String label, int value, Color color) {
-    return Text(
-      '$label: ${numberFormat.format(value)}',
-      style: TextStyle(fontSize: 10, color: color),
-    );
+    return Text('$label: ${numberFormat.format(value)}', style: TextStyle(fontSize: 10, color: color));
   }
 }

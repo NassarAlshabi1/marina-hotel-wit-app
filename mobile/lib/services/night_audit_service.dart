@@ -47,8 +47,7 @@ class NightAuditService {
           dlog(() => '⚠️ [NightAudit] اليوم $hotelDayKey مُقفل مسبقاً');
           return NightAuditResult(
             success: false,
-            message:
-                'اليوم $hotelDayKey مُقفل مسبقاً. استخدم "إعادة الإرسال" للإرسال مجدداً.',
+            message: 'اليوم $hotelDayKey مُقفل مسبقاً. استخدم "إعادة الإرسال" للإرسال مجدداً.',
             hotelDayKey: hotelDayKey,
             alreadyClosed: true,
           );
@@ -58,11 +57,7 @@ class NightAuditService {
       // 2) اجمع البيانات المالية
       final data = await _gatherNightAuditData(hotelDayKey);
       if (data == null) {
-        return NightAuditResult(
-          success: false,
-          message: 'فشل في تجميع بيانات اليوم',
-          hotelDayKey: hotelDayKey,
-        );
+        return NightAuditResult(success: false, message: 'فشل في تجميع بيانات اليوم', hotelDayKey: hotelDayKey);
       }
 
       // 3) اكتب/حدّث سجل HotelDayLedger
@@ -79,10 +74,7 @@ class NightAuditService {
         final waReportEnabled = await TelegramConfig.isDailyReportEnabled();
         if (waEnabled && waReportEnabled) {
           whatsappSent = await _whatsappReport.sendReportNow();
-          dlog(
-            () =>
-                '📱 [NightAudit] WhatsApp: ${whatsappSent ? "sent ✅" : "failed ❌"}',
-          );
+          dlog(() => '📱 [NightAudit] WhatsApp: ${whatsappSent ? "sent ✅" : "failed ❌"}');
         } else {
           whatsappSkipped = true;
           dlog('📱 [NightAudit] WhatsApp: skipped (disabled)');
@@ -101,15 +93,10 @@ class NightAuditService {
         if (tgConfigured && tgEnabled && tgReportEnabled) {
           final tgService = tg.TelegramApiClient.instance;
           telegramSent = await tgService.sendToDefaultChat(text: message);
-          dlog(
-            () =>
-                '✈️ [NightAudit] Telegram: ${telegramSent ? "sent ✅" : "failed ❌"}',
-          );
+          dlog(() => '✈️ [NightAudit] Telegram: ${telegramSent ? "sent ✅" : "failed ❌"}');
         } else {
           telegramSkipped = true;
-          dlog(
-            '✈️ [NightAudit] Telegram: skipped (not configured or disabled)',
-          );
+          dlog('✈️ [NightAudit] Telegram: skipped (not configured or disabled)');
         }
       } catch (e) {
         dlog(() => '❌ [NightAudit] Telegram error: $e');
@@ -127,14 +114,11 @@ class NightAuditService {
         final channels = <String>[];
         if (whatsappSent) channels.add('WhatsApp');
         if (telegramSent) channels.add('Telegram');
-        resultMessage =
-            '✅ تم إقفال اليوم $hotelDayKey وإرسال التقرير عبر ${channels.join(' + ')}';
+        resultMessage = '✅ تم إقفال اليوم $hotelDayKey وإرسال التقرير عبر ${channels.join(' + ')}';
       } else if (allSkipped) {
-        resultMessage =
-            '✅ تم إقفال اليوم $hotelDayKey (التقرير معطّل — لم يُرسل)';
+        resultMessage = '✅ تم إقفال اليوم $hotelDayKey (التقرير معطّل — لم يُرسل)';
       } else {
-        resultMessage =
-            '⚠️ تم إقفال اليوم $hotelDayKey لكن فشل الإرسال عبر كل القنوات';
+        resultMessage = '⚠️ تم إقفال اليوم $hotelDayKey لكن فشل الإرسال عبر كل القنوات';
       }
 
       return NightAuditResult(
@@ -192,9 +176,7 @@ class NightAuditService {
           maintenance++;
         }
       }
-      final occupancyRate = totalRooms > 0
-          ? (occupied / totalRooms * 100)
-          : 0.0;
+      final occupancyRate = totalRooms > 0 ? (occupied / totalRooms * 100) : 0.0;
 
       // ── حجوزات اليوم ──
       final bookings = await db.select(db.bookings).get();
@@ -204,13 +186,11 @@ class NightAuditService {
         if (b.deletedAt != null) continue;
         final s = b.status.toLowerCase();
         if (s == 'نشط' || s == 'محجوزة') activeBookings++;
-        if (b.checkinDate == hotelDayKey ||
-            (b.createdAtIso?.substring(0, 10) == hotelDayKey)) {
+        if (b.checkinDate == hotelDayKey || (b.createdAtIso?.substring(0, 10) == hotelDayKey)) {
           newBookings++;
         }
         if (b.hotelDayCheckin == hotelDayKey) checkIns++;
-        if (b.hotelDayCheckout == hotelDayKey ||
-            (b.actualCheckout?.substring(0, 10) == hotelDayKey)) {
+        if (b.hotelDayCheckout == hotelDayKey || (b.actualCheckout?.substring(0, 10) == hotelDayKey)) {
           checkOuts++;
         }
       }
@@ -257,12 +237,8 @@ class NightAuditService {
         if (b.deletedAt != null) continue;
         final s = b.status.toLowerCase();
         if (s == 'نشط' || s == 'محجوزة') {
-          if (b.checkoutDate != null &&
-              b.actualCheckout == null &&
-              b.checkoutDate!.compareTo(hotelDayKey) < 0) {
-            alerts.add(
-              '⏰ تأخير مغادرة — غرفة ${b.roomNumber} (${b.guestName})',
-            );
+          if (b.checkoutDate != null && b.actualCheckout == null && b.checkoutDate!.compareTo(hotelDayKey) < 0) {
+            alerts.add('⏰ تأخير مغادرة — غرفة ${b.roomNumber} (${b.guestName})');
           }
         }
       }
@@ -301,11 +277,7 @@ class NightAuditService {
   }
 
   /// كتابة/تحديث سجل HotelDayLedger
-  Future<void> _writeLedgerEntry(
-    AppDatabase db,
-    String hotelDayKey,
-    NightAuditData data,
-  ) async {
+  Future<void> _writeLedgerEntry(AppDatabase db, String hotelDayKey, NightAuditData data) async {
     final existing =
         await (db.select(db.hotelDayLedger)
               ..where((t) => t.hotelDayKey.equals(hotelDayKey))
@@ -329,9 +301,7 @@ class NightAuditService {
     );
 
     if (existing != null) {
-      await (db.update(
-        db.hotelDayLedger,
-      )..where((t) => t.id.equals(existing.id))).write(companion);
+      await (db.update(db.hotelDayLedger)..where((t) => t.id.equals(existing.id))).write(companion);
       dlog(() => '📝 [NightAudit] Ledger updated for $hotelDayKey');
     } else {
       await db
@@ -352,8 +322,7 @@ class NightAuditService {
     return '${DateTime.now().millisecondsSinceEpoch}-$hotelDayKeyHash';
   }
 
-  static String get hotelDayKeyHash =>
-      HotelTimeEngine.getHotelDayKey().replaceAll('-', '');
+  static String get hotelDayKeyHash => HotelTimeEngine.getHotelDayKey().replaceAll('-', '');
 
   /// بناء رسالة التقرير — نص عادي متوافق مع WhatsApp و Telegram
   String _buildReportMessage(NightAuditData d) {
@@ -490,9 +459,6 @@ final nightAuditServiceProvider = Provider<NightAuditService>((ref) {
 });
 
 /// Provider لحالة "هل اليوم مُقفل؟"
-final isDayClosedProvider = FutureProvider.family<bool, String?>((
-  ref,
-  hotelDayKey,
-) async {
+final isDayClosedProvider = FutureProvider.family<bool, String?>((ref, hotelDayKey) async {
   return NightAuditService.instance.isDayClosed(hotelDayKey);
 });

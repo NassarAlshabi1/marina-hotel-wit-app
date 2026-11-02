@@ -10,21 +10,13 @@ void main() {
     await $.pumpWidgetAndSettle(
       const ProviderScope(
         child: MaterialApp(
-          home: Directionality(
-            textDirection: TextDirection.rtl,
-            child: LoginScreen(),
-          ),
+          home: Directionality(textDirection: TextDirection.rtl, child: LoginScreen()),
         ),
       ),
     );
 
     final directionWidget = $.tester.widget<Directionality>(
-      find
-          .ancestor(
-            of: $('تسجيل الدخول'),
-            matching: find.byType(Directionality),
-          )
-          .first,
+      find.ancestor(of: $('تسجيل الدخول'), matching: find.byType(Directionality)).first,
     );
     expect(directionWidget.textDirection, TextDirection.rtl);
   });

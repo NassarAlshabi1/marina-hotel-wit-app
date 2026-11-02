@@ -41,12 +41,8 @@ Future<void> main() async {
     dlog(report.toString());
 
     // حفظ التقرير في ملف JSON
-    final reportFile = File(
-      'recalculation_report_${DateTime.now().millisecondsSinceEpoch}.json',
-    );
-    await reportFile.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(report.toJson()),
-    );
+    final reportFile = File('recalculation_report_${DateTime.now().millisecondsSinceEpoch}.json');
+    await reportFile.writeAsString(const JsonEncoder.withIndent('  ').convert(report.toJson()));
     dlog(() => '\n📄 Report saved to: ${reportFile.path}');
 
     // Exit code

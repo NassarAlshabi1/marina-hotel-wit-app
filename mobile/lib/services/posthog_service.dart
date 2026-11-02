@@ -76,30 +76,20 @@ class PostHogService {
   ///
   /// ⚠️ مهم: يجب تدوير المفتاح القديم (phc_Aunn...) في PostHog لأنه قد
   /// يكون تسرب في إصدارات سابقة من التطبيق.
-  static const String _defaultApiKey = String.fromEnvironment(
-    'POSTHOG_API_KEY',
-  );
+  static const String _defaultApiKey = String.fromEnvironment('POSTHOG_API_KEY');
 
   /// PostHog Host — ingestion endpoint للـ US Cloud
-  static const String _defaultHost = String.fromEnvironment(
-    'POSTHOG_HOST',
-    defaultValue: 'https://us.i.posthog.com',
-  );
+  static const String _defaultHost = String.fromEnvironment('POSTHOG_HOST', defaultValue: 'https://us.i.posthog.com');
 
   Future<void> initialize() async {
     if (_isInitialized) return;
 
     // استخدام المفتاح من --dart-define أو القيمة الافتراضية (المُدمجة من AndroidManifest)
-    final apiKey = Env.posthogApiKey.isNotEmpty
-        ? Env.posthogApiKey
-        : _defaultApiKey;
+    final apiKey = Env.posthogApiKey.isNotEmpty ? Env.posthogApiKey : _defaultApiKey;
     final host = Env.posthogHost.isNotEmpty ? Env.posthogHost : _defaultHost;
 
     if (apiKey.isEmpty) {
-      developer.log(
-        'ℹ️ PostHog not configured — skipping initialization',
-        name: 'PostHogService',
-      );
+      developer.log('ℹ️ PostHog not configured — skipping initialization', name: 'PostHogService');
       return;
     }
 
@@ -118,15 +108,9 @@ class PostHogService {
       await Posthog().setup(config);
       _isInitialized = true;
 
-      developer.log(
-        '✅ PostHog initialized (host=$host, key=${apiKey.substring(0, 12)}...)',
-        name: 'PostHogService',
-      );
+      developer.log('✅ PostHog initialized (host=$host, key=${apiKey.substring(0, 12)}...)', name: 'PostHogService');
     } catch (e) {
-      developer.log(
-        '⚠️ PostHog initialization failed: $e',
-        name: 'PostHogService',
-      );
+      developer.log('⚠️ PostHog initialization failed: $e', name: 'PostHogService');
       // لا نوقف التطبيق بسبب فشل التحليلات
     }
   }
@@ -142,10 +126,7 @@ class PostHogService {
           await Posthog().disable();
         }
       } catch (e) {
-        developer.log(
-          '⚠️ PostHog setEnabled failed: $e',
-          name: 'PostHogService',
-        );
+        developer.log('⚠️ PostHog setEnabled failed: $e', name: 'PostHogService');
       }
     }
   }
@@ -170,10 +151,7 @@ class PostHogService {
   ///   'amount': 500.0,
   /// });
   /// ```
-  Future<void> track(
-    String eventName, {
-    Map<String, Object>? properties,
-  }) async {
+  Future<void> track(String eventName, {Map<String, Object>? properties}) async {
     if (!isEnabled) return;
 
     try {
@@ -192,10 +170,7 @@ class PostHogService {
   /// await screen('payments_main');
   /// await screen('settings');
   /// ```
-  Future<void> screen(
-    String screenName, {
-    Map<String, Object>? properties,
-  }) async {
+  Future<void> screen(String screenName, {Map<String, Object>? properties}) async {
     if (!isEnabled) return;
 
     try {
@@ -219,10 +194,7 @@ class PostHogService {
   ///   'email': 'ahmed@marina.com',
   /// });
   /// ```
-  Future<void> identify(
-    String userId, {
-    Map<String, Object>? properties,
-  }) async {
+  Future<void> identify(String userId, {Map<String, Object>? properties}) async {
     if (!isEnabled) return;
 
     try {
@@ -344,28 +316,15 @@ class PostHogService {
   }) async {
     await track(
       'booking_created',
-      properties: {
-        'roomNumber': roomNumber,
-        'guestName': guestName,
-        'amount': amount,
-        'nights': nights,
-      },
+      properties: {'roomNumber': roomNumber, 'guestName': guestName, 'amount': amount, 'nights': nights},
     );
   }
 
   /// حدث: معالجة دفعة
-  Future<void> trackPaymentProcessed({
-    required String method,
-    required double amount,
-    String? bookingUuid,
-  }) async {
+  Future<void> trackPaymentProcessed({required String method, required double amount, String? bookingUuid}) async {
     await track(
       'payment_processed',
-      properties: {
-        'method': method,
-        'amount': amount,
-        if (bookingUuid != null) 'bookingUuid': bookingUuid,
-      },
+      properties: {'method': method, 'amount': amount, if (bookingUuid != null) 'bookingUuid': bookingUuid},
     );
   }
 
@@ -388,41 +347,19 @@ class PostHogService {
   }
 
   /// حدث: فشل المزامنة
-  Future<void> trackSyncFailed({
-    required String error,
-    required String operation,
-  }) async {
-    await track(
-      'sync_failed',
-      properties: {'error': error, 'operation': operation},
-    );
+  Future<void> trackSyncFailed({required String error, required String operation}) async {
+    await track('sync_failed', properties: {'error': error, 'operation': operation});
   }
 
   /// حدث: إنشاء نسخة احتياطية
-  Future<void> trackBackupCreated({
-    required String type,
-    required int sizeBytes,
-    bool success = true,
-  }) async {
-    await track(
-      'backup_created',
-      properties: {'type': type, 'sizeBytes': sizeBytes, 'success': success},
-    );
+  Future<void> trackBackupCreated({required String type, required int sizeBytes, bool success = true}) async {
+    await track('backup_created', properties: {'type': type, 'sizeBytes': sizeBytes, 'success': success});
   }
 
   /// حدث: تسجيل دخول مستخدم
-  Future<void> trackLogin({
-    required String userId,
-    required String role,
-  }) async {
+  Future<void> trackLogin({required String userId, required String role}) async {
     await track('user_login', properties: {'userId': userId, 'role': role});
-    await identify(
-      userId,
-      properties: {
-        'role': role,
-        'lastLoginAt': DateTime.now().toIso8601String(),
-      },
-    );
+    await identify(userId, properties: {'role': role, 'lastLoginAt': DateTime.now().toIso8601String()});
   }
 
   /// حدث: تسجيل خروج

@@ -71,22 +71,17 @@ class EmployeeLinkRepairReport {
 /// الرفع المباشر من خدمة إصلاح (payload مُبنى يدوياً خارج قنوات الإصدار)
 /// كان يفسد السحابة (10.3-أ حذّر من هذا تحديداً) — أُوقف.
 class EmployeeLinkConsistencyService {
-  EmployeeLinkConsistencyService(this.db)
-    : _expensesRepo = ExpensesRepository(db);
+  EmployeeLinkConsistencyService(this.db) : _expensesRepo = ExpensesRepository(db);
 
   final AppDatabase db;
   final ExpensesRepository _expensesRepo;
 
   /// يفحص ويُصلح كل السجلات المرتبطة بالموظف [employeeId].
   /// آمن للاستدعاء المتكرر: الصف السليم لا يُمسّ إطلاقاً (صفر ضوضاء outbox).
-  Future<EmployeeLinkRepairReport> repairLinksForEmployee(
-    int employeeId,
-  ) async {
+  Future<EmployeeLinkRepairReport> repairLinksForEmployee(int employeeId) async {
     final report = EmployeeLinkRepairReport();
 
-    final emp = await (db.select(
-      db.employees,
-    )..where((t) => t.id.equals(employeeId))).getSingleOrNull();
+    final emp = await (db.select(db.employees)..where((t) => t.id.equals(employeeId))).getSingleOrNull();
     if (emp == null) {
       report.notes.add('employee#$employeeId غير موجود — لا إصلاح');
       return report;
@@ -101,11 +96,7 @@ class EmployeeLinkConsistencyService {
     // ═══ 1) المصروفات — الروابط المزدوجة (رقمي + uuid) ═══
     final expenseRows =
         await (db.select(db.expenses)
-              ..where(
-                (t) =>
-                    t.relatedId.equals(employeeId) |
-                    t.employeeUuid.equals(emp.localUuid),
-              )
+              ..where((t) => t.relatedId.equals(employeeId) | t.employeeUuid.equals(emp.localUuid))
               ..where((t) => t.deletedAt.isNull()))
             .get();
 
@@ -117,15 +108,9 @@ class EmployeeLinkConsistencyService {
       if (uuid.isNotEmpty && uuid != emp.localUuid) {
         final owner = employeeByUuid[uuid];
         if (owner != null && exp.relatedId != owner.id) {
-          await _expensesRepo.update(
-            exp.id,
-            relatedId: owner.id,
-            employeeUuid: uuid,
-          );
+          await _expensesRepo.update(exp.id, relatedId: owner.id, employeeUuid: uuid);
           report.expensesRepointedAway++;
-          report.notes.add(
-            'expense#${exp.id}: relatedId ${exp.relatedId} → ${owner.id} (uuid يفوز)',
-          );
+          report.notes.add('expense#${exp.id}: relatedId ${exp.relatedId} → ${owner.id} (uuid يفوز)');
         }
         continue;
       }
@@ -150,25 +135,19 @@ class EmployeeLinkConsistencyService {
     }
 
     // ═══ 2) السحوبات — employeeUuid هو المصدر الثابت، employeeId مشتق محلياً ═══
-    final allWithdrawals = await (db.select(
-      db.salaryWithdrawals,
-    )..where((t) => t.deletedAt.isNull())).get();
+    final allWithdrawals = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
     for (final sw in allWithdrawals) {
       final uuid = sw.employeeUuid?.trim() ?? '';
       if (uuid.isNotEmpty) {
         final owner = employeeByUuid[uuid];
         if (owner == null) {
           report.orphanWithdrawalsUnrescuable++;
-          report.notes.add(
-            'withdrawal#${sw.id}: employeeUuid=$uuid غير موجود — لم يُخمن المالك',
-          );
+          report.notes.add('withdrawal#${sw.id}: employeeUuid=$uuid غير موجود — لم يُخمن المالك');
           continue;
         }
         if (sw.employeeId != owner.id) {
           final now = Time.nowEpoch();
-          await (db.update(
-            db.salaryWithdrawals,
-          )..where((t) => t.id.equals(sw.id))).write(
+          await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(sw.id))).write(
             SalaryWithdrawalsCompanion(
               employeeId: d.Value(owner.id),
               updatedAt: d.Value(now),
@@ -177,9 +156,7 @@ class EmployeeLinkConsistencyService {
             ),
           );
           report.withdrawalsRescued++;
-          report.notes.add(
-            'withdrawal#${sw.id}: employeeId ${sw.employeeId} → ${owner.id} وفق employeeUuid',
-          );
+          report.notes.add('withdrawal#${sw.id}: employeeId ${sw.employeeId} → ${owner.id} وفق employeeUuid');
         }
         continue;
       }
@@ -193,14 +170,10 @@ class EmployeeLinkConsistencyService {
                   ..where((e) => e.localUuid.equals(expenseUuid))
                   ..limit(1))
                 .getSingleOrNull();
-        final expOwner = exp == null
-            ? null
-            : employeeByUuid[exp.employeeUuid?.trim() ?? ''];
+        final expOwner = exp == null ? null : employeeByUuid[exp.employeeUuid?.trim() ?? ''];
         if (expOwner != null) {
           final now = Time.nowEpoch();
-          await (db.update(
-            db.salaryWithdrawals,
-          )..where((t) => t.id.equals(sw.id))).write(
+          await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(sw.id))).write(
             SalaryWithdrawalsCompanion(
               employeeId: d.Value(expOwner.id),
               employeeUuid: d.Value(expOwner.localUuid),
@@ -210,9 +183,7 @@ class EmployeeLinkConsistencyService {
             ),
           );
           report.withdrawalsRescued++;
-          report.notes.add(
-            'withdrawal#${sw.id}: employeeUuid أُعيد بناؤه من expenseUuid=$expenseUuid',
-          );
+          report.notes.add('withdrawal#${sw.id}: employeeUuid أُعيد بناؤه من expenseUuid=$expenseUuid');
           continue;
         }
       }
@@ -226,14 +197,10 @@ class EmployeeLinkConsistencyService {
                   ..where((e) => e.id.equals(sw.expenseId!))
                   ..limit(1))
                 .getSingleOrNull();
-        final provenOwner =
-            exp != null &&
-            (exp.employeeUuid == emp.localUuid || exp.relatedId == employeeId);
+        final provenOwner = exp != null && (exp.employeeUuid == emp.localUuid || exp.relatedId == employeeId);
         if (provenOwner) {
           final now = Time.nowEpoch();
-          await (db.update(
-            db.salaryWithdrawals,
-          )..where((t) => t.id.equals(sw.id))).write(
+          await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(sw.id))).write(
             SalaryWithdrawalsCompanion(
               employeeId: d.Value(employeeId),
               employeeUuid: d.Value(emp.localUuid),
@@ -243,9 +210,7 @@ class EmployeeLinkConsistencyService {
             ),
           );
           report.withdrawalsRescued++;
-          report.notes.add(
-            'withdrawal#${sw.id}: employeeId أُعيد بناؤه من expenseId=${sw.expenseId} ذي ملكية مثبتة',
-          );
+          report.notes.add('withdrawal#${sw.id}: employeeId أُعيد بناؤه من expenseId=${sw.expenseId} ذي ملكية مثبتة');
           continue;
         }
       }
@@ -257,9 +222,7 @@ class EmployeeLinkConsistencyService {
     }
 
     // ═══ 3) دورات الرواتب — UUID يحدد الموظف، والرقمي مشتق محلياً ═══
-    final cycles = await (db.select(
-      db.salaryCycles,
-    )..where((t) => t.deletedAt.isNull())).get();
+    final cycles = await (db.select(db.salaryCycles)..where((t) => t.deletedAt.isNull())).get();
     for (final cycle in cycles) {
       final uuid = cycle.employeeUuid?.trim() ?? '';
       if (uuid.isEmpty) {
@@ -270,31 +233,26 @@ class EmployeeLinkConsistencyService {
         }
         await (db.update(
           db.salaryCycles,
-        )..where((t) => t.id.equals(cycle.id))).write(
-          SalaryCyclesCompanion(employeeUuid: d.Value(owner.localUuid)),
-        );
+        )..where((t) => t.id.equals(cycle.id))).write(SalaryCyclesCompanion(employeeUuid: d.Value(owner.localUuid)));
         report.cyclesRelinked++;
         continue;
       }
       final owner = employeeByUuid[uuid];
       if (owner == null) {
         report.orphanCycles++;
-        report.notes.add(
-          'salary_cycle#${cycle.id}: employeeUuid=$uuid غير موجود — لم يُخمن المالك',
-        );
+        report.notes.add('salary_cycle#${cycle.id}: employeeUuid=$uuid غير موجود — لم يُخمن المالك');
         continue;
       }
       if (cycle.employeeId != owner.id) {
-        await (db.update(db.salaryCycles)..where((t) => t.id.equals(cycle.id)))
-            .write(SalaryCyclesCompanion(employeeId: d.Value(owner.id)));
+        await (db.update(
+          db.salaryCycles,
+        )..where((t) => t.id.equals(cycle.id))).write(SalaryCyclesCompanion(employeeId: d.Value(owner.id)));
         report.cyclesRelinked++;
       }
     }
 
     // ═══ 4) دفعات الرواتب — يجب أن تتفق هوية الدفعة مع هوية دورتها ═══
-    final payments = await (db.select(
-      db.salaryPayments,
-    )..where((t) => t.deletedAt.isNull())).get();
+    final payments = await (db.select(db.salaryPayments)..where((t) => t.deletedAt.isNull())).get();
     for (final payment in payments) {
       final cycle =
           await (db.select(db.salaryCycles)
@@ -303,21 +261,15 @@ class EmployeeLinkConsistencyService {
               .getSingleOrNull();
       if (cycle == null) {
         report.relationshipConflicts++;
-        report.notes.add(
-          'salary_payment#${payment.id}: cycleId=${payment.cycleId} غير موجود — لم يُخمن',
-        );
+        report.notes.add('salary_payment#${payment.id}: cycleId=${payment.cycleId} غير موجود — لم يُخمن');
         continue;
       }
       final cycleUuid = cycle.employeeUuid?.trim() ?? '';
       final paymentUuid = payment.employeeUuid?.trim() ?? '';
-      if (cycleUuid.isNotEmpty &&
-          paymentUuid.isNotEmpty &&
-          cycleUuid != paymentUuid) {
+      if (cycleUuid.isNotEmpty && paymentUuid.isNotEmpty && cycleUuid != paymentUuid) {
         // Two authoritative UUID claims disagree. Do not choose one silently.
         report.relationshipConflicts++;
-        report.notes.add(
-          'salary_payment#${payment.id}: تعارض employeeUuid بين الدفعة والدورة — لم يُخمن',
-        );
+        report.notes.add('salary_payment#${payment.id}: تعارض employeeUuid بين الدفعة والدورة — لم يُخمن');
         continue;
       }
       final ownerUuid = cycleUuid.isNotEmpty ? cycleUuid : paymentUuid;
@@ -328,9 +280,7 @@ class EmployeeLinkConsistencyService {
         continue;
       }
       if (payment.employeeUuid != owner.localUuid) {
-        await (db.update(
-          db.salaryPayments,
-        )..where((t) => t.id.equals(payment.id))).write(
+        await (db.update(db.salaryPayments)..where((t) => t.id.equals(payment.id))).write(
           SalaryPaymentsCompanion(employeeUuid: d.Value(owner.localUuid)),
         );
         report.paymentsRelinked++;
@@ -338,9 +288,7 @@ class EmployeeLinkConsistencyService {
     }
 
     // ═══ 5) سجلات الترحيل — employeeUuid هو المرجع المحمول ═══
-    final carryOvers = await (db.select(
-      db.salaryCarryOverLogs,
-    )..where((t) => t.deletedAt.isNull())).get();
+    final carryOvers = await (db.select(db.salaryCarryOverLogs)..where((t) => t.deletedAt.isNull())).get();
     for (final log in carryOvers) {
       final uuid = log.employeeUuid?.trim() ?? '';
       if (uuid.isEmpty) {
@@ -349,9 +297,7 @@ class EmployeeLinkConsistencyService {
           report.orphanCycles++;
           continue;
         }
-        await (db.update(
-          db.salaryCarryOverLogs,
-        )..where((t) => t.id.equals(log.id))).write(
+        await (db.update(db.salaryCarryOverLogs)..where((t) => t.id.equals(log.id))).write(
           SalaryCarryOverLogsCompanion(employeeUuid: d.Value(owner.localUuid)),
         );
         report.carryOversRelinked++;
@@ -363,9 +309,9 @@ class EmployeeLinkConsistencyService {
         continue;
       }
       if (log.employeeId != owner.id) {
-        await (db.update(db.salaryCarryOverLogs)
-              ..where((t) => t.id.equals(log.id)))
-            .write(SalaryCarryOverLogsCompanion(employeeId: d.Value(owner.id)));
+        await (db.update(
+          db.salaryCarryOverLogs,
+        )..where((t) => t.id.equals(log.id))).write(SalaryCarryOverLogsCompanion(employeeId: d.Value(owner.id)));
         report.carryOversRelinked++;
       }
     }

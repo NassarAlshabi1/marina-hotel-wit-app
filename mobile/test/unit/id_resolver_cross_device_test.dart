@@ -25,12 +25,7 @@ void main() {
 
   tearDown(() async => db.close());
 
-  Future<Employee> insertEmployee({
-    required String localUuid,
-    required String name,
-    int? serverId,
-    int? deletedAt,
-  }) {
+  Future<Employee> insertEmployee({required String localUuid, required String name, int? serverId, int? deletedAt}) {
     return db
         .into(db.employees)
         .insertReturning(
@@ -50,11 +45,7 @@ void main() {
 
   group('resolveEmployee — من مصدر بعيد (fromRemote=true)', () {
     test('يحل عبر employeeUuid (الطريقة 1) بالصيغة القياسية', () async {
-      final e = await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001',
-        name: 'موظف أول',
-        serverId: 7,
-      );
+      final e = await insertEmployee(localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001', name: 'موظف أول', serverId: 7);
       final got = await resolver.resolveEmployee(
         uuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001',
         serverId: 99,
@@ -64,15 +55,8 @@ void main() {
     });
 
     test('يحل عبر employeeUuid بصيغة 32 حرفاً بدون شرطات', () async {
-      final e = await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0002',
-        name: 'موظف ثانٍ',
-        serverId: 8,
-      );
-      final got = await resolver.resolveEmployee(
-        uuid: 'aaaaaaaabbbbccccddddeeeeffff0002',
-        fromRemote: true,
-      );
+      final e = await insertEmployee(localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0002', name: 'موظف ثانٍ', serverId: 8);
+      final got = await resolver.resolveEmployee(uuid: 'aaaaaaaabbbbccccddddeeeeffff0002', fromRemote: true);
       expect(got, e.id);
     });
 
@@ -82,35 +66,17 @@ void main() {
         name: 'موظف ثالث',
         serverId: 12,
       );
-      final got = await resolver.resolveEmployee(
-        serverId: 12,
-        fromRemote: true,
-      );
+      final got = await resolver.resolveEmployee(serverId: 12, fromRemote: true);
       expect(got, e.id);
     });
 
-    test(
-      'لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)',
-      () async {
-        // موظف محلي id=1 لكن serverId=5 — مرجع بعيد employeeId=1 يشير
-        // (دلالياً) إلى موظف آخر على جهاز المصدر وليس لهذا الموظف.
-        await insertEmployee(
-          localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0004',
-          name: 'موظف محلي مختلف',
-          serverId: 5,
-        );
-        final got = await resolver.resolveEmployee(
-          localId: 1,
-          employeeId: 1,
-          fromRemote: true,
-        );
-        expect(
-          got,
-          isNull,
-          reason: 'المطابقة بالـ id المحلي محظورة للمصادر البعيدة',
-        );
-      },
-    );
+    test('لا يطابق employeeId البعيد مع e.id المحلي (منع الربط الخاطئ عبر الأجهزة)', () async {
+      // موظف محلي id=1 لكن serverId=5 — مرجع بعيد employeeId=1 يشير
+      // (دلالياً) إلى موظف آخر على جهاز المصدر وليس لهذا الموظف.
+      await insertEmployee(localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0004', name: 'موظف محلي مختلف', serverId: 5);
+      final got = await resolver.resolveEmployee(localId: 1, employeeId: 1, fromRemote: true);
+      expect(got, isNull, reason: 'المطابقة بالـ id المحلي محظورة للمصادر البعيدة');
+    });
 
     test('serverId مكرر (خطأ بيانات): يختار النشط أولاً بشكل حتمي', () async {
       final active = await insertEmployee(
@@ -130,11 +96,7 @@ void main() {
     });
 
     test('serverId مكرر وكلاهما نشط: يختار الأصغر id حتماً', () async {
-      final first = await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0007',
-        name: 'الأول',
-        serverId: 2,
-      );
+      final first = await insertEmployee(localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0007', name: 'الأول', serverId: 2);
       final second = await insertEmployee(
         localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0008',
         name: 'الثاني',
@@ -147,22 +109,14 @@ void main() {
 
   group('resolveEmployee — من مصدر محلي (fromRemote=false)', () {
     test('يحل عبر localId (id المحلي صحيح الدلالة على نفس الجهاز)', () async {
-      final e = await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0009',
-        name: 'محلي',
-      );
+      final e = await insertEmployee(localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff0009', name: 'محلي');
       final got = await resolver.resolveEmployee(localId: e.id);
       expect(got, e.id);
     });
   });
 
   group('resolveSalaryCycle', () {
-    Future<int> insertCycle({
-      required String localUuid,
-      required int employeeId,
-      int? serverId,
-      int? deletedAt,
-    }) {
+    Future<int> insertCycle({required String localUuid, required int employeeId, int? serverId, int? deletedAt}) {
       return db
           .into(db.salaryCycles)
           .insert(
@@ -179,73 +133,40 @@ void main() {
           );
     }
 
-    test(
-      'fromRemote=true: يحل عبر serverId ولا يحل عبر localId البعيد',
-      () async {
-        final emp = await insertEmployee(
-          localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000a',
-          name: 'دورات',
-          serverId: 3,
-        );
-        final cycle = await insertCycle(
-          localUuid: 'bbbbbbbb-cccc-dddd-eeee-ffff00000001',
-          employeeId: emp.id,
-          serverId: 42,
-        );
-        expect(
-          await resolver.resolveSalaryCycle(serverId: 42, fromRemote: true),
-          cycle,
-        );
-        expect(
-          await resolver.resolveSalaryCycle(localId: cycle, fromRemote: true),
-          isNull,
-          reason: 'id الدورة المحلي قد يصادف cycleId جهازاً آخر — محظور',
-        );
-      },
-    );
+    test('fromRemote=true: يحل عبر serverId ولا يحل عبر localId البعيد', () async {
+      final emp = await insertEmployee(localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000a', name: 'دورات', serverId: 3);
+      final cycle = await insertCycle(
+        localUuid: 'bbbbbbbb-cccc-dddd-eeee-ffff00000001',
+        employeeId: emp.id,
+        serverId: 42,
+      );
+      expect(await resolver.resolveSalaryCycle(serverId: 42, fromRemote: true), cycle);
+      expect(
+        await resolver.resolveSalaryCycle(localId: cycle, fromRemote: true),
+        isNull,
+        reason: 'id الدورة المحلي قد يصادف cycleId جهازاً آخر — محظور',
+      );
+    });
 
     test('fromRemote=false: يحل عبر localId', () async {
-      final emp = await insertEmployee(
-        localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000b',
-        name: 'دورات ٢',
-        serverId: 4,
-      );
-      final cycle = await insertCycle(
-        localUuid: 'bbbbbbbb-cccc-dddd-eeee-ffff00000002',
-        employeeId: emp.id,
-      );
+      final emp = await insertEmployee(localUuid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeffff000b', name: 'دورات ٢', serverId: 4);
+      final cycle = await insertCycle(localUuid: 'bbbbbbbb-cccc-dddd-eeee-ffff00000002', employeeId: emp.id);
       expect(await resolver.resolveSalaryCycle(localId: cycle), cycle);
     });
   });
 
   group('buildFullSyncQueries + entityNeedsTombstoneParents', () {
-    test(
-      'includeTombstones=true يلغي فلتر tombstones (سحب الآباء المرجعية)',
-      () {
-        expect(
-          SyncPullService.buildFullSyncQueries(includeTombstones: true),
-          isEmpty,
-        );
-      },
-    );
+    test('includeTombstones=true يلغي فلتر tombstones (سحب الآباء المرجعية)', () {
+      expect(SyncPullService.buildFullSyncQueries(includeTombstones: true), isEmpty);
+    });
 
     test('employees كيان أب مرجعي — tombstones تُسحب', () {
       expect(SyncPullService.entityNeedsTombstoneParents('employees'), isTrue);
     });
 
     test('بقية الكيانات تبقى مع فلتر استبعاد tombstones', () {
-      for (final entity in const [
-        'salary_withdrawals',
-        'salary_cycles',
-        'salary_payments',
-        'bookings',
-        'rooms',
-      ]) {
-        expect(
-          SyncPullService.entityNeedsTombstoneParents(entity),
-          isFalse,
-          reason: '$entity ليس كياناً أباً مرجعياً',
-        );
+      for (final entity in const ['salary_withdrawals', 'salary_cycles', 'salary_payments', 'bookings', 'rooms']) {
+        expect(SyncPullService.entityNeedsTombstoneParents(entity), isFalse, reason: '$entity ليس كياناً أباً مرجعياً');
       }
       final queries = SyncPullService.buildFullSyncQueries();
       expect(queries, hasLength(1));

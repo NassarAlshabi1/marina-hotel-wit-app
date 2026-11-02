@@ -16,11 +16,9 @@ enum ConnectionStatus { online, offline, checking, unknown }
 class ConnectionStateManager extends ChangeNotifier {
   factory ConnectionStateManager() => _instance;
 
-  ConnectionStateManager._internal({
-    required Connectivity connectivity,
-    required Future<void> Function() appwriteProbe,
-  }) : _connectivity = connectivity,
-       _appwriteProbe = appwriteProbe;
+  ConnectionStateManager._internal({required Connectivity connectivity, required Future<void> Function() appwriteProbe})
+    : _connectivity = connectivity,
+      _appwriteProbe = appwriteProbe;
 
   /// Constructor محدود للاختبارات: يسمح بمحاكاة offline/online وعدّ الطلبات.
   ConnectionStateManager.forTesting({
@@ -28,11 +26,10 @@ class ConnectionStateManager extends ChangeNotifier {
     required Future<void> Function() appwriteProbe,
   }) : this._internal(connectivity: connectivity, appwriteProbe: appwriteProbe);
 
-  static final ConnectionStateManager _instance =
-      ConnectionStateManager._internal(
-        connectivity: Connectivity(),
-        appwriteProbe: () => AppwriteService().quickConnectionTest(),
-      );
+  static final ConnectionStateManager _instance = ConnectionStateManager._internal(
+    connectivity: Connectivity(),
+    appwriteProbe: () => AppwriteService().quickConnectionTest(),
+  );
 
   final _logger = AppwriteLogger();
   final Connectivity _connectivity;
@@ -68,10 +65,7 @@ class ConnectionStateManager extends ChangeNotifier {
   /// تهيئة المدير
   Future<void> init() async {
     if (_connectivitySubscription != null) {
-      _logger.debug(
-        'ConnectionStateManager already initialized',
-        tag: 'CONNECTION',
-      );
+      _logger.debug('ConnectionStateManager already initialized', tag: 'CONNECTION');
       return;
     }
 
@@ -81,11 +75,7 @@ class ConnectionStateManager extends ChangeNotifier {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
       _onConnectivityChanged,
       onError: (Object error) {
-        _logger.error(
-          'Connectivity stream error',
-          error: error,
-          tag: 'CONNECTION',
-        );
+        _logger.error('Connectivity stream error', error: error, tag: 'CONNECTION');
       },
     );
 
@@ -99,9 +89,7 @@ class ConnectionStateManager extends ChangeNotifier {
     // فحص أولي: نقرأ حالة الشبكة أولاً حتى لا نبدأ loop طلبات Appwrite
     // على جهاز غير متصل.
     final initialResults = await _connectivity.checkConnectivity();
-    _hasNetworkTransport = initialResults.any(
-      (result) => result != ConnectivityResult.none,
-    );
+    _hasNetworkTransport = initialResults.any((result) => result != ConnectivityResult.none);
     if (_hasNetworkTransport) {
       await checkConnection();
     } else {
@@ -114,9 +102,7 @@ class ConnectionStateManager extends ChangeNotifier {
     _logger.debug('Connectivity changed: $results', tag: 'CONNECTION');
 
     final wasNetworkAvailable = _hasNetworkTransport;
-    _hasNetworkTransport = results.any(
-      (result) => result != ConnectivityResult.none,
-    );
+    _hasNetworkTransport = results.any((result) => result != ConnectivityResult.none);
 
     // إذا لا يوجد اتصال على الإطلاق: حدّث الحالة فقط ولا تفحص Appwrite.
     if (!_hasNetworkTransport) {
@@ -166,10 +152,7 @@ class ConnectionStateManager extends ChangeNotifier {
       final oldStatus = _status;
       _status = newStatus;
 
-      _logger.info(
-        'Connection status changed: $oldStatus -> $newStatus',
-        tag: 'CONNECTION',
-      );
+      _logger.info('Connection status changed: $oldStatus -> $newStatus', tag: 'CONNECTION');
 
       // إشعار المستمعين
       notifyListeners();

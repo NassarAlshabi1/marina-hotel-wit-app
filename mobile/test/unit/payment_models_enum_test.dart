@@ -27,21 +27,13 @@ void main() {
 
     test('كل طريقة لها أيقونة', () {
       for (final method in PaymentMethod.values) {
-        expect(
-          method.icon,
-          isNotNull,
-          reason: 'الطريقة $method يجب أن لها أيقونة',
-        );
+        expect(method.icon, isNotNull, reason: 'الطريقة $method يجب أن لها أيقونة');
       }
     });
 
     test('كل طريقة لها لون مميز', () {
       for (final method in PaymentMethod.values) {
-        expect(
-          method.color,
-          isNotNull,
-          reason: 'الطريقة $method يجب أن لها لون',
-        );
+        expect(method.color, isNotNull, reason: 'الطريقة $method يجب أن لها لون');
       }
     });
   });
@@ -60,11 +52,7 @@ void main() {
 
     test('كل حالة لها لون مميز', () {
       for (final status in PaymentStatus.values) {
-        expect(
-          status.color,
-          isNotNull,
-          reason: 'الحالة $status يجب أن لها لون',
-        );
+        expect(status.color, isNotNull, reason: 'الحالة $status يجب أن لها لون');
       }
     });
   });

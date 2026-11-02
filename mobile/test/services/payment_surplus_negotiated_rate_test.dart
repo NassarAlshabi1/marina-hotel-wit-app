@@ -52,8 +52,7 @@ void main() {
   final fourNightsLater = DateTime(2026, 10, 4, 10, 0);
   final afterTwoNights = DateTime(2026, 10, 2, 10, 0);
 
-  Future<Booking> fetchBooking(int id) =>
-      (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
+  Future<Booking> fetchBooking(int id) => (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
 
   Future<List<BookingNight>> fetchNights(int id) =>
       (db.select(db.bookingNights)
@@ -79,11 +78,7 @@ void main() {
   /// نفس تسلسل شاشة الدفع في مسار التفاوض (دون طبقة الواجهة):
   /// تحديث مشتق → اعتماد الزيادة التفاوضية → تسجيل الدفعة → تحديث مشتق.
   /// الدفعة مبلغ حقيقي واحد — لا دفعة وهمية للزيادة.
-  Future<Booking> negotiateAndPay(
-    Booking booking, {
-    required int increase,
-    required double paymentAmount,
-  }) async {
+  Future<Booking> negotiateAndPay(Booking booking, {required int increase, required double paymentAmount}) async {
     await derivedService.refreshForBookingId(booking.id, now: fourNightsLater);
     await adjustmentService.applyNegotiatedRateIncrease(
       bookingLocalUuid: booking.localUuid,
@@ -111,12 +106,7 @@ void main() {
 
     PaymentSessionContext.start(userId: 1, userName: 'اختبار');
 
-    await RoomsRepository(db).create(
-      roomNumber: '101',
-      type: 'عادية',
-      price: roomRate,
-      status: 'شاغرة',
-    );
+    await RoomsRepository(db).create(roomNumber: '101', type: 'عادية', price: roomRate, status: 'شاغرة');
   });
 
   tearDown(() async {
@@ -126,59 +116,42 @@ void main() {
   });
 
   group('التفاوض على سعر الغرفة من شاشة الدفع (قاعدة 2026-11-01)', () {
-    test(
-      '1 — غرفة 20,000 وزيادة 3,000 لكل ليلة: السعر الجديد 23,000 والأصلي محفوظ',
-      () async {
-        final booking = await seedBooking();
-        final after = await negotiateAndPay(
-          booking,
-          increase: 3000,
-          paymentAmount: 92000,
-        );
+    test('1 — غرفة 20,000 وزيادة 3,000 لكل ليلة: السعر الجديد 23,000 والأصلي محفوظ', () async {
+      final booking = await seedBooking();
+      final after = await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
 
-        final nights = await fetchNights(booking.id);
-        expect(nights, hasLength(4), reason: 'أربع ليالٍ بلا أي تمديد');
-        expect(
-          nights.every((n) => n.baseRate == roomRate),
-          isTrue,
-          reason: 'سعر الغرفة الأصلي محفوظ في كل ليلة',
-        );
-        expect(nights.every((n) => n.adjustment == 3000), isTrue);
-        expect(
-          nights.every((n) => n.finalRate == 23000 && n.nightlyRate == 23000),
-          isTrue,
-          reason: 'السعر النهائي المعتمد لكل ليلة = 23,000',
-        );
-        expect(after.totalDueCached, 92000, reason: 'إجمالي الإقامة 92,000');
-        expect(after.totalPaidCached, 92000);
-        expect(after.remainingBalanceCached, 0);
-        expect(after.isFullyPaid, isTrue);
+      final nights = await fetchNights(booking.id);
+      expect(nights, hasLength(4), reason: 'أربع ليالٍ بلا أي تمديد');
+      expect(nights.every((n) => n.baseRate == roomRate), isTrue, reason: 'سعر الغرفة الأصلي محفوظ في كل ليلة');
+      expect(nights.every((n) => n.adjustment == 3000), isTrue);
+      expect(
+        nights.every((n) => n.finalRate == 23000 && n.nightlyRate == 23000),
+        isTrue,
+        reason: 'السعر النهائي المعتمد لكل ليلة = 23,000',
+      );
+      expect(after.totalDueCached, 92000, reason: 'إجمالي الإقامة 92,000');
+      expect(after.totalPaidCached, 92000);
+      expect(after.remainingBalanceCached, 0);
+      expect(after.isFullyPaid, isTrue);
 
-        // سجل التعديل الكنوني: التاريخ/الوقت والمعتمِد والارتباط بالحجز
-        final adjustments = await adjustmentService.getActiveAdjustments(
-          booking.localUuid,
-        );
-        expect(adjustments, hasLength(1));
-        final adj = adjustments.single;
-        expect(adj.adjustmentType, 1, reason: 'surcharge');
-        expect(adj.adjustmentMode, 'per_night');
-        expect(adj.amount, 3000);
-        expect(adj.appliedBy, 'اختبار');
-        expect(adj.createdAt, greaterThan(0), reason: 'تاريخ ووقت الزيادة');
-        expect(adj.bookingLocalUuid, booking.localUuid);
-        expect(adj.bookingLocalId, booking.id);
-        expect(adj.roomNumber, booking.roomNumber);
-        expect(adj.endHotelDay, isNull, reason: 'مفتوحة لكامل ليالي الحجز');
-      },
-    );
+      // سجل التعديل الكنوني: التاريخ/الوقت والمعتمِد والارتباط بالحجز
+      final adjustments = await adjustmentService.getActiveAdjustments(booking.localUuid);
+      expect(adjustments, hasLength(1));
+      final adj = adjustments.single;
+      expect(adj.adjustmentType, 1, reason: 'surcharge');
+      expect(adj.adjustmentMode, 'per_night');
+      expect(adj.amount, 3000);
+      expect(adj.appliedBy, 'اختبار');
+      expect(adj.createdAt, greaterThan(0), reason: 'تاريخ ووقت الزيادة');
+      expect(adj.bookingLocalUuid, booking.localUuid);
+      expect(adj.bookingLocalId, booking.id);
+      expect(adj.roomNumber, booking.roomNumber);
+      expect(adj.endHotelDay, isNull, reason: 'مفتوحة لكامل ليالي الحجز');
+    });
 
     test('2 — زيادة 5,000 (السقف بالضبط): مقبولة والليلة 25,000', () async {
       final booking = await seedBooking();
-      final after = await negotiateAndPay(
-        booking,
-        increase: 5000,
-        paymentAmount: 100000,
-      );
+      final after = await negotiateAndPay(booking, increase: 5000, paymentAmount: 100000);
 
       final nights = await fetchNights(booking.id);
       expect(nights.every((n) => n.finalRate == 25000), isTrue);
@@ -198,10 +171,7 @@ void main() {
 
     test('3 — زيادة 5,001: مرفوضة ولا يُنشأ أي سجل ولا يتغير السعر', () async {
       final booking = await seedBooking();
-      await derivedService.refreshForBookingId(
-        booking.id,
-        now: fourNightsLater,
-      );
+      await derivedService.refreshForBookingId(booking.id, now: fourNightsLater);
 
       await expectLater(
         adjustmentService.applyNegotiatedRateIncrease(
@@ -218,265 +188,177 @@ void main() {
         reason: 'لا سجل تعديل عند الرفض',
       );
       final nights = await fetchNights(booking.id);
+      expect(nights.every((n) => n.finalRate == roomRate), isTrue, reason: 'السعر لم يتغير بعد الرفض');
+    });
+
+    test('4 — حجز 4 ليالٍ بسعر متفاوض: 4 × 23,000 = 92,000 والمحرك الموحد يرى السعر', () async {
+      final booking = await seedBooking(checkout: fourNightsLater);
+      final after = await negotiateAndPay(
+        booking,
+        increase: 3000,
+        paymentAmount: 46000, // دفعة جزئية
+      );
+
+      expect(after.totalNightsCached, 4, reason: 'عدد الليالي لم يتغير');
+      expect(after.totalDueCached, 92000);
+      expect(after.totalPaidCached, 46000);
+      expect(after.remainingBalanceCached, 46000);
+      expect(after.checkoutDate, isNotNull, reason: 'تاريخ المغادرة كما أدخله المستخدم — لم يُمسّ');
+      expect(after.expectedNights, 4, reason: 'لا تمديد ولا ليالٍ إضافية');
+      expect((await fetchNights(booking.id)), hasLength(4), reason: 'لا سجلات ليالٍ وهمية');
+
+      // المحرك الموحد (StayBalanceCalculator) يرى السعر المتفاوض عليه
+      final adjustments = await adjustmentService.getActiveAdjustments(booking.localUuid);
+      final calc = StayBalanceCalculator.calculate(
+        after,
+        roomRate: roomRate,
+        priceAdjustments: StayBalanceCalculator.filterActiveAdjustments(after, adjustments),
+        now: fourNightsLater,
+      );
+      expect(calc.consumedCost, 92000, reason: '4 ليالٍ × 23,000');
+      expect(calc.effectiveNightlyRate, 23000);
+      expect(calc.totalPaidNights, 2, reason: '46,000 تغطي ليلتين فقط');
+    });
+
+    test('5 — مغادرة مبكرة بعد ليلتين: 2 × 23,000 = 46,000 والمسترد وفق النظام', () async {
+      final booking = await seedBooking(checkout: fourNightsLater);
+      await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
+
+      expect((await fetchBooking(booking.id)).totalDueCached, 92000, reason: 'قبل المغادرة: 4 × 23,000');
+
+      // مغادرة فعلية بعد ليلتين — الليالي المستخدمة بالسعر المتفاوض
+      await bookingsRepo.update(booking.id, actualCheckout: afterTwoNights.toIso8601String());
+
+      final after = await fetchBooking(booking.id);
+      final nights = await fetchNights(booking.id);
+      expect(nights, hasLength(2), reason: 'اقتطاع الليالي حتى المغادرة');
       expect(
-        nights.every((n) => n.finalRate == roomRate),
+        nights.every((n) => n.finalRate == 23000),
         isTrue,
-        reason: 'السعر لم يتغير بعد الرفض',
+        reason: 'الليالي المستخدمة تُحتسب بالسعر المتفاوض عليه',
+      );
+      expect(after.totalDueCached, 46000, reason: '2 × 23,000 = 46,000');
+      expect(after.totalPaidCached, 92000);
+      // نظام المحاسبة الحالي: المتبقي يُقيد عند صفر والفارق (46,000)
+      // رصيد دائن للنزيل يُعالَج بمسار الاسترداد القائم
+      expect(after.remainingBalanceCached, 0);
+    });
+
+    test('6 — إلغاء دفعة مرتبطة بالحجز: المتبقي يعود والسعر المتفاوض باقٍ', () async {
+      final booking = await seedBooking();
+      await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
+      expect((await fetchBooking(booking.id)).isFullyPaid, isTrue);
+
+      final payment = (db.select(
+        db.payments,
+      )..where((p) => p.bookingLocalId.equals(booking.id))).get().then((rows) => rows.single);
+
+      final ok = await PaymentVoidService(
+        db,
+      ).voidPayment(paymentUuid: (await payment).localUuid, voidReason: 'اختبار — إلغاء دفعة', voidedBy: 'اختبار');
+      expect(ok, isTrue);
+
+      // إعادة التطبيع بوقت اختباري ثابت (التحديث داخل voidPayment يستخدم
+      // الوقت الحقيقي فتنمو ليالي الحجز النشط حتى اليوم) — الغرض: تثبيت
+      // عدد الليالي للتحقق من أن السعر المتفاوض باقٍ بعد الإلغاء.
+      await derivedService.refreshForBookingId(booking.id, now: fourNightsLater, forceRebuild: true);
+
+      final after = await fetchBooking(booking.id);
+      expect(after.totalPaidCached, 0, reason: 'الدفعة الملغاة خارج الرصيد');
+      expect(after.totalDueCached, 92000, reason: 'إجمالي الإقامة بالسعر المتفاوض لم يتأثر بالإلغاء');
+      expect(after.remainingBalanceCached, 92000);
+      expect(after.isFullyPaid, isFalse);
+      expect(
+        (await fetchNights(booking.id)).every((n) => n.finalRate == 23000),
+        isTrue,
+        reason: 'السعر المتفاوض باقٍ بعد إلغاء الدفعة',
       );
     });
 
-    test(
-      '4 — حجز 4 ليالٍ بسعر متفاوض: 4 × 23,000 = 92,000 والمحرك الموحد يرى السعر',
-      () async {
-        final booking = await seedBooking(checkout: fourNightsLater);
-        final after = await negotiateAndPay(
-          booking,
-          increase: 3000,
-          paymentAmount: 46000, // دفعة جزئية
-        );
+    test('7 — إعادة فتح الحجز: السعر المتفاوض عليه باقٍ بعد إعادة الفتح', () async {
+      final booking = await seedBooking();
+      await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
 
-        expect(after.totalNightsCached, 4, reason: 'عدد الليالي لم يتغير');
-        expect(after.totalDueCached, 92000);
-        expect(after.totalPaidCached, 46000);
-        expect(after.remainingBalanceCached, 46000);
-        expect(
-          after.checkoutDate,
-          isNotNull,
-          reason: 'تاريخ المغادرة كما أدخله المستخدم — لم يُمسّ',
-        );
-        expect(after.expectedNights, 4, reason: 'لا تمديد ولا ليالٍ إضافية');
-        expect(
-          (await fetchNights(booking.id)),
-          hasLength(4),
-          reason: 'لا سجلات ليالٍ وهمية',
-        );
+      // تسجيل مغادرة مبكرة ثم إعادة الفتح (مسح المغادرة الفعلية)
+      await bookingsRepo.update(booking.id, actualCheckout: afterTwoNights.toIso8601String());
+      expect(await fetchNights(booking.id), hasLength(2));
 
-        // المحرك الموحد (StayBalanceCalculator) يرى السعر المتفاوض عليه
-        final adjustments = await adjustmentService.getActiveAdjustments(
-          booking.localUuid,
-        );
-        final calc = StayBalanceCalculator.calculate(
-          after,
-          roomRate: roomRate,
-          priceAdjustments: StayBalanceCalculator.filterActiveAdjustments(
-            after,
-            adjustments,
-          ),
-          now: fourNightsLater,
-        );
-        expect(calc.consumedCost, 92000, reason: '4 ليالٍ × 23,000');
-        expect(calc.effectiveNightlyRate, 23000);
-        expect(calc.totalPaidNights, 2, reason: '46,000 تغطي ليلتين فقط');
-      },
-    );
+      await (db.update(
+        db.bookings,
+      )..where((b) => b.id.equals(booking.id))).write(const BookingsCompanion(actualCheckout: Value('')));
+      await derivedService.refreshForBookingId(booking.id, now: fourNightsLater, forceRebuild: true);
 
-    test(
-      '5 — مغادرة مبكرة بعد ليلتين: 2 × 23,000 = 46,000 والمسترد وفق النظام',
-      () async {
-        final booking = await seedBooking(checkout: fourNightsLater);
-        await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
+      final nights = await fetchNights(booking.id);
+      expect(nights, hasLength(4), reason: 'عودة الليالي الأربع بعد إعادة الفتح');
+      expect(
+        nights.every((n) => n.finalRate == 23000),
+        isTrue,
+        reason: 'السعر المتفاوض محفوظ — مصدره سجل التعديل لا حالة الحجز',
+      );
+      final after = await fetchBooking(booking.id);
+      expect(after.totalDueCached, 92000);
+      expect(await adjustmentService.getActiveAdjustments(booking.localUuid), hasLength(1));
+    });
 
-        expect(
-          (await fetchBooking(booking.id)).totalDueCached,
-          92000,
-          reason: 'قبل المغادرة: 4 × 23,000',
-        );
+    test('8 — مزامنة الحجز والتعديل مع Appwrite: UUID محفوظ وبلا تكرار', () async {
+      final booking = await seedBooking();
+      await derivedService.refreshForBookingId(booking.id, now: fourNightsLater);
+      final adj = await adjustmentService.applyNegotiatedRateIncrease(
+        bookingLocalUuid: booking.localUuid,
+        amount: 3000,
+        appliedBy: 'اختبار',
+      );
 
-        // مغادرة فعلية بعد ليلتين — الليالي المستخدمة بالسعر المتفاوض
-        await bookingsRepo.update(
-          booking.id,
-          actualCheckout: afterTwoNights.toIso8601String(),
-        );
+      // (أ) عنصر Outbox جاهز للرفع بنفس UUID — لا فقدان عند انقطاع الشبكة
+      final outboxRows =
+          await (db.select(db.outbox)
+                ..where((t) => t.entity.equals('booking_price_adjustments'))
+                ..where((t) => t.localUuid.equals(adj.localUuid)))
+              .get();
+      expect(outboxRows, isNotEmpty, reason: 'التعديل مُدرج في Outbox للمزامنة');
+      expect(outboxRows.single.op, 'create');
 
-        final after = await fetchBooking(booking.id);
-        final nights = await fetchNights(booking.id);
-        expect(nights, hasLength(2), reason: 'اقتطاع الليالي حتى المغادرة');
-        expect(
-          nights.every((n) => n.finalRate == 23000),
-          isTrue,
-          reason: 'الليالي المستخدمة تُحتسب بالسعر المتفاوض عليه',
-        );
-        expect(after.totalDueCached, 46000, reason: '2 × 23,000 = 46,000');
-        expect(after.totalPaidCached, 92000);
-        // نظام المحاسبة الحالي: المتبقي يُقيد عند صفر والفارق (46,000)
-        // رصيد دائن للنزيل يُعالَج بمسار الاسترداد القائم
-        expect(after.remainingBalanceCached, 0);
-      },
-    );
+      // (ب) محاكاة سحب مستند Appwrite مرتين (تكرار مزامنة) عبر مسار
+      // الـ adapter نفسه — سجل واحد، UUID محفوظ، مرتبط بالحجز الصحيح
+      final adapters = AdapterRegistry(db);
+      final remoteDoc = <String, dynamic>{
+        'localUuid': adj.localUuid,
+        'bookingLocalUuid': booking.localUuid,
+        'roomNumber': booking.roomNumber,
+        'adjustmentType': 1,
+        'adjustmentMode': 'per_night',
+        'amount': 3000.0,
+        'effectiveHotelDay': adj.effectiveHotelDay,
+        'endHotelDay': null,
+        'isActive': true,
+        'reason': BookingPriceAdjustmentService.negotiatedRateReason,
+        'appliedBy': 'اختبار',
+        'createdAt': adj.createdAt,
+        'updatedAt': adj.updatedAt,
+        'lastModified': adj.lastModified,
+      };
 
-    test(
-      '6 — إلغاء دفعة مرتبطة بالحجز: المتبقي يعود والسعر المتفاوض باقٍ',
-      () async {
-        final booking = await seedBooking();
-        await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
-        expect((await fetchBooking(booking.id)).isFullyPaid, isTrue);
+      final first = await adapters.bookingPriceAdjustments.upsertFromJson(
+        Map<String, dynamic>.from(remoteDoc),
+        src: Source.appwrite,
+      );
+      await adapters.bookingPriceAdjustments.upsertFromJson(Map<String, dynamic>.from(remoteDoc), src: Source.appwrite);
+      expect(first, greaterThan(0));
 
-        final payment =
-            (db.select(db.payments)
-                  ..where((p) => p.bookingLocalId.equals(booking.id)))
-                .get()
-                .then((rows) => rows.single);
-
-        final ok = await PaymentVoidService(db).voidPayment(
-          paymentUuid: (await payment).localUuid,
-          voidReason: 'اختبار — إلغاء دفعة',
-          voidedBy: 'اختبار',
-        );
-        expect(ok, isTrue);
-
-        // إعادة التطبيع بوقت اختباري ثابت (التحديث داخل voidPayment يستخدم
-        // الوقت الحقيقي فتنمو ليالي الحجز النشط حتى اليوم) — الغرض: تثبيت
-        // عدد الليالي للتحقق من أن السعر المتفاوض باقٍ بعد الإلغاء.
-        await derivedService.refreshForBookingId(
-          booking.id,
-          now: fourNightsLater,
-          forceRebuild: true,
-        );
-
-        final after = await fetchBooking(booking.id);
-        expect(after.totalPaidCached, 0, reason: 'الدفعة الملغاة خارج الرصيد');
-        expect(
-          after.totalDueCached,
-          92000,
-          reason: 'إجمالي الإقامة بالسعر المتفاوض لم يتأثر بالإلغاء',
-        );
-        expect(after.remainingBalanceCached, 92000);
-        expect(after.isFullyPaid, isFalse);
-        expect(
-          (await fetchNights(booking.id)).every((n) => n.finalRate == 23000),
-          isTrue,
-          reason: 'السعر المتفاوض باقٍ بعد إلغاء الدفعة',
-        );
-      },
-    );
-
-    test(
-      '7 — إعادة فتح الحجز: السعر المتفاوض عليه باقٍ بعد إعادة الفتح',
-      () async {
-        final booking = await seedBooking();
-        await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
-
-        // تسجيل مغادرة مبكرة ثم إعادة الفتح (مسح المغادرة الفعلية)
-        await bookingsRepo.update(
-          booking.id,
-          actualCheckout: afterTwoNights.toIso8601String(),
-        );
-        expect(await fetchNights(booking.id), hasLength(2));
-
-        await (db.update(db.bookings)..where((b) => b.id.equals(booking.id)))
-            .write(const BookingsCompanion(actualCheckout: Value('')));
-        await derivedService.refreshForBookingId(
-          booking.id,
-          now: fourNightsLater,
-          forceRebuild: true,
-        );
-
-        final nights = await fetchNights(booking.id);
-        expect(
-          nights,
-          hasLength(4),
-          reason: 'عودة الليالي الأربع بعد إعادة الفتح',
-        );
-        expect(
-          nights.every((n) => n.finalRate == 23000),
-          isTrue,
-          reason: 'السعر المتفاوض محفوظ — مصدره سجل التعديل لا حالة الحجز',
-        );
-        final after = await fetchBooking(booking.id);
-        expect(after.totalDueCached, 92000);
-        expect(
-          await adjustmentService.getActiveAdjustments(booking.localUuid),
-          hasLength(1),
-        );
-      },
-    );
-
-    test(
-      '8 — مزامنة الحجز والتعديل مع Appwrite: UUID محفوظ وبلا تكرار',
-      () async {
-        final booking = await seedBooking();
-        await derivedService.refreshForBookingId(
-          booking.id,
-          now: fourNightsLater,
-        );
-        final adj = await adjustmentService.applyNegotiatedRateIncrease(
-          bookingLocalUuid: booking.localUuid,
-          amount: 3000,
-          appliedBy: 'اختبار',
-        );
-
-        // (أ) عنصر Outbox جاهز للرفع بنفس UUID — لا فقدان عند انقطاع الشبكة
-        final outboxRows =
-            await (db.select(db.outbox)
-                  ..where((t) => t.entity.equals('booking_price_adjustments'))
-                  ..where((t) => t.localUuid.equals(adj.localUuid)))
-                .get();
-        expect(
-          outboxRows,
-          isNotEmpty,
-          reason: 'التعديل مُدرج في Outbox للمزامنة',
-        );
-        expect(outboxRows.single.op, 'create');
-
-        // (ب) محاكاة سحب مستند Appwrite مرتين (تكرار مزامنة) عبر مسار
-        // الـ adapter نفسه — سجل واحد، UUID محفوظ، مرتبط بالحجز الصحيح
-        final adapters = AdapterRegistry(db);
-        final remoteDoc = <String, dynamic>{
-          'localUuid': adj.localUuid,
-          'bookingLocalUuid': booking.localUuid,
-          'roomNumber': booking.roomNumber,
-          'adjustmentType': 1,
-          'adjustmentMode': 'per_night',
-          'amount': 3000.0,
-          'effectiveHotelDay': adj.effectiveHotelDay,
-          'endHotelDay': null,
-          'isActive': true,
-          'reason': BookingPriceAdjustmentService.negotiatedRateReason,
-          'appliedBy': 'اختبار',
-          'createdAt': adj.createdAt,
-          'updatedAt': adj.updatedAt,
-          'lastModified': adj.lastModified,
-        };
-
-        final first = await adapters.bookingPriceAdjustments.upsertFromJson(
-          Map<String, dynamic>.from(remoteDoc),
-          src: Source.appwrite,
-        );
-        await adapters.bookingPriceAdjustments.upsertFromJson(
-          Map<String, dynamic>.from(remoteDoc),
-          src: Source.appwrite,
-        );
-        expect(first, greaterThan(0));
-
-        final all = await (db.select(
-          db.bookingPriceAdjustments,
-        )..where((a) => a.bookingLocalUuid.equals(booking.localUuid))).get();
-        expect(
-          all,
-          hasLength(1),
-          reason: 'لا تعديلات مكررة عند تكرار المزامنة',
-        );
-        expect(all.single.localUuid, adj.localUuid, reason: 'UUID محفوظ');
-        expect(
-          all.single.bookingLocalId,
-          booking.id,
-          reason: 'مرتبط بالحجز الصحيح',
-        );
-        expect(all.single.amount, 3000, reason: 'قيمة الزيادة سليمة بعد السحب');
-        expect(all.single.isActive, isTrue);
-        expect(
-          all.single.reason,
-          BookingPriceAdjustmentService.negotiatedRateReason,
-        );
-      },
-    );
+      final all = await (db.select(
+        db.bookingPriceAdjustments,
+      )..where((a) => a.bookingLocalUuid.equals(booking.localUuid))).get();
+      expect(all, hasLength(1), reason: 'لا تعديلات مكررة عند تكرار المزامنة');
+      expect(all.single.localUuid, adj.localUuid, reason: 'UUID محفوظ');
+      expect(all.single.bookingLocalId, booking.id, reason: 'مرتبط بالحجز الصحيح');
+      expect(all.single.amount, 3000, reason: 'قيمة الزيادة سليمة بعد السحب');
+      expect(all.single.isActive, isTrue);
+      expect(all.single.reason, BookingPriceAdjustmentService.negotiatedRateReason);
+    });
 
     test('9 — منع التكرار عند الضغط المتكرر: سجل واحد فقط', () async {
       final booking = await seedBooking();
-      await derivedService.refreshForBookingId(
-        booking.id,
-        now: fourNightsLater,
-      );
+      await derivedService.refreshForBookingId(booking.id, now: fourNightsLater);
 
       // ضغط متكرر متزامن (double-tap) — نفس النتيجة بلا سجل مكرر
       final results = await Future.wait([
@@ -507,68 +389,43 @@ void main() {
       expect(all, hasLength(1), reason: 'سجل تفاوض واحد مهما تكرر الضغط');
     });
 
-    test(
-      '10 — الحجوزات التاريخية لا تتأثر بالإضافة ولا بتغيير سعر الغرفة',
-      () async {
-        // حجز مكتمل قديم بغرفة أخرى وسعرها المسجّل وقت الإقامة
-        await RoomsRepository(db).create(
-          roomNumber: '102',
-          type: 'عادية',
-          price: 15000,
-          status: 'شاغرة',
-        );
-        final oldId = await bookingsRepo.create(
-          roomNumber: '102',
-          guestName: 'نزيل قديم',
-          guestPhone: '0500000001',
-          guestNationality: 'يمني',
-          checkinDate: DateTime(2026, 9, 1, 10, 0).toIso8601String(),
-          status: 'نشط',
-          expectedNights: 2,
-        );
-        final oldUuid = (await fetchBooking(oldId)).localUuid;
-        await derivedService.refreshForBookingId(
-          oldId,
-          now: DateTime(2026, 9, 2, 10, 0),
-        );
-        await bookingsRepo.update(
-          oldId,
-          actualCheckout: DateTime(2026, 9, 2, 10, 0).toIso8601String(),
-        );
-        expect(
-          (await fetchBooking(oldId)).totalDueCached,
-          30000,
-          reason: 'الحجز التاريخي: 2 × 15,000 بسعره المحفوظ',
-        );
+    test('10 — الحجوزات التاريخية لا تتأثر بالإضافة ولا بتغيير سعر الغرفة', () async {
+      // حجز مكتمل قديم بغرفة أخرى وسعرها المسجّل وقت الإقامة
+      await RoomsRepository(db).create(roomNumber: '102', type: 'عادية', price: 15000, status: 'شاغرة');
+      final oldId = await bookingsRepo.create(
+        roomNumber: '102',
+        guestName: 'نزيل قديم',
+        guestPhone: '0500000001',
+        guestNationality: 'يمني',
+        checkinDate: DateTime(2026, 9, 1, 10, 0).toIso8601String(),
+        status: 'نشط',
+        expectedNights: 2,
+      );
+      final oldUuid = (await fetchBooking(oldId)).localUuid;
+      await derivedService.refreshForBookingId(oldId, now: DateTime(2026, 9, 2, 10, 0));
+      await bookingsRepo.update(oldId, actualCheckout: DateTime(2026, 9, 2, 10, 0).toIso8601String());
+      expect((await fetchBooking(oldId)).totalDueCached, 30000, reason: 'الحجز التاريخي: 2 × 15,000 بسعره المحفوظ');
 
-        // تفاوض على حجز آخر نشط (الميزة الجديدة)
-        final booking = await seedBooking();
-        await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
+      // تفاوض على حجز آخر نشط (الميزة الجديدة)
+      final booking = await seedBooking();
+      await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
 
-        // تغيير سعر الغرفة الأساسي مستقبلاً لا يغيّر الحجز المكتمل
-        await (db.update(db.rooms)..where((r) => r.roomNumber.equals('102')))
-            .write(const RoomsCompanion(price: Value(99999)));
-        await derivedService.refreshForBookingId(oldId);
+      // تغيير سعر الغرفة الأساسي مستقبلاً لا يغيّر الحجز المكتمل
+      await (db.update(
+        db.rooms,
+      )..where((r) => r.roomNumber.equals('102'))).write(const RoomsCompanion(price: Value(99999)));
+      await derivedService.refreshForBookingId(oldId);
 
-        final oldAfter = await fetchBooking(oldId);
-        expect(
-          oldAfter.totalDueCached,
-          30000,
-          reason: 'تغيير سعر الغرفة لا يمسّ الحجوزات المكتملة',
-        );
-        final oldNights = await fetchNights(oldId);
-        expect(oldNights, hasLength(2));
-        expect(
-          oldNights.every((n) => n.finalRate == 15000),
-          isTrue,
-          reason: 'الليالي التاريخية بأسعارها المسجّلة',
-        );
-        expect(
-          await adjustmentService.getActiveAdjustments(oldUuid),
-          isEmpty,
-          reason: 'الحجز القديم لا يُعاد اعتباره حجزاً متفاوضاً عليه',
-        );
-      },
-    );
+      final oldAfter = await fetchBooking(oldId);
+      expect(oldAfter.totalDueCached, 30000, reason: 'تغيير سعر الغرفة لا يمسّ الحجوزات المكتملة');
+      final oldNights = await fetchNights(oldId);
+      expect(oldNights, hasLength(2));
+      expect(oldNights.every((n) => n.finalRate == 15000), isTrue, reason: 'الليالي التاريخية بأسعارها المسجّلة');
+      expect(
+        await adjustmentService.getActiveAdjustments(oldUuid),
+        isEmpty,
+        reason: 'الحجز القديم لا يُعاد اعتباره حجزاً متفاوضاً عليه',
+      );
+    });
   });
 }

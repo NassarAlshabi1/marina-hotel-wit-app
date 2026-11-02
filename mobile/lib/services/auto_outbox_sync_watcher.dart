@@ -135,9 +135,7 @@ class AutoOutboxSyncWatcher {
     // ✅ Wave 5: ownership-safe tryAcquire (with token).
     final token = SyncGuard.tryAcquire(label: 'auto_outbox_push');
     if (token == null) {
-      dlog(
-        '⏸️ AutoSync skipped — another sync active (${SyncGuard.activeLabel})',
-      );
+      dlog('⏸️ AutoSync skipped — another sync active (${SyncGuard.activeLabel})');
       return;
     }
 
@@ -152,9 +150,7 @@ class AutoOutboxSyncWatcher {
         dlog(() => '📤 AutoSync: pushed $result changes');
       }
     } catch (e) {
-      dlog(
-        () => '⚠️ AutoSync push error: $e (will retry on next outbox change)',
-      );
+      dlog(() => '⚠️ AutoSync push error: $e (will retry on next outbox change)');
     } finally {
       _pushing = false;
       SyncGuard.release(token);

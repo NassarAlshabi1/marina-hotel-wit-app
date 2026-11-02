@@ -30,11 +30,7 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 
 const int _kBaseEpochSec = 1760000000;
 
-models.Document _expenseDoc({
-  required String uuid,
-  required int lastModified,
-  double? amount,
-}) {
+models.Document _expenseDoc({required String uuid, required int lastModified, double? amount}) {
   return models.Document(
     $id: uuid,
     $sequence: 0,
@@ -78,64 +74,36 @@ void main() {
     await db.delete(db.expenses).go();
   });
 
-  test(
-    'مصروف تالف لا يُسجَّل «نجاحاً»: الدفعة ترمي StateError والمصروف السليم يُطبَّق',
-    () async {
-      final manager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: db,
-      );
+  test('مصروف تالف لا يُسجَّل «نجاحاً»: الدفعة ترمي StateError والمصروف السليم يُطبَّق', () async {
+    final manager = AppwriteSyncManager(appwriteService: AppwriteService(), database: db);
 
-      final good = _expenseDoc(
-        uuid: 'expense-uuid-good',
-        amount: 150.0,
-        lastModified: _kBaseEpochSec + 10,
-      );
-      final corrupt = _expenseDoc(
-        uuid: 'expense-uuid-corrupt',
-        lastModified: _kBaseEpochSec + 20,
-      );
+    final good = _expenseDoc(uuid: 'expense-uuid-good', amount: 150.0, lastModified: _kBaseEpochSec + 10);
+    final corrupt = _expenseDoc(uuid: 'expense-uuid-corrupt', lastModified: _kBaseEpochSec + 20);
 
-      await expectLater(
-        manager.syncExpensesForTesting([good, corrupt]),
-        throwsA(isA<StateError>()),
-        reason:
-            'الفشل يجب أن يصل للمحرك كي لا يتقدّم مؤشر expenses فوق المصروف '
-            '(عقد «لا فقدان صامت»)',
-      );
-
-      final rows = await db.select(db.expenses).get();
-      final uuids = rows.map((r) => r.localUuid).toSet();
-      expect(
-        uuids,
-        contains('expense-uuid-good'),
-        reason: 'التطبيق الجزئي محفوظ — المصروف السليم لا يُلغى بفشل غيره',
-      );
-      expect(
-        uuids,
-        isNot(contains('expense-uuid-corrupt')),
-        reason: 'المستند التالف لم يُطبَّق فعلاً، لذا لا يجوز اعتباره ناجحاً',
-      );
-    },
-  );
-
-  test('دفعة سليمة كاملة لا ترمي (لا إيجابيات كاذبة)', () async {
-    final manager = AppwriteSyncManager(
-      appwriteService: AppwriteService(),
-      database: db,
+    await expectLater(
+      manager.syncExpensesForTesting([good, corrupt]),
+      throwsA(isA<StateError>()),
+      reason:
+          'الفشل يجب أن يصل للمحرك كي لا يتقدّم مؤشر expenses فوق المصروف '
+          '(عقد «لا فقدان صامت»)',
     );
 
+    final rows = await db.select(db.expenses).get();
+    final uuids = rows.map((r) => r.localUuid).toSet();
+    expect(uuids, contains('expense-uuid-good'), reason: 'التطبيق الجزئي محفوظ — المصروف السليم لا يُلغى بفشل غيره');
+    expect(
+      uuids,
+      isNot(contains('expense-uuid-corrupt')),
+      reason: 'المستند التالف لم يُطبَّق فعلاً، لذا لا يجوز اعتباره ناجحاً',
+    );
+  });
+
+  test('دفعة سليمة كاملة لا ترمي (لا إيجابيات كاذبة)', () async {
+    final manager = AppwriteSyncManager(appwriteService: AppwriteService(), database: db);
+
     final applied = await manager.syncExpensesForTesting([
-      _expenseDoc(
-        uuid: 'expense-uuid-ok-1',
-        amount: 20.0,
-        lastModified: _kBaseEpochSec + 30,
-      ),
-      _expenseDoc(
-        uuid: 'expense-uuid-ok-2',
-        amount: 40.0,
-        lastModified: _kBaseEpochSec + 40,
-      ),
+      _expenseDoc(uuid: 'expense-uuid-ok-1', amount: 20.0, lastModified: _kBaseEpochSec + 30),
+      _expenseDoc(uuid: 'expense-uuid-ok-2', amount: 40.0, lastModified: _kBaseEpochSec + 40),
     ]);
 
     expect(applied, 2);

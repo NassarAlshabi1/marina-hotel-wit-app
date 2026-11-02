@@ -22,10 +22,7 @@ void main() {
   });
 
   test('تسجيل الدخول لا ينشئ بيانات اختبارية أو Outbox', () async {
-    final notifier = AuthNotifier(
-      store: _LocalOnlyAuthStore(),
-      restoreSessionOnCreate: false,
-    );
+    final notifier = AuthNotifier(store: _LocalOnlyAuthStore(), restoreSessionOnCreate: false);
     addTearDown(notifier.dispose);
 
     final outbox = OutboxDao(db, AdapterRegistry.testing(db));
@@ -83,10 +80,7 @@ void main() {
   });
 
   test('فشل تسجيل الدخول لا ينشئ Outbox أيضاً', () async {
-    final notifier = AuthNotifier(
-      store: _LocalOnlyAuthStore(),
-      restoreSessionOnCreate: false,
-    );
+    final notifier = AuthNotifier(store: _LocalOnlyAuthStore(), restoreSessionOnCreate: false);
     addTearDown(notifier.dispose);
 
     await notifier.login('unknown', 'wrong-password');
@@ -99,10 +93,7 @@ void main() {
 
 class _LocalOnlyAuthStore extends AuthLocalStore {
   @override
-  Future<Map<String, dynamic>?> validateCredentials(
-    String username,
-    String password,
-  ) async {
+  Future<Map<String, dynamic>?> validateCredentials(String username, String password) async {
     if (username == 'operator' && password == 'password') {
       return {
         'id': 7,

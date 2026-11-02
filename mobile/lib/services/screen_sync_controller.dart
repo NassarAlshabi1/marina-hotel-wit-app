@@ -13,16 +13,10 @@ import 'sync_locks.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class ScreenSyncController {
-  ScreenSyncController({
-    required this.screenId,
-    this.debounceDelay = const Duration(seconds: 15),
-  }) {
+  ScreenSyncController({required this.screenId, this.debounceDelay = const Duration(seconds: 15)}) {
     _circuitBreaker = CircuitBreaker(
       name: 'sync_$screenId',
-      config: const CircuitBreakerConfig(
-        failureThreshold: 3,
-        resetTimeout: Duration(minutes: 2),
-      ),
+      config: const CircuitBreakerConfig(failureThreshold: 3, resetTimeout: Duration(minutes: 2)),
     );
 
     _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
@@ -94,12 +88,9 @@ class ScreenSyncController {
 
     try {
       final connectivityResults = await Connectivity().checkConnectivity();
-      final hasConnection = connectivityResults.any(
-        (r) => r != ConnectivityResult.none,
-      );
+      final hasConnection = connectivityResults.any((r) => r != ConnectivityResult.none);
 
-      final networkValidation = SyncValidator.instance
-          .validateNetworkConditions(hasConnection: hasConnection);
+      final networkValidation = SyncValidator.instance.validateNetworkConditions(hasConnection: hasConnection);
 
       if (!networkValidation.isValid) {
         dlog(() => '📴 [$screenId] ${networkValidation.error}');
@@ -133,9 +124,7 @@ class ScreenSyncController {
           return syncError.isRetryable;
         },
         fallback: () {
-          dlog(
-            () => '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
-          );
+          dlog(() => '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
           return false;
         },
         onRetry: (attempt, error) {
@@ -157,9 +146,7 @@ class ScreenSyncController {
 
         return true;
       } else {
-        dlog(
-          () => '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
-        );
+        dlog(() => '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {

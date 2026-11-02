@@ -16,10 +16,7 @@ class DiagnosticsLogger extends ChangeNotifier {
   bool _initialized = false;
   int _maxEntries = 500;
 
-  Future<void> initialize({
-    int maxEntries = 500,
-    bool enableFile = true,
-  }) async {
+  Future<void> initialize({int maxEntries = 500, bool enableFile = true}) async {
     if (_initialized) {
       return;
     }
@@ -31,19 +28,13 @@ class DiagnosticsLogger extends ChangeNotifier {
       if (!logsDir.existsSync()) {
         await logsDir.create(recursive: true);
       }
-      final fileName =
-          'diagnostics_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
+      final fileName = 'diagnostics_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     }
   }
 
   void recordFlutterError(FlutterErrorDetails details) {
-    recordError(
-      details.exception,
-      details.stack,
-      tag: 'FLUTTER',
-      message: details.exceptionAsString(),
-    );
+    recordError(details.exception, details.stack, tag: 'FLUTTER', message: details.exceptionAsString());
   }
 
   void recordError(
@@ -53,13 +44,7 @@ class DiagnosticsLogger extends ChangeNotifier {
     String? message,
     LogLevel level = LogLevel.error,
   }) {
-    log(
-      message ?? error.toString(),
-      tag: tag,
-      level: level,
-      error: error,
-      stackTrace: stackTrace,
-    );
+    log(message ?? error.toString(), tag: tag, level: level, error: error, stackTrace: stackTrace);
   }
 
   void log(
@@ -93,19 +78,8 @@ class DiagnosticsLogger extends ChangeNotifier {
     log(message, tag: tag, level: LogLevel.warning, error: error);
   }
 
-  void error(
-    String message, {
-    String tag = 'APP',
-    Object? error,
-    StackTrace? stackTrace,
-  }) {
-    log(
-      message,
-      tag: tag,
-      level: LogLevel.error,
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void error(String message, {String tag = 'APP', Object? error, StackTrace? stackTrace}) {
+    log(message, tag: tag, level: LogLevel.error, error: error, stackTrace: stackTrace);
   }
 
   List<LogEntry> getLogs({LogLevel? filter}) {
@@ -116,14 +90,7 @@ class DiagnosticsLogger extends ChangeNotifier {
   }
 
   Map<String, int> getStats() {
-    final stats = {
-      'total': _logs.length,
-      'debug': 0,
-      'info': 0,
-      'warning': 0,
-      'error': 0,
-      'critical': 0,
-    };
+    final stats = {'total': _logs.length, 'debug': 0, 'info': 0, 'warning': 0, 'error': 0, 'critical': 0};
     for (final log in _logs) {
       stats[log.level.name] = (stats[log.level.name] ?? 0) + 1;
     }
@@ -138,8 +105,7 @@ class DiagnosticsLogger extends ChangeNotifier {
   Future<File?> exportLogs() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final fileName =
-          'diagnostics_logs_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
+      final fileName = 'diagnostics_logs_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
       final file = File('${directory.path}/$fileName');
       final buffer = StringBuffer();
       for (final entry in _logs) {
@@ -158,10 +124,7 @@ class DiagnosticsLogger extends ChangeNotifier {
       return;
     }
     try {
-      await _logFile!.writeAsString(
-        '${entry.toFormattedString()}\n',
-        mode: FileMode.append,
-      );
+      await _logFile!.writeAsString('${entry.toFormattedString()}\n', mode: FileMode.append);
     } catch (_) {}
   }
 

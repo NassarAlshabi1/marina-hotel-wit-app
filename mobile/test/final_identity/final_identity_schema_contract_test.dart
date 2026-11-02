@@ -10,9 +10,7 @@ void main() {
   tearDown(() => db.close());
 
   Future<List<Map<String, dynamic>>> indexes(String table) async =>
-      (await db.customSelect("PRAGMA index_list('$table')").get())
-          .map((r) => r.data)
-          .toList();
+      (await db.customSelect("PRAGMA index_list('$table')").get()).map((r) => r.data).toList();
 
   test('all synchronised identity tables expose UNIQUE local_uuid', () async {
     for (final table in const [
@@ -29,9 +27,7 @@ void main() {
         if (row['unique'] != 1) continue;
         final name = row['name']?.toString();
         if (name == null) continue;
-        final cols = await db
-            .customSelect("PRAGMA index_info('${name.replaceAll("'", "''")}')")
-            .get();
+        final cols = await db.customSelect("PRAGMA index_info('${name.replaceAll("'", "''")}')").get();
         if (cols.length == 1 && cols.first.data['name'] == 'local_uuid') {
           found = true;
           break;
@@ -43,9 +39,7 @@ void main() {
 
   test('salary_withdrawals has partial UNIQUE expense_uuid index', () async {
     final rows = await indexes('salary_withdrawals');
-    final target = rows.where(
-      (r) => r['name'] == 'ux_salary_withdrawals_expense_uuid_active',
-    );
+    final target = rows.where((r) => r['name'] == 'ux_salary_withdrawals_expense_uuid_active');
     expect(target, isNotEmpty);
     expect(target.first['unique'], 1);
 

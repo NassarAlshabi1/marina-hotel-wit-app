@@ -61,10 +61,7 @@ void main() {
 
   group('ShiftReceiptsCloudService.aggregatePayments', () {
     test('يجمع دفعات المستخدم نفسه في نفس الجلسة (500 ثم 1000 = 1500)', () {
-      final docs = [
-        _doc('p1', _payment(amount: 500)),
-        _doc('p2', _payment(id: 'p2', amount: 1000)),
-      ];
+      final docs = [_doc('p1', _payment(amount: 500)), _doc('p2', _payment(id: 'p2', amount: 1000))];
       final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
       expect(rows, hasLength(1));
       expect(rows.first.userName, 'المستخدم 1');
@@ -99,10 +96,7 @@ void main() {
     test('الدفعة بلا جلسة (قديمة/مستعادة) تُحسب ضمن مستلمها', () {
       // التطبيق لا يسمح بتسجيل دفعة دون جلسة نشطة — فأي صف بلا جلسة
       // هو بيانات قديمة/مستعادة ولا يجب إخفاؤه من البطاقة.
-      final docs = [
-        _doc('p1', _payment(amount: 400, sessionUuid: '')),
-        _doc('p2', _payment(id: 'p2', amount: 600)),
-      ];
+      final docs = [_doc('p1', _payment(amount: 400, sessionUuid: '')), _doc('p2', _payment(id: 'p2', amount: 600))];
       final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
       expect(rows, hasLength(1));
       expect(rows.first.totalAmount, 1000);
@@ -130,9 +124,7 @@ void main() {
     });
 
     test('الاسم الفارغ مع cloudId موجود يظهر «مستخدم غير معروف»', () {
-      final docs = [
-        _doc('p1', _payment(name: '', cloudId: 'cloud-x', amount: 250)),
-      ];
+      final docs = [_doc('p1', _payment(name: '', cloudId: 'cloud-x', amount: 250))];
       final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
       expect(rows, hasLength(1));
       expect(rows.first.userName, 'مستخدم غير معروف');
@@ -172,30 +164,9 @@ void main() {
 
     test('يرتب السطور تنازلياً حسب الإجمالي', () {
       final docs = [
-        _doc(
-          'p1',
-          _payment(amount: 300, cloudId: 'c-a', name: 'صغير', userId: 1),
-        ),
-        _doc(
-          'p2',
-          _payment(
-            id: 'p2',
-            amount: 900,
-            cloudId: 'c-b',
-            name: 'كبير',
-            userId: 2,
-          ),
-        ),
-        _doc(
-          'p3',
-          _payment(
-            id: 'p3',
-            amount: 600,
-            cloudId: 'c-c',
-            name: 'متوسط',
-            userId: 3,
-          ),
-        ),
+        _doc('p1', _payment(amount: 300, cloudId: 'c-a', name: 'صغير', userId: 1)),
+        _doc('p2', _payment(id: 'p2', amount: 900, cloudId: 'c-b', name: 'كبير', userId: 2)),
+        _doc('p3', _payment(id: 'p3', amount: 600, cloudId: 'c-c', name: 'متوسط', userId: 3)),
       ];
       final rows = ShiftReceiptsCloudService.aggregatePayments(docs);
       expect(rows.map((r) => r.totalAmount).toList(), [900, 600, 300]);

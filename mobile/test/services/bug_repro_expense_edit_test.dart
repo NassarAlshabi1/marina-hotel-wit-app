@@ -115,11 +115,9 @@ void main() {
 /// إجمالي التقرير النقدي — نفس قواعد expenses_report_screen:
 /// مصروفات غير خصمية + سحوبات يتيمة موجبة (غير خصمية، ليست مرايا).
 Future<double> reportCashTotal(AppDatabase db) async {
-  final expensesStmt = db.select(db.expenses)
-    ..where((t) => t.deletedAt.isNull());
+  final expensesStmt = db.select(db.expenses)..where((t) => t.deletedAt.isNull());
   final expenses = await expensesStmt.get();
-  final withdrawalsStmt = db.select(db.salaryWithdrawals)
-    ..where((t) => t.deletedAt.isNull());
+  final withdrawalsStmt = db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull());
   final withdrawals = await withdrawalsStmt.get();
 
   final candidates = expenses

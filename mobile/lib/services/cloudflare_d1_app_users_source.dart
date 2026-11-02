@@ -116,9 +116,7 @@ int _asBoolInt(Object? v, {required int fallback}) {
 ///    `local_<username>` و`is_cloud=0` وصلاحياتها من خريطة user_permissions.
 /// 3. الحسابات السحابية تغلب المحلي عند تشابه اسم المستخدم (السحابة هي
 ///    المصدر الأساسي للهوية عبر `doc_id` الثابت بين الأجهزة).
-List<Map<String, Object?>> buildAppUsersBackupRows(
-  AppUsersBackupInputs inputs,
-) {
+List<Map<String, Object?>> buildAppUsersBackupRows(AppUsersBackupInputs inputs) {
   final rows = <String, Map<String, Object?>>{};
 
   Map<String, Object?> baseRow(String username) => <String, Object?>{
@@ -177,10 +175,7 @@ List<Map<String, Object?>> buildAppUsersBackupRows(
   inputs.cloudAccounts.forEach((username, raw) {
     if (raw is! Map) return;
     final row = baseRow(username)
-      ..['doc_id'] =
-          _asString(raw['doc_id']) ??
-          _asString(raw['cloud_user_id']) ??
-          'cloud_$username'
+      ..['doc_id'] = _asString(raw['doc_id']) ?? _asString(raw['cloud_user_id']) ?? 'cloud_$username'
       ..['password_hash'] =
           _asString(raw['password']) // تجزئة من السحابة
       ..['full_name'] = _asString(raw['full_name']) ?? username
@@ -210,11 +205,7 @@ List<Map<String, Object?>> buildAppUsersBackupRows(
 /// تقسيم صفوف المصدر التركيبي بنمط LIMIT/OFFSET نفسه الذي تستخدمه
 /// `CloudflareD1SourceTable.readChunk` — يمنع تكرار/إسقاط الصفوف عند
 /// اختلاف العدّ المعروض عن المُرفع.
-List<Map<String, Object?>> sliceRows(
-  List<Map<String, Object?>> rows,
-  int limit,
-  int offset,
-) {
+List<Map<String, Object?>> sliceRows(List<Map<String, Object?>> rows, int limit, int offset) {
   if (limit <= 0 || offset < 0 || offset >= rows.length) {
     return const <Map<String, Object?>>[];
   }

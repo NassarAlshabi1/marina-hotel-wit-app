@@ -33,11 +33,7 @@ import 'package:marina_hotel_mobile/services/sync_core/sync_checkpoint_store.dar
 import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
 import 'package:marina_hotel_mobile/services/sync_core/unified_pull_engine.dart';
 
-models.Document _doc(
-  String id,
-  Map<String, dynamic> data, {
-  String updatedAt = '2026-09-21T10:00:00.000Z',
-}) {
+models.Document _doc(String id, Map<String, dynamic> data, {String updatedAt = '2026-09-21T10:00:00.000Z'}) {
   return models.Document(
     $id: id,
     $sequence: 1,
@@ -62,16 +58,9 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     outboxDao = OutboxDao(db);
-    pullService = SyncPullService(
-      appwriteService: AppwriteService(),
-      database: db,
-      outboxDao: outboxDao,
-    );
+    pullService = SyncPullService(appwriteService: AppwriteService(), database: db, outboxDao: outboxDao);
     checkpoints = SyncCheckpointStore(db);
-    engine = UnifiedPullEngine(
-      checkpoints: checkpoints,
-      pullService: pullService,
-    );
+    engine = UnifiedPullEngine(checkpoints: checkpoints, pullService: pullService);
   });
 
   tearDown(() async {
@@ -100,22 +89,16 @@ void main() {
       expect(await checkpoints.getFullSyncMaxUpdated('booking_nights'), 200);
     });
 
-    test(
-      'completeFullSync يثبّت last_pull_ts + complete ويمسح التقدم',
-      () async {
-        await checkpoints.bumpFullSyncMaxUpdated('booking_nights', 12345);
-        await checkpoints.setFullSyncCursor('booking_nights', 'doc-7');
-        await checkpoints.completeFullSync(
-          'booking_nights',
-          maxUpdatedSec: 12345,
-        );
+    test('completeFullSync يثبّت last_pull_ts + complete ويمسح التقدم', () async {
+      await checkpoints.bumpFullSyncMaxUpdated('booking_nights', 12345);
+      await checkpoints.setFullSyncCursor('booking_nights', 'doc-7');
+      await checkpoints.completeFullSync('booking_nights', maxUpdatedSec: 12345);
 
-        expect(await checkpoints.getLastPullTs('booking_nights'), 12345);
-        expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
-        expect(await checkpoints.getFullSyncCursor('booking_nights'), isNull);
-        expect(await checkpoints.getFullSyncMaxUpdated('booking_nights'), 0);
-      },
-    );
+      expect(await checkpoints.getLastPullTs('booking_nights'), 12345);
+      expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
+      expect(await checkpoints.getFullSyncCursor('booking_nights'), isNull);
+      expect(await checkpoints.getFullSyncMaxUpdated('booking_nights'), 0);
+    });
 
     test('completeFullSync بدون maxUpdated: اكتمال بلا مؤشر', () async {
       await checkpoints.completeFullSync('booking_nights', maxUpdatedSec: 0);
@@ -153,9 +136,7 @@ void main() {
       );
 
       // نفس ترقية _ensureTable على الجدول القديم.
-      await db.customStatement(
-        'ALTER TABLE legacy_checkpoints ADD COLUMN full_sync_cursor TEXT',
-      );
+      await db.customStatement('ALTER TABLE legacy_checkpoints ADD COLUMN full_sync_cursor TEXT');
       await db.customStatement(
         'ALTER TABLE legacy_checkpoints ADD COLUMN full_sync_max_updated '
         'INTEGER NOT NULL DEFAULT 0',
@@ -185,17 +166,8 @@ void main() {
         cursor: null,
         pageSize: 100,
       );
-      expect(
-        queries.where((q) => q.contains('orderAsc')).length,
-        1,
-        reason: 'ترتيب \$id مطلوب في كل صفحة',
-      );
-      expect(
-        queries
-            .where((q) => q.contains('"limit"') || q.contains('limit'))
-            .length,
-        1,
-      );
+      expect(queries.where((q) => q.contains('orderAsc')).length, 1, reason: 'ترتيب \$id مطلوب في كل صفحة');
+      expect(queries.where((q) => q.contains('"limit"') || q.contains('limit')).length, 1);
       expect(queries.where((q) => q.contains('cursorAfter')), isEmpty);
       // فلتر tombstones من القاعدة محفوظ.
       expect(queries.where((q) => q.contains('isNull')).length, 1);
@@ -215,90 +187,19 @@ void main() {
   // المجموعة 3: UnifiedPullEngine — المسار التدفقي
   // ═══════════════════════════════════════════════════════════════════════
   group('UnifiedPullEngine — Streaming Full Pull', () {
-    test(
-      'بلا سقف: 450 مستنداً (5 صفحات) تُطبَّق كلها والمؤشر عند النفاد فقط',
-      () async {
-        // 4 صفحات كاملة (100) + صفحة ناقصة (50) = 450 مستنداً.
-        final appliedIds = <String>[];
-        final fetchCursors = <String?>[];
+    test('بلا سقف: 450 مستنداً (5 صفحات) تُطبَّق كلها والمؤشر عند النفاد فقط', () async {
+      // 4 صفحات كاملة (100) + صفحة ناقصة (50) = 450 مستنداً.
+      final appliedIds = <String>[];
+      final fetchCursors = <String?>[];
 
-        final task = CollectionPullTask(
-          name: 'booking_nights',
-          streamFullSync: true,
-          fetchPage: (queries) async {
-            final cursor = queries
-                .where((q) => q.contains('cursorAfter'))
-                .map((q) => _cursorValueOf(q))
-                .firstOrNull;
-            fetchCursors.add(cursor);
-            final start = cursor != null
-                ? int.parse(cursor.split('-').last)
-                : 0;
-            final count = (start + 100 <= 400) ? 100 : 50;
-            return List.generate(
-              count,
-              (i) => _doc('doc-${start + i + 1}', <String, dynamic>{
-                'localUuid': 'night-${start + i + 1}',
-                'lastModified': 1700000000 + start + i,
-                'vectorClock': '{}',
-                'deviceId': 'device-A',
-              }),
-            );
-          },
-          fetch: (plan) => throw StateError('legacy fetch must not run'),
-          apply: (docs) async {
-            appliedIds.addAll(docs.map((d) => d.$id));
-            return docs.length;
-          },
-        );
-
-        final result = await engine.run([task]);
-
-        expect(result.recordsPulled, 450, reason: 'كل المستندات بلا سقف');
-        expect(result.failedCollections, isEmpty);
-        // الصفحة الأولى بلا cursor، وبعدها كل صفحة تستأنف بعد آخر $id.
-        expect(fetchCursors.first, isNull);
-        expect(fetchCursors[1], 'doc-100');
-        expect(fetchCursors[2], 'doc-200');
-        // المؤشر النهائي من max($updatedAt) — وليس من أول 1000 (الخلل القديم).
-        expect(
-          await checkpoints.getLastPullTs('booking_nights'),
-          UnifiedPullEngine.updatedAtSecOf(
-            _doc('x', {}, updatedAt: '2026-09-21T10:00:00.000Z'),
-          ),
-        );
-        expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
-        // تقدم الاستئناف مُمسح بعد الاكتمال.
-        expect(await checkpoints.getFullSyncCursor('booking_nights'), isNull);
-      },
-    );
-
-    test(
-      'انقطاع الشبكة: المؤشر عند آخر صفحة نجحت والاستئناف من نفس الصفحة',
-      () async {
-        var failOnPage = 3; // تفشل الصفحة الثالثة (بعد تطبيق صفحتين).
-        var fetchCalls = 0;
-        final applied = <String>[];
-        String? lastSeenCursorInFetch;
-
-        Future<List<models.Document>> fetchPage(List<String> queries) async {
-          fetchCalls++;
-          final cursor = queries
-              .where((q) => q.contains('cursorAfter'))
-              .map((q) => _cursorValueOf(q))
-              .firstOrNull;
-          lastSeenCursorInFetch = cursor;
-          if (fetchCalls == failOnPage) {
-            throw Exception('network timeout — weak internet');
-          }
+      final task = CollectionPullTask(
+        name: 'booking_nights',
+        streamFullSync: true,
+        fetchPage: (queries) async {
+          final cursor = queries.where((q) => q.contains('cursorAfter')).map((q) => _cursorValueOf(q)).firstOrNull;
+          fetchCursors.add(cursor);
           final start = cursor != null ? int.parse(cursor.split('-').last) : 0;
-          // المجموعة محدودة (450 مستنداً) — الصفحة الأخيرة ناقصة (50) وهي
-          // التي تُنهي السحب التدفقي؛ مولّد لا نهائي كان يُشغّل صمام 5000
-          // صفحة ويُفشل المهمة في الدورة الثانية خطأً.
-          const totalDocs = 450;
-          final remaining = totalDocs - start;
-          if (remaining <= 0) return const <models.Document>[];
-          final count = remaining < 100 ? remaining : 100;
+          final count = (start + 100 <= 400) ? 100 : 50;
           return List.generate(
             count,
             (i) => _doc('doc-${start + i + 1}', <String, dynamic>{
@@ -308,45 +209,95 @@ void main() {
               'deviceId': 'device-A',
             }),
           );
+        },
+        fetch: (plan) => throw StateError('legacy fetch must not run'),
+        apply: (docs) async {
+          appliedIds.addAll(docs.map((d) => d.$id));
+          return docs.length;
+        },
+      );
+
+      final result = await engine.run([task]);
+
+      expect(result.recordsPulled, 450, reason: 'كل المستندات بلا سقف');
+      expect(result.failedCollections, isEmpty);
+      // الصفحة الأولى بلا cursor، وبعدها كل صفحة تستأنف بعد آخر $id.
+      expect(fetchCursors.first, isNull);
+      expect(fetchCursors[1], 'doc-100');
+      expect(fetchCursors[2], 'doc-200');
+      // المؤشر النهائي من max($updatedAt) — وليس من أول 1000 (الخلل القديم).
+      expect(
+        await checkpoints.getLastPullTs('booking_nights'),
+        UnifiedPullEngine.updatedAtSecOf(_doc('x', {}, updatedAt: '2026-09-21T10:00:00.000Z')),
+      );
+      expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
+      // تقدم الاستئناف مُمسح بعد الاكتمال.
+      expect(await checkpoints.getFullSyncCursor('booking_nights'), isNull);
+    });
+
+    test('انقطاع الشبكة: المؤشر عند آخر صفحة نجحت والاستئناف من نفس الصفحة', () async {
+      var failOnPage = 3; // تفشل الصفحة الثالثة (بعد تطبيق صفحتين).
+      var fetchCalls = 0;
+      final applied = <String>[];
+      String? lastSeenCursorInFetch;
+
+      Future<List<models.Document>> fetchPage(List<String> queries) async {
+        fetchCalls++;
+        final cursor = queries.where((q) => q.contains('cursorAfter')).map((q) => _cursorValueOf(q)).firstOrNull;
+        lastSeenCursorInFetch = cursor;
+        if (fetchCalls == failOnPage) {
+          throw Exception('network timeout — weak internet');
         }
-
-        CollectionPullTask makeTask() => CollectionPullTask(
-          name: 'booking_nights',
-          streamFullSync: true,
-          fetchPage: fetchPage,
-          fetch: (plan) => throw StateError('legacy fetch must not run'),
-          apply: (docs) async {
-            applied.addAll(docs.map((d) => d.$id));
-            return docs.length;
-          },
+        final start = cursor != null ? int.parse(cursor.split('-').last) : 0;
+        // المجموعة محدودة (450 مستنداً) — الصفحة الأخيرة ناقصة (50) وهي
+        // التي تُنهي السحب التدفقي؛ مولّد لا نهائي كان يُشغّل صمام 5000
+        // صفحة ويُفشل المهمة في الدورة الثانية خطأً.
+        const totalDocs = 450;
+        final remaining = totalDocs - start;
+        if (remaining <= 0) return const <models.Document>[];
+        final count = remaining < 100 ? remaining : 100;
+        return List.generate(
+          count,
+          (i) => _doc('doc-${start + i + 1}', <String, dynamic>{
+            'localUuid': 'night-${start + i + 1}',
+            'lastModified': 1700000000 + start + i,
+            'vectorClock': '{}',
+            'deviceId': 'device-A',
+          }),
         );
+      }
 
-        // الدورة الأولى: صفحتان نجحتا ثم انقطعت الشبكة.
-        final firstRun = await engine.run([makeTask()]);
-        expect(firstRun.failedCollections, [
-          'booking_nights',
-        ], reason: 'فشل المهمة يُسجَّل');
-        expect(applied.length, 200, reason: 'صفحتان طُبّقتا قبل الانقطاع');
-        // المؤشر عند نهاية الصفحة الثانية (crash-safe).
-        expect(
-          await checkpoints.getFullSyncCursor('booking_nights'),
-          'doc-200',
-        );
-        // لم يُعلن اكتمال ولم يُثبَّت مؤشر Delta.
-        expect(await checkpoints.isFullSyncComplete('booking_nights'), isFalse);
-        expect(await checkpoints.getLastPullTs('booking_nights'), 0);
+      CollectionPullTask makeTask() => CollectionPullTask(
+        name: 'booking_nights',
+        streamFullSync: true,
+        fetchPage: fetchPage,
+        fetch: (plan) => throw StateError('legacy fetch must not run'),
+        apply: (docs) async {
+          applied.addAll(docs.map((d) => d.$id));
+          return docs.length;
+        },
+      );
 
-        // الدورة الثانية (بعد عودة الشبكة): تستأنف من doc-200 لا من الصفر.
-        failOnPage = 0; // لا فشل هذه المرة.
-        fetchCalls = 0;
-        final secondRun = await engine.run([makeTask()]);
-        expect(secondRun.failedCollections, isEmpty);
-        // الاستئناف بدأ من cursorAfter(doc-200).
-        expect(lastSeenCursorInFetch, isNotNull);
-        expect(applied.length, 200 + 250, reason: 'الاستئناف أكمل البقية فقط');
-        expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
-      },
-    );
+      // الدورة الأولى: صفحتان نجحتا ثم انقطعت الشبكة.
+      final firstRun = await engine.run([makeTask()]);
+      expect(firstRun.failedCollections, ['booking_nights'], reason: 'فشل المهمة يُسجَّل');
+      expect(applied.length, 200, reason: 'صفحتان طُبّقتا قبل الانقطاع');
+      // المؤشر عند نهاية الصفحة الثانية (crash-safe).
+      expect(await checkpoints.getFullSyncCursor('booking_nights'), 'doc-200');
+      // لم يُعلن اكتمال ولم يُثبَّت مؤشر Delta.
+      expect(await checkpoints.isFullSyncComplete('booking_nights'), isFalse);
+      expect(await checkpoints.getLastPullTs('booking_nights'), 0);
+
+      // الدورة الثانية (بعد عودة الشبكة): تستأنف من doc-200 لا من الصفر.
+      failOnPage = 0; // لا فشل هذه المرة.
+      fetchCalls = 0;
+      final secondRun = await engine.run([makeTask()]);
+      expect(secondRun.failedCollections, isEmpty);
+      // الاستئناف بدأ من cursorAfter(doc-200).
+      expect(lastSeenCursorInFetch, isNotNull);
+      expect(applied.length, 200 + 250, reason: 'الاستئناف أكمل البقية فقط');
+      expect(await checkpoints.isFullSyncComplete('booking_nights'), isTrue);
+    });
 
     test('مجموعة فارغة: تبقى في وضع Full (استعلام رخيص) دون فقدان', () async {
       final task = CollectionPullTask(
@@ -363,38 +314,31 @@ void main() {
       expect(await checkpoints.isFullSyncComplete('booking_nights'), isFalse);
     });
 
-    test(
-      'المهام الكلاسيكية (بلا streamFullSync) لم تتغير — مسار fetch/apply',
-      () async {
-        final docs = [
-          _doc('doc-1', {
-            'localUuid': 'n1',
-            'lastModified': 1,
-            'vectorClock': '{}',
-          }),
-        ];
-        var legacyFetchCalled = false;
-        final task = CollectionPullTask(
-          name: 'rooms',
-          fetch: (plan) async {
-            legacyFetchCalled = true;
-            return docs;
-          },
-          apply: (d) async => d.length,
-        );
+    test('المهام الكلاسيكية (بلا streamFullSync) لم تتغير — مسار fetch/apply', () async {
+      final docs = [
+        _doc('doc-1', {'localUuid': 'n1', 'lastModified': 1, 'vectorClock': '{}'}),
+      ];
+      var legacyFetchCalled = false;
+      final task = CollectionPullTask(
+        name: 'rooms',
+        fetch: (plan) async {
+          legacyFetchCalled = true;
+          return docs;
+        },
+        apply: (d) async => d.length,
+      );
 
-        final result = await engine.run([task]);
-        expect(legacyFetchCalled, isTrue);
-        expect(result.recordsPulled, 1);
-        expect(
-          await checkpoints.isFullSyncComplete('rooms'),
-          isTrue,
-          reason:
-              'commit الكلاسيكي: setLastPullTs(max \$updatedAt) يعلن '
-              'الاكتمال كما قبل التعديل',
-        );
-      },
-    );
+      final result = await engine.run([task]);
+      expect(legacyFetchCalled, isTrue);
+      expect(result.recordsPulled, 1);
+      expect(
+        await checkpoints.isFullSyncComplete('rooms'),
+        isTrue,
+        reason:
+            'commit الكلاسيكي: setLastPullTs(max \$updatedAt) يعلن '
+            'الاكتمال كما قبل التعديل',
+      );
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -410,10 +354,7 @@ void main() {
     });
 
     test('حل exact uuid', () async {
-      final id = await resolver.resolveBooking(
-        uuid: 'b-uuid-1',
-        fromRemote: true,
-      );
+      final id = await resolver.resolveBooking(uuid: 'b-uuid-1', fromRemote: true);
       expect(id, 1);
     });
 
@@ -421,10 +362,7 @@ void main() {
       // b-uuid-2 مخزّن بـ UUID 32 حرفاً بدون شرطات (legacy)؛ البحث بالصيغة
       // القياسية بالشرطات يجب أن يُحل عبر الفهرس المقيس.
       const withDashes = '11111111-2222-3333-4444-555555555555';
-      final id = await resolver.resolveBooking(
-        uuid: withDashes,
-        fromRemote: true,
-      );
+      final id = await resolver.resolveBooking(uuid: withDashes, fromRemote: true);
       expect(id, 2, reason: 'يجب حل صيغة UUID القديمة بدون شرطات');
     });
 
@@ -434,20 +372,13 @@ void main() {
     });
 
     test('uuid غير موجود → null (تخطي آمن — لا ربط خاطئ)', () async {
-      final id = await resolver.resolveBooking(
-        uuid: 'nonexistent-uuid',
-        fromRemote: true,
-      );
+      final id = await resolver.resolveBooking(uuid: 'nonexistent-uuid', fromRemote: true);
       expect(id, isNull);
     });
 
     test('localId من جهاز بعيد ممنوع حتى مع الفهرس (ربط خاطئ)', () async {
       final id = await resolver.resolveBooking(localId: 3, fromRemote: true);
-      expect(
-        id,
-        isNull,
-        reason: 'id المحلي autoIncrement يختلف بين الأجهزة — ممنوع بعيداً',
-      );
+      expect(id, isNull, reason: 'id المحلي autoIncrement يختلف بين الأجهزة — ممنوع بعيداً');
     });
 
     test('localId محلي مسموح', () async {
@@ -458,15 +389,9 @@ void main() {
     test('clearBookingIndex يعيد مسار SQL (نفس النتائج)', () async {
       resolver.clearBookingIndex();
       expect(resolver.hasBookingIndex, isFalse);
-      final id = await resolver.resolveBooking(
-        uuid: 'b-uuid-1',
-        fromRemote: true,
-      );
+      final id = await resolver.resolveBooking(uuid: 'b-uuid-1', fromRemote: true);
       expect(id, 1);
-      final stripped = await resolver.resolveBooking(
-        uuid: '11111111222233334444555555555555',
-        fromRemote: true,
-      );
+      final stripped = await resolver.resolveBooking(uuid: '11111111222233334444555555555555', fromRemote: true);
       expect(stripped, 2, reason: 'مسار SQL يحل الصيغة المخزّنة كما هي');
     });
   });

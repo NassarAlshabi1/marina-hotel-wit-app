@@ -3,9 +3,7 @@ import 'package:flutter/foundation.dart';
 // ✅ استخدمنا alias لتجنّب تعارض اسم الدالة signal<T>() مع الـ field/getter signal
 // في الـ class StreamToSignal. بدون alias، يُفسّر Dart `signal<T>(...)` كمرجع
 // للـ getter المحلي بدلاً من الدالة المستوردة من signals_flutter.
-import 'package:signals_flutter/signals_flutter.dart'
-    as signals
-    show Signal, signal;
+import 'package:signals_flutter/signals_flutter.dart' as signals show Signal, signal;
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ تأخير إصدار بيانات الـ Stream حتى تهدأ التغييرات.
@@ -42,11 +40,8 @@ Stream<T> debounceStream<T>(Stream<T> source, Duration duration) {
 /// ✅ P0: بديل StreamBuilder — Stream → ValueNotifier مع debounce.
 /// أسرع من StreamBuilder لأنه لا يعيد بناء Widget tree بالكامل.
 class StreamToValueNotifier<T> extends ValueNotifier<T> {
-  StreamToValueNotifier({
-    required Stream<T> source,
-    required T initialValue,
-    Duration? debounce,
-  }) : super(initialValue) {
+  StreamToValueNotifier({required Stream<T> source, required T initialValue, Duration? debounce})
+    : super(initialValue) {
     var stream = source;
     if (debounce != null) {
       stream = debounceStream(stream, debounce);
@@ -89,11 +84,8 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
 /// Watch((context) => myWidget(signal.signal.value))
 /// ```
 class StreamToSignal<T> {
-  StreamToSignal({
-    required Stream<T> source,
-    required T initialValue,
-    Duration? debounce,
-  }) : _signal = signals.signal<T>(initialValue) {
+  StreamToSignal({required Stream<T> source, required T initialValue, Duration? debounce})
+    : _signal = signals.signal<T>(initialValue) {
     var stream = source;
     if (debounce != null) {
       stream = debounceStream(stream, debounce);

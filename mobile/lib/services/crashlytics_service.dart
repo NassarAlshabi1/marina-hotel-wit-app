@@ -87,10 +87,7 @@ class CrashlyticsService {
         name: 'CrashlyticsService',
       );
     } catch (e) {
-      developer.log(
-        '⚠️ Crashlytics Firebase failed — local logging active: $e',
-        name: 'CrashlyticsService',
-      );
+      developer.log('⚠️ Crashlytics Firebase failed — local logging active: $e', name: 'CrashlyticsService');
       // حتى لو فشل Firebase، الخدمة تعمل بالتسجيل المحلي
       _isFirebaseConnected = false;
       _isInitialized = true;
@@ -103,8 +100,7 @@ class CrashlyticsService {
   /// مع الحفاظ على DiagnosticsLogger
   void setupErrorHandlers({
     required void Function(FlutterErrorDetails) originalFlutterHandler,
-    required void Function(Object error, StackTrace stack)
-    originalPlatformHandler,
+    required void Function(Object error, StackTrace stack) originalPlatformHandler,
     required void Function(Object error, StackTrace stack) originalZonedHandler,
   }) {
     // Flutter errors (تُرسل إلى Crashlytics + الأصلية)
@@ -164,12 +160,7 @@ class CrashlyticsService {
     _addToHistory('screen', screen, action, errorStr, severity);
 
     // تسجيل في developer log
-    developer.log(
-      '💥 [$screen] $action: $errorStr',
-      name: 'Crashlytics',
-      error: error,
-      stackTrace: stackTrace,
-    );
+    developer.log('💥 [$screen] $action: $errorStr', name: 'Crashlytics', error: error, stackTrace: stackTrace);
 
     // إرسال إلى Firebase Crashlytics
     try {
@@ -178,10 +169,7 @@ class CrashlyticsService {
       await _crashlytics?.setCustomKey('severity', severity.name);
 
       for (final entry in extra.entries) {
-        await _crashlytics?.setCustomKey(
-          'screen_${entry.key}',
-          entry.value.toString(),
-        );
+        await _crashlytics?.setCustomKey('screen_${entry.key}', entry.value.toString());
       }
 
       await _crashlytics?.recordError(
@@ -228,16 +216,10 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.setCustomKey('last_sync_operation', operation);
-      await _crashlytics?.setCustomKey(
-        'sync_error_count',
-        _errorHistory.length,
-      );
+      await _crashlytics?.setCustomKey('sync_error_count', _errorHistory.length);
 
       for (final entry in context.entries) {
-        await _crashlytics?.setCustomKey(
-          'sync_ctx_${entry.key}',
-          entry.value.toString(),
-        );
+        await _crashlytics?.setCustomKey('sync_ctx_${entry.key}', entry.value.toString());
       }
 
       final isFatal = severity == CrashlyticsSeverity.fatal;
@@ -273,10 +255,7 @@ class CrashlyticsService {
     unawaited(
       WhatsAppNotificationService.instance.notifySyncError(
         operation: operation,
-        error: error.toString().substring(
-          0,
-          error.toString().length > 200 ? 200 : error.toString().length,
-        ),
+        error: error.toString().substring(0, error.toString().length > 200 ? 200 : error.toString().length),
       ),
     );
   }
@@ -286,21 +265,13 @@ class CrashlyticsService {
   // ═══════════════════════════════════════════════════════════════
 
   /// تسجيل خطأ غير متوقع
-  Future<void> recordUnexpectedError({
-    required dynamic error,
-    StackTrace? stackTrace,
-    String? context,
-  }) async {
+  Future<void> recordUnexpectedError({required dynamic error, StackTrace? stackTrace, String? context}) async {
     if (!_isEnabled || !_isInitialized) {
       return;
     }
 
     try {
-      await _crashlytics?.recordError(
-        error,
-        stackTrace ?? StackTrace.current,
-        reason: context ?? 'unexpected_error',
-      );
+      await _crashlytics?.recordError(error, stackTrace ?? StackTrace.current, reason: context ?? 'unexpected_error');
     } catch (_) {}
   }
 
@@ -339,9 +310,7 @@ class CrashlyticsService {
         stackTrace ?? StackTrace.current,
         reason: title,
         fatal: fatal,
-        information:
-            customKeys?.entries.map((e) => '${e.key}: ${e.value}').toList() ??
-            [],
+        information: customKeys?.entries.map((e) => '${e.key}: ${e.value}').toList() ?? [],
       );
     } catch (_) {}
   }
@@ -393,8 +362,7 @@ class CrashlyticsService {
   }
 
   /// الحصول على تاريخ الأخطاء
-  List<Map<String, dynamic>> getErrorHistory() =>
-      List.unmodifiable(_errorHistory);
+  List<Map<String, dynamic>> getErrorHistory() => List.unmodifiable(_errorHistory);
 
   /// مسح تاريخ الأخطاء
   void clearErrorHistory() {
@@ -428,13 +396,7 @@ class CrashlyticsService {
     } catch (_) {}
   }
 
-  void _addToHistory(
-    String category,
-    String source,
-    String action,
-    String error,
-    CrashlyticsSeverity severity,
-  ) {
+  void _addToHistory(String category, String source, String action, String error, CrashlyticsSeverity severity) {
     _errorHistory.add({
       'category': category,
       'source': source,

@@ -33,12 +33,10 @@ class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
 
   @override
-  ConsumerState<IncomeExpenseReportScreen> createState() =>
-      _IncomeExpenseReportScreenState();
+  ConsumerState<IncomeExpenseReportScreen> createState() => _IncomeExpenseReportScreenState();
 }
 
-class _IncomeExpenseReportScreenState
-    extends ConsumerState<IncomeExpenseReportScreen> {
+class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportScreen> {
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   final NumberFormat _currencyFormat = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
@@ -110,9 +108,7 @@ class _IncomeExpenseReportScreenState
       // (14:01:00 = بداية اليوم الجديد). بما أن fromDate يأتي دائماً بوقت 14:01:00
       // من ReportDateFilterWidget، نحتاج إضافة ثانية واحدة لضمان
       // أن getHotelDayKey يُعيد اليوم الصحيح (وليس السابق)
-      final fromHotelDay = HotelTimeEngine.getHotelDayKey(
-        dateTime: fromDate.add(const Duration(seconds: 1)),
-      );
+      final fromHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: fromDate.add(const Duration(seconds: 1)));
       final toHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: toDate);
 
       final payments = await paymentsDao.listFilteredByHotelDay(
@@ -125,10 +121,7 @@ class _IncomeExpenseReportScreenState
       // ✅ إصلاح المعادلة «مصروفات الرواتب = استحقاقات الموظف»:
       // أُزيل excludeAdvance — السلفة نقد استلمه الموظف فعلاً ويجب أن تظهر
       // ضمن مصروفات الرواتب (وكانت تُستبعد هنا بينما تُخصم من الاستحقاق)
-      final expenses = await expensesDao.listFilteredByHotelDay(
-        fromHotelDay: fromHotelDay,
-        toHotelDay: toHotelDay,
-      );
+      final expenses = await expensesDao.listFilteredByHotelDay(fromHotelDay: fromHotelDay, toHotelDay: toHotelDay);
 
       // ✅ إدخال السحوبات المباشرة (بلا مصروف مقابل) في التقرير:
       // السحب من شاشة الموظفين يُنشأ في salary_withdrawals فقط، لذلك كان
@@ -149,10 +142,7 @@ class _IncomeExpenseReportScreenState
       // الحجوزات: فلترة بنطاق تاريخ checkin (تاريخ فقط بدون وقت)
       final bookingFromStr = DateFormat('yyyy-MM-dd').format(fromDate);
       final bookingToStr = DateFormat('yyyy-MM-dd').format(toDate);
-      final bookings = await bookingsDao.list(
-        from: bookingFromStr,
-        to: bookingToStr,
-      );
+      final bookings = await bookingsDao.list(from: bookingFromStr, to: bookingToStr);
 
       // الديون: فلترة بتاريخ التسجيل ضمن الفترة المحددة
       final allDebts = await debtsDao.list();
@@ -161,28 +151,15 @@ class _IncomeExpenseReportScreenState
         if (d.dateRecorded.isNotEmpty) {
           try {
             final debtDate = DateTime.parse(
-              d.dateRecorded.length > 10
-                  ? d.dateRecorded.replaceFirst(' ', 'T')
-                  : d.dateRecorded,
+              d.dateRecorded.length > 10 ? d.dateRecorded.replaceFirst(' ', 'T') : d.dateRecorded,
             );
             // مقارنة باليوم فقط (بدون وقت) ضمن النطاق
-            final debtDay = DateTime(
-              debtDate.year,
-              debtDate.month,
-              debtDate.day,
-            );
-            final fromDay = DateTime(
-              fromDate.year,
-              fromDate.month,
-              fromDate.day,
-            );
+            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
+            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
           } catch (e) {
-            dlog(
-              () =>
-                  '⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e',
-            );
+            dlog(() => '⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e');
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
@@ -190,27 +167,14 @@ class _IncomeExpenseReportScreenState
         if (d.paymentDate.isNotEmpty) {
           try {
             final debtDate = DateTime.parse(
-              d.paymentDate.length > 10
-                  ? d.paymentDate.replaceFirst(' ', 'T')
-                  : d.paymentDate,
+              d.paymentDate.length > 10 ? d.paymentDate.replaceFirst(' ', 'T') : d.paymentDate,
             );
-            final debtDay = DateTime(
-              debtDate.year,
-              debtDate.month,
-              debtDate.day,
-            );
-            final fromDay = DateTime(
-              fromDate.year,
-              fromDate.month,
-              fromDate.day,
-            );
+            final debtDay = DateTime(debtDate.year, debtDate.month, debtDate.day);
+            final fromDay = DateTime(fromDate.year, fromDate.month, fromDate.day);
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
           } catch (e) {
-            dlog(
-              () =>
-                  '⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e',
-            );
+            dlog(() => '⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e');
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
@@ -219,17 +183,11 @@ class _IncomeExpenseReportScreenState
 
       // الديون غير المسددة: نحتاج كل الديون غير المسددة (حتى خارج الفترة)
       // لأنها تمثل التزامات مالية لا تزال قائمة
-      final unsettledDebtsAll = allDebts
-          .where((d) => d.isSettled == 0)
-          .toList();
+      final unsettledDebtsAll = allDebts.where((d) => d.isSettled == 0).toList();
 
       final allEmployees = await employeesDao.list();
-      final employees = allEmployees
-          .where((e) => StatusUtils.isEmployeeActive(e.status))
-          .toList();
-      final terminatedEmployees = allEmployees
-          .where((e) => StatusUtils.isEmployeeTerminated(e.status))
-          .toList();
+      final employees = allEmployees.where((e) => StatusUtils.isEmployeeActive(e.status)).toList();
+      final terminatedEmployees = allEmployees.where((e) => StatusUtils.isEmployeeTerminated(e.status)).toList();
 
       // بناء خريطة بين معرف الحجز واسم النزيل لاستخدامه في المدفوعات
       final bookingGuestMap = <int, String>{};
@@ -250,9 +208,7 @@ class _IncomeExpenseReportScreenState
                 (p) => {
                   'date': p.paymentDate,
                   'roomNumber': p.roomNumber ?? '',
-                  'guestName': p.bookingLocalId != null
-                      ? (bookingGuestMap[p.bookingLocalId] ?? '')
-                      : '',
+                  'guestName': p.bookingLocalId != null ? (bookingGuestMap[p.bookingLocalId] ?? '') : '',
                   'amount': p.amount,
                   'paymentMethod': p.paymentMethod,
                   'revenueType': p.revenueType,
@@ -261,42 +217,25 @@ class _IncomeExpenseReportScreenState
               .toList(),
           expenses: [
             ...expenses.map(
-              (e) => {
-                'date': e.date,
-                'type': e.expenseType,
-                'description': e.description,
-                'amount': e.amount,
-              },
+              (e) => {'date': e.date, 'type': e.expenseType, 'description': e.description, 'amount': e.amount},
             ),
             ...directWithdrawalRows,
           ],
           fromDate: _fromDate!,
           toDate: _toDate!,
           bookingsCount: bookings.length,
-          activeBookingsCount: bookings
-              .where((b) => b.status == 'checked_in')
-              .length,
-          checkoutBookingsCount: bookings
-              .where((b) => b.status == 'checked_out')
-              .length,
+          activeBookingsCount: bookings.where((b) => b.status == 'checked_in').length,
+          checkoutBookingsCount: bookings.where((b) => b.status == 'checked_out').length,
           totalDebtsCount: debtsInPeriod.length,
           unsettledDebtsCount: unsettledDebtsAll.length,
-          unsettledDebtsAmount: unsettledDebtsAll.fold<double>(
-            0,
-            (s, d) => s + d.remainingAmount,
-          ),
-          unsettledDebtsInPeriodCount: debtsInPeriod
-              .where((d) => d.isSettled == 0)
-              .length,
+          unsettledDebtsAmount: unsettledDebtsAll.fold<double>(0, (s, d) => s + d.remainingAmount),
+          unsettledDebtsInPeriodCount: debtsInPeriod.where((d) => d.isSettled == 0).length,
           unsettledDebtsInPeriodAmount: debtsInPeriod
               .where((d) => d.isSettled == 0)
               .fold<double>(0, (s, d) => s + d.remainingAmount),
           activeEmployeesCount: employees.length,
           terminatedEmployeesCount: terminatedEmployees.length,
-          totalSalaryObligation: employees.fold<double>(
-            0,
-            (s, e) => s + e.basicSalary,
-          ),
+          totalSalaryObligation: employees.fold<double>(0, (s, e) => s + e.basicSalary),
         ),
       );
 
@@ -346,22 +285,17 @@ class _IncomeExpenseReportScreenState
   }) async {
     final rows = <Map<String, dynamic>>[];
     try {
-      var q = db.select(db.salaryWithdrawals)
-        ..where((tbl) => tbl.deletedAt.isNull());
+      var q = db.select(db.salaryWithdrawals)..where((tbl) => tbl.deletedAt.isNull());
       q = q
         ..where(
           (tbl) =>
-              (tbl.hotelDayKey.isNotNull() &
-                  tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-              (tbl.hotelDayKey.isNull() &
-                  tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
         )
         ..where(
           (tbl) =>
-              (tbl.hotelDayKey.isNotNull() &
-                  tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-              (tbl.hotelDayKey.isNull() &
-                  tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
+              (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+              (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
         );
       final withdrawals = await q.get();
       if (withdrawals.isEmpty) return rows;
@@ -486,11 +420,7 @@ class _IncomeExpenseReportScreenState
                 padding: EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('جاري تجهيز ملف PDF...'),
-                  ],
+                  children: [CircularProgressIndicator(), SizedBox(height: 16), Text('جاري تجهيز ملف PDF...')],
                 ),
               ),
             ),
@@ -502,12 +432,7 @@ class _IncomeExpenseReportScreenState
       await job();
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('تعذر إنشاء التقرير: $e'),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('تعذر إنشاء التقرير: $e'), duration: const Duration(seconds: 4)));
       }
     } finally {
       if (navigator.canPop()) {
@@ -530,10 +455,7 @@ class _IncomeExpenseReportScreenState
       return;
     }
     await _runLongExport(() async {
-      await IncomeExpenseReportPdf.shareGrouped(
-        _buildReportData(),
-        mode: _groupModeOf(groupBy),
-      );
+      await IncomeExpenseReportPdf.shareGrouped(_buildReportData(), mode: _groupModeOf(groupBy));
     });
   }
 
@@ -554,12 +476,7 @@ class _IncomeExpenseReportScreenState
     await _runLongExport(() async {
       final path = await IncomeExpenseReportPdf.save(_buildReportData());
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('تم حفظ الملف: $path'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('تم حفظ الملف: $path'), duration: const Duration(seconds: 3)));
       }
     });
   }
@@ -593,16 +510,10 @@ class _IncomeExpenseReportScreenState
           'category': e.type,
         });
       }
-      allEntries.sort(
-        (a, b) => DateTime.parse(
-          a['date'] as String,
-        ).compareTo(DateTime.parse(b['date'] as String)),
-      );
+      allEntries.sort((a, b) => DateTime.parse(a['date'] as String).compareTo(DateTime.parse(b['date'] as String)));
 
       for (final entry in allEntries) {
-        buffer.writeln(
-          '${entry["type"]},${entry["date"]},"${entry["desc"]}",${entry["amount"]},${entry["category"]}',
-        );
+        buffer.writeln('${entry["type"]},${entry["date"]},"${entry["desc"]}",${entry["amount"]},${entry["category"]}');
       }
 
       buffer.writeln();
@@ -614,24 +525,16 @@ class _IncomeExpenseReportScreenState
 
       final csvBytes = buffer.toString().codeUnits;
       final dir = await getTemporaryDirectory();
-      final filename =
-          'تقرير-${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      final filename = 'تقرير-${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
       final file = File('${dir.path}/$filename');
       await file.writeAsBytes(csvBytes);
 
       if (mounted) {
-        await Share.shareXFiles([
-          XFile(file.path),
-        ], text: 'تقرير الدخل والمصروفات');
+        await Share.shareXFiles([XFile(file.path)], text: 'تقرير الدخل والمصروفات');
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('خطأ في تصدير CSV: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('خطأ في تصدير CSV: $e'), duration: const Duration(seconds: 3)));
       }
     }
   }
@@ -640,9 +543,7 @@ class _IncomeExpenseReportScreenState
   void _showExportOptions() {
     showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       isScrollControlled: true,
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.75,
@@ -660,10 +561,7 @@ class _IncomeExpenseReportScreenState
                   width: 40,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const Text(
@@ -677,34 +575,18 @@ class _IncomeExpenseReportScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.06),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.2),
-                  ),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.summarize_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 18,
-                        ),
+                        Icon(Icons.summarize_rounded, color: Theme.of(context).colorScheme.primary, size: 18),
                         const SizedBox(width: 8),
-                        const Text(
-                          'تقرير تفصيلي',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
+                        const Text('تقرير تفصيلي', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -819,10 +701,7 @@ class _IncomeExpenseReportScreenState
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: iconBg,
-          borderRadius: BorderRadius.circular(8),
-        ),
+        decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: iconColor, size: 20),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -857,25 +736,13 @@ class _IncomeExpenseReportScreenState
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.12),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(
-                          Icons.date_range_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 16,
-                        ),
+                        child: Icon(Icons.date_range_rounded, color: Theme.of(context).colorScheme.primary, size: 16),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'فترة التقرير',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                      const Text('فترة التقرير', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -912,8 +779,7 @@ class _IncomeExpenseReportScreenState
                       NeuQuickFilterChip(
                         label: _detailedMode ? 'تفصيلي' : 'ملخص',
                         selected: _detailedMode,
-                        onTap: () =>
-                            setState(() => _detailedMode = !_detailedMode),
+                        onTap: () => setState(() => _detailedMode = !_detailedMode),
                       ),
                     ],
                   ),
@@ -980,15 +846,11 @@ class _IncomeExpenseReportScreenState
           SizedBox(
             width: 140,
             child: NeuStatCard(
-              icon: _net >= 0
-                  ? Icons.rocket_launch_rounded
-                  : Icons.warning_rounded,
+              icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
               title: 'صافي الربح',
               value: _currencyFormat.format(_net),
               iconColor: _net >= 0 ? Colors.teal : Colors.red,
-              valueColor: _net >= 0
-                  ? Colors.teal.shade700
-                  : Colors.red.shade700,
+              valueColor: _net >= 0 ? Colors.teal.shade700 : Colors.red.shade700,
               emphasize: true,
             ),
           ),
@@ -1043,19 +905,13 @@ class _IncomeExpenseReportScreenState
       itemCount: combined.length,
       itemBuilder: (context, index) {
         final entry = combined[index];
-        final color = entry.isIncome
-            ? Colors.green
-            : (entry.isSalary ? Colors.orange : Colors.red);
-        final icon = entry.isIncome
-            ? Icons.arrow_downward
-            : (entry.isSalary ? Icons.people : Icons.arrow_upward);
+        final color = entry.isIncome ? Colors.green : (entry.isSalary ? Colors.orange : Colors.red);
+        final icon = entry.isIncome ? Icons.arrow_downward : (entry.isSalary ? Icons.people : Icons.arrow_upward);
 
         return Card(
           elevation: 0.5,
           margin: const EdgeInsets.symmetric(vertical: 2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: ListTile(
             dense: true,
             leading: CircleAvatar(
@@ -1063,30 +919,19 @@ class _IncomeExpenseReportScreenState
               radius: 14,
               child: Icon(icon, color: color, size: 14),
             ),
-            title: Text(
-              entry.description,
-              style: const TextStyle(fontSize: 11),
-            ),
+            title: Text(entry.description, style: const TextStyle(fontSize: 11)),
             subtitle: Row(
               children: [
-                Text(
-                  _dateFormat.format(entry.date),
-                  style: const TextStyle(fontSize: 9),
-                ),
+                Text(_dateFormat.format(entry.date), style: const TextStyle(fontSize: 9)),
                 const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    entry.isIncome
-                        ? 'دخل'
-                        : (entry.isSalary ? 'راتب' : 'مصروف'),
+                    entry.isIncome ? 'دخل' : (entry.isSalary ? 'راتب' : 'مصروف'),
                     style: TextStyle(fontSize: 8, color: color),
                   ),
                 ),
@@ -1094,11 +939,7 @@ class _IncomeExpenseReportScreenState
             ),
             trailing: Text(
               '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color,
-                fontSize: 11,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 11),
             ),
           ),
         );
@@ -1116,57 +957,31 @@ class _IncomeExpenseReportScreenState
           children: [
             ListTile(
               dense: true,
-              leading: const Icon(
-                Icons.arrow_downward,
-                color: Colors.green,
-                size: 18,
-              ),
-              title: const Text(
-                'عدد معاملات الدخل',
-                style: TextStyle(fontSize: 11),
-              ),
+              leading: const Icon(Icons.arrow_downward, color: Colors.green, size: 18),
+              title: const Text('عدد معاملات الدخل', style: TextStyle(fontSize: 11)),
               trailing: Text(
                 '${_incomeEntries.length}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
             const Divider(height: 1),
             ListTile(
               dense: true,
-              leading: const Icon(
-                Icons.arrow_upward,
-                color: Colors.red,
-                size: 18,
-              ),
-              title: const Text(
-                'عدد معاملات المصروفات',
-                style: TextStyle(fontSize: 11),
-              ),
+              leading: const Icon(Icons.arrow_upward, color: Colors.red, size: 18),
+              title: const Text('عدد معاملات المصروفات', style: TextStyle(fontSize: 11)),
               trailing: Text(
                 '${_expenseEntries.length}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
             const Divider(height: 1),
             ListTile(
               dense: true,
               leading: const Icon(Icons.people, color: Colors.orange, size: 18),
-              title: const Text(
-                'عدد معاملات الرواتب',
-                style: TextStyle(fontSize: 11),
-              ),
+              title: const Text('عدد معاملات الرواتب', style: TextStyle(fontSize: 11)),
               trailing: Text(
                 '${_expenseEntries.where((e) => e.isSalary).length}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -1326,9 +1141,7 @@ _ReportResult _processReportData(_ReportParams params) {
     }
     DateTime? dt;
     try {
-      dt = DateTime.parse(
-        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
-      );
+      dt = DateTime.parse(dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr);
     } catch (_) {
       continue;
     }
@@ -1356,9 +1169,7 @@ _ReportResult _processReportData(_ReportParams params) {
     }
     DateTime? dt;
     try {
-      dt = DateTime.parse(
-        dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
-      );
+      dt = DateTime.parse(dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr);
     } catch (_) {
       continue;
     }
@@ -1388,9 +1199,7 @@ _ReportResult _processReportData(_ReportParams params) {
 
   final incTotal = incomeList.fold<double>(0, (s, e) => s + e.amount);
   final expTotal = expenseList.fold<double>(0, (s, e) => s + e.amount);
-  final salTotal = expenseList
-      .where((e) => e.isSalary)
-      .fold<double>(0, (s, e) => s + e.amount);
+  final salTotal = expenseList.where((e) => e.isSalary).fold<double>(0, (s, e) => s + e.amount);
 
   return _ReportResult(
     incomeEntries: incomeList,

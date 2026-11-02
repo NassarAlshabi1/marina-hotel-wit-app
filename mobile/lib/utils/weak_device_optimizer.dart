@@ -20,9 +20,7 @@ class WeakDeviceOptimizer {
   WeakDeviceOptimizer._();
   static final WeakDeviceOptimizer instance = WeakDeviceOptimizer._();
 
-  static const MethodChannel _memoryChannel = MethodChannel(
-    'com.aden.marina/device_memory',
-  );
+  static const MethodChannel _memoryChannel = MethodChannel('com.aden.marina/device_memory');
   static const int _bytesPerMb = 1024 * 1024;
 
   int _processorCount = 4;
@@ -44,10 +42,7 @@ class WeakDeviceOptimizer {
   Future<void> initialize({int? processorCount, int? memoryMB}) async {
     _processorCount = processorCount ?? _detectProcessorCount();
     _memoryMB = memoryMB ?? await _detectMemoryMB();
-    _optimizationLevel = _resolveOptimizationLevel(
-      memoryMB: _memoryMB,
-      processorCount: _processorCount,
-    );
+    _optimizationLevel = _resolveOptimizationLevel(memoryMB: _memoryMB, processorCount: _processorCount);
     _isWeakDevice = _optimizationLevel >= 2;
 
     dlog(
@@ -77,9 +72,7 @@ class WeakDeviceOptimizer {
     if (Platform.isAndroid) {
       var detected = 0;
       try {
-        final totalBytes = await _memoryChannel.invokeMethod<int>(
-          'getTotalMemoryBytes',
-        );
+        final totalBytes = await _memoryChannel.invokeMethod<int>('getTotalMemoryBytes');
         if (totalBytes != null && totalBytes > 0) {
           detected = totalBytes ~/ _bytesPerMb;
         }
@@ -90,9 +83,7 @@ class WeakDeviceOptimizer {
       }
 
       try {
-        final lowRam = await _memoryChannel.invokeMethod<bool>(
-          'isLowRamDevice',
-        );
+        final lowRam = await _memoryChannel.invokeMethod<bool>('isLowRamDevice');
         if (lowRam == true && (detected == 0 || detected > 1024)) {
           detected = 1024;
           dlog(() => 'Android flags this device as isLowRamDevice → cap 1GB');
@@ -122,10 +113,7 @@ class WeakDeviceOptimizer {
     return 3072;
   }
 
-  int _resolveOptimizationLevel({
-    required int memoryMB,
-    required int processorCount,
-  }) {
+  int _resolveOptimizationLevel({required int memoryMB, required int processorCount}) {
     if (memoryMB <= 1536 || processorCount <= 2) {
       return 3;
     }

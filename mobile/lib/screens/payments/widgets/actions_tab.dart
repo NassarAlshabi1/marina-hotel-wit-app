@@ -39,13 +39,11 @@ class ActionsTab extends ConsumerWidget {
   final List<dynamic> unsettledDebts;
   final VoidCallback onGenerateInvoice;
   final VoidCallback onShowPaymentHistory;
-  final void Function(BookingPaymentSummary, db.Booking, List<db.BookingNight>)
-  onShowCheckoutConfirmation;
+  final void Function(BookingPaymentSummary, db.Booking, List<db.BookingNight>) onShowCheckoutConfirmation;
   final void Function(BookingPaymentSummary) onShowEarlyCheckout;
   final void Function(BookingPaymentSummary) onShowCancelTodayPayment;
   final void Function(BookingPaymentSummary) onSendAccountStatement;
-  final void Function(BookingPaymentSummary, db.Booking)
-  onCreateDebtFromRemaining;
+  final void Function(BookingPaymentSummary, db.Booking) onCreateDebtFromRemaining;
   final void Function(BookingPaymentSummary, db.Booking) onShowDiscountDialog;
 
   @override
@@ -53,18 +51,15 @@ class ActionsTab extends ConsumerWidget {
     // ✅ P1 (double-checkout): إجراءات المغادرة تظهر فقط للحجز النشط الذي
     // لم يسجل مغادرته بعد. الحجز المكتمل يعرض بطاقة معلومات بدلاً منها —
     // إعادة إظهار الزر بعد أول مغادرة كانت ثغرة «المغادرة المزدوجة».
-    final alreadyCheckedOut =
-        booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty;
-    final canCheckOut =
-        StatusUtils.isBookingActive(booking) && !alreadyCheckedOut;
+    final alreadyCheckedOut = booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty;
+    final canCheckOut = StatusUtils.isBookingActive(booking) && !alreadyCheckedOut;
     final checkoutDateLabel = alreadyCheckedOut
         ? (booking.actualCheckout!.split(' ').isNotEmpty
               ? booking.actualCheckout!.split(' ').first
               : booking.actualCheckout!)
         : null;
 
-    final canVoidPayments =
-        ref.watch(authProvider).currentUser?.canVoidPayments ?? false;
+    final canVoidPayments = ref.watch(authProvider).currentUser?.canVoidPayments ?? false;
 
     final actions = <Widget>[
       _buildActionCard(
@@ -74,19 +69,11 @@ class ActionsTab extends ConsumerWidget {
         Colors.teal,
         onGenerateInvoice,
       ),
-      _buildActionCard(
-        'سجل المدفوعات',
-        'عرض تاريخ جميع المدفوعات',
-        Icons.history,
-        Colors.purple,
-        onShowPaymentHistory,
-      ),
+      _buildActionCard('سجل المدفوعات', 'عرض تاريخ جميع المدفوعات', Icons.history, Colors.purple, onShowPaymentHistory),
       if (canCheckOut) ...[
         _buildActionCard(
           'تسجيل المغادرة',
-          summary.isFullyPaid
-              ? 'تسجيل مغادرة العميل'
-              : 'تحذير: يوجد مبلغ متبقي!',
+          summary.isFullyPaid ? 'تسجيل مغادرة العميل' : 'تحذير: يوجد مبلغ متبقي!',
           Icons.logout,
           summary.isFullyPaid ? Colors.green : Colors.red,
           () => onShowCheckoutConfirmation(summary, booking, nights),
@@ -140,25 +127,15 @@ class ActionsTab extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               margin: const EdgeInsets.only(bottom: 6),
               decoration: BoxDecoration(
-                color: hasUnsettledDebt
-                    ? Colors.red.shade50
-                    : Colors.orange.shade50,
+                color: hasUnsettledDebt ? Colors.red.shade50 : Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: hasUnsettledDebt
-                      ? Colors.red.shade300
-                      : Colors.orange.shade300,
-                ),
+                border: Border.all(color: hasUnsettledDebt ? Colors.red.shade300 : Colors.orange.shade300),
               ),
               child: Row(
                 children: [
                   Icon(
-                    hasUnsettledDebt
-                        ? Icons.error_outline
-                        : Icons.warning_amber_rounded,
-                    color: hasUnsettledDebt
-                        ? Colors.red.shade700
-                        : Colors.orange.shade700,
+                    hasUnsettledDebt ? Icons.error_outline : Icons.warning_amber_rounded,
+                    color: hasUnsettledDebt ? Colors.red.shade700 : Colors.orange.shade700,
                     size: 16,
                   ),
                   const SizedBox(width: 6),
@@ -170,9 +147,7 @@ class ActionsTab extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: hasUnsettledDebt
-                            ? Colors.red.shade900
-                            : Colors.orange.shade900,
+                        color: hasUnsettledDebt ? Colors.red.shade900 : Colors.orange.shade900,
                       ),
                     ),
                   ),
@@ -186,24 +161,15 @@ class ActionsTab extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: ElevatedButton.icon(
-                        onPressed: () =>
-                            onCreateDebtFromRemaining(summary, booking),
+                        onPressed: () => onCreateDebtFromRemaining(summary, booking),
                         icon: const Icon(Icons.add_circle, size: 14),
-                        label: const Text(
-                          'إنشاء دين',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        label: const Text('إنشاء دين', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         ),
                       ),
                     ),
@@ -215,21 +181,13 @@ class ActionsTab extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         onPressed: () => onShowDiscountDialog(summary, booking),
                         icon: const Icon(Icons.discount, size: 14),
-                        label: const Text(
-                          'خصم مبلغ',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        label: const Text('خصم مبلغ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green.shade600,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         ),
                       ),
                     ),
@@ -249,21 +207,13 @@ class ActionsTab extends ConsumerWidget {
                           );
                         },
                         icon: const Icon(Icons.lock_outline, size: 14),
-                        label: const Text(
-                          'خصم (مقيد)',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        label: const Text('خصم (مقيد)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey.shade400,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         ),
                       ),
                     ),
@@ -274,11 +224,7 @@ class ActionsTab extends ConsumerWidget {
             const SizedBox(height: 6),
           ],
           GridView.count(
-            crossAxisCount: context.adaptiveColumns(
-              mobile: 2,
-              itemMinWidth: 200,
-              max: 6,
-            ),
+            crossAxisCount: context.adaptiveColumns(mobile: 2, itemMinWidth: 200, max: 6),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 8,
@@ -293,24 +239,14 @@ class ActionsTab extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'معلومات الحجز',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('معلومات الحجز', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   _buildInfoRow('رقم الحجز', booking.localUuid),
-                  _buildInfoRow(
-                    'تاريخ الوصول',
-                    booking.checkinDate.split(' ')[0],
-                  ),
+                  _buildInfoRow('تاريخ الوصول', booking.checkinDate.split(' ')[0]),
                   if (booking.checkoutDate != null)
-                    _buildInfoRow(
-                      'تاريخ المغادرة',
-                      booking.checkoutDate!.split(' ')[0],
-                    ),
+                    _buildInfoRow('تاريخ المغادرة', booking.checkoutDate!.split(' ')[0]),
                   _buildInfoRow('الحالة', booking.status),
-                  if (booking.notes != null && booking.notes!.isNotEmpty)
-                    _buildInfoRow('ملاحظات', booking.notes!),
+                  if (booking.notes != null && booking.notes!.isNotEmpty) _buildInfoRow('ملاحظات', booking.notes!),
                 ],
               ),
             ),
@@ -324,13 +260,7 @@ class ActionsTab extends ConsumerWidget {
   //  Internal UI helpers — مُدمجة داخل ActionsTab (لا coupling خارجي)
   // ═══════════════════════════════════════════════════════════════════════
 
-  Widget _buildActionCard(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
+  Widget _buildActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -356,11 +286,7 @@ class ActionsTab extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -388,10 +314,7 @@ class ActionsTab extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-          ),
+          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
         ],
       ),
     );

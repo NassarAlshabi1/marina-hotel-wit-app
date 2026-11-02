@@ -8,15 +8,11 @@ import 'outbox_dao.dart';
 part 'booking_notes_dao.g.dart';
 
 @DriftAccessor(tables: [BookingNotes])
-class BookingNotesDao extends DatabaseAccessor<AppDatabase>
-    with _$BookingNotesDaoMixin {
+class BookingNotesDao extends DatabaseAccessor<AppDatabase> with _$BookingNotesDaoMixin {
   BookingNotesDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<BookingNote>> list({
-    int? bookingId,
-    bool includeDeleted = false,
-  }) async {
+  Future<List<BookingNote>> list({int? bookingId, bool includeDeleted = false}) async {
     final q = select(bookingNotes);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -27,11 +23,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Future<List<BookingNote>> listFiltered({
-    int? bookingId,
-    bool? isActive,
-    int? limit,
-  }) async {
+  Future<List<BookingNote>> listFiltered({int? bookingId, bool? isActive, int? limit}) async {
     final q = select(bookingNotes);
     _applyCommonFilters(q, bookingId: bookingId, isActive: isActive);
     if (limit != null) {
@@ -56,11 +48,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// فلاتر مشتركة بين listFiltered و countFiltered
-  void _applyCommonFilters(
-    SimpleSelectStatement<BookingNotes, BookingNote> q, {
-    int? bookingId,
-    bool? isActive,
-  }) {
+  void _applyCommonFilters(SimpleSelectStatement<BookingNotes, BookingNote> q, {int? bookingId, bool? isActive}) {
     q.where((t) => t.deletedAt.isNull());
     if (bookingId != null) {
       q.where((t) => t.bookingId.equals(bookingId));
@@ -70,10 +58,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     }
   }
 
-  Stream<List<BookingNote>> watchByBooking(
-    int bookingId, {
-    bool includeDeleted = false,
-  }) {
+  Stream<List<BookingNote>> watchByBooking(int bookingId, {bool includeDeleted = false}) {
     final q = select(bookingNotes)..where((t) => t.bookingId.equals(bookingId));
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -81,15 +66,10 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     return q.watch();
   }
 
-  Future<BookingNote?> getById(int id) =>
-      (select(bookingNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<BookingNote?> watchById(int id) =>
-      (select(bookingNotes)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<BookingNote?> getById(int id) => (select(bookingNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<BookingNote?> watchById(int id) => (select(bookingNotes)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(
-    BookingNotesCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> insertOne(BookingNotesCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -99,9 +79,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
-        deviceId: originIsServer
-            ? const Value.absent()
-            : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(bookingNotes).insert(comp);
       if (!originIsServer) {
@@ -118,11 +96,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(
-    int id,
-    BookingNotesCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateById(int id, BookingNotesCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -131,17 +105,13 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
-          : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        bookingNotes,
-      )..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'booking_notes',
@@ -163,14 +133,9 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
-      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
-          .write(
-            BookingNotesCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id))).write(
+        BookingNotesCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
+      );
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
         // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
@@ -187,10 +152,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Map<String, dynamic> _payloadFrom(
-    BookingNotesCompanion comp, {
-    BookingNote? base,
-  }) {
+  Map<String, dynamic> _payloadFrom(BookingNotesCompanion comp, {BookingNote? base}) {
     final m = <String, dynamic>{};
     if (comp.bookingId.present) {
       m['booking_id'] = comp.bookingId.value;
@@ -219,10 +181,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد ملاحظات الحجوزات من JSON
-  Future<void> importFromJson(
-    List<Map<String, dynamic>> data, {
-    bool clearExisting = false,
-  }) async {
+  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
     if (clearExisting) {
       await delete(bookingNotes).go();
     }
@@ -251,8 +210,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
 
   /// الحصول على عدد السجلات
   Future<int> getRecordCount() async {
-    final query = selectOnly(bookingNotes)
-      ..addColumns([bookingNotes.id.count()]);
+    final query = selectOnly(bookingNotes)..addColumns([bookingNotes.id.count()]);
     final result = await query.getSingle();
     return result.read(bookingNotes.id.count()) ?? 0;
   }

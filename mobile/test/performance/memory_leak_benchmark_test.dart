@@ -61,11 +61,7 @@ class _FakeAuthNotifier extends AuthNotifier {
   @override
   Future<void> restoreSession() async {}
   @override
-  Future<void> login(
-    String username,
-    String password, {
-    bool rememberMe = false,
-  }) async {}
+  Future<void> login(String username, String password, {bool rememberMe = false}) async {}
   @override
   Future<void> logout() async {}
 }
@@ -87,22 +83,14 @@ Widget _buildTestWidget({required AppDatabase db, required Widget child}) {
       databaseProvider.overrideWithValue(db),
       simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
       syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
-      roomsWithPaymentStatusProvider.overrideWith(
-        (ref) => Stream.value(const <RoomWithPaymentStatus>[]),
-      ),
+      roomsWithPaymentStatusProvider.overrideWith((ref) => Stream.value(const <RoomWithPaymentStatus>[])),
       todayPaymentsProvider.overrideWith((ref) => Stream.value(0.0)),
       todayExpensesProvider.overrideWith((ref) => Stream.value(0.0)),
       roomsListProvider.overrideWith((ref) => Stream.value(const <Room>[])),
-      bookingsListProvider.overrideWith(
-        (ref) => Stream.value(const <Booking>[]),
-      ),
-      employeesListProvider.overrideWith(
-        (ref) => Stream.value(const <Employee>[]),
-      ),
+      bookingsListProvider.overrideWith((ref) => Stream.value(const <Booking>[])),
+      employeesListProvider.overrideWith((ref) => Stream.value(const <Employee>[])),
       debtsListProvider.overrideWith((ref) => Stream.value(const <Debt>[])),
-      expensesListProvider.overrideWith(
-        (ref) => Stream.value(const <Expense>[]),
-      ),
+      expensesListProvider.overrideWith((ref) => Stream.value(const <Expense>[])),
       appVersionProvider.overrideWith((ref) async => '1.0.0+1'),
       // ✅ تجنب MissingPluginException لـ SharedPreferences:
       authProvider.overrideWith((ref) => _FakeAuthNotifier()),
@@ -225,10 +213,7 @@ String _analyzeLeak(List<_IterationMetrics> results) {
   final totalGrowth = results.last.afterRss - results.first.beforeRss;
 
   // حساب متوسط delta آخر 3 iterations (بعد استقرار JIT)
-  final lateDeltas = results
-      .skip(results.length - 3)
-      .map((m) => m.deltaBytes)
-      .toList();
+  final lateDeltas = results.skip(results.length - 3).map((m) => m.deltaBytes).toList();
   final avgLateDelta = lateDeltas.reduce((a, b) => a + b) / lateDeltas.length;
 
   // leak threshold: إذا كان متوسط delta الأخير > 5MB → leak محتمل
@@ -236,15 +221,9 @@ String _analyzeLeak(List<_IterationMetrics> results) {
 
   debugPrint('');
   debugPrint('  📊 Leak Analysis:');
-  debugPrint(
-    '    First iteration delta: ${(firstDelta / 1024 / 1024).toStringAsFixed(2)}MB',
-  );
-  debugPrint(
-    '    Last iteration delta:  ${(lastDelta / 1024 / 1024).toStringAsFixed(2)}MB',
-  );
-  debugPrint(
-    '    Average late delta (last 3): ${(avgLateDelta / 1024 / 1024).toStringAsFixed(2)}MB',
-  );
+  debugPrint('    First iteration delta: ${(firstDelta / 1024 / 1024).toStringAsFixed(2)}MB');
+  debugPrint('    Last iteration delta:  ${(lastDelta / 1024 / 1024).toStringAsFixed(2)}MB');
+  debugPrint('    Average late delta (last 3): ${(avgLateDelta / 1024 / 1024).toStringAsFixed(2)}MB');
   debugPrint(
     '    Total growth (iter 1 before → iter ${results.length} after): '
     '${(totalGrowth / 1024 / 1024).toStringAsFixed(2)}MB',
@@ -278,18 +257,12 @@ void main() {
   group('🧠 Memory Leak — DashboardScreen (10x)', () {
     testWidgets('10 iterations بدون leak', (tester) async {
       debugPrint('📍 DashboardScreen — 10 iterations:');
-      final results = await _runIterations(
-        tester,
-        () => const DashboardScreen(),
-        'DashboardScreen',
-        10,
-      );
+      final results = await _runIterations(tester, () => const DashboardScreen(), 'DashboardScreen', 10);
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
       // التحقق أن النمو الكلي < 100MB (على مدى 10 iterations)
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
       expect(
         totalGrowthMB,
         lessThan(100),
@@ -306,17 +279,11 @@ void main() {
   group('🧠 Memory Leak — RoomsListScreen (10x)', () {
     testWidgets('10 iterations بدون leak', (tester) async {
       debugPrint('📍 RoomsListScreen — 10 iterations:');
-      final results = await _runIterations(
-        tester,
-        () => const RoomsListScreen(),
-        'RoomsListScreen',
-        10,
-      );
+      final results = await _runIterations(tester, () => const RoomsListScreen(), 'RoomsListScreen', 10);
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
       expect(
         totalGrowthMB,
         lessThan(100),
@@ -333,17 +300,11 @@ void main() {
   group('🧠 Memory Leak — ExpensesListScreen (10x)', () {
     testWidgets('10 iterations بدون leak', (tester) async {
       debugPrint('📍 ExpensesListScreen — 10 iterations:');
-      final results = await _runIterations(
-        tester,
-        () => const ExpensesListScreen(),
-        'ExpensesListScreen',
-        10,
-      );
+      final results = await _runIterations(tester, () => const ExpensesListScreen(), 'ExpensesListScreen', 10);
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
       expect(
         totalGrowthMB,
         lessThan(100),
@@ -360,17 +321,11 @@ void main() {
   group('🧠 Memory Leak — DebtsListScreen (10x)', () {
     testWidgets('10 iterations بدون leak', (tester) async {
       debugPrint('📍 DebtsListScreen — 10 iterations:');
-      final results = await _runIterations(
-        tester,
-        () => const DebtsListScreen(),
-        'DebtsListScreen',
-        10,
-      );
+      final results = await _runIterations(tester, () => const DebtsListScreen(), 'DebtsListScreen', 10);
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
       expect(
         totalGrowthMB,
         lessThan(100),
@@ -387,17 +342,11 @@ void main() {
   group('🧠 Memory Leak — EmployeesListScreen (10x)', () {
     testWidgets('10 iterations بدون leak', (tester) async {
       debugPrint('📍 EmployeesListScreen — 10 iterations:');
-      final results = await _runIterations(
-        tester,
-        () => const EmployeesListScreen(),
-        'EmployeesListScreen',
-        10,
-      );
+      final results = await _runIterations(tester, () => const EmployeesListScreen(), 'EmployeesListScreen', 10);
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
       expect(
         totalGrowthMB,
         lessThan(100),

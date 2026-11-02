@@ -13,8 +13,7 @@ class GoogleDriveLogsScreen extends ConsumerStatefulWidget {
   const GoogleDriveLogsScreen({super.key});
 
   @override
-  ConsumerState<GoogleDriveLogsScreen> createState() =>
-      _GoogleDriveLogsScreenState();
+  ConsumerState<GoogleDriveLogsScreen> createState() => _GoogleDriveLogsScreenState();
 }
 
 class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
@@ -78,23 +77,11 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
           itemBuilder: (context) => const [
             PopupMenuItem(
               value: 'export',
-              child: Row(
-                children: [
-                  Icon(Icons.file_download),
-                  SizedBox(width: 8),
-                  Text('تصدير السجلات'),
-                ],
-              ),
+              child: Row(children: [Icon(Icons.file_download), SizedBox(width: 8), Text('تصدير السجلات')]),
             ),
             PopupMenuItem(
               value: 'share',
-              child: Row(
-                children: [
-                  Icon(Icons.share),
-                  SizedBox(width: 8),
-                  Text('مشاركة السجلات'),
-                ],
-              ),
+              child: Row(children: [Icon(Icons.share), SizedBox(width: 8), Text('مشاركة السجلات')]),
             ),
             PopupMenuItem(
               value: 'clear',
@@ -120,21 +107,16 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                   decoration: InputDecoration(
                     hintText: 'البحث في سجلات Google Drive...',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onChanged: (value) {
                     _debounceTimer?.cancel();
-                    _debounceTimer = Timer(
-                      const Duration(milliseconds: 300),
-                      () {
-                        setState(() => _searchQuery = value.toLowerCase());
-                      },
-                    );
+                    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+                      setState(() => _searchQuery = value.toLowerCase());
+                    });
                   },
                 ),
                 const SizedBox(height: 8),
@@ -144,35 +126,15 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                     children: [
                       _buildFilterChip('الكل', null, logStats['total'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip(
-                        'Debug',
-                        LogLevel.debug,
-                        logStats['debug'] ?? 0,
-                      ),
+                      _buildFilterChip('Debug', LogLevel.debug, logStats['debug'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip(
-                        'Info',
-                        LogLevel.info,
-                        logStats['info'] ?? 0,
-                      ),
+                      _buildFilterChip('Info', LogLevel.info, logStats['info'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip(
-                        'Warning',
-                        LogLevel.warning,
-                        logStats['warning'] ?? 0,
-                      ),
+                      _buildFilterChip('Warning', LogLevel.warning, logStats['warning'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip(
-                        'Error',
-                        LogLevel.error,
-                        logStats['error'] ?? 0,
-                      ),
+                      _buildFilterChip('Error', LogLevel.error, logStats['error'] ?? 0),
                       const SizedBox(width: 8),
-                      _buildFilterChip(
-                        'Critical',
-                        LogLevel.critical,
-                        logStats['critical'] ?? 0,
-                      ),
+                      _buildFilterChip('Critical', LogLevel.critical, logStats['critical'] ?? 0),
                     ],
                   ),
                 ),
@@ -187,18 +149,14 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                       children: [
                         Icon(Icons.cloud_off, size: 64, color: Colors.grey),
                         SizedBox(height: 16),
-                        Text(
-                          'لا توجد سجلات Google Drive',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
+                        Text('لا توجد سجلات Google Drive', style: TextStyle(fontSize: 16, color: Colors.grey)),
                       ],
                     ),
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.all(8),
                     itemCount: filteredLogs.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1),
+                    separatorBuilder: (context, index) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final log = filteredLogs[filteredLogs.length - 1 - index];
                       return _buildLogEntry(log);
@@ -254,54 +212,31 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                     style: TextStyle(color: color, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
-                  Text(
-                    formatter.format(log.timestamp),
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  Text(formatter.format(log.timestamp), style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                log.message,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text(log.message, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: color.withValues(alpha: 0.1),
                     ),
                     child: Text(
                       log.tag,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: color,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold),
                     ),
                   ),
                   if (log.error != null) ...[
                     const SizedBox(width: 8),
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 16,
-                    ),
+                    const Icon(Icons.error_outline, color: Colors.red, size: 16),
                     const SizedBox(width: 4),
                     Flexible(
-                      child: Text(
-                        log.error.toString(),
-                        style: const TextStyle(fontSize: 12, color: Colors.red),
-                      ),
+                      child: Text(log.error.toString(), style: const TextStyle(fontSize: 12, color: Colors.red)),
                     ),
                   ],
                 ],
@@ -348,9 +283,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   void _showLogDetails(LogEntry log) {
     showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) {
         final formatter = DateFormat('yyyy/MM/dd HH:mm:ss');
         return Padding(
@@ -363,11 +296,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                 children: [
                   Text(
                     log.level.name.toUpperCase(),
-                    style: TextStyle(
-                      color: _getColorForLevel(log.level),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: _getColorForLevel(log.level), fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const Spacer(),
                   IconButton(
@@ -380,10 +309,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                formatter.format(log.timestamp),
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
+              Text(formatter.format(log.timestamp), style: const TextStyle(color: Colors.grey, fontSize: 12)),
               const SizedBox(height: 12),
               Text(log.message, style: const TextStyle(fontSize: 16)),
               const SizedBox(height: 12),
@@ -396,30 +322,18 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
               ),
               if (log.error != null) ...[
                 const SizedBox(height: 12),
-                const Text(
-                  'الخطأ:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+                const Text('الخطأ:', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(
-                  log.error.toString(),
-                  style: const TextStyle(color: Colors.red),
-                ),
+                Text(log.error.toString(), style: const TextStyle(color: Colors.red)),
               ],
               if (log.stackTrace != null) ...[
                 const SizedBox(height: 12),
-                const Text(
-                  'Stack Trace:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+                const Text('Stack Trace:', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 SizedBox(
                   height: 120,
                   child: SingleChildScrollView(
-                    child: Text(
-                      log.stackTrace.toString(),
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    child: Text(log.stackTrace.toString(), style: const TextStyle(fontSize: 12)),
                   ),
                 ),
               ],
@@ -433,9 +347,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   void _copyLog(LogEntry log) {
     Clipboard.setData(ClipboardData(text: log.toFormattedString()));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')));
     }
   }
 
@@ -456,9 +368,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
       return;
     }
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('تم حفظ الملف في ${file.path}')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم حفظ الملف في ${file.path}')));
     }
   }
 

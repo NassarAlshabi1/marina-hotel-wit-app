@@ -47,9 +47,7 @@ class GuestEntryDateBackfillService {
     void Function(GuestEntryDateBackfillProgress progress)? onProgress,
   }) async {
     if (_isSecondaryPullFailoverActive) {
-      throw StateError(
-        'أوقف التحويل إلى قاعدة Appwrite الثانوية قبل تعديل سجلات السحابة الأساسية.',
-      );
+      throw StateError('أوقف التحويل إلى قاعدة Appwrite الثانوية قبل تعديل سجلات السحابة الأساسية.');
     }
 
     var scanned = 0;
@@ -164,9 +162,7 @@ class GuestEntryDateBackfillService {
   /// يتعرف على علامات الحذف المستخدمة في السجلات القديمة والحالية.
   static bool isSoftDeleted(Map<String, dynamic> data) {
     final rawDeletedAt = data['deletedAt'] ?? data['deleted_at'];
-    final deletedAt = rawDeletedAt is num
-        ? rawDeletedAt
-        : num.tryParse(rawDeletedAt?.toString() ?? '');
+    final deletedAt = rawDeletedAt is num ? rawDeletedAt : num.tryParse(rawDeletedAt?.toString() ?? '');
     if (deletedAt != null && deletedAt > 0) {
       return true;
     }
@@ -189,9 +185,7 @@ class GuestEntryDateBackfillService {
     final year = int.parse(date.substring(0, 4));
     final month = int.parse(date.substring(5, 7));
     final day = int.parse(date.substring(8, 10));
-    if (parsedDate.year != year ||
-        parsedDate.month != month ||
-        parsedDate.day != day) {
+    if (parsedDate.year != year || parsedDate.month != month || parsedDate.day != day) {
       return null;
     }
     return date;

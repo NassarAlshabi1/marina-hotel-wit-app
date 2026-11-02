@@ -12,12 +12,7 @@ import 'sync_constants.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SyncSafetySnapshot {
-  SyncSafetySnapshot({
-    required this.syncId,
-    required this.phase,
-    required this.filePath,
-    required this.createdAt,
-  });
+  SyncSafetySnapshot({required this.syncId, required this.phase, required this.filePath, required this.createdAt});
 
   final String syncId;
   final String phase;
@@ -51,8 +46,7 @@ class SyncSafetyLayer {
   }) async {
     final dir = await _ensureBaseDirectory();
     final timestamp = DateTime.now().toUtc();
-    final fileName =
-        'snapshot_${syncId.replaceAll(':', '_')}_${phase}_${timestamp.microsecondsSinceEpoch}.json';
+    final fileName = 'snapshot_${syncId.replaceAll(':', '_')}_${phase}_${timestamp.microsecondsSinceEpoch}.json';
     final file = File(p.join(dir.path, fileName));
 
     final tables = await db.getAllTablesAsJson();
@@ -81,12 +75,7 @@ class SyncSafetyLayer {
 
     await file.writeAsString(jsonEncode(payload));
 
-    final snapshot = SyncSafetySnapshot(
-      syncId: syncId,
-      phase: phase,
-      filePath: file.path,
-      createdAt: timestamp,
-    );
+    final snapshot = SyncSafetySnapshot(syncId: syncId, phase: phase, filePath: file.path, createdAt: timestamp);
 
     _activeSnapshots[snapshot.key] = snapshot;
 
@@ -201,17 +190,9 @@ class SyncSafetyLayer {
 
           // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
           try {
-            final violations = await db
-                .customSelect(
-                  'PRAGMA foreign_key_check',
-                  readsFrom: Set.unmodifiable({}),
-                )
-                .get();
+            final violations = await db.customSelect('PRAGMA foreign_key_check', readsFrom: Set.unmodifiable({})).get();
             if (violations.isNotEmpty) {
-              developer.log(
-                '⚠️ FK violations after sync: ${violations.length} rows',
-                name: 'SyncSafety',
-              );
+              developer.log('⚠️ FK violations after sync: ${violations.length} rows', name: 'SyncSafety');
             }
           } catch (_) {}
         } catch (e) {
@@ -270,11 +251,7 @@ class SyncSafetyLayer {
   Future<void> _appendLog(Map<String, dynamic> payload) async {
     try {
       final file = await _logFile();
-      await file.writeAsString(
-        '${jsonEncode(payload)}\n',
-        mode: FileMode.append,
-        flush: true,
-      );
+      await file.writeAsString('${jsonEncode(payload)}\n', mode: FileMode.append, flush: true);
     } catch (_) {
       // تجاهل أخطاء السجل حتى لا تؤثر على سير المزامنة
     }
@@ -316,18 +293,12 @@ class SyncSafetyLayer {
     }
   }
 
-  Future<void> _restoreTable(
-    AppDatabase db,
-    String tableName,
-    dynamic tableData,
-  ) async {
+  Future<void> _restoreTable(AppDatabase db, String tableName, dynamic tableData) async {
     if (tableData == null) {
       return;
     }
 
-    final rows = (tableData as List<dynamic>)
-        .map((row) => Map<String, dynamic>.from(row as Map))
-        .toList();
+    final rows = (tableData as List<dynamic>).map((row) => Map<String, dynamic>.from(row as Map)).toList();
 
     if (rows.isEmpty) {
       return;
@@ -345,9 +316,7 @@ class SyncSafetyLayer {
           normalized.entries.where((e) => existingColumns.contains(e.key)),
         );
         if (filtered.isEmpty) {
-          dlog(
-            () => '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',
-          );
+          dlog(() => '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة');
           continue;
         }
         final columns = filtered.keys.toList();
@@ -355,10 +324,7 @@ class SyncSafetyLayer {
         final placeholders = List.filled(values.length, '?').join(', ');
         final columnNames = columns.join(', ');
 
-        batch.customStatement(
-          'INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)',
-          values,
-        );
+        batch.customStatement('INSERT OR REPLACE INTO $tableName ($columnNames) VALUES ($placeholders)', values);
       }
     });
     dlog(() => '✅ تم استعادة ${rows.length} سجل من $tableName');
@@ -373,12 +339,7 @@ class SyncSafetyLayer {
     if (key.contains('_')) {
       return key.toLowerCase();
     }
-    return key
-        .replaceAllMapped(
-          RegExp('([a-z0-9])([A-Z])'),
-          (m) => '${m[1]}_${m[2]!.toLowerCase()}',
-        )
-        .toLowerCase();
+    return key.replaceAllMapped(RegExp('([a-z0-9])([A-Z])'), (m) => '${m[1]}_${m[2]!.toLowerCase()}').toLowerCase();
   }
 
   Future<String?> _getDatabasePath() async {

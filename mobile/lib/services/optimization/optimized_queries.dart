@@ -39,11 +39,7 @@ class OptimizedQueries {
       LEFT JOIN bookings b ON b.status NOT IN ('checked_out', 'cancelled')
         AND b.hotel_day_checkin = ?
     ''',
-          variables: [
-            Variable<String>(today),
-            Variable<String>(today),
-            Variable<String>(today),
-          ],
+          variables: [Variable<String>(today), Variable<String>(today), Variable<String>(today)],
         )
         .getSingle();
 
@@ -60,9 +56,7 @@ class OptimizedQueries {
       'totalIncome': totalIncome,
       'totalExpenses': totalExpenses,
       'totalBookings': data['total_bookings'] as int,
-      'occupancyRate': totalRooms > 0
-          ? (occupiedRooms / totalRooms * 100)
-          : 0.0,
+      'occupancyRate': totalRooms > 0 ? (occupiedRooms / totalRooms * 100) : 0.0,
       'netProfit': totalIncome - totalExpenses,
     };
   }
@@ -70,10 +64,7 @@ class OptimizedQueries {
   // ─── REPORTS: Optimized queries ───
 
   /// Get monthly income vs expense in single query
-  Future<List<Map<String, dynamic>>> getMonthlyIncomeExpense(
-    int year,
-    int month,
-  ) async {
+  Future<List<Map<String, dynamic>>> getMonthlyIncomeExpense(int year, int month) async {
     final from = '$year-${month.toString().padLeft(2, '0')}-01';
     final to = '$year-${month.toString().padLeft(2, '0')}-31';
 
@@ -100,12 +91,7 @@ class OptimizedQueries {
       
       ORDER BY day
     ''',
-          variables: [
-            Variable<String>(from),
-            Variable<String>(to),
-            Variable<String>(from),
-            Variable<String>(to),
-          ],
+          variables: [Variable<String>(from), Variable<String>(to), Variable<String>(from), Variable<String>(to)],
         )
         .get();
 
@@ -113,15 +99,9 @@ class OptimizedQueries {
   }
 
   /// Get top rooms by revenue (covering index query)
-  Future<List<Map<String, dynamic>>> getTopRoomsByRevenue({
-    int limit = 10,
-    String? fromDate,
-    String? toDate,
-  }) async {
+  Future<List<Map<String, dynamic>>> getTopRoomsByRevenue({int limit = 10, String? fromDate, String? toDate}) async {
     final where = fromDate != null ? 'WHERE p.payment_date >= ?' : '';
-    final params = fromDate != null
-        ? <Variable<Object>>[Variable<String>(fromDate)]
-        : <Variable<Object>>[];
+    final params = fromDate != null ? <Variable<Object>>[Variable<String>(fromDate)] : <Variable<Object>>[];
     if (toDate != null) {
       params.add(Variable<String>(toDate));
     }
@@ -172,9 +152,7 @@ class OptimizedQueries {
   /// Get guest debts - optimized with index hint
   Future<List<local_db.Debt>> getOverdueDebts() async {
     final query = db.select(db.debts)
-      ..where(
-        (d) => d.isSettled.equals(0) & d.remainingAmount.isBiggerThanValue(0),
-      )
+      ..where((d) => d.isSettled.equals(0) & d.remainingAmount.isBiggerThanValue(0))
       ..orderBy([(d) => OrderingTerm.desc(d.id)])
       ..limit(100);
     return query.get();
@@ -228,10 +206,7 @@ class OptimizedQueries {
       WHERE r.room_number = ?
       LIMIT 1
     ''',
-          variables: [
-            Variable<String>(roomNumber),
-            Variable<String>(roomNumber),
-          ],
+          variables: [Variable<String>(roomNumber), Variable<String>(roomNumber)],
         )
         .getSingleOrNull();
 
@@ -260,18 +235,14 @@ class OptimizedQueries {
   /// Get today's total payments (uses index on payment_date)
   Future<double> getTodayPayments() async {
     final today = _todayKey();
-    final query = db.select(db.payments)
-      ..where((p) => p.paymentDate.equals(today) & p.isVoided.equals(false));
+    final query = db.select(db.payments)..where((p) => p.paymentDate.equals(today) & p.isVoided.equals(false));
     final result = await query.get();
 
     return result.fold<double>(0, (sum, p) => sum + p.amount);
   }
 
   /// Get payments grouped by revenue type (uses composite index)
-  Future<Map<String, double>> getPaymentsByRevenueType({
-    required String from,
-    required String to,
-  }) async {
+  Future<Map<String, double>> getPaymentsByRevenueType({required String from, required String to}) async {
     final results = await db
         .customSelect(
           '''
@@ -287,19 +258,13 @@ class OptimizedQueries {
         )
         .get();
 
-    return {
-      for (final r in results)
-        r.read<String>('revenue_type'): r.read<double>('total'),
-    };
+    return {for (final r in results) r.read<String>('revenue_type'): r.read<double>('total')};
   }
 
   // ─── EXPENSES: Optimized queries ───
 
   /// Get monthly expense summary
-  Future<Map<String, double>> getMonthlyExpenseSummary(
-    int year,
-    int month,
-  ) async {
+  Future<Map<String, double>> getMonthlyExpenseSummary(int year, int month) async {
     final from = '$year-${month.toString().padLeft(2, '0')}-01';
     final to = '$year-${month.toString().padLeft(2, '0')}-31';
 
@@ -317,10 +282,7 @@ class OptimizedQueries {
         )
         .get();
 
-    return {
-      for (final r in results)
-        r.read<String>('expense_type'): r.read<double>('total'),
-    };
+    return {for (final r in results) r.read<String>('expense_type'): r.read<double>('total')};
   }
 
   // ─── UTILITIES ───

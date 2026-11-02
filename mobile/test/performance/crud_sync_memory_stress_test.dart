@@ -31,13 +31,9 @@ import 'package:marina_hotel_mobile/services/payment_session_context.dart';
 import 'package:marina_hotel_mobile/services/repositories/bookings_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/payments_repository.dart';
 
-const _runRemoteSync = bool.fromEnvironment(
-  'RUN_APPWRITE_SYNC_STRESS',
-  defaultValue: false,
-);
+const _runRemoteSync = bool.fromEnvironment('RUN_APPWRITE_SYNC_STRESS', defaultValue: false);
 
-String _isoForCycle(int cycle) =>
-    DateTime.utc(2026, 8, 20, 10, cycle).toIso8601String();
+String _isoForCycle(int cycle) => DateTime.utc(2026, 8, 20, 10, cycle).toIso8601String();
 
 void main() {
   test('five CRUD + Outbox/Appwrite sync cycles remain bounded', () async {
@@ -61,11 +57,7 @@ void main() {
       'user_type': 'admin',
       'permissions': const <String>['all'],
     });
-    PaymentSessionContext.start(
-      userId: 1,
-      userName: 'Stress Tester',
-      sessionUuid: 'stress-session-1',
-    );
+    PaymentSessionContext.start(userId: 1, userName: 'Stress Tester', sessionUuid: 'stress-session-1');
     addTearDown(() async {
       PaymentSessionContext.clear();
       await AuthLocalStore().clearSession();
@@ -75,10 +67,7 @@ void main() {
     if (_runRemoteSync) {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      syncManager = AppwriteSyncManager(
-        appwriteService: appwrite,
-        database: db,
-      );
+      syncManager = AppwriteSyncManager(appwriteService: appwrite, database: db);
     }
 
     final results = <Map<String, Object?>>[];
@@ -131,11 +120,7 @@ void main() {
       );
 
       final paymentDelete = await paymentsRepository.delete(paymentId);
-      final bookingCheckout = await bookingsRepository.update(
-        bookingId,
-        status: 'مغادر',
-        actualCheckout: timestamp,
-      );
+      final bookingCheckout = await bookingsRepository.update(bookingId, status: 'مغادر', actualCheckout: timestamp);
       final bookingDelete = await bookingsRepository.delete(bookingId);
 
       final pendingBeforeBatch = await outbox.countPendingPushable();
@@ -169,11 +154,7 @@ void main() {
           'batchSize': batch.length,
           'pendingAfterBatch': pendingAfterBatch,
         },
-        'remoteSync': {
-          'enabled': syncManager != null,
-          'recordsPushed': pushed,
-          'remotePullApplied': pulled,
-        },
+        'remoteSync': {'enabled': syncManager != null, 'recordsPushed': pushed, 'remotePullApplied': pulled},
         'rssBytes': ProcessInfo.currentRss,
       };
       results.add(result);

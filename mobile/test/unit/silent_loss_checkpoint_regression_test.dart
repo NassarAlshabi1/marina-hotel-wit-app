@@ -43,11 +43,7 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 
 const int _kBaseEpochSec = 1760000000;
 
-models.Document _bookingDoc({
-  required String uuid,
-  required String roomNumber,
-  required int lastModified,
-}) {
+models.Document _bookingDoc({required String uuid, required String roomNumber, required int lastModified}) {
   return models.Document(
     $id: uuid,
     $sequence: 0,
@@ -73,11 +69,7 @@ models.Document _bookingDoc({
   );
 }
 
-models.Document _noteDoc({
-  required String uuid,
-  required String bookingUuid,
-  required int lastModified,
-}) {
+models.Document _noteDoc({required String uuid, required String bookingUuid, required int lastModified}) {
   return models.Document(
     $id: uuid,
     $sequence: 0,
@@ -157,170 +149,125 @@ void main() {
     await db.delete(db.outbox).go();
   });
 
-  test(
-    'درع فقدان booking_notes الصامت (المسار B): تخطّي adapter بسبب أب مفقود '
-    'يُؤجَّل ثم يفشل المهمة — والملاحظة السليمة تطبَّق وتُشفى اليتيمة لاحقاً',
-    () async {
-      final manager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: db,
-      );
+  test('درع فقدان booking_notes الصامت (المسار B): تخطّي adapter بسبب أب مفقود '
+      'يُؤجَّل ثم يفشل المهمة — والملاحظة السليمة تطبَّق وتُشفى اليتيمة لاحقاً', () async {
+    final manager = AppwriteSyncManager(appwriteService: AppwriteService(), database: db);
 
-      // غرفة 211 + حجزها. الملاحظة اليتيمة تشير لحجز غير موجود.
-      await db.into(db.rooms).insert(
-            const RoomsCompanion(
-              roomNumber: d.Value('211'),
-              type: d.Value('عادية'),
-              price: d.Value(120.0),
-              status: d.Value('شاغرة'),
-              localUuid: d.Value('room-uuid-211'),
-              createdAt: d.Value(_kBaseEpochSec),
-              updatedAt: d.Value(_kBaseEpochSec),
-              lastModified: d.Value(_kBaseEpochSec),
-            ),
-          );
-      await manager.syncBookingsForTesting([
-        _bookingDoc(
-          uuid: 'booking-uuid-good',
-          roomNumber: '211',
-          lastModified: _kBaseEpochSec + 10,
-        ),
-      ]);
+    // غرفة 211 + حجزها. الملاحظة اليتيمة تشير لحجز غير موجود.
+    await db
+        .into(db.rooms)
+        .insert(
+          const RoomsCompanion(
+            roomNumber: d.Value('211'),
+            type: d.Value('عادية'),
+            price: d.Value(120.0),
+            status: d.Value('شاغرة'),
+            localUuid: d.Value('room-uuid-211'),
+            createdAt: d.Value(_kBaseEpochSec),
+            updatedAt: d.Value(_kBaseEpochSec),
+            lastModified: d.Value(_kBaseEpochSec),
+          ),
+        );
+    await manager.syncBookingsForTesting([
+      _bookingDoc(uuid: 'booking-uuid-good', roomNumber: '211', lastModified: _kBaseEpochSec + 10),
+    ]);
 
-      final goodNote = _noteDoc(
-        uuid: 'note-uuid-good',
-        bookingUuid: 'booking-uuid-good',
-        lastModified: _kBaseEpochSec + 20,
-      );
-      final orphanNote = _noteDoc(
-        uuid: 'note-uuid-orphan',
-        bookingUuid: 'booking-uuid-missing',
-        lastModified: _kBaseEpochSec + 30,
-      );
+    final goodNote = _noteDoc(
+      uuid: 'note-uuid-good',
+      bookingUuid: 'booking-uuid-good',
+      lastModified: _kBaseEpochSec + 20,
+    );
+    final orphanNote = _noteDoc(
+      uuid: 'note-uuid-orphan',
+      bookingUuid: 'booking-uuid-missing',
+      lastModified: _kBaseEpochSec + 30,
+    );
 
-      // ═══ الفصل A — المسار B: -1 من shouldSkip يُؤجَّل ثم يفشل المهمة ═══
-      await expectLater(
-        manager.syncBookingNotesForTesting([goodNote, orphanNote]),
-        throwsA(
-          isA<StateError>()
-              .having((e) => e.message, 'message', contains('booking_notes'))
-              .having(
-                (e) => e.message,
-                'message',
-                contains('checkpoint must not advance'),
-              ),
-        ),
-        reason:
-            'الملاحظة اليتيمة (حجز أب مفقود → BaseRepository.shouldSkip يرجع '
-            '-1) يجب أن تفشل المهمة كي يسجّلها المحرك في failedCollections '
-            'ولا يثبّت مؤشر booking_notes فوقها — قبل الإصلاح كانت القيمة '
-            '-1 تُتجاهل تماماً فتُفقد الملاحظة نهائياً بلا أي إشارة',
-      );
+    // ═══ الفصل A — المسار B: -1 من shouldSkip يُؤجَّل ثم يفشل المهمة ═══
+    await expectLater(
+      manager.syncBookingNotesForTesting([goodNote, orphanNote]),
+      throwsA(
+        isA<StateError>()
+            .having((e) => e.message, 'message', contains('booking_notes'))
+            .having((e) => e.message, 'message', contains('checkpoint must not advance')),
+      ),
+      reason:
+          'الملاحظة اليتيمة (حجز أب مفقود → BaseRepository.shouldSkip يرجع '
+          '-1) يجب أن تفشل المهمة كي يسجّلها المحرك في failedCollections '
+          'ولا يثبّت مؤشر booking_notes فوقها — قبل الإصلاح كانت القيمة '
+          '-1 تُتجاهل تماماً فتُفقد الملاحظة نهائياً بلا أي إشارة',
+    );
 
-      // التطبيق الجزئي محفوظ: السليمة وصلت رغم فشل زميلتها.
-      final goodRow = await _noteByUuid(db, 'note-uuid-good');
-      expect(
-        goodRow,
-        isNotNull,
-        reason: 'التطبيق الجزئي محفوظ: الملاحظة السليمة وصلت رغم فشل اليتيمة',
-      );
-      expect(goodRow!.bookingId, isNotNull);
+    // التطبيق الجزئي محفوظ: السليمة وصلت رغم فشل زميلتها.
+    final goodRow = await _noteByUuid(db, 'note-uuid-good');
+    expect(goodRow, isNotNull, reason: 'التطبيق الجزئي محفوظ: الملاحظة السليمة وصلت رغم فشل اليتيمة');
+    expect(goodRow!.bookingId, isNotNull);
 
-      // اليتيمة غير مدرَجة — لا صف نصف مكسور.
-      final orphanRow = await _noteByUuid(db, 'note-uuid-orphan');
-      expect(
-        orphanRow,
-        isNull,
-        reason: 'الملاحظة اليتيمة لم تُدرَج — ستصل كاملة عند وصول الحجز',
-      );
+    // اليتيمة غير مدرَجة — لا صف نصف مكسور.
+    final orphanRow = await _noteByUuid(db, 'note-uuid-orphan');
+    expect(orphanRow, isNull, reason: 'الملاحظة اليتيمة لم تُدرَج — ستصل كاملة عند وصول الحجز');
 
-      // ═══ الفصل B — الشفاء الذاتي: وصول الأب في دورة لاحقة ═══
-      await manager.syncBookingsForTesting([
-        _bookingDoc(
-          uuid: 'booking-uuid-missing',
-          roomNumber: '211',
-          lastModified: _kBaseEpochSec + 40,
-        ),
-      ]);
+    // ═══ الفصل B — الشفاء الذاتي: وصول الأب في دورة لاحقة ═══
+    await manager.syncBookingsForTesting([
+      _bookingDoc(uuid: 'booking-uuid-missing', roomNumber: '211', lastModified: _kBaseEpochSec + 40),
+    ]);
 
-      final processed = await manager.syncBookingNotesForTesting([
-        goodNote,
-        orphanNote,
-      ]);
-      expect(
-        processed,
-        greaterThanOrEqualTo(1),
-        reason: 'بعد وصول الحجز الأب، الدفعة تُطبَّق نظيفاً ولا يوجد رمي',
-      );
-      final orphanAfterHeal = await _noteByUuid(db, 'note-uuid-orphan');
-      expect(
-        orphanAfterHeal,
-        isNotNull,
-        reason:
-            'بعد وصول الحجز الأب، الملاحظة اليتيمة تُطبَّق — تصميم «لا يتقدم '
-            'المؤشر فوق الفشل» يُشفى ذاتياً ولا يعلّق المزامنة',
-      );
-    },
-  );
+    final processed = await manager.syncBookingNotesForTesting([goodNote, orphanNote]);
+    expect(processed, greaterThanOrEqualTo(1), reason: 'بعد وصول الحجز الأب، الدفعة تُطبَّق نظيفاً ولا يوجد رمي');
+    final orphanAfterHeal = await _noteByUuid(db, 'note-uuid-orphan');
+    expect(
+      orphanAfterHeal,
+      isNotNull,
+      reason:
+          'بعد وصول الحجز الأب، الملاحظة اليتيمة تُطبَّق — تصميم «لا يتقدم '
+          'المؤشر فوق الفشل» يُشفى ذاتياً ولا يعلّق المزامنة',
+    );
+  });
 
-  test(
-    'درع فقدان salary_cycles الصامت (المسار C): يتيم الموظف يفشل المهمة '
-    'ولا يُدرَج — وإعادة المحاولة ترمي ثانية بلا حالة عالقة',
-    () async {
-      // مُنشئ factory: نفس نسخة الاختبار الأول (قاعدة الملف المشتركة،
-      // لا تزال مفتوحة — انظر الترويسة).
-      final manager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: db,
-      );
+  test('درع فقدان salary_cycles الصامت (المسار C): يتيم الموظف يفشل المهمة '
+      'ولا يُدرَج — وإعادة المحاولة ترمي ثانية بلا حالة عالقة', () async {
+    // مُنشئ factory: نفس نسخة الاختبار الأول (قاعدة الملف المشتركة،
+    // لا تزال مفتوحة — انظر الترويسة).
+    final manager = AppwriteSyncManager(appwriteService: AppwriteService(), database: db);
 
-      // لا موظفين محلياً إطلاقاً — الدورة يتيمة حكماً.
-      final orphanCycle = _cycleDoc(
-        uuid: 'cycle-uuid-1',
-        employeeUuid: 'emp-uuid-missing',
-        employeeId: 9,
-        lastModified: _kBaseEpochSec + 10,
-      );
+    // لا موظفين محلياً إطلاقاً — الدورة يتيمة حكماً.
+    final orphanCycle = _cycleDoc(
+      uuid: 'cycle-uuid-1',
+      employeeUuid: 'emp-uuid-missing',
+      employeeId: 9,
+      lastModified: _kBaseEpochSec + 10,
+    );
 
-      await expectLater(
-        manager.syncSalaryCyclesForTesting([orphanCycle]),
-        throwsA(
-          isA<StateError>()
-              .having((e) => e.message, 'message', contains('salary_cycles'))
-              .having((e) => e.message, 'message', contains('orphan')),
-        ),
-        reason:
-            'دورة راتب يتيمة الموظف (لا طابور دائم لها بعكس '
-            'salary_withdrawals) يجب أن تفشل المهمة كي لا يتقدم مؤشرها '
-            'فوقها — قبل الإصلاح كانت تُتخطى بـ continue فيفقد السجل نهائياً',
-      );
+    await expectLater(
+      manager.syncSalaryCyclesForTesting([orphanCycle]),
+      throwsA(
+        isA<StateError>()
+            .having((e) => e.message, 'message', contains('salary_cycles'))
+            .having((e) => e.message, 'message', contains('orphan')),
+      ),
+      reason:
+          'دورة راتب يتيمة الموظف (لا طابور دائم لها بعكس '
+          'salary_withdrawals) يجب أن تفشل المهمة كي لا يتقدم مؤشرها '
+          'فوقها — قبل الإصلاح كانت تُتخطى بـ continue فيفقد السجل نهائياً',
+    );
 
-      expect(
-        await _cycleByUuid(db, 'cycle-uuid-1'),
-        isNull,
-        reason: 'الدورة اليتيمة لم تُدرَج — ستصل عند وصول الموظف',
-      );
+    expect(await _cycleByUuid(db, 'cycle-uuid-1'), isNull, reason: 'الدورة اليتيمة لم تُدرَج — ستصل عند وصول الموظف');
 
-      // إعادة الاستدعاء ترمي ثانية: لا حالة عالقة، والإعادة مضمونة كل دورة
-      // حتى يصل الموظف (upsert idempotent عند الشفاء).
-      await expectLater(
-        manager.syncSalaryCyclesForTesting([orphanCycle]),
-        throwsA(isA<StateError>()),
-        reason: 'إعادة المحاولة ترمي ثانية — العقد مستقر عبر الدورات',
-      );
-      expect(await _cycleByUuid(db, 'cycle-uuid-1'), isNull);
-    },
-  );
+    // إعادة الاستدعاء ترمي ثانية: لا حالة عالقة، والإعادة مضمونة كل دورة
+    // حتى يصل الموظف (upsert idempotent عند الشفاء).
+    await expectLater(
+      manager.syncSalaryCyclesForTesting([orphanCycle]),
+      throwsA(isA<StateError>()),
+      reason: 'إعادة المحاولة ترمي ثانية — العقد مستقر عبر الدورات',
+    );
+    expect(await _cycleByUuid(db, 'cycle-uuid-1'), isNull);
+  });
 }
 
 Future<BookingNote?> _noteByUuid(AppDatabase db, String uuid) {
-  return (db.select(
-    db.bookingNotes,
-  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
+  return (db.select(db.bookingNotes)..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
 }
 
 Future<SalaryCycle?> _cycleByUuid(AppDatabase db, String uuid) {
-  return (db.select(
-    db.salaryCycles,
-  )..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
+  return (db.select(db.salaryCycles)..where((t) => t.localUuid.equals(uuid))).getSingleOrNull();
 }

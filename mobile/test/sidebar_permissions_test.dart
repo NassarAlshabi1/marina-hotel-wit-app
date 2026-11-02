@@ -11,11 +11,7 @@ class FakeAuthNotifier extends AuthNotifier {
   @override
   Future<void> restoreSession() async {}
   @override
-  Future<void> login(
-    String username,
-    String password, {
-    bool rememberMe = false,
-  }) async {}
+  Future<void> login(String username, String password, {bool rememberMe = false}) async {}
   @override
   Future<void> logout() async {}
 }
@@ -24,31 +20,20 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('إخفاء عنصر الغرف بدون صلاحية rooms', (tester) async {
-    const user = AuthUser(
-      id: 2,
-      username: 'm',
-      fullName: 'محمد',
-      userType: 'supervisor',
-      permissions: ['dashboard'],
-    );
+    const user = AuthUser(id: 2, username: 'm', fullName: 'محمد', userType: 'supervisor', permissions: ['dashboard']);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           authProvider.overrideWith(
-            (ref) => FakeAuthNotifier(
-              const AuthState(isAuthenticated: true, currentUser: user),
-            ),
+            (ref) => FakeAuthNotifier(const AuthState(isAuthenticated: true, currentUser: user)),
           ),
         ],
         child: const Directionality(
           textDirection: TextDirection.rtl,
           child: MaterialApp(
             home: Scaffold(
-              body: AdminSidebar(
-                currentRoute: '/dashboard',
-                onRouteSelected: _noop,
-              ),
+              body: AdminSidebar(currentRoute: '/dashboard', onRouteSelected: _noop),
             ),
           ),
         ),

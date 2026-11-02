@@ -25,20 +25,14 @@ void main() {
     });
 
     test('يُحوّل الحقول غير المعروفة باستخدام camelToSnake', () {
-      expect(
-        FieldMapper.toPhpField('rooms', 'unknownFieldName'),
-        'unknown_field_name',
-      );
+      expect(FieldMapper.toPhpField('rooms', 'unknownFieldName'), 'unknown_field_name');
       expect(FieldMapper.toPhpField('rooms', 'guestName'), 'guest_name');
     });
 
     test('يُحوّل حقول bookings', () {
       expect(FieldMapper.toPhpField('bookings', 'guestName'), 'guest_name');
       expect(FieldMapper.toPhpField('bookings', 'checkinDate'), 'checkin_date');
-      expect(
-        FieldMapper.toPhpField('bookings', 'actualCheckout'),
-        'actual_checkout',
-      );
+      expect(FieldMapper.toPhpField('bookings', 'actualCheckout'), 'actual_checkout');
     });
   });
 
@@ -50,10 +44,7 @@ void main() {
     });
 
     test('يُحوّل الحقول غير المعروفة باستخدام snakeToCamel', () {
-      expect(
-        FieldMapper.toFlutterField('rooms', 'unknown_field_name'),
-        'unknownFieldName',
-      );
+      expect(FieldMapper.toFlutterField('rooms', 'unknown_field_name'), 'unknownFieldName');
     });
   });
 
@@ -75,10 +66,7 @@ void main() {
     });
 
     test('يُحوّل bool إلى int (0/1)', () {
-      final flutter = <String, dynamic>{
-        'requiresMaintenance': true,
-        'isActive': false,
-      };
+      final flutter = <String, dynamic>{'requiresMaintenance': true, 'isActive': false};
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
 
@@ -136,11 +124,7 @@ void main() {
 
   group('toFlutterMap', () {
     test('يُحوّل خريطة PHP إلى Flutter', () {
-      final php = <String, dynamic>{
-        'local_uuid': 'abc-123',
-        'room_number': '101',
-        'price': 15000,
-      };
+      final php = <String, dynamic>{'local_uuid': 'abc-123', 'room_number': '101', 'price': 15000};
 
       final flutter = FieldMapper.toFlutterMap('rooms', php);
 
@@ -198,31 +182,19 @@ void main() {
 
   group('prepareForInsert', () {
     test('يُزيل local_uuid افتراضياً', () {
-      final flutter = <String, dynamic>{
-        'localUuid': 'abc-123',
-        'roomNumber': '101',
-        'serverId': 5,
-      };
+      final flutter = <String, dynamic>{'localUuid': 'abc-123', 'roomNumber': '101', 'serverId': 5};
 
       final php = FieldMapper.prepareForInsert('rooms', flutter);
 
       expect(php.containsKey('local_uuid'), isFalse);
-      expect(
-        php.containsKey('id'),
-        isFalse,
-        reason: 'includeId=false افتراضياً',
-      );
+      expect(php.containsKey('id'), isFalse, reason: 'includeId=false افتراضياً');
       expect(php['room_number'], '101');
     });
 
     test('يُبقي id عند includeId=true', () {
       final flutter = <String, dynamic>{'localUuid': 'abc-123', 'serverId': 5};
 
-      final php = FieldMapper.prepareForInsert(
-        'rooms',
-        flutter,
-        includeId: true,
-      );
+      final php = FieldMapper.prepareForInsert('rooms', flutter, includeId: true);
 
       expect(php['id'], 5);
       expect(php.containsKey('local_uuid'), isFalse);
@@ -261,12 +233,7 @@ void main() {
 
   group('validateRequiredFields', () {
     test('يُرجع قائمة فارغة عندما تكون جميع الحقول موجودة', () {
-      final php = <String, dynamic>{
-        'room_number': '101',
-        'type': 'عادية',
-        'price': 15000,
-        'status': 'شاغرة',
-      };
+      final php = <String, dynamic>{'room_number': '101', 'type': 'عادية', 'price': 15000, 'status': 'شاغرة'};
 
       final missing = FieldMapper.validateRequiredFields('rooms', php);
       expect(missing, isEmpty);
@@ -287,12 +254,7 @@ void main() {
     });
 
     test('يُرجع الحقول null كـ missing', () {
-      final php = <String, dynamic>{
-        'room_number': '101',
-        'type': null,
-        'price': 15000,
-        'status': 'شاغرة',
-      };
+      final php = <String, dynamic>{'room_number': '101', 'type': null, 'price': 15000, 'status': 'شاغرة'};
 
       final missing = FieldMapper.validateRequiredFields('rooms', php);
       expect(missing, contains('type'));

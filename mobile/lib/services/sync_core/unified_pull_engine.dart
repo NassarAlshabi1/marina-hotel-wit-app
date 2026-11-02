@@ -76,12 +76,10 @@ class PullRunResult {
 }
 
 /// مراقب اختياري لكل مهمة (للمقاييس والتسجيل).
-typedef UnifiedPullTaskObserver =
-    void Function(String name, int elapsedMs, bool success);
+typedef UnifiedPullTaskObserver = void Function(String name, int elapsedMs, bool success);
 
 /// مراقب أخطاء اختياري لكل مهمة.
-typedef UnifiedPullTaskErrorHandler =
-    Future<void> Function(String name, Object error, StackTrace stackTrace);
+typedef UnifiedPullTaskErrorHandler = Future<void> Function(String name, Object error, StackTrace stackTrace);
 
 /// ✅ Unified Pull Engine (2026-08-31) — مسار السحب الوحيد في التطبيق.
 ///
@@ -127,11 +125,8 @@ typedef UnifiedPullTaskErrorHandler =
 ///     الأجهزة الضعيفة / yield للأجهزة القوية) تمنع تجويع حلقة الأحداث
 ///     واضطراب الواجهة أثناء سحب طويل.
 class UnifiedPullEngine {
-  UnifiedPullEngine({
-    required this.checkpoints,
-    required this.pullService,
-    AppwriteLogger? logger,
-  }) : _logger = logger ?? AppwriteLogger();
+  UnifiedPullEngine({required this.checkpoints, required this.pullService, AppwriteLogger? logger})
+    : _logger = logger ?? AppwriteLogger();
 
   final SyncCheckpointStore checkpoints;
   final SyncPullService pullService;
@@ -165,9 +160,7 @@ class UnifiedPullEngine {
         collectionName: collectionName,
         isFullSync: true,
         queries: SyncPullService.buildFullSyncQueries(
-          includeTombstones: SyncPullService.entityNeedsTombstoneParents(
-            collectionName,
-          ),
+          includeTombstones: SyncPullService.entityNeedsTombstoneParents(collectionName),
         ),
         sinceTs: 0,
       );
@@ -185,11 +178,7 @@ class UnifiedPullEngine {
   /// ملاحظة: إذا لم تُرجع المجموعة مستندات (maxTs = null) والمؤشر الحالي 0،
   /// لا نُثبّت شيئاً — المجموعة الفارغة تبقى في وضع Full (استعلام رخيص)
   /// حتى تظهر أول مستندات حقيقية، تفادياً لانحراف ساعات الأجهزة.
-  Future<void> commit(
-    String collectionName, {
-    required int? maxUpdatedAtSec,
-    required int sinceTs,
-  }) async {
+  Future<void> commit(String collectionName, {required int? maxUpdatedAtSec, required int sinceTs}) async {
     if (maxUpdatedAtSec != null) {
       await checkpoints.setLastPullTs(collectionName, maxUpdatedAtSec);
       return;
@@ -246,20 +235,14 @@ class UnifiedPullEngine {
         // الظلّ هنا (final plan = await plan(...)) يجعل الاستدعاء يشير
         // إلى المتغير نفسه قبل تهيئته (referenced_before_declaration).
         final pullPlan = await plan(task.name);
-        if (pullPlan.isFullSync &&
-            task.streamFullSync &&
-            task.fetchPage != null) {
+        if (pullPlan.isFullSync && task.streamFullSync && task.fetchPage != null) {
           // ✅ مسار تدفقي قابل للاستئناف (بلا سقف، ذاكرة صفحة واحدة).
           recordsPulled += await _runStreamingFullPull(task, pullPlan);
         } else {
           // المسار الكلاسيكي — Full أحادي الطلب أو Delta.
           final docs = await task.fetch(pullPlan);
           recordsPulled += await task.apply(docs);
-          await commit(
-            task.name,
-            maxUpdatedAtSec: maxUpdatedAtOf(docs),
-            sinceTs: pullPlan.sinceTs,
-          );
+          await commit(task.name, maxUpdatedAtSec: maxUpdatedAtOf(docs), sinceTs: pullPlan.sinceTs);
         }
         success = true;
         if (task.critical) {
@@ -301,10 +284,7 @@ class UnifiedPullEngine {
       }
     }
 
-    return PullRunResult(
-      recordsPulled: recordsPulled,
-      failedCollections: failed,
-    );
+    return PullRunResult(recordsPulled: recordsPulled, failedCollections: failed);
   }
 
   /// ✅ Resumable Full Sync (2026-09-21): سحب كامل تدفقي بلا سقف.
@@ -320,10 +300,7 @@ class UnifiedPullEngine {
   /// **المجموعة الفارغة** (أول صفحة فارغة ولم يُسحب شيء): نمسح حالة التقدم
   /// فقط ونُبقي المجموعة في وضع Full — نفس دلالات [commit] الكلاسيكية
   /// (استعلام فارغ رخيص في كل دورة حتى تظهر أول مستندات).
-  Future<int> _runStreamingFullPull(
-    CollectionPullTask task,
-    CollectionPullPlan plan,
-  ) async {
+  Future<int> _runStreamingFullPull(CollectionPullTask task, CollectionPullPlan plan) async {
     var cursor = await checkpoints.getFullSyncCursor(task.name);
     var totalApplied = 0;
     var pages = 0;
@@ -350,10 +327,7 @@ class UnifiedPullEngine {
         final maxUpdated = await checkpoints.getFullSyncMaxUpdated(task.name);
         if (maxUpdated > 0) {
           // سحبنا صفحات سابقة (صفحة كاملة أخيرة بالضبط) → اكتمل فعلياً.
-          await checkpoints.completeFullSync(
-            task.name,
-            maxUpdatedSec: maxUpdated,
-          );
+          await checkpoints.completeFullSync(task.name, maxUpdatedSec: maxUpdated);
         } else {
           // مجموعة فارغة من البداية → وضع Full رخيص (كما في commit).
           await checkpoints.clearFullSyncProgress(task.name);
@@ -377,21 +351,14 @@ class UnifiedPullEngine {
       // صفحة ناقصة = الأخيرة → اكتمال.
       if (docs.length < fullSyncPageSize) {
         final maxUpdated = await checkpoints.getFullSyncMaxUpdated(task.name);
-        await checkpoints.completeFullSync(
-          task.name,
-          maxUpdatedSec: maxUpdated,
-        );
+        await checkpoints.completeFullSync(task.name, maxUpdatedSec: maxUpdated);
         break;
       }
 
       // ✅ تنفّس للأجهزة الضعيفة: مهلة قصيرة بين الصفحات تسمح لحلقة
       // الأحداث بمعالجة أحداث الواجهة (فريمات/لمسات) أثناء سحب طويل،
       // وتقلل ضغط الذاكرة/الشبكة المتتالي على الجهاز.
-      await Future<void>.delayed(
-        weakDevice
-            ? const Duration(milliseconds: 250)
-            : const Duration(milliseconds: 0),
-      );
+      await Future<void>.delayed(weakDevice ? const Duration(milliseconds: 250) : const Duration(milliseconds: 0));
     }
 
     return totalApplied;

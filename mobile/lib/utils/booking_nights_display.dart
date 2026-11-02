@@ -44,8 +44,7 @@ class BookingNightsDisplay {
     DateTime? now,
   }) {
     final moment = now ?? DateTime.now();
-    final bool activeStay =
-        actualCheckout == null && StatusUtils.isActiveBooking(status);
+    final bool activeStay = actualCheckout == null && StatusUtils.isActiveBooking(status);
 
     // ─── الليالي المتوقعة ───
     final int expectedNights;
@@ -59,10 +58,7 @@ class BookingNightsDisplay {
     } else {
       // لا قيمة محفوظة ولا مخطط: نهاية الإقامة المعروفة — المخطط أولاً
       // وإلا المغادرة الفعلية المسجّلة (كانت قبل الإصلاح تتراكم حتى «الآن»).
-      expectedNights = Time.nightsWithCutoff(
-        checkin,
-        checkout: plannedCheckout ?? actualCheckout,
-      );
+      expectedNights = Time.nightsWithCutoff(checkin, checkout: plannedCheckout ?? actualCheckout);
     }
 
     // ─── نهاية الإقامة للليالي الفعلية (سياسة مصدر الحقيقة نفسها) ───

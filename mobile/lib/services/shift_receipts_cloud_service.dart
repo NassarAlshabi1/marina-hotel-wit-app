@@ -19,32 +19,23 @@ import 'appwrite_service.dart';
 import 'repositories/payments_repository.dart';
 
 /// دالة سحب مستندات من مجموعة Appwrite — نقطة الحقن للاختبارات.
-typedef PaymentDocsFetcher =
-    Future<List<models.Document>> Function(
-      String collectionId,
-      List<String> queries,
-    );
+typedef PaymentDocsFetcher = Future<List<models.Document>> Function(String collectionId, List<String> queries);
 
 /// خدمة تجميع استلامات النوبات من السحابة — قراءة فقط.
 class ShiftReceiptsCloudService {
   /// إنشاء الخدمة بدالة سحب مخصصة (يسمح بحقن بديل في الاختبارات).
-  ShiftReceiptsCloudService({required PaymentDocsFetcher fetcher})
-    : _fetcher = fetcher;
+  ShiftReceiptsCloudService({required PaymentDocsFetcher fetcher}) : _fetcher = fetcher;
 
   final PaymentDocsFetcher _fetcher;
 
   /// غلاف جاهز يستخدم [AppwriteService.listAllDocuments] بلا ذاكرة مؤقتة
   /// (مع دعم الـ failover التلقائي إلى المشروع الثانوي إن كان مفعلاً).
   static PaymentDocsFetcher fetcherOf(AppwriteService service) =>
-      (collectionId, queries) => service.listAllDocuments(
-        collectionId: collectionId,
-        queries: queries,
-        useCache: false,
-      );
+      (collectionId, queries) =>
+          service.listAllDocuments(collectionId: collectionId, queries: queries, useCache: false);
 
   /// يرجع استعلام اليوم الفندقي المُمرر للسحابة — فصلٌ للاختبار.
-  static String hotelDayQuery(String hotelDayKey) =>
-      Query.equal('hotelDayKey', [hotelDayKey]);
+  static String hotelDayQuery(String hotelDayKey) => Query.equal('hotelDayKey', [hotelDayKey]);
 
   /// يسحب دفعات اليوم الفندقي [hotelDayKey] من السحابة ويجمعها حسب
   /// المستخدم مستثنياً المستخدم الحالي (يُعرض استلامه في بطاقة
@@ -57,14 +48,8 @@ class ShiftReceiptsCloudService {
     String? excludedUserName,
     String? excludedUserCloudId,
   }) async {
-    final docs = await _fetcher(AppwriteConfig.paymentsCollectionId, [
-      hotelDayQuery(hotelDayKey),
-    ]);
-    return aggregatePayments(
-      docs,
-      excludedUserName: excludedUserName,
-      excludedUserCloudId: excludedUserCloudId,
-    );
+    final docs = await _fetcher(AppwriteConfig.paymentsCollectionId, [hotelDayQuery(hotelDayKey)]);
+    return aggregatePayments(docs, excludedUserName: excludedUserName, excludedUserCloudId: excludedUserCloudId);
   }
 
   /// تجميع مستندات دفعات سحابية إلى ملخصات — سطر واحد لكل مستخدم
@@ -94,33 +79,21 @@ class ShiftReceiptsCloudService {
       if (_asBool(_value(data, 'isPendingBalance', 'is_pending_balance'))) {
         continue;
       }
-      final rawName = (_value(data, 'receivedByName', 'received_by_name') ?? '')
-          .toString()
-          .trim();
-      final cloudId =
-          (_value(data, 'receivedByCloudId', 'received_by_cloud_id') ?? '')
-              .toString();
+      final rawName = (_value(data, 'receivedByName', 'received_by_name') ?? '').toString().trim();
+      final cloudId = (_value(data, 'receivedByCloudId', 'received_by_cloud_id') ?? '').toString();
       if (rawName.isEmpty && cloudId.isEmpty) {
         continue;
       }
 
       // استثناء المستخدم الحالي (بطاقته تُعرض في قسم آخر).
-      if (excludedUserCloudId != null &&
-          excludedUserCloudId.isNotEmpty &&
-          cloudId == excludedUserCloudId) {
+      if (excludedUserCloudId != null && excludedUserCloudId.isNotEmpty && cloudId == excludedUserCloudId) {
         continue;
       }
-      if (excludedUserName != null &&
-          excludedUserName.isNotEmpty &&
-          rawName == excludedUserName) {
+      if (excludedUserName != null && excludedUserName.isNotEmpty && rawName == excludedUserName) {
         continue;
       }
 
-      final userId =
-          _asNum(
-            _value(data, 'receivedByUserId', 'received_by_user_id'),
-          )?.toInt() ??
-          0;
+      final userId = _asNum(_value(data, 'receivedByUserId', 'received_by_user_id'))?.toInt() ?? 0;
       final amount = _asNum(_value(data, 'amount', 'amount'))?.toDouble() ?? 0;
 
       // مفتاح التجميع مطابق لـ GROUP BY المحلي: مستخدم واحد = سطر واحد
@@ -150,11 +123,8 @@ class ShiftReceiptsCloudService {
     return summaries;
   }
 
-  static dynamic _value(
-    Map<String, dynamic> data,
-    String primary,
-    String alternate,
-  ) => data[primary] ?? data[alternate];
+  static dynamic _value(Map<String, dynamic> data, String primary, String alternate) =>
+      data[primary] ?? data[alternate];
 
   static num? _asNum(dynamic value) {
     if (value is num) return value;

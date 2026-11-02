@@ -24,26 +24,17 @@ class CsvExportResult {
 /// تصدير مجموعة واحدة يحددها المستخدم من Appwrite Cloud إلى ملف CSV.
 /// القراءة من السحابة فقط؛ لا تُنشأ أو تُعدّل أي بيانات عن بُعد.
 class AppwriteCsvExportService {
-  AppwriteCsvExportService({required CollectionFetcher fetcher})
-    : _fetcher = fetcher;
+  AppwriteCsvExportService({required CollectionFetcher fetcher}) : _fetcher = fetcher;
 
   final CollectionFetcher _fetcher;
 
   static CollectionFetcher fetcherOf(AppwriteService service) =>
-      (collectionId) =>
-          service.listAllDocuments(collectionId: collectionId, useCache: false);
+      (collectionId) => service.listAllDocuments(collectionId: collectionId, useCache: false);
 
-  Future<CsvExportResult> exportCollection({
-    required String collectionId,
-    required String targetPath,
-  }) async {
+  Future<CsvExportResult> exportCollection({required String collectionId, required String targetPath}) async {
     final label = kExportableCollections[collectionId];
     if (label == null) {
-      throw ArgumentError.value(
-        collectionId,
-        'collectionId',
-        'المجموعة غير متاحة للتصدير',
-      );
+      throw ArgumentError.value(collectionId, 'collectionId', 'المجموعة غير متاحة للتصدير');
     }
 
     final List<models.Document> documents = await _fetcher(collectionId);

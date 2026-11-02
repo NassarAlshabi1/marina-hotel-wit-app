@@ -17,8 +17,7 @@ import 'appwrite_logger.dart';
 class AppwriteNetworkHelper {
   factory AppwriteNetworkHelper() => _instance;
   AppwriteNetworkHelper._internal();
-  static final AppwriteNetworkHelper _instance =
-      AppwriteNetworkHelper._internal();
+  static final AppwriteNetworkHelper _instance = AppwriteNetworkHelper._internal();
 
   final _logger = AppwriteLogger();
 
@@ -103,8 +102,7 @@ class AppwriteNetworkHelper {
       // 2) احترام التأخير الأدنى بين الطلبات
       // ✅ إصلاح سباق: نحجز فتحة الطلب التالية بشكل متزامن *قبل* الـ await.
       final now = DateTime.now();
-      final scheduledTime =
-          _lastRequestTime.add(_minRequestInterval).isAfter(now)
+      final scheduledTime = _lastRequestTime.add(_minRequestInterval).isAfter(now)
           ? _lastRequestTime.add(_minRequestInterval)
           : now;
       _lastRequestTime = scheduledTime;
@@ -136,10 +134,7 @@ class AppwriteNetworkHelper {
     _consecutiveRateLimitHits++;
     if (_consecutiveRateLimitHits >= _circuitBreakerThreshold) {
       // ✅ progressive cooldown: 60s → 120s → 300s → 600s
-      final cooldownIndex = _circuitBreakerActivationCount.clamp(
-        0,
-        _progressiveCooldowns.length - 1,
-      );
+      final cooldownIndex = _circuitBreakerActivationCount.clamp(0, _progressiveCooldowns.length - 1);
       final cooldown = _progressiveCooldowns[cooldownIndex];
       _circuitBreakerActivationCount++;
       _circuitBreakerUntil = DateTime.now().add(cooldown);
@@ -172,8 +167,7 @@ class AppwriteNetworkHelper {
   }) async {
     final retries = maxRetries ?? AppwriteConfig.maxRetries;
     final delay = initialDelay ?? AppwriteConfig.initialRetryDelay;
-    final multiplier =
-        backoffMultiplier ?? AppwriteConfig.retryBackoffMultiplier;
+    final multiplier = backoffMultiplier ?? AppwriteConfig.retryBackoffMultiplier;
     final opName = operationName ?? 'Operation';
 
     int attempt = 0;
@@ -197,8 +191,7 @@ class AppwriteNetworkHelper {
           // ✅ الـ breaker مُفعّل — انتظر حتى انتهاء cooldown دون زيادة العداد.
           // لا نستهلك محاولة (attempt لا تزيد).
           attempt--;
-          final remaining =
-              circuitBreakerRemaining ?? const Duration(seconds: 60);
+          final remaining = circuitBreakerRemaining ?? const Duration(seconds: 60);
           _logger.warning(
             '$opName - Circuit breaker active, waiting ${remaining.inSeconds}s '
             'before retry (attempt not consumed).',
@@ -214,11 +207,7 @@ class AppwriteNetworkHelper {
 
           // عند الوصول للحد الأقصى من المحاولات، ارفع الخطأ
           if (attempt >= retries) {
-            _logger.error(
-              '$opName - Max retries ($retries) reached on rate limit (429)',
-              error: e,
-              tag: 'RATE_LIMIT',
-            );
+            _logger.error('$opName - Max retries ($retries) reached on rate limit (429)', error: e, tag: 'RATE_LIMIT');
             rethrow;
           }
 
@@ -251,21 +240,14 @@ class AppwriteNetworkHelper {
           if (!suppressErrorLog) {
             _logger.warning('$opName - Non-retriable error: $e', tag: 'RETRY');
           } else {
-            _logger.debug(
-              '$opName - Expected non-retriable error (suppressed): $e',
-              tag: 'RETRY',
-            );
+            _logger.debug('$opName - Expected non-retriable error (suppressed): $e', tag: 'RETRY');
           }
           rethrow;
         }
 
         // إذا وصلنا للحد الأقصى من المحاولات
         if (attempt >= retries) {
-          _logger.error(
-            '$opName - Max retries ($retries) reached',
-            error: e,
-            tag: 'RETRY',
-          );
+          _logger.error('$opName - Max retries ($retries) reached', error: e, tag: 'RETRY');
           rethrow;
         }
 
@@ -277,9 +259,7 @@ class AppwriteNetworkHelper {
         );
 
         await Future<void>.delayed(waitTime);
-        currentDelay = Duration(
-          milliseconds: (currentDelay.inMilliseconds * multiplier).round(),
-        );
+        currentDelay = Duration(milliseconds: (currentDelay.inMilliseconds * multiplier).round());
       }
     }
   }
@@ -301,21 +281,13 @@ class AppwriteNetworkHelper {
     final opName = operationName ?? 'Operation';
 
     try {
-      _logger.debug(
-        '$opName - Starting with ${maxDuration.inSeconds}s timeout',
-        tag: 'TIMEOUT',
-      );
+      _logger.debug('$opName - Starting with ${maxDuration.inSeconds}s timeout', tag: 'TIMEOUT');
 
       return await operation().timeout(
         maxDuration,
         onTimeout: () {
-          _logger.error(
-            '$opName - Timeout after ${maxDuration.inSeconds}s',
-            tag: 'TIMEOUT',
-          );
-          throw TimeoutException(
-            '$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)',
-          );
+          _logger.error('$opName - Timeout after ${maxDuration.inSeconds}s', tag: 'TIMEOUT');
+          throw TimeoutException('$opName تجاوز الوقت المحدد (${maxDuration.inSeconds} ثانية)');
         },
       );
     } catch (e) {
@@ -328,10 +300,7 @@ class AppwriteNetworkHelper {
       if (!suppressErrorLog) {
         _logger.error('$opName - Failed: $e', error: e, tag: 'TIMEOUT');
       } else {
-        _logger.debug(
-          '$opName - Expected error (suppressed): $e',
-          tag: 'TIMEOUT',
-        );
+        _logger.debug('$opName - Expected error (suppressed): $e', tag: 'TIMEOUT');
       }
       rethrow;
     }
@@ -380,11 +349,7 @@ class AppwriteNetworkHelper {
     // ملاحظة: 429 (rate_limit) مستثنى من هذا الفلتر لأنه قابل للحل بالانتظار.
     if (error is AppwriteException) {
       final code = error.code;
-      if (code != null &&
-          code >= 400 &&
-          code < 500 &&
-          code != 408 &&
-          code != 429) {
+      if (code != null && code >= 400 && code < 500 && code != 408 && code != 429) {
         return false;
       }
       // فحص نوع الخطأ لأنواع Appwrite المعروفة غير القابلة لإعادة المحاولة
@@ -434,15 +399,12 @@ class AppwriteNetworkHelper {
     if (error is AppwriteException) {
       if (error.code == 429) return true;
       final type = (error.type ?? '').toLowerCase();
-      if (type.contains('rate_limit') ||
-          type.contains('general_rate_limit_exceeded')) {
+      if (type.contains('rate_limit') || type.contains('general_rate_limit_exceeded')) {
         return true;
       }
     }
     final errorStr = error.toString().toLowerCase();
-    return errorStr.contains('rate_limit_exceeded') ||
-        errorStr.contains('rate limit') ||
-        errorStr.contains('429');
+    return errorStr.contains('rate_limit_exceeded') || errorStr.contains('rate limit') || errorStr.contains('429');
   }
 
   /// يستخرج قيمة Retry-After من رسالة خطأ Appwrite (إن وُجدت).
@@ -489,12 +451,7 @@ class AppwriteNetworkHelper {
   /// [baseDelay] - التأخير الأساسي
   /// [multiplier] - معامل التضاعف
   /// [addJitter] - إضافة تذبذب عشوائي (يساعد في تقليل التصادمات)
-  Duration calculateBackoff({
-    required int attempt,
-    Duration? baseDelay,
-    double? multiplier,
-    bool addJitter = true,
-  }) {
+  Duration calculateBackoff({required int attempt, Duration? baseDelay, double? multiplier, bool addJitter = true}) {
     final base = baseDelay ?? AppwriteConfig.initialRetryDelay;
     final mult = multiplier ?? AppwriteConfig.retryBackoffMultiplier;
 
@@ -503,10 +460,7 @@ class AppwriteNetworkHelper {
 
     // إضافة jitter (تذبذب عشوائي بين 0-20%)
     if (addJitter) {
-      final jitter =
-          exponentialDelay *
-          0.2 *
-          (0.5 + (DateTime.now().millisecond % 100) / 100);
+      final jitter = exponentialDelay * 0.2 * (0.5 + (DateTime.now().millisecond % 100) / 100);
       return Duration(milliseconds: (exponentialDelay + jitter).round());
     }
 
@@ -557,12 +511,10 @@ class AppwriteNetworkHelper {
   bool isRetriableErrorForTest(dynamic error) => _isRetriableError(error);
 
   @visibleForTesting
-  bool isCircuitBreakerErrorForTest(dynamic error) =>
-      _isCircuitBreakerActive(error);
+  bool isCircuitBreakerErrorForTest(dynamic error) => _isCircuitBreakerActive(error);
 
   @visibleForTesting
-  Duration? extractRetryAfterForTest(dynamic error) =>
-      _extractRetryAfter(error);
+  Duration? extractRetryAfterForTest(dynamic error) => _extractRetryAfter(error);
 
   /// عدد أخطاء 429 المتتالية الحالية (للاختبار/المراقبة).
   @visibleForTesting

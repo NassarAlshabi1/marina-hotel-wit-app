@@ -93,9 +93,7 @@ class PaymentsReportPdf {
         fromDate: data.fromDate,
         toDate: data.toDate,
         compactHeader: true,
-        extraHeaderLine: selectedRoomLabel.isNotEmpty
-            ? 'الغرفة: $selectedRoomLabel'
-            : null,
+        extraHeaderLine: selectedRoomLabel.isNotEmpty ? 'الغرفة: $selectedRoomLabel' : null,
         buildContent: (fonts) => [
           pw.SizedBox(height: 8),
           pw.Text('تفاصيل المدفوعات', style: PdfTextStyles.sectionTitle(fonts)),
@@ -114,14 +112,7 @@ class PaymentsReportPdf {
     );
   }
 
-  static const List<String> _headers = [
-    'رقم الحجز',
-    'اسم النزيل',
-    'الغرفة',
-    'طريقة الدفع',
-    'التاريخ',
-    'المبلغ',
-  ];
+  static const List<String> _headers = ['رقم الحجز', 'اسم النزيل', 'الغرفة', 'طريقة الدفع', 'التاريخ', 'المبلغ'];
 
   /// توزيع FlexColumnWidth مناسب لحجم 12 عريض في ورقة A4.
   static const List<double> _columnFlex = [
@@ -155,13 +146,8 @@ class PaymentsReportPdf {
   }
 
   /// بطاقة إجماليات مضغوطة لصفحة A4 — من نظام التصميم الموحّد.
-  static pw.Widget _buildCompactTotalsCard(
-    ArabicPdfFonts fonts,
-    PaymentsReportData data,
-  ) {
-    final remainingColor = data.totalRemaining > 0
-        ? PdfColors.danger
-        : PdfColors.success;
+  static pw.Widget _buildCompactTotalsCard(ArabicPdfFonts fonts, PaymentsReportData data) {
+    final remainingColor = data.totalRemaining > 0 ? PdfColors.danger : PdfColors.success;
 
     return pw.Container(
       width: double.infinity,
@@ -181,21 +167,11 @@ class PaymentsReportPdf {
                 children: [
                   pw.Text(
                     'إجمالي المدفوعات: ',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 10.5,
-                      color: PdfColors.textDark,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: PdfColors.textDark),
                   ),
                   pw.Text(
-                    EnhancedPdfUtils.formatNumber(
-                      data.totalRoomPaid + data.totalOtherPaid,
-                    ),
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 13,
-                      color: PdfColors.secondary,
-                    ),
+                    EnhancedPdfUtils.formatNumber(data.totalRoomPaid + data.totalOtherPaid),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.secondary),
                   ),
                 ],
               ),
@@ -203,19 +179,11 @@ class PaymentsReportPdf {
                 children: [
                   pw.Text(
                     'المبلغ المتبقي: ',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 10.5,
-                      color: PdfColors.textDark,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: PdfColors.textDark),
                   ),
                   pw.Text(
                     EnhancedPdfUtils.formatNumber(data.totalRemaining),
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 13,
-                      color: remainingColor,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: remainingColor),
                   ),
                 ],
               ),
@@ -228,19 +196,11 @@ class PaymentsReportPdf {
               children: [
                 pw.Text(
                   'إجمالي المستحق على النزلاء: ',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 10.5,
-                    color: PdfColors.textDark,
-                  ),
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: PdfColors.textDark),
                 ),
                 pw.Text(
                   EnhancedPdfUtils.formatNumber(data.totalDue),
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 13,
-                    color: PdfColors.info,
-                  ),
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: PdfColors.info),
                 ),
               ],
             ),

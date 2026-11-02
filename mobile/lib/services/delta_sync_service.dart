@@ -39,11 +39,7 @@ class DeltaSyncChange {
 }
 
 class DeltaSyncComputation {
-  DeltaSyncComputation({
-    required this.changes,
-    required this.mirrorSnapshot,
-    required this.fallbackTables,
-  });
+  DeltaSyncComputation({required this.changes, required this.mirrorSnapshot, required this.fallbackTables});
 
   final List<DeltaSyncChange> changes;
   final Map<String, Map<String, MirrorRow>> mirrorSnapshot;
@@ -61,9 +57,7 @@ class DeltaSyncService {
   bool _mirrorTableReady = false;
 
   Future<DeltaSyncComputation> compute({int? since}) async {
-    final state = await (db.select(
-      db.syncState,
-    )..where((t) => t.id.equals(1))).getSingleOrNull();
+    final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
     final baseSince = since ?? state?.lastPushTs ?? 0;
     final normalizedSince = _normalizeTimestamp(baseSince);
     final previousMirror = await _loadMirror();
@@ -77,10 +71,7 @@ class DeltaSyncService {
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
         fallbackTables.add(config.entity);
-        dlog(
-          () =>
-              '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
-        );
+        dlog(() => '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
       }
 
       final rowDataList = <_EntityRowData>[];
@@ -98,13 +89,7 @@ class DeltaSyncService {
         );
       }
 
-      entityInputs.add(
-        _DeltaSyncEntityInput(
-          entity: config.entity,
-          rows: rowDataList,
-          hasMirror: hasMirror,
-        ),
-      );
+      entityInputs.add(_DeltaSyncEntityInput(entity: config.entity, rows: rowDataList, hasMirror: hasMirror));
     }
 
     final isolateInput = _DeltaSyncIsolateInput(
@@ -115,9 +100,7 @@ class DeltaSyncService {
       fallbackTables: fallbackTables,
     );
 
-    final output = await Isolate.run(
-      () => _computeDeltaSyncInIsolate(isolateInput),
-    );
+    final output = await Isolate.run(() => _computeDeltaSyncInIsolate(isolateInput));
 
     final changes = output.changes
         .map(
@@ -145,10 +128,7 @@ class DeltaSyncService {
     return computation;
   }
 
-  Future<void> persistMirror(
-    DeltaSyncComputation computation, {
-    bool useExistingTransaction = false,
-  }) async {
+  Future<void> persistMirror(DeltaSyncComputation computation, {bool useExistingTransaction = false}) async {
     final snapshot = computation.mirrorSnapshot;
     await _ensureMirrorTable();
     if (useExistingTransaction) {
@@ -160,24 +140,14 @@ class DeltaSyncService {
     }
   }
 
-  Future<void> _persistMirrorSnapshot(
-    Map<String, Map<String, MirrorRow>> snapshot,
-  ) async {
+  Future<void> _persistMirrorSnapshot(Map<String, Map<String, MirrorRow>> snapshot) async {
     for (final entry in snapshot.entries) {
       final table = entry.key;
-      await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [
-        table,
-      ]);
+      await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [table]);
       for (final row in entry.value.values) {
         await db.customStatement(
           'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
-          [
-            table,
-            row.localUuid,
-            row.rowHash,
-            jsonEncode(row.payload),
-            row.lastSeenAt,
-          ],
+          [table, row.localUuid, row.rowHash, jsonEncode(row.payload), row.lastSeenAt],
         );
       }
     }
@@ -196,16 +166,13 @@ class DeltaSyncService {
   Future<Map<String, Map<String, MirrorRow>>> _loadMirror() async {
     await _ensureMirrorTable();
     final rows = await db
-        .customSelect(
-          'SELECT table_name, local_uuid, row_hash, payload, last_seen_at FROM sync_mirror',
-        )
+        .customSelect('SELECT table_name, local_uuid, row_hash, payload, last_seen_at FROM sync_mirror')
         .get();
     final result = <String, Map<String, MirrorRow>>{};
     for (final row in rows) {
       final table = row.read<String>('table_name');
       final uuid = row.read<String>('local_uuid');
-      final payload =
-          jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
+      final payload = jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
       result.putIfAbsent(table, () => {})[uuid] = MirrorRow(
         localUuid: uuid,
         rowHash: row.read<String>('row_hash'),
@@ -261,11 +228,7 @@ class DeltaSyncService {
       }
     }
 
-    return MirrorValidationResult(
-      isValid: issues.isEmpty,
-      issues: issues,
-      validatedAt: DateTime.now(),
-    );
+    return MirrorValidationResult(isValid: issues.isEmpty, issues: issues, validatedAt: DateTime.now());
   }
 
   /// إصلاح Mirror تلقائياً إذا كان غير متسق
@@ -304,9 +267,7 @@ class DeltaSyncService {
             [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
-        dlog(
-          () => '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
-        );
+        dlog(() => '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)');
       } catch (e) {
         dlog(() => '❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
@@ -373,8 +334,7 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.inventoryTransactions).get(),
         localUuid: (dynamic row) => (row as InventoryTransaction).localUuid,
         createdAt: (dynamic row) => (row as InventoryTransaction).createdAt,
-        lastModified: (dynamic row) =>
-            (row as InventoryTransaction).lastModified,
+        lastModified: (dynamic row) => (row as InventoryTransaction).lastModified,
         deletedAt: (dynamic row) => (row as InventoryTransaction).deletedAt,
         toJson: (dynamic row) => (row as InventoryTransaction).toJson(),
       ),
@@ -510,8 +470,7 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
         localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
         createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
-        lastModified: (dynamic row) =>
-            (row as BookingPriceAdjustment).lastModified,
+        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
       ),
@@ -520,12 +479,7 @@ class DeltaSyncService {
 }
 
 class MirrorRow {
-  MirrorRow({
-    required this.localUuid,
-    required this.rowHash,
-    required this.payload,
-    required this.lastSeenAt,
-  });
+  MirrorRow({required this.localUuid, required this.rowHash, required this.payload, required this.lastSeenAt});
 
   final String localUuid;
   final String rowHash;
@@ -586,11 +540,7 @@ class _DeltaSyncIsolateInput {
 }
 
 class _DeltaSyncEntityInput {
-  const _DeltaSyncEntityInput({
-    required this.entity,
-    required this.rows,
-    required this.hasMirror,
-  });
+  const _DeltaSyncEntityInput({required this.entity, required this.rows, required this.hasMirror});
 
   final String entity;
   final List<_EntityRowData> rows;
@@ -598,18 +548,13 @@ class _DeltaSyncEntityInput {
 }
 
 class _DeltaSyncIsolateOutput {
-  const _DeltaSyncIsolateOutput({
-    required this.changes,
-    required this.mirrorSnapshot,
-  });
+  const _DeltaSyncIsolateOutput({required this.changes, required this.mirrorSnapshot});
 
   final List<Map<String, dynamic>> changes;
   final Map<String, Map<String, MirrorRow>> mirrorSnapshot;
 }
 
-_DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
-  _DeltaSyncIsolateInput input,
-) {
+_DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(_DeltaSyncIsolateInput input) {
   final changes = <DeltaSyncChange>[];
   final snapshot = <String, Map<String, MirrorRow>>{};
 
@@ -649,13 +594,9 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       } else {
         final isFirstSyncForTable = !hasMirror;
         final isNewRecordInMirror = previous == null;
-        final createdAfterLastSync =
-            createdAt != null && createdAt > input.normalizedSince;
+        final createdAfterLastSync = createdAt != null && createdAt > input.normalizedSince;
 
-        final shouldInsert =
-            isFirstSyncForTable ||
-            (hasMirror && isNewRecordInMirror) ||
-            createdAfterLastSync;
+        final shouldInsert = isFirstSyncForTable || (hasMirror && isNewRecordInMirror) || createdAfterLastSync;
 
         if (shouldInsert) {
           changes.add(
@@ -668,9 +609,7 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
               clientTimestamp: clientTs,
             ),
           );
-        } else if (previous != null &&
-            lastModified != null &&
-            lastModified > input.normalizedSince) {
+        } else if (previous != null && lastModified != null && lastModified > input.normalizedSince) {
           changes.add(
             DeltaSyncChange(
               entity: entityData.entity,
@@ -693,9 +632,7 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       seen.add(localUuid);
     }
 
-    final missing = existingMirror.keys
-        .where((uuid) => !seen.contains(uuid))
-        .toList();
+    final missing = existingMirror.keys.where((uuid) => !seen.contains(uuid)).toList();
     for (final uuid in missing) {
       final previous = existingMirror[uuid];
       if (previous == null) continue;
@@ -719,8 +656,7 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       //   - تم إرسال الـ delete ضمن دورة سابقة
       //   - الخادم يعرف عنه
       //   - لا حاجة لإعادة الإرسال
-      final shouldEmit =
-          previousDeletedAt == null || deleteStamp > input.normalizedSince;
+      final shouldEmit = previousDeletedAt == null || deleteStamp > input.normalizedSince;
       if (shouldEmit) {
         payload['deleted_at'] = deleteStamp;
         payload['row_hash'] = previous.rowHash;
@@ -746,10 +682,7 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
     snapshot[entityData.entity] = tableSnapshot;
   }
 
-  return _DeltaSyncIsolateOutput(
-    changes: changes.map((c) => c.toMap()).toList(),
-    mirrorSnapshot: snapshot,
-  );
+  return _DeltaSyncIsolateOutput(changes: changes.map((c) => c.toMap()).toList(), mirrorSnapshot: snapshot);
 }
 
 int _normalizeTimestamp(int value) {
@@ -839,10 +772,7 @@ Map<String, dynamic> _sortedMap(Map<String, dynamic> source) {
 }
 
 String _toSnakeCase(String input) {
-  final snake = input.replaceAllMapped(
-    RegExp('([a-z0-9])([A-Z])'),
-    (match) => '${match.group(1)}_${match.group(2)}',
-  );
+  final snake = input.replaceAllMapped(RegExp('([a-z0-9])([A-Z])'), (match) => '${match.group(1)}_${match.group(2)}');
   return snake.replaceAll('-', '_').toLowerCase();
 }
 

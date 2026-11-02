@@ -14,11 +14,10 @@ final autoSyncEngineStateProvider = StreamProvider<AutoSyncEngineState>((ref) {
   return engine.stateStream;
 });
 
-final unifiedSyncCoordinatorProvider =
-    Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
-      ref.keepAlive();
-      return GoogleDriveUnifiedSyncCoordinator.instance;
-    });
+final unifiedSyncCoordinatorProvider = Provider<GoogleDriveUnifiedSyncCoordinator>((ref) {
+  ref.keepAlive();
+  return GoogleDriveUnifiedSyncCoordinator.instance;
+});
 
 final syncResultsStreamProvider = StreamProvider<SyncResult>((ref) {
   final coordinator = ref.watch(unifiedSyncCoordinatorProvider);
@@ -30,29 +29,22 @@ final conflictResolverProvider = Provider<GoogleDriveConflictResolver>((ref) {
   return GoogleDriveConflictResolver.instance;
 });
 
-final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((
-  ref,
-) async {
+final autoSyncEngineStatusProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final engine = ref.watch(autoSyncEngineProvider);
   return engine.getEngineStatus();
 });
 
-final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((
-  ref,
-) async {
+final conflictStatisticsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final resolver = ref.watch(conflictResolverProvider);
   return resolver.getConflictStatistics();
 });
 
-final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
-  ref,
-) async {
+final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final resolver = ref.watch(conflictResolverProvider);
   return resolver.getConflictHistory(limit: 50);
 });
 
-class AutoSyncEngineController
-    extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
+class AutoSyncEngineController extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
   AutoSyncEngineController(this.engine) : super(const AsyncValue.loading()) {
     _loadStatus();
   }
@@ -104,10 +96,7 @@ class AutoSyncEngineController
 }
 
 final autoSyncEngineControllerProvider =
-    StateNotifierProvider<
-      AutoSyncEngineController,
-      AsyncValue<Map<String, dynamic>>
-    >((ref) {
+    StateNotifierProvider<AutoSyncEngineController, AsyncValue<Map<String, dynamic>>>((ref) {
       final engine = ref.watch(autoSyncEngineProvider);
       return AutoSyncEngineController(engine);
     });
@@ -128,20 +117,12 @@ final hasPendingChangesProvider = Provider<bool>((ref) {
 
 final pendingChangesCountProvider = Provider<int>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
-  return engineState.when(
-    data: (state) => state.pendingChangesCount,
-    loading: () => 0,
-    error: (_, __) => 0,
-  );
+  return engineState.when(data: (state) => state.pendingChangesCount, loading: () => 0, error: (_, __) => 0);
 });
 
 final lastSyncTimeProvider = Provider<DateTime?>((ref) {
   final engineState = ref.watch(autoSyncEngineStateProvider);
-  return engineState.when(
-    data: (state) => state.lastSuccessfulSync,
-    loading: () => null,
-    error: (_, __) => null,
-  );
+  return engineState.when(data: (state) => state.lastSuccessfulSync, loading: () => null, error: (_, __) => null);
 });
 
 /// ✅ إصلاح: إعادة تسمية من syncHealthProvider لتجنب التعارض مع

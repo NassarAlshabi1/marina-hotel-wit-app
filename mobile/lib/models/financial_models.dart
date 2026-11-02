@@ -1,11 +1,5 @@
 class AppliedAdjustment {
-  const AppliedAdjustment({
-    required this.uuid,
-    required this.type,
-    required this.amount,
-    this.reason,
-    this.appliedBy,
-  });
+  const AppliedAdjustment({required this.uuid, required this.type, required this.amount, this.reason, this.appliedBy});
 
   factory AppliedAdjustment.fromJson(Map<String, dynamic> json) {
     return AppliedAdjustment(
@@ -52,11 +46,7 @@ class NightlyBreakdown {
       finalRate: (json['finalRate'] as num?)?.toInt() ?? 0,
       appliedAdjustments:
           (json['appliedAdjustments'] as List<dynamic>?)
-              ?.map(
-                (e) => AppliedAdjustment.fromJson(
-                  Map<String, dynamic>.from(e as Map),
-                ),
-              )
+              ?.map((e) => AppliedAdjustment.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           [],
     );

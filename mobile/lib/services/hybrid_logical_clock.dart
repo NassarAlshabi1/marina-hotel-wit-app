@@ -3,11 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Hybrid Logical Clock (HLC) - يجمع بين Physical Time و Logical Counter
 /// يحل مشكلة اختلاف أوقات الأجهزة
 class HybridLogicalClock {
-  HybridLogicalClock._({
-    required this.physicalTime,
-    required this.logicalCounter,
-    required this.deviceId,
-  });
+  HybridLogicalClock._({required this.physicalTime, required this.logicalCounter, required this.deviceId});
 
   final int physicalTime;
   final int logicalCounter;
@@ -45,11 +41,7 @@ class HybridLogicalClock {
     final newPhysical = now > physicalTime ? now : physicalTime;
     final newLogical = now > physicalTime ? 0 : logicalCounter + 1;
 
-    final newClock = HybridLogicalClock._(
-      physicalTime: newPhysical,
-      logicalCounter: newLogical,
-      deviceId: deviceId,
-    );
+    final newClock = HybridLogicalClock._(physicalTime: newPhysical, logicalCounter: newLogical, deviceId: deviceId);
 
     await _persist(newPhysical, newLogical);
     _instance = newClock;
@@ -73,11 +65,7 @@ class HybridLogicalClock {
       newLogical = 0;
     }
 
-    final newClock = HybridLogicalClock._(
-      physicalTime: newPhysical,
-      logicalCounter: newLogical,
-      deviceId: deviceId,
-    );
+    final newClock = HybridLogicalClock._(physicalTime: newPhysical, logicalCounter: newLogical, deviceId: deviceId);
 
     await _persist(newPhysical, newLogical);
     _instance = newClock;

@@ -121,9 +121,7 @@ void main() {
       expect(bookings.first.guestName, 'أحمد محمد');
 
       // 2) التحقق من وجود الدفعة
-      final payments = await paymentsDao
-          .watchList(bookingLocalId: bookings.first.id)
-          .first;
+      final payments = await paymentsDao.watchList(bookingLocalId: bookings.first.id).first;
       expect(payments.length, 1);
       expect(payments.first.amount, 150.0);
 
@@ -140,10 +138,7 @@ void main() {
       // 4) تحرير الغرفة
       final room = await roomsDao.getByNumber('101');
       expect(room, isNotNull);
-      await roomsDao.updateById(
-        room!.id,
-        const RoomsCompanion(status: d.Value('شاغرة')),
-      );
+      await roomsDao.updateById(room!.id, const RoomsCompanion(status: d.Value('شاغرة')));
 
       // 5) التحقق النهائي
       final updatedBooking = await bookingsDao.getById(bookings.first.id);
@@ -155,11 +150,7 @@ void main() {
 
       // 6) التحقق من إنشاء outbox entries للـ sync
       final outboxCount = await outboxDao.countPendingPushable();
-      expect(
-        outboxCount,
-        greaterThan(0),
-        reason: 'كل عملية CRUD يجب أن تُنشئ outbox entry',
-      );
+      expect(outboxCount, greaterThan(0), reason: 'كل عملية CRUD يجب أن تُنشئ outbox entry');
     });
   });
 
@@ -190,11 +181,7 @@ void main() {
 
       // 2) التحقق من إنشاء outbox entry
       final pendingCount = await outboxDao.countPendingPushable();
-      expect(
-        pendingCount,
-        greaterThan(0),
-        reason: 'إضافة مصروف يجب أن تُنشئ outbox entry',
-      );
+      expect(pendingCount, greaterThan(0), reason: 'إضافة مصروف يجب أن تُنشئ outbox entry');
 
       // 3) محاكاة push — takeBatch
       final batch = await outboxDao.takeBatch(50);
@@ -207,11 +194,7 @@ void main() {
 
       // 5) التحقق من عدم وجود entries معلّقة
       final remainingPending = await outboxDao.countPendingPushable();
-      expect(
-        remainingPending,
-        0,
-        reason: 'بعد markCompleted يجب ألا تكون هناك entries معلّقة',
-      );
+      expect(remainingPending, 0, reason: 'بعد markCompleted يجب ألا تكون هناك entries معلّقة');
     });
   });
 
@@ -279,50 +262,30 @@ void main() {
         ),
       );
       final afterCreate = await outboxDao.countPendingPushable();
-      expect(
-        afterCreate,
-        greaterThan(initialPending),
-        reason: 'الإنشاء يجب أن يُنشئ outbox entry',
-      );
+      expect(afterCreate, greaterThan(initialPending), reason: 'الإنشاء يجب أن يُنشئ outbox entry');
 
       // 2) تعديل
       await expensesDao.updateById(
         expenseId,
-        const ExpensesCompanion(
-          description: d.Value('مصروف مُعدّل'),
-          amount: d.Value(200.0),
-        ),
+        const ExpensesCompanion(description: d.Value('مصروف مُعدّل'), amount: d.Value(200.0)),
       );
       final afterUpdate = await outboxDao.countPendingPushable();
       // Outbox coalescing updates the pending row for the same localUuid;
       // it does not create a second row for every mutation.
-      expect(
-        afterUpdate,
-        greaterThanOrEqualTo(afterCreate),
-        reason: 'التعديل يجب أن يبقي outbox entry قابلاً للرفع',
-      );
+      expect(afterUpdate, greaterThanOrEqualTo(afterCreate), reason: 'التعديل يجب أن يبقي outbox entry قابلاً للرفع');
 
       // 3) حذف
       await expensesDao.softDelete(expenseId);
       final afterDelete = await outboxDao.countPendingPushable();
-      expect(
-        afterDelete,
-        greaterThanOrEqualTo(afterUpdate),
-        reason: 'الحذف يجب أن يبقي outbox entry قابلاً للرفع',
-      );
-      expect(
-        afterDelete,
-        greaterThan(initialPending),
-        reason: 'يجب أن يبقى سجل المصروف في outbox بعد coalescing',
-      );
+      expect(afterDelete, greaterThanOrEqualTo(afterUpdate), reason: 'الحذف يجب أن يبقي outbox entry قابلاً للرفع');
+      expect(afterDelete, greaterThan(initialPending), reason: 'يجب أن يبقى سجل المصروف في outbox بعد coalescing');
 
       // 4) التحقق من بقاء سجل coalesced واحد على الأقل
       final totalCreated = afterDelete - initialPending;
       expect(
         totalCreated,
         greaterThanOrEqualTo(1),
-        reason:
-            'create + update + delete يجب أن تُبقي outbox entry قابلاً للرفع',
+        reason: 'create + update + delete يجب أن تُبقي outbox entry قابلاً للرفع',
       );
     });
   });

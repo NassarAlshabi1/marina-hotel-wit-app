@@ -146,8 +146,7 @@ raw_sqlite.Database _openObserver(String path) {
 }
 
 int _observerNightCount(raw_sqlite.Database observer) =>
-    observer.select('SELECT COUNT(*) FROM booking_nights').first.values.first
-        as int;
+    observer.select('SELECT COUNT(*) FROM booking_nights').first.values.first as int;
 
 /// هل يمكن لكاتب خارجي انتزاع write-lock الآن؟ (عقد «الواجهة غير مجمدة»)
 bool _externalWriterCanAcquireWriteLock(raw_sqlite.Database observer) {
@@ -164,120 +163,110 @@ bool _externalWriterCanAcquireWriteLock(raw_sqlite.Database observer) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-    'درع CouldNotRollBack: صفحات السحب تُثبَّت بمعاملتها الخاصة (والبنية القديمة تُكشف)',
-    () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      final tmpDir = await Directory.systemTemp.createTemp('pull_commit_vis');
-      addTearDown(() async {
-        try {
-          await tmpDir.delete(recursive: true);
-        } catch (_) {
-          // أفضل-جهد — أنظمة CI المختلفة قد تبقي مقابض مؤقتة.
-        }
-      });
+  test('درع CouldNotRollBack: صفحات السحب تُثبَّت بمعاملتها الخاصة (والبنية القديمة تُكشف)', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final tmpDir = await Directory.systemTemp.createTemp('pull_commit_vis');
+    addTearDown(() async {
+      try {
+        await tmpDir.delete(recursive: true);
+      } catch (_) {
+        // أفضل-جهد — أنظمة CI المختلفة قد تبقي مقابض مؤقتة.
+      }
+    });
 
-      // قاعدة ملف حقيقية (WAL من beforeOpen الإنتاجي) — شرط أساسي لرؤية
-      // اتصال خارجي لما ثُبِّت وما لم يُثبَّت بعد.
-      final dbPath = '${tmpDir.path}/app.db';
-      final db = AppDatabase.forTesting(NativeDatabase(File(dbPath)));
-      addTearDown(db.close);
-      AdapterRegistry.initialize(db);
-      await _seedParents(db);
+    // قاعدة ملف حقيقية (WAL من beforeOpen الإنتاجي) — شرط أساسي لرؤية
+    // اتصال خارجي لما ثُبِّت وما لم يُثبَّت بعد.
+    final dbPath = '${tmpDir.path}/app.db';
+    final db = AppDatabase.forTesting(NativeDatabase(File(dbPath)));
+    addTearDown(db.close);
+    AdapterRegistry.initialize(db);
+    await _seedParents(db);
 
-      // المدير الحقيقي (مُنشئ factory بلا شبكة — تعيينات حقول فقط،
-      // كما تم التحقق في scale harness).
-      final manager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: db,
-      );
+    // المدير الحقيقي (مُنشئ factory بلا شبكة — تعيينات حقول فقط،
+    // كما تم التحقق في scale harness).
+    final manager = AppwriteSyncManager(appwriteService: AppwriteService(), database: db);
 
-      final observer = _openObserver(dbPath);
-      addTearDown(observer.close);
+    final observer = _openObserver(dbPath);
+    addTearDown(observer.close);
 
-      final docs = List<models.Document>.generate(_kTotalNights, _nightDoc);
+    final docs = List<models.Document>.generate(_kTotalNights, _nightDoc);
 
-      // ═══════════════════════════════════════════════════════════════
-      // الفصل 1 — العقد A+B للبنية الحالية (بين الصفحتين 1 و 2)
-      // ═══════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // الفصل 1 — العقد A+B للبنية الحالية (بين الصفحتين 1 و 2)
+    // ═══════════════════════════════════════════════════════════════
 
-      // الصفحة 1 — كما يقدّمها المحرك التدفقي (apply لكل صفحة).
-      final applied1 = await manager.applyBookingNightsForTesting(
-        docs.take(_kPageSize).toList(growable: false),
-      );
-      expect(applied1, _kPageSize);
+    // الصفحة 1 — كما يقدّمها المحرك التدفقي (apply لكل صفحة).
+    final applied1 = await manager.applyBookingNightsForTesting(docs.take(_kPageSize).toList(growable: false));
+    expect(applied1, _kPageSize);
 
-      // ⬇️ نقطة الفحص: «بين الصفحتين» — الدورة لم تنتهِ بعد.
+    // ⬇️ نقطة الفحص: «بين الصفحتين» — الدورة لم تنتهِ بعد.
+    expect(
+      _observerNightCount(observer),
+      _kPageSize,
+      reason:
+          'العقد A: صفحة 1 مُثبَّتة (committed) بمعاملتها الخاصة '
+          'ومرئية لاتصال خارجي فوراً. لو أُعيد غلاف database.transaction '
+          'القديم حول دورة السحب لرأى القارئ 0 هنا (يثبته الفصل 3) — '
+          'وهي مقدمة انهيار «COMMIT: no transaction is active»',
+    );
+    expect(
+      _externalWriterCanAcquireWriteLock(observer),
+      isTrue,
+      reason:
+          'العقد B: write-lock غير محتجزة بين الصفحات — الكتابات '
+          'المحلية (حجز/دفعة/مصروف من الواجهة) لا تتجمد أثناء سحب قد '
+          'يستغرق دقائق على شبكة ضعيفة',
+    );
+
+    // الصفحة 2 — تُثبَّت بدورها بمعاملتها الخاصة.
+    final applied2 = await manager.applyBookingNightsForTesting(
+      docs.skip(_kPageSize).take(_kPageSize).toList(growable: false),
+    );
+    expect(applied2, _kPageSize);
+    expect(_observerNightCount(observer), _kPageSize * 2);
+
+    // ═══════════════════════════════════════════════════════════════
+    // الفصل 2 — العقد A+B بعد الصفحة الثانية (نفس الاستدلال)
+    // ═══════════════════════════════════════════════════════════════
+    expect(
+      _externalWriterCanAcquireWriteLock(observer),
+      isTrue,
+      reason:
+          'العقد B بعد عدة صفحات: لا write-lock متراكمة — كل دفعة '
+          'db.batch (250) تُغلق معاملتها عند نهايتها',
+    );
+
+    // ═══════════════════════════════════════════════════════════════
+    // الفصل 3 — التحكم السلبي: البنية القديمة (transaction واحدة تلف
+    // عدة صفحات) تُكشف بنفس المنهجية — إثبات أن الحارس أعلاه قاطع.
+    // ═══════════════════════════════════════════════════════════════
+
+    // الصفحة 3 (docs 200..299) داخل معاملة ممتدة — إعادة إنتاج عمدية
+    // لنمط pre-21ab42cb.
+    await db.transaction(() async {
+      final applied3 = await manager.applyBookingNightsForTesting(docs.skip(_kPageSize * 2).toList(growable: false));
+      expect(applied3, _kPageSize);
+
       expect(
         _observerNightCount(observer),
-        _kPageSize,
+        _kPageSize * 2,
         reason:
-            'العقد A: صفحة 1 مُثبَّتة (committed) بمعاملتها الخاصة '
-            'ومرئية لاتصال خارجي فوراً. لو أُعيد غلاف database.transaction '
-            'القديم حول دورة السحب لرأى القارئ 0 هنا (يثبته الفصل 3) — '
-            'وهي مقدمة انهيار «COMMIT: no transaction is active»',
+            'داخل معاملة ممتدة: كتابات الصفحة 3 غير مرئية للخارج '
+            '(uncommitted) — لو ارتد غلاف السحب إلى هذه البنية لفشل '
+            'فحص العقد A في الفصل 1 عند هذه النقطة بالضبط',
       );
       expect(
         _externalWriterCanAcquireWriteLock(observer),
-        isTrue,
+        isFalse,
         reason:
-            'العقد B: write-lock غير محتجزة بين الصفحات — الكتابات '
-            'المحلية (حجز/دفعة/مصروف من الواجهة) لا تتجمد أثناء سحب قد '
-            'يستغرق دقائق على شبكة ضعيفة',
+            'write-lock محتجزة داخل معاملة ممتدة — هذا هو تجميد '
+            'الواجهة الذي أزاله 21ab42cb',
       );
+    });
 
-      // الصفحة 2 — تُثبَّت بدورها بمعاملتها الخاصة.
-      final applied2 = await manager.applyBookingNightsForTesting(
-        docs.skip(_kPageSize).take(_kPageSize).toList(growable: false),
-      );
-      expect(applied2, _kPageSize);
-      expect(_observerNightCount(observer), _kPageSize * 2);
-
-      // ═══════════════════════════════════════════════════════════════
-      // الفصل 2 — العقد A+B بعد الصفحة الثانية (نفس الاستدلال)
-      // ═══════════════════════════════════════════════════════════════
-      expect(
-        _externalWriterCanAcquireWriteLock(observer),
-        isTrue,
-        reason:
-            'العقد B بعد عدة صفحات: لا write-lock متراكمة — كل دفعة '
-            'db.batch (250) تُغلق معاملتها عند نهايتها',
-      );
-
-      // ═══════════════════════════════════════════════════════════════
-      // الفصل 3 — التحكم السلبي: البنية القديمة (transaction واحدة تلف
-      // عدة صفحات) تُكشف بنفس المنهجية — إثبات أن الحارس أعلاه قاطع.
-      // ═══════════════════════════════════════════════════════════════
-
-      // الصفحة 3 (docs 200..299) داخل معاملة ممتدة — إعادة إنتاج عمدية
-      // لنمط pre-21ab42cb.
-      await db.transaction(() async {
-        final applied3 = await manager.applyBookingNightsForTesting(
-          docs.skip(_kPageSize * 2).toList(growable: false),
-        );
-        expect(applied3, _kPageSize);
-
-        expect(
-          _observerNightCount(observer),
-          _kPageSize * 2,
-          reason:
-              'داخل معاملة ممتدة: كتابات الصفحة 3 غير مرئية للخارج '
-              '(uncommitted) — لو ارتد غلاف السحب إلى هذه البنية لفشل '
-              'فحص العقد A في الفصل 1 عند هذه النقطة بالضبط',
-        );
-        expect(
-          _externalWriterCanAcquireWriteLock(observer),
-          isFalse,
-          reason:
-              'write-lock محتجزة داخل معاملة ممتدة — هذا هو تجميد '
-              'الواجهة الذي أزاله 21ab42cb',
-        );
-      });
-
-      // بعد COMMIT: الكل يصبح مرئياً — هذا ما كانت البنية القديمة تصل
-      // إليه «ناجحاً»؛ انهيار الإنتاج حدث حين تنتهي المعاملة صامتاً
-      // (خطأ كشف صف) فيفشل COMMIT بـ «no transaction is active».
-      expect(_observerNightCount(observer), _kTotalNights);
-    },
-  );
+    // بعد COMMIT: الكل يصبح مرئياً — هذا ما كانت البنية القديمة تصل
+    // إليه «ناجحاً»؛ انهيار الإنتاج حدث حين تنتهي المعاملة صامتاً
+    // (خطأ كشف صف) فيفشل COMMIT بـ «no transaction is active».
+    expect(_observerNightCount(observer), _kTotalNights);
+  });
 }

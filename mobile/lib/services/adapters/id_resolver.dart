@@ -36,11 +36,7 @@ class IdResolver {
     // selectOnly + addColumns: نحمّل 3 أعمدة فقط (uuid/serverId/id) — لا
     // صفوف كاملة — استعلام واحد مهما كان حجم الدفعة اللاحقة.
     final query = db.selectOnly(db.bookings)
-      ..addColumns([
-        db.bookings.localUuid,
-        db.bookings.serverBookingId,
-        db.bookings.id,
-      ]);
+      ..addColumns([db.bookings.localUuid, db.bookings.serverBookingId, db.bookings.id]);
     final rows = await query.get();
     final exact = <String, int>{};
     final normalized = <String, int>{};
@@ -95,12 +91,7 @@ class IdResolver {
     return uuid.replaceAll('-', '');
   }
 
-  Future<int?> resolveBooking({
-    int? localId,
-    int? serverId,
-    String? uuid,
-    bool fromRemote = false,
-  }) async {
+  Future<int?> resolveBooking({int? localId, int? serverId, String? uuid, bool fromRemote = false}) async {
     // ✅ مسار الفهرس (O(1)): نفس ترتيب الأولويات كمسار SQL بالضبط —
     // exact uuid → normalized → stripped → serverId → (localId محلي فقط).
     // أولوية putIfAbsent أعلاه = أول مطابقة (id أصغر) — مطابق لسلوك
@@ -279,10 +270,7 @@ class IdResolver {
           await (db.select(db.employees)
                 ..where((e) => e.serverId.equals(serverId))
                 ..orderBy([
-                  (e) => d.OrderingTerm(
-                    expression: e.deletedAt,
-                    mode: d.OrderingMode.asc,
-                  ),
+                  (e) => d.OrderingTerm(expression: e.deletedAt, mode: d.OrderingMode.asc),
                   (e) => d.OrderingTerm(expression: e.id),
                 ]))
               .get();
@@ -336,12 +324,7 @@ class IdResolver {
   /// ✅ إصلاح (2026-09-02) — نفس دلالات [resolveEmployee]: UUID → serverId →
   /// (id المحلي فقط للمصدر المحلي). salary_payments يخزّن في payload
   /// cycleId = id الدورة على جهاز المصدر = serverId للدورة بعد سحبها.
-  Future<int?> resolveSalaryCycle({
-    int? localId,
-    int? serverId,
-    String? uuid,
-    bool fromRemote = false,
-  }) async {
+  Future<int?> resolveSalaryCycle({int? localId, int? serverId, String? uuid, bool fromRemote = false}) async {
     // البحث بالـ UUID أولاً
     if (uuid != null && uuid.isNotEmpty) {
       // 1a) مطابقة تامة
@@ -384,10 +367,7 @@ class IdResolver {
           await (db.select(db.salaryCycles)
                 ..where((c) => c.serverId.equals(serverId))
                 ..orderBy([
-                  (c) => d.OrderingTerm(
-                    expression: c.deletedAt,
-                    mode: d.OrderingMode.asc,
-                  ),
+                  (c) => d.OrderingTerm(expression: c.deletedAt, mode: d.OrderingMode.asc),
                   (c) => d.OrderingTerm(expression: c.id),
                 ]))
               .get();

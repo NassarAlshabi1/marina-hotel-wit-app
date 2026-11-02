@@ -13,10 +13,7 @@ void main() {
 
       final serialized = payload['vectorClock'];
       expect(serialized, isA<String>());
-      expect(
-        jsonDecode(serialized as String),
-        equals(<String, dynamic>{'device-a': 3, 'device-b': 1}),
-      );
+      expect(jsonDecode(serialized as String), equals(<String, dynamic>{'device-a': 3, 'device-b': 1}));
       expect(serialized, isNot(contains('_Map')));
     });
 
@@ -26,25 +23,18 @@ void main() {
         'vectorClock': '{"device-a":3}',
       });
 
-      expect(
-        jsonDecode(payload['notes'] as String),
-        equals(<String>['وصول متأخر', 'سرير إضافي']),
-      );
+      expect(jsonDecode(payload['notes'] as String), equals(<String>['وصول متأخر', 'سرير إضافي']));
       expect(payload['vectorClock'], '{"device-a":3}');
     });
 
     test('يستبدل vectorClock التالف بساعة فارغة آمنة', () {
       expect(AppwriteSyncUtils.normalizeVectorClock('device-a:3'), '{}');
-      expect(
-        AppwriteSyncUtils.normalizeVectorClock(<String>['not-a-clock']),
-        '{}',
-      );
+      expect(AppwriteSyncUtils.normalizeVectorClock(<String>['not-a-clock']), '{}');
     });
 
     test('لا يرسل vectorClock أطول من حد Appwrite', () {
       final oversized = <String, int>{
-        for (var index = 0; index < 180; index++)
-          'device-${index.toString().padLeft(3, '0')}-aaaaaaaa': index,
+        for (var index = 0; index < 180; index++) 'device-${index.toString().padLeft(3, '0')}-aaaaaaaa': index,
       };
 
       expect(AppwriteSyncUtils.normalizeVectorClock(oversized), '{}');
@@ -52,13 +42,12 @@ void main() {
 
     test('يُرسل createdAt في shift_notes كعدد صحيح مطابق للمخطط', () {
       const epoch = 1723603472;
-      final payload =
-          AppwriteSyncUtils.filterPayloadForCollection('shift_notes', {
-            'localUuid': '11111111-1111-1111-1111-111111111111',
-            'createdAt': '$epoch',
-            'createdAtIso': '2026-08-14T04:44:32.000Z',
-            'updatedAt': epoch,
-          });
+      final payload = AppwriteSyncUtils.filterPayloadForCollection('shift_notes', {
+        'localUuid': '11111111-1111-1111-1111-111111111111',
+        'createdAt': '$epoch',
+        'createdAtIso': '2026-08-14T04:44:32.000Z',
+        'updatedAt': epoch,
+      });
 
       expect(payload['createdAt'], epoch);
       expect(payload['createdAt'], isA<int>());

@@ -23,16 +23,10 @@ class AppwriteDevice {
         return fallback ?? DateTime.now();
       }
       if (value is int) {
-        return DateTime.fromMillisecondsSinceEpoch(
-          value * 1000,
-          isUtc: true,
-        ).toLocal();
+        return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true).toLocal();
       }
       if (value is double) {
-        return DateTime.fromMillisecondsSinceEpoch(
-          (value * 1000).round(),
-          isUtc: true,
-        ).toLocal();
+        return DateTime.fromMillisecondsSinceEpoch((value * 1000).round(), isUtc: true).toLocal();
       }
       if (value is String && value.isNotEmpty) {
         final parsed = DateTime.tryParse(value);
@@ -49,9 +43,7 @@ class AppwriteDevice {
       deviceModel: (json['deviceModel'] as String?) ?? '',
       osVersion: (json['osVersion'] as String?) ?? '',
       lastSeen: parseDate(json['lastSeen'], fallback: DateTime.now()),
-      lastActive: json.containsKey('lastActive')
-          ? parseDate(json['lastActive'])
-          : null,
+      lastActive: json.containsKey('lastActive') ? parseDate(json['lastActive']) : null,
       status: (json['status'] as String?) ?? 'active',
       createdAt: parseDate(json['createdAt'], fallback: DateTime.now()),
       updatedAt: parseDate(json['updatedAt'], fallback: DateTime.now()),
@@ -115,12 +107,8 @@ class AppwriteSyncLog {
       id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       deviceId: (json['deviceId'] as String?) ?? '',
       syncType: (json['syncType'] as String?) ?? 'full',
-      startTime: DateTime.parse(
-        (json['startTime'] as String?) ?? DateTime.now().toIso8601String(),
-      ),
-      endTime: json['endTime'] != null
-          ? DateTime.parse(json['endTime'] as String)
-          : null,
+      startTime: DateTime.parse((json['startTime'] as String?) ?? DateTime.now().toIso8601String()),
+      endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
       status: (json['status'] as String?) ?? 'in_progress',
       recordsPushed: (json['recordsPushed'] as num?)?.toInt() ?? 0,
       recordsPulled: (json['recordsPulled'] as num?)?.toInt() ?? 0,
@@ -180,9 +168,7 @@ class AppwriteRoom {
       status: (json['status'] as String?) ?? '',
       price: ((json['price'] as num?) ?? 0).toDouble(),
       floor: (json['floor'] as num?)?.toInt() ?? 0,
-      lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'] as String)
-          : null,
+      lastModified: json['lastModified'] != null ? DateTime.parse(json['lastModified'] as String) : null,
       lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
@@ -230,18 +216,12 @@ class AppwriteBooking {
       roomId: (json['roomId'] as String?) ?? '',
       guestName: (json['guestName'] as String?) ?? '',
       guestPhone: (json['guestPhone'] as String?) ?? '',
-      checkIn: DateTime.parse(
-        (json['checkIn'] as String?) ?? DateTime.now().toIso8601String(),
-      ),
-      checkOut: DateTime.parse(
-        (json['checkOut'] as String?) ?? DateTime.now().toIso8601String(),
-      ),
+      checkIn: DateTime.parse((json['checkIn'] as String?) ?? DateTime.now().toIso8601String()),
+      checkOut: DateTime.parse((json['checkOut'] as String?) ?? DateTime.now().toIso8601String()),
       status: (json['status'] as String?) ?? '',
       totalAmount: ((json['totalAmount'] as num?) ?? 0).toDouble(),
       paidAmount: ((json['paidAmount'] as num?) ?? 0).toDouble(),
-      lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'] as String)
-          : null,
+      lastModified: json['lastModified'] != null ? DateTime.parse(json['lastModified'] as String) : null,
       lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
@@ -292,13 +272,9 @@ class AppwritePayment {
       bookingId: (json['bookingId'] as String?) ?? '',
       amount: ((json['amount'] as num?) ?? 0).toDouble(),
       paymentMethod: (json['paymentMethod'] as String?) ?? '',
-      paymentDate: DateTime.parse(
-        (json['paymentDate'] as String?) ?? DateTime.now().toIso8601String(),
-      ),
+      paymentDate: DateTime.parse((json['paymentDate'] as String?) ?? DateTime.now().toIso8601String()),
       notes: json['notes'] as String?,
-      lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'] as String)
-          : null,
+      lastModified: json['lastModified'] != null ? DateTime.parse(json['lastModified'] as String) : null,
       lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
@@ -343,13 +319,9 @@ class AppwriteExpense {
       category: (json['category'] as String?) ?? '',
       amount: ((json['amount'] as num?) ?? 0).toDouble(),
       description: (json['description'] as String?) ?? '',
-      expenseDate: DateTime.parse(
-        (json['expenseDate'] as String?) ?? DateTime.now().toIso8601String(),
-      ),
+      expenseDate: DateTime.parse((json['expenseDate'] as String?) ?? DateTime.now().toIso8601String()),
       employeeId: json['employeeId'] as String?,
-      lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'] as String)
-          : null,
+      lastModified: json['lastModified'] != null ? DateTime.parse(json['lastModified'] as String) : null,
       lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
@@ -400,9 +372,7 @@ class AppwriteEmployee {
       status: (json['status'] as String?) ?? '',
       terminationDate: json['terminationDate'] as String?,
       terminationReason: json['terminationReason'] as String?,
-      lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'] as String)
-          : null,
+      lastModified: json['lastModified'] != null ? DateTime.parse(json['lastModified'] as String) : null,
       lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }
@@ -452,12 +422,8 @@ class AppwriteDebt {
       guestName: (json['guestName'] as String?) ?? '',
       amount: ((json['amount'] as num?) ?? 0).toDouble(),
       status: (json['status'] as String?) ?? '',
-      dueDate: DateTime.parse(
-        (json['dueDate'] as String?) ?? DateTime.now().toIso8601String(),
-      ),
-      lastModified: json['lastModified'] != null
-          ? DateTime.parse(json['lastModified'] as String)
-          : null,
+      dueDate: DateTime.parse((json['dueDate'] as String?) ?? DateTime.now().toIso8601String()),
+      lastModified: json['lastModified'] != null ? DateTime.parse(json['lastModified'] as String) : null,
       lastModifiedBy: json['lastModifiedBy'] as String?,
     );
   }

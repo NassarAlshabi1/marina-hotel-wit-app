@@ -64,9 +64,7 @@ class CircularBufferLogger {
     if (_logFile == null || !await _logFile!.exists()) return;
     try {
       final lines = await _logFile!.readAsLines();
-      final recent = lines.length > _maxEntries
-          ? lines.sublist(lines.length - _maxEntries)
-          : lines;
+      final recent = lines.length > _maxEntries ? lines.sublist(lines.length - _maxEntries) : lines;
       for (final line in recent) {
         final json = jsonDecode(line) as Map<String, dynamic>;
         _buffer.add(_LogEntry.fromJson(json));
@@ -87,21 +85,13 @@ class CircularBufferLogger {
     }
   }
 
-  void debug(String message, {String? tag}) =>
-      _log(LogLevel.debug, message, tag);
+  void debug(String message, {String? tag}) => _log(LogLevel.debug, message, tag);
   void info(String message, {String? tag}) => _log(LogLevel.info, message, tag);
-  void warning(String message, {String? tag, Object? error}) =>
-      _log(LogLevel.warning, message, tag, error);
+  void warning(String message, {String? tag, Object? error}) => _log(LogLevel.warning, message, tag, error);
   void error(String message, {String? tag, Object? error, StackTrace? stack}) =>
       _log(LogLevel.error, message, tag, error, stack);
 
-  void _log(
-    LogLevel level,
-    String message,
-    String? tag, [
-    Object? error,
-    StackTrace? stack,
-  ]) {
+  void _log(LogLevel level, String message, String? tag, [Object? error, StackTrace? stack]) {
     final entry = _LogEntry(
       level: level,
       message: message,
@@ -153,11 +143,7 @@ class CircularBufferLogger {
     unawaited(
       _lock.synchronized(() async {
         try {
-          await _logFile!.writeAsString(
-            batch,
-            mode: FileMode.append,
-            flush: true,
-          );
+          await _logFile!.writeAsString(batch, mode: FileMode.append, flush: true);
           // ✅ نجحت الكتابة — نُزيل فقط الـ entries التي كُتبت فعلاً.
           // ملاحظة: قد تكون entries جديدة أُضيفت أثناء await، لذا نُزيل
           // فقط بعدد الـ entries التي شملتها الـ batch.

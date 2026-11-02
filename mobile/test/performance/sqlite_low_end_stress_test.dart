@@ -139,8 +139,7 @@ Future<int> _run(AppDatabase db, String sql, int iterations) async {
   }
   samples.sort();
   final p50 = samples[samples.length ~/ 2];
-  final p95 =
-      samples[(samples.length * 95 ~/ 100).clamp(0, samples.length - 1)];
+  final p95 = samples[(samples.length * 95 ~/ 100).clamp(0, samples.length - 1)];
   return (p50 << 32) | p95;
 }
 
@@ -200,9 +199,7 @@ void main() {
 
     metrics['rss_after_queries'] = '${ProcessInfo.currentRss} bytes';
     // ignore: avoid_print
-    print(
-      'SQLITE_LOW_END_STRESS ${metrics.entries.map((e) => '${e.key}=${e.value}').join(' ')}',
-    );
+    print('SQLITE_LOW_END_STRESS ${metrics.entries.map((e) => '${e.key}=${e.value}').join(' ')}');
 
     expect(await _pragmaInt(db, 'page_count'), greaterThan(0));
     expect(await _pragmaInt(db, 'page_size'), greaterThan(0));

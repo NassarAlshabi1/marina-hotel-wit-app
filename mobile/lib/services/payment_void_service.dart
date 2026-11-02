@@ -143,18 +143,14 @@ class PaymentVoidService {
                 updatedAt: nowEpoch,
                 lastModified: nowEpoch,
                 origin: const drift.Value('local'),
-                deviceId: drift.Value(
-                  AppwriteSyncManager.currentDeviceIdStatic ?? '',
-                ),
+                deviceId: drift.Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
                 approvedBy: drift.Value(approvedBy),
               ),
             );
 
         // 3) تحديث الدفعة الأصلية: isVoided=true + voidedAt + voidedBy
         // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
-        await (_db.update(
-          _db.payments,
-        )..where((t) => t.localUuid.equals(paymentUuid))).write(
+        await (_db.update(_db.payments)..where((t) => t.localUuid.equals(paymentUuid))).write(
           PaymentsCompanion(
             isVoided: const drift.Value(true),
             voidedAt: drift.Value(nowEpoch),
@@ -208,9 +204,7 @@ class PaymentVoidService {
         // تبقى totalPaidCached/remainingBalanceCached تحسب الدفعة الملغاة
         // إلى أن يُTrigger تحديث لاحق. معاملة متداخلة (savepoint) آمنة.
         if (payment.bookingLocalId != null) {
-          await BookingDerivedFieldsService(
-            _db,
-          ).refreshForBookingId(payment.bookingLocalId!);
+          await BookingDerivedFieldsService(_db).refreshForBookingId(payment.bookingLocalId!);
         }
 
         dlog(() => '✅ PaymentVoid: تم إلغاء الدفعة $paymentUuid بنجاح');

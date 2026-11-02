@@ -9,8 +9,7 @@ import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 
 class BookingDerivedFieldsService {
-  BookingDerivedFieldsService(this.db, [OutboxDao? outboxDao])
-    : _outboxDao = outboxDao ?? OutboxDao(db);
+  BookingDerivedFieldsService(this.db, [OutboxDao? outboxDao]) : _outboxDao = outboxDao ?? OutboxDao(db);
 
   final AppDatabase db;
   final OutboxDao _outboxDao;
@@ -19,8 +18,7 @@ class BookingDerivedFieldsService {
   /// from the room's current price; refreshes only re-total them.
   static bool isFrozenCompletedStay(Booking booking, {DateTime? now}) {
     final actualCheckout = _parseDateTime(booking.actualCheckout);
-    return actualCheckout != null &&
-        !actualCheckout.isAfter(now ?? DateTime.now());
+    return actualCheckout != null && !actualCheckout.isAfter(now ?? DateTime.now());
   }
 
   Future<void> refreshForBookingId(
@@ -38,12 +36,7 @@ class BookingDerivedFieldsService {
       return;
     }
 
-    await refreshForBooking(
-      booking,
-      now: now,
-      forceRebuild: forceRebuild,
-      enqueueOutbox: enqueueOutbox,
-    );
+    await refreshForBooking(booking, now: now, forceRebuild: forceRebuild, enqueueOutbox: enqueueOutbox);
   }
 
   /// Refresh derived fields for a single booking (opens its own transaction).
@@ -77,8 +70,7 @@ class BookingDerivedFieldsService {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
     final actualCheckout = _parseDateTime(booking.actualCheckout);
-    final preserveCompletedStay =
-        !forceRebuild && isFrozenCompletedStay(booking, now: moment);
+    final preserveCompletedStay = !forceRebuild && isFrozenCompletedStay(booking, now: moment);
 
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
@@ -94,10 +86,7 @@ class BookingDerivedFieldsService {
         enqueueOutbox: enqueueOutbox,
       );
     } else {
-      final calculation = await calcService.calculateForBooking(
-        booking,
-        now: moment,
-      );
+      final calculation = await calcService.calculateForBooking(booking, now: moment);
 
       await calcService.updateNightlyRecords(
         booking,
@@ -113,24 +102,17 @@ class BookingDerivedFieldsService {
       // For active bookings (no actual checkout), expectedNights should dynamically
       // grow with the current time (totalNights from calculation which uses moment).
       // This ensures payment screens show the correct number of nights if they stay past 14:00.
-      final expectedNightsValue =
-          (actualCheckout == null && StatusUtils.isBookingActive(booking))
+      final expectedNightsValue = (actualCheckout == null && StatusUtils.isBookingActive(booking))
           ? calculation.financialSummary.totalNights
           : (plannedCheckout != null && actualCheckout == null
                 ? calculation.financialSummary.totalNights
                 : booking.expectedNights);
 
-      final isOverdue =
-          calculation.bookingActive &&
-          plannedCheckout != null &&
-          moment.isAfter(plannedCheckout);
-      final needsReview =
-          isOverdue || calculation.financialSummary.remainingBalance > 0;
+      final isOverdue = calculation.bookingActive && plannedCheckout != null && moment.isAfter(plannedCheckout);
+      final needsReview = isOverdue || calculation.financialSummary.remainingBalance > 0;
 
       // Direct write — no nested transaction because caller already holds one.
-      await (db.update(
-        db.bookings,
-      )..where((b) => b.id.equals(booking.id))).write(
+      await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
         BookingsCompanion(
           expectedNights: d.Value(expectedNightsValue),
           calculatedNights: d.Value(calculation.financialSummary.totalNights),
@@ -139,15 +121,9 @@ class BookingDerivedFieldsService {
           lastNightEpoch: d.Value(calculation.lastNightEpoch),
           isOverdue: d.Value(isOverdue),
           needsCheckoutReview: d.Value(needsReview),
-          totalDueCached: d.Value(
-            calculation.financialSummary.totalDue.toDouble(),
-          ),
-          totalPaidCached: d.Value(
-            calculation.financialSummary.totalPaid.toDouble(),
-          ),
-          remainingBalanceCached: d.Value(
-            calculation.financialSummary.remainingBalance.toDouble(),
-          ),
+          totalDueCached: d.Value(calculation.financialSummary.totalDue.toDouble()),
+          totalPaidCached: d.Value(calculation.financialSummary.totalPaid.toDouble()),
+          remainingBalanceCached: d.Value(calculation.financialSummary.remainingBalance.toDouble()),
           isFullyPaid: d.Value(calculation.financialSummary.isFullyPaid),
           hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
           hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
@@ -166,9 +142,7 @@ class BookingDerivedFieldsService {
       return;
     }
 
-    final updated = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+    final updated = await (db.select(db.bookings)..where((b) => b.id.equals(booking.id))).getSingleOrNull();
     if (updated != null) {
       final bookingsDao = BookingsDao(db, _outboxDao);
       final payload = await bookingsDao.payloadForLocalUuid(updated.localUuid);
@@ -200,10 +174,7 @@ class BookingDerivedFieldsService {
     int totalPaid;
     int? totalNights;
 
-    final summary = await calcService.refreshCompletedStay(
-      booking,
-      enqueueOutbox: enqueueOutbox,
-    );
+    final summary = await calcService.refreshCompletedStay(booking, enqueueOutbox: enqueueOutbox);
     if (summary != null) {
       totalDue = summary.totalDue;
       totalPaid = summary.totalPaid;
@@ -217,10 +188,7 @@ class BookingDerivedFieldsService {
       // No nights and no trusted total (fresh device or restore). Estimate
       // from the current rate without persisting nights, so the stay is not
       // reported as fully paid; synced nights replace this estimate.
-      final calculation = await calcService.calculateForBooking(
-        booking,
-        now: moment,
-      );
+      final calculation = await calcService.calculateForBooking(booking, now: moment);
       totalDue = calculation.financialSummary.totalDue;
       totalPaid = calculation.financialSummary.totalPaid;
       totalNights = calculation.financialSummary.totalNights;
@@ -240,12 +208,8 @@ class BookingDerivedFieldsService {
         remainingBalanceCached: d.Value(remainingBalance.toDouble()),
         isFullyPaid: d.Value(remainingBalance <= 0),
         needsCheckoutReview: d.Value(remainingBalance > 0),
-        totalNightsCached: totalNights == null
-            ? const d.Value.absent()
-            : d.Value(totalNights),
-        calculatedNights: totalNights == null
-            ? const d.Value.absent()
-            : d.Value(totalNights),
+        totalNightsCached: totalNights == null ? const d.Value.absent() : d.Value(totalNights),
+        calculatedNights: totalNights == null ? const d.Value.absent() : d.Value(totalNights),
         updatedAt: d.Value(stamp),
         updatedAtIso: d.Value(stampIso),
       ),
@@ -260,9 +224,7 @@ class BookingDerivedFieldsService {
     final moment = now ?? DateTime.now();
     final activeBookings =
         await (db.select(db.bookings)
-              ..where(
-                (b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''),
-              )
+              ..where((b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
               ..where((b) => b.deletedAt.isNull()))
             .get();
 
@@ -279,18 +241,10 @@ class BookingDerivedFieldsService {
           if (promoteProvisional &&
               StatusUtils.isBookingProvisional(booking) &&
               HotelTimeEngine.isAfterCutoff(moment)) {
-            await _promoteProvisionalBooking(
-              booking.id,
-              enqueueOutbox: enqueueOutbox,
-            );
+            await _promoteProvisionalBooking(booking.id, enqueueOutbox: enqueueOutbox);
             promoted++;
           }
-          await _refreshForBookingInTransaction(
-            booking,
-            now: moment,
-            forceRebuild: true,
-            enqueueOutbox: enqueueOutbox,
-          );
+          await _refreshForBookingInTransaction(booking, now: moment, forceRebuild: true, enqueueOutbox: enqueueOutbox);
           refreshed++;
         } catch (e) {
           dlog(() => '⚠️ خطأ في تحديث حجز ${booking.id}: $e');
@@ -307,22 +261,15 @@ class BookingDerivedFieldsService {
     return refreshed;
   }
 
-  Future<void> _promoteProvisionalBooking(
-    int bookingId, {
-    required bool enqueueOutbox,
-  }) async {
-    final booking = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+  Future<void> _promoteProvisionalBooking(int bookingId, {required bool enqueueOutbox}) async {
+    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) return;
 
-    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
-      const BookingsCompanion(status: d.Value('محجوزة')),
-    );
-
-    final updated = await (db.select(
+    await (db.update(
       db.bookings,
-    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    )..where((b) => b.id.equals(bookingId))).write(const BookingsCompanion(status: d.Value('محجوزة')));
+
+    final updated = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (updated == null) return;
 
     if (!enqueueOutbox) return;
@@ -353,19 +300,11 @@ class BookingDerivedFieldsService {
     }
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
-      final segDay = DateTime(
-        segmentStart.year,
-        segmentStart.month,
-        segmentStart.day,
-      );
+      final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
       if (discountStartDate == null) {
         rate = (baseRate - discount).clamp(0.0, baseRate);
       } else {
-        final discountDay = DateTime(
-          discountStartDate.year,
-          discountStartDate.month,
-          discountStartDate.day,
-        );
+        final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
         if (!segDay.isBefore(discountDay)) {
           rate = (baseRate - discount).clamp(0.0, baseRate);
         }
@@ -412,10 +351,7 @@ class BookingDerivedFieldsService {
   // ignore: unused_element
   List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout) {
     final segments = <_NightSegment>[];
-    final totalNights = HotelTimeEngine.calculateDays(
-      checkin,
-      checkOut: checkout,
-    );
+    final totalNights = HotelTimeEngine.calculateDays(checkin, checkOut: checkout);
 
     final hotelDay = HotelTimeEngine.getHotelDay(checkin);
     final startOfCheckinHotelDay = DateTime(
@@ -436,14 +372,10 @@ class BookingDerivedFieldsService {
       // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
       final nextHotelDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == totalNights - 1
-          ? (checkout.isAfter(segStart)
-                ? checkout
-                : segStart.add(const Duration(minutes: 1)))
+          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
           : nextHotelDay;
 
-      segments.add(
-        _NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd),
-      );
+      segments.add(_NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd));
     }
 
     return segments;
@@ -451,11 +383,7 @@ class BookingDerivedFieldsService {
 }
 
 class _NightSegment {
-  const _NightSegment({
-    required this.hotelDayKey,
-    required this.start,
-    required this.end,
-  });
+  const _NightSegment({required this.hotelDayKey, required this.start, required this.end});
 
   final String hotelDayKey;
   final DateTime start;

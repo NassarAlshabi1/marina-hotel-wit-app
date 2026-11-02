@@ -15,8 +15,7 @@ class AlarmBackup {
   static const int alarmId = 0;
   static const int telegramReportAlarmId = 2;
 
-  static final FlutterLocalNotificationsPlugin _notif =
-      FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _notif = FlutterLocalNotificationsPlugin();
 
   /// استدعِ هذه في main() قبل runApp
   static Future<void> initAlarmSystem() async {
@@ -26,9 +25,7 @@ class AlarmBackup {
     }
     await AndroidAlarmManager.initialize();
     // تهيئة الإشعارات
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
     await _notif.initialize(initSettings);
     dlog('✅ Alarm system initialized');
@@ -167,16 +164,12 @@ class AlarmBackup {
 
   /// جدولة تقرير Telegram/WhatsApp اليومي إذا كان مفعّلاً
   /// القيم الافتراضية = true لتتطابق مع TelegramConfig.isEnabled() و isDailyReportEnabled()
-  static Future<void> _scheduleTelegramReportIfNeeded(
-    SharedPreferences prefs,
-  ) async {
+  static Future<void> _scheduleTelegramReportIfNeeded(SharedPreferences prefs) async {
     final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
-    final reportEnabled =
-        prefs.getBool('telegram_daily_report_enabled') ?? true;
+    final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
 
     if (tgEnabled && reportEnabled) {
-      final timeString =
-          prefs.getString('telegram_daily_report_time') ?? '02:00';
+      final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
       final parts = timeString.split(':');
       final hour = int.tryParse(parts[0]) ?? 0;
       final minute = int.tryParse(parts[1]) ?? 0;
@@ -233,8 +226,7 @@ class AlarmBackup {
     try {
       final prefs = await SharedPreferences.getInstance();
       final tgEnabled = prefs.getBool('telegram_enabled') ?? true;
-      final reportEnabled =
-          prefs.getBool('telegram_daily_report_enabled') ?? true;
+      final reportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
 
       if (tgEnabled && reportEnabled) {
         final configured = await TelegramConfig.isConfigured();
@@ -243,9 +235,7 @@ class AlarmBackup {
           await reportService.sendDailyReport();
           dlog('✅ Telegram daily report sent from alarm');
         } else {
-          dlog(
-            '⚠️ Telegram report skipped: bot token or chat ID not configured',
-          );
+          dlog('⚠️ Telegram report skipped: bot token or chat ID not configured');
         }
       }
     } catch (e) {
@@ -254,8 +244,7 @@ class AlarmBackup {
       // أعد جدولة لليوم التالي
       try {
         final prefs = await SharedPreferences.getInstance();
-        final timeString =
-            prefs.getString('telegram_daily_report_time') ?? '02:00';
+        final timeString = prefs.getString('telegram_daily_report_time') ?? '02:00';
         final parts = timeString.split(':');
         final hour = int.tryParse(parts[0]) ?? 0;
         final minute = int.tryParse(parts[1]) ?? 1;

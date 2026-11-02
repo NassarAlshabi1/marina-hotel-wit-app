@@ -24,12 +24,7 @@ void main() {
     final rooms = RoomsRepository(db);
     bookings = BookingsRepository(db);
     calculator = EnhancedBookingCalculationService(db);
-    await rooms.create(
-      roomNumber: '101',
-      type: 'عادية',
-      price: 100,
-      status: 'شاغرة',
-    );
+    await rooms.create(roomNumber: '101', type: 'عادية', price: 100, status: 'شاغرة');
   });
 
   tearDown(() async {
@@ -54,29 +49,20 @@ void main() {
   test('active booking keeps accruing nights after plannedCheckout', () async {
     final booking = await seedActiveBooking();
 
-    final result = await calculator.calculateForBooking(
-      booking,
-      now: beforeCutoff,
-    );
+    final result = await calculator.calculateForBooking(booking, now: beforeCutoff);
 
     expect(result.bookingActive, isTrue);
     expect(result.checkout, beforeCutoff);
     expect(result.financialSummary.totalNights, 3);
   });
 
-  test(
-    'active booking adds a night after the 14:01 hotel-day cutoff',
-    () async {
-      final booking = await seedActiveBooking();
+  test('active booking adds a night after the 14:01 hotel-day cutoff', () async {
+    final booking = await seedActiveBooking();
 
-      final result = await calculator.calculateForBooking(
-        booking,
-        now: afterCutoff,
-      );
+    final result = await calculator.calculateForBooking(booking, now: afterCutoff);
 
-      expect(result.bookingActive, isTrue);
-      expect(result.checkout, afterCutoff);
-      expect(result.financialSummary.totalNights, 4);
-    },
-  );
+    expect(result.bookingActive, isTrue);
+    expect(result.checkout, afterCutoff);
+    expect(result.financialSummary.totalNights, 4);
+  });
 }

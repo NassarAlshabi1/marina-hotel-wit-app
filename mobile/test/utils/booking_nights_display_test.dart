@@ -37,19 +37,12 @@ void main() {
 
   /// نفس ما تفعله شاشة القائمة حرفياً: تحليل حقول الحجز من قاعدة
   /// البيانات ثم نداء القاعدة الموحّدة BookingNightsDisplay.forList.
-  ({int expectedNights, int actualNights}) listNights(
-    Booking booking, {
-    DateTime? now,
-  }) => BookingNightsDisplay.forList(
+  ({int expectedNights, int actualNights}) listNights(Booking booking, {DateTime? now}) => BookingNightsDisplay.forList(
     status: booking.status,
     storedExpectedNights: booking.expectedNights,
     checkin: DateTime.tryParse(booking.checkinDate),
-    plannedCheckout: booking.checkoutDate != null
-        ? DateTime.tryParse(booking.checkoutDate!)
-        : null,
-    actualCheckout: booking.actualCheckout != null
-        ? DateTime.tryParse(booking.actualCheckout!)
-        : null,
+    plannedCheckout: booking.checkoutDate != null ? DateTime.tryParse(booking.checkoutDate!) : null,
+    actualCheckout: booking.actualCheckout != null ? DateTime.tryParse(booking.actualCheckout!) : null,
     now: now,
   );
 
@@ -59,17 +52,14 @@ void main() {
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     bookingsRepo = BookingsRepository(db);
-    await RoomsRepository(
-      db,
-    ).create(roomNumber: '101', type: 'عادية', price: 100, status: 'شاغرة');
+    await RoomsRepository(db).create(roomNumber: '101', type: 'عادية', price: 100, status: 'شاغرة');
   });
 
   tearDown(() async {
     await db.close();
   });
 
-  Future<Booking> fetchBooking(int id) =>
-      (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
+  Future<Booking> fetchBooking(int id) => (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
 
   /// حجز legacy كما يصل من مزامنة Appwrite: لا checkoutDate مخطط،
   /// expectedNights=0 (تبقى 0 — خدمة الحقول المشتقة تُبقيها للحجوزات
@@ -104,16 +94,8 @@ void main() {
       // قبل الإصلاح: fallback المتوقعة كان يمرّر مخططاً فارغاً إلى
       // nightsWithCutoff فيُحسب حتى «الآن» = 10. بعد الإصلاح:
       // النهاية = المغادرة الفعلية المسجّلة = 3 ليالٍ.
-      expect(
-        nights.expectedNights,
-        3,
-        reason: 'fallback المتوقعة → حتى actualCheckout (لا حتى now=10)',
-      );
-      expect(
-        nights.actualNights,
-        3,
-        reason: 'الفعلي حتى actualCheckout المسجّل',
-      );
+      expect(nights.expectedNights, 3, reason: 'fallback المتوقعة → حتى actualCheckout (لا حتى now=10)');
+      expect(nights.actualNights, 3, reason: 'الفعلي حتى actualCheckout المسجّل');
     });
   });
 
@@ -130,52 +112,42 @@ void main() {
   });
 
   group('L3 — توازن السلوك القائم: كل الفروع الأخرى بلا انحراف', () {
-    test(
-      'مخطط + قيمة محفوظة (>0) + مغادرة → (المحفوظة، حتى المغادرة)',
-      () async {
-        final id = await bookingsRepo.create(
-          roomNumber: '101',
-          guestName: 'ضيف مخطط كامل',
-          guestPhone: '0500000004',
-          guestNationality: 'يمني',
-          checkinDate: checkin.toIso8601String(),
-          checkoutDate: plannedCheckout.toIso8601String(),
-          status: 'مكتمل',
-          actualCheckout: actualCheckout.toIso8601String(),
-          expectedNights: 5,
-        );
-        final nights = listNights(await fetchBooking(id), now: nowA);
+    test('مخطط + قيمة محفوظة (>0) + مغادرة → (المحفوظة، حتى المغادرة)', () async {
+      final id = await bookingsRepo.create(
+        roomNumber: '101',
+        guestName: 'ضيف مخطط كامل',
+        guestPhone: '0500000004',
+        guestNationality: 'يمني',
+        checkinDate: checkin.toIso8601String(),
+        checkoutDate: plannedCheckout.toIso8601String(),
+        status: 'مكتمل',
+        actualCheckout: actualCheckout.toIso8601String(),
+        expectedNights: 5,
+      );
+      final nights = listNights(await fetchBooking(id), now: nowA);
 
-        expect(
-          nights.expectedNights,
-          5,
-          reason: 'القيمة المحفوظة لها الأولوية',
-        );
-        expect(nights.actualNights, 3, reason: 'الفعلي حتى المغادرة');
-      },
-    );
+      expect(nights.expectedNights, 5, reason: 'القيمة المحفوظة لها الأولوية');
+      expect(nights.actualNights, 3, reason: 'الفعلي حتى المغادرة');
+    });
 
-    test(
-      'مخطط + expectedNights=0 + مغادرة → (حتى المخطط، حتى المغادرة)',
-      () async {
-        final id = await bookingsRepo.create(
-          roomNumber: '101',
-          guestName: 'ضيف مخطط بلا قيمة محفوظة',
-          guestPhone: '0500000005',
-          guestNationality: 'يمني',
-          checkinDate: checkin.toIso8601String(),
-          checkoutDate: plannedCheckout.toIso8601String(),
-          status: 'مكتمل',
-          actualCheckout: actualCheckout.toIso8601String(),
-          expectedNights: 0,
-        );
-        final nights = listNights(await fetchBooking(id), now: nowA);
+    test('مخطط + expectedNights=0 + مغادرة → (حتى المخطط، حتى المغادرة)', () async {
+      final id = await bookingsRepo.create(
+        roomNumber: '101',
+        guestName: 'ضيف مخطط بلا قيمة محفوظة',
+        guestPhone: '0500000005',
+        guestNationality: 'يمني',
+        checkinDate: checkin.toIso8601String(),
+        checkoutDate: plannedCheckout.toIso8601String(),
+        status: 'مكتمل',
+        actualCheckout: actualCheckout.toIso8601String(),
+        expectedNights: 0,
+      );
+      final nights = listNights(await fetchBooking(id), now: nowA);
 
-        // 03-01 15:00 → 03-02 14:00 = ليلة واحدة (قبل حد 14:01).
-        expect(nights.expectedNights, 1, reason: 'fallback → المخطط');
-        expect(nights.actualNights, 3, reason: 'الفعلي حتى المغادرة');
-      },
-    );
+      // 03-01 15:00 → 03-02 14:00 = ليلة واحدة (قبل حد 14:01).
+      expect(nights.expectedNights, 1, reason: 'fallback → المخطط');
+      expect(nights.actualNights, 3, reason: 'الفعلي حتى المغادرة');
+    });
 
     test('نشط بلا مغادرة + مخطط مضى → (المحفوظة، ديناميكي حتى «الآن»)', () {
       final nights = BookingNightsDisplay.forList(
@@ -188,11 +160,7 @@ void main() {
       );
 
       expect(nights.expectedNights, 2);
-      expect(
-        nights.actualNights,
-        10,
-        reason: 'المخطط المضى لا يوقف التراكم الديناميكي',
-      );
+      expect(nights.actualNights, 10, reason: 'المخطط المضى لا يوقف التراكم الديناميكي');
     });
 
     test('نشط مفتوح بلا أي موعد → ديناميكي حتى «الآن» للقيمتين', () {
@@ -251,17 +219,11 @@ void main() {
   group('L4 — مغادرة مستقبلية (شذوذ بيانات): القصّ إلى «الآن»', () {
     test('الفعلي لا يتجاوز «الآن» — نفس سياسة شاشة الدفع', () async {
       // مغادرة «مسجّلة» 03-20 10:00 وهي مستقبلية مقارنة بـ nowA=03-10.
-      final booking = await seedLegacyCheckedOut(
-        actual: DateTime(2024, 3, 20, 10),
-      );
+      final booking = await seedLegacyCheckedOut(actual: DateTime(2024, 3, 20, 10));
       final nights = listNights(booking, now: nowA);
 
       // الفعلي مقصوص إلى nowA → 10 ليالٍ (لا 19 حتى المغادرة المسجلة).
-      expect(
-        nights.actualNights,
-        10,
-        reason: 'المغادرة المستقبلية شذوذ بيانات → القصّ إلى «الآن»',
-      );
+      expect(nights.actualNights, 10, reason: 'المغادرة المستقبلية شذوذ بيانات → القصّ إلى «الآن»');
       // المتوقعة تعكس نهاية الإقامة المسجّلة (لا مخطط ولا قيمة محفوظة).
       expect(nights.expectedNights, 19);
     });
@@ -283,9 +245,7 @@ void main() {
 
   group('L5 — حدّ اليوم الفندقي بالثانية عبر مسار القائمة', () {
     test('actualCheckout عند 14:00:59 → 3 ليالٍ للقيمتين', () async {
-      final booking = await seedLegacyCheckedOut(
-        actual: DateTime(2024, 3, 4, 14, 0, 59),
-      );
+      final booking = await seedLegacyCheckedOut(actual: DateTime(2024, 3, 4, 14, 0, 59));
       final nights = listNights(booking, now: nowA);
 
       expect(nights.expectedNights, 3);
@@ -293,9 +253,7 @@ void main() {
     });
 
     test('actualCheckout عند 14:01:00 → 4 ليالٍ للقيمتين', () async {
-      final booking = await seedLegacyCheckedOut(
-        actual: DateTime(2024, 3, 4, 14, 1, 0),
-      );
+      final booking = await seedLegacyCheckedOut(actual: DateTime(2024, 3, 4, 14, 1, 0));
       final nights = listNights(booking, now: nowA);
 
       expect(nights.expectedNights, 4);

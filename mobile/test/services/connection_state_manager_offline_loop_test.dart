@@ -62,40 +62,36 @@ void main() {
     });
   });
 
-  test(
-    'عودة الاتصال تنفذ probe واحداً ولا تكرر الطلب مع أحداث online متتابعة',
-    () async {
-      fakePlatform.current = const [ConnectivityResult.none];
-      var probeCalls = 0;
-      final manager = ConnectionStateManager.forTesting(
-        connectivity: Connectivity(),
-        appwriteProbe: () async => probeCalls++,
-      );
+  test('عودة الاتصال تنفذ probe واحداً ولا تكرر الطلب مع أحداث online متتابعة', () async {
+    fakePlatform.current = const [ConnectivityResult.none];
+    var probeCalls = 0;
+    final manager = ConnectionStateManager.forTesting(
+      connectivity: Connectivity(),
+      appwriteProbe: () async => probeCalls++,
+    );
 
-      await manager.init();
-      expect(probeCalls, 0);
+    await manager.init();
+    expect(probeCalls, 0);
 
-      fakePlatform.emit(const [ConnectivityResult.wifi]);
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-      expect(manager.status, ConnectionStatus.online);
-      expect(probeCalls, 1);
+    fakePlatform.emit(const [ConnectivityResult.wifi]);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(manager.status, ConnectionStatus.online);
+    expect(probeCalls, 1);
 
-      // لا يوجد انتقال offline → online هنا؛ يجب ألا يبدأ probe إضافياً.
-      fakePlatform.emit(const [ConnectivityResult.mobile]);
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+    // لا يوجد انتقال offline → online هنا؛ يجب ألا يبدأ probe إضافياً.
+    fakePlatform.emit(const [ConnectivityResult.mobile]);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
 
-      expect(manager.status, ConnectionStatus.online);
-      expect(probeCalls, 1);
-      manager.dispose();
-    },
-  );
+    expect(manager.status, ConnectionStatus.online);
+    expect(probeCalls, 1);
+    manager.dispose();
+  });
 }
 
 class FakeConnectivityPlatform extends ConnectivityPlatform {
-  final StreamController<List<ConnectivityResult>> _events =
-      StreamController<List<ConnectivityResult>>.broadcast();
+  final StreamController<List<ConnectivityResult>> _events = StreamController<List<ConnectivityResult>>.broadcast();
 
   List<ConnectivityResult> current = const [ConnectivityResult.none];
   int checkCalls = 0;

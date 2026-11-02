@@ -45,8 +45,7 @@ class TelegramNotificationService {
   TelegramNotificationService._();
   static TelegramNotificationService? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static TelegramNotificationService get instance =>
-      _instance ??= TelegramNotificationService._();
+  static TelegramNotificationService get instance => _instance ??= TelegramNotificationService._();
 
   static const _deduplicationWindow = Duration(seconds: 30);
   static const _maxRecentEvents = 128;
@@ -113,9 +112,7 @@ class TelegramNotificationService {
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln(
-          '💵 المبلغ: <b>\$${CurrencyFormatter.formatAmount(event.amount!)}</b>',
-        );
+        buffer.writeln('💵 المبلغ: <b>\$${CurrencyFormatter.formatAmount(event.amount!)}</b>');
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
@@ -133,16 +130,11 @@ class TelegramNotificationService {
       buffer.writeln();
       buffer.writeln('<i>Marina Hotel App 🏨</i>');
 
-      final success = await _api.sendToDefaultChat(
-        text: buffer.toString().trimRight(),
-      );
+      final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
 
       if (success) {
         _rememberDelivered(dedupKey);
-        dlog(
-          () =>
-              '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
-        );
+        dlog(() => '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
       }
 
       return success;
@@ -177,9 +169,7 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي: $nights');
     }
     if (totalDue != null) {
-      details.writeln(
-        '💰 الإجمالي: \$${CurrencyFormatter.formatAmount(totalDue)}',
-      );
+      details.writeln('💰 الإجمالي: \$${CurrencyFormatter.formatAmount(totalDue)}');
     }
 
     return sendEventNotification(
@@ -231,14 +221,10 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي الفعلية: $actualNights');
     }
     if (totalPaid != null) {
-      details.writeln(
-        '💰 المدفوع: \$${CurrencyFormatter.formatAmount(totalPaid)}',
-      );
+      details.writeln('💰 المدفوع: \$${CurrencyFormatter.formatAmount(totalPaid)}');
     }
     if (remaining != null && remaining > 0) {
-      details.writeln(
-        '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
-      );
+      details.writeln('⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}');
     }
 
     return sendEventNotification(
@@ -264,9 +250,7 @@ class TelegramNotificationService {
     details.writeln('💳 طريقة الدفع: $paymentMethod');
     if (remaining != null) {
       if (remaining > 0) {
-        details.writeln(
-          '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
-        );
+        details.writeln('⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}');
       } else {
         details.writeln('✅ مسدد بالكامل');
       }
@@ -285,11 +269,7 @@ class TelegramNotificationService {
   }
 
   /// إشعار طلب صيانة
-  Future<bool> notifyMaintenance({
-    required String roomNumber,
-    required String description,
-    String? reportedBy,
-  }) {
+  Future<bool> notifyMaintenance({required String roomNumber, required String description, String? reportedBy}) {
     return sendEventNotification(
       TelegramEvent(
         type: TelegramEventType.maintenance,
@@ -302,11 +282,7 @@ class TelegramNotificationService {
   }
 
   /// إشعار إلغاء حجز
-  Future<bool> notifyCancellation({
-    required String roomNumber,
-    required String guestName,
-    String? reason,
-  }) {
+  Future<bool> notifyCancellation({required String roomNumber, required String guestName, String? reason}) {
     return sendEventNotification(
       TelegramEvent(
         type: TelegramEventType.cancellation,
@@ -332,9 +308,7 @@ class TelegramNotificationService {
       details.writeln('➕ ليالي إضافية: $extraNights');
     }
     if (extraCharge != null) {
-      details.writeln(
-        '💵 تكلفة إضافية: \$${CurrencyFormatter.formatAmount(extraCharge)}',
-      );
+      details.writeln('💵 تكلفة إضافية: \$${CurrencyFormatter.formatAmount(extraCharge)}');
     }
 
     return sendEventNotification(
@@ -349,11 +323,7 @@ class TelegramNotificationService {
   }
 
   /// إشعار مصروف جديد
-  Future<bool> notifyNewExpense({
-    required String category,
-    required double amount,
-    String? description,
-  }) {
+  Future<bool> notifyNewExpense({required String category, required double amount, String? description}) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
     if (description != null && description.isNotEmpty) {
@@ -401,9 +371,7 @@ class TelegramNotificationService {
       buffer.writeln();
       buffer.writeln('<i>Marina Hotel App — Crashlytics Alert</i>');
 
-      final success = await _api.sendToDefaultChat(
-        text: buffer.toString().trimRight(),
-      );
+      final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
 
       if (success) {
         dlog(() => '✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
@@ -419,9 +387,7 @@ class TelegramNotificationService {
 
   bool _wasRecentlyDelivered(String key) {
     final now = DateTime.now();
-    _recentDeliveredEvents.removeWhere(
-      (_, deliveredAt) => now.difference(deliveredAt) >= _deduplicationWindow,
-    );
+    _recentDeliveredEvents.removeWhere((_, deliveredAt) => now.difference(deliveredAt) >= _deduplicationWindow);
     return _recentDeliveredEvents.containsKey(key);
   }
 
@@ -434,15 +400,11 @@ class TelegramNotificationService {
 
   String _eventKey(TelegramEvent event) {
     final details = event.details ?? '';
-    final compactDetails = details.length <= 160
-        ? details
-        : details.substring(0, 160);
+    final compactDetails = details.length <= 160 ? details : details.substring(0, 160);
     return '${event.type.name}|${event.roomNumber}|${event.guestName ?? ''}|'
         '${event.amount ?? ''}|$compactDetails';
   }
 
-  static String _escapeHtml(String value) => value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;');
+  static String _escapeHtml(String value) =>
+      value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }

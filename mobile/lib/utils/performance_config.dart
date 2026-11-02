@@ -13,8 +13,7 @@ void configurePerformance() {
 
   // image cache هو أكبر cache افتراضي في Flutter؛ نحده قبل إنشاء أول واجهة.
   PaintingBinding.instance.imageCache.maximumSize = optimizer.maxImageCacheSize;
-  PaintingBinding.instance.imageCache.maximumSizeBytes =
-      optimizer.maxImageCacheBytes;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = optimizer.maxImageCacheBytes;
 
   // تطبيق الحدود نفسها على cache بيانات Appwrite. هذه القيم كانت موجودة في
   // WeakDeviceOptimizer ولكنها لم تكن موصولة بمسار التنفيذ.
@@ -23,17 +22,9 @@ void configurePerformance() {
   dataCache.setMaxSizeMB(optimizer.maxDataCacheSizeMB);
   // الاستجابات البعيدة قصيرة العمر على الأجهزة الضعيفة؛ المصدر الدائم
   // للبيانات غير المتصلة هو Drift وليس Cache الذاكرة.
-  dataCache.setDefaultTTL(
-    optimizer.isWeakDevice
-        ? const Duration(minutes: 2)
-        : const Duration(minutes: 5),
-  );
+  dataCache.setDefaultTTL(optimizer.isWeakDevice ? const Duration(minutes: 2) : const Duration(minutes: 5));
   // يزيل النتائج منتهية الصلاحية حتى إن لم يُعاد فتح الشاشة نفسها.
-  dataCache.startCleanup(
-    interval: optimizer.isWeakDevice
-        ? const Duration(minutes: 5)
-        : const Duration(minutes: 15),
-  );
+  dataCache.startCleanup(interval: optimizer.isWeakDevice ? const Duration(minutes: 5) : const Duration(minutes: 15));
 
   if (Platform.isAndroid) {
     dlog(
@@ -56,5 +47,4 @@ double get optimizedCacheExtent => isLowEndDevice ? 160.0 : 500.0;
 
 /// واجهة Flutter الحديثة لمجال إنشاء العناصر خارج الشاشة.
 /// تُستخدم في ListView.builder وCustomScrollView بدلاً من cacheExtent المهجور.
-ScrollCacheExtent get optimizedScrollCacheExtent =>
-    ScrollCacheExtent.pixels(optimizedCacheExtent);
+ScrollCacheExtent get optimizedScrollCacheExtent => ScrollCacheExtent.pixels(optimizedCacheExtent);

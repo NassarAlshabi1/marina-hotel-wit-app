@@ -28,12 +28,10 @@ class SyncCircuitBreaker {
   /// Exponential backoff: 5 → 10 → 20 → 40 → 60 (max)
   Duration get currentCooldown {
     if (_consecutiveFailures <= 0) return Duration.zero;
-    final minutes = (5 * pow(2, min(_consecutiveFailures - 1, 3)))
-        .toInt()
-        .clamp(
-          SyncConstants.circuitBreakerMinCooldownMinutes,
-          SyncConstants.circuitBreakerMaxCooldownMinutes,
-        );
+    final minutes = (5 * pow(2, min(_consecutiveFailures - 1, 3))).toInt().clamp(
+      SyncConstants.circuitBreakerMinCooldownMinutes,
+      SyncConstants.circuitBreakerMaxCooldownMinutes,
+    );
     return Duration(minutes: minutes);
   }
 
@@ -82,10 +80,7 @@ class SyncCircuitBreaker {
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('_cb_failures', _consecutiveFailures);
-    await prefs.setInt(
-      '_cb_last_failure',
-      _lastFailureAt?.millisecondsSinceEpoch ?? 0,
-    );
+    await prefs.setInt('_cb_last_failure', _lastFailureAt?.millisecondsSinceEpoch ?? 0);
     await prefs.setBool('_cb_open', _isOpen);
   }
 
@@ -93,16 +88,12 @@ class SyncCircuitBreaker {
     final prefs = await SharedPreferences.getInstance();
     _consecutiveFailures = prefs.getInt('_cb_failures') ?? 0;
     final lastMs = prefs.getInt('_cb_last_failure') ?? 0;
-    _lastFailureAt = lastMs > 0
-        ? DateTime.fromMillisecondsSinceEpoch(lastMs)
-        : null;
+    _lastFailureAt = lastMs > 0 ? DateTime.fromMillisecondsSinceEpoch(lastMs) : null;
     _isOpen = prefs.getBool('_cb_open') ?? false;
 
     // If the cooldown has elapsed since the last failure, close the breaker.
     if (_isOpen && !shouldAttempt()) {
-      dlog(
-        () => '🔄 Circuit breaker: cooldown elapsed during restore, closing',
-      );
+      dlog(() => '🔄 Circuit breaker: cooldown elapsed during restore, closing');
       reset();
     }
   }

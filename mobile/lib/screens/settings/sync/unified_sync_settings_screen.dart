@@ -22,12 +22,10 @@ class UnifiedSyncSettingsScreen extends ConsumerStatefulWidget {
   const UnifiedSyncSettingsScreen({super.key});
 
   @override
-  ConsumerState<UnifiedSyncSettingsScreen> createState() =>
-      _UnifiedSyncSettingsScreenState();
+  ConsumerState<UnifiedSyncSettingsScreen> createState() => _UnifiedSyncSettingsScreenState();
 }
 
-class _UnifiedSyncSettingsScreenState
-    extends ConsumerState<UnifiedSyncSettingsScreen> {
+class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsScreen> {
   bool _autoSyncEnabled = true;
   bool _syncOnStartup = true;
   bool _batteryOptimization = true;
@@ -90,14 +88,10 @@ class _UnifiedSyncSettingsScreenState
       await applyToService?.call(value);
       if (!mounted) return;
       setState(apply);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(successMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر حفظ الإعداد. حاول مرة أخرى.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حفظ الإعداد. حاول مرة أخرى.')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -108,9 +102,7 @@ class _UnifiedSyncSettingsScreenState
     if (manager == null) return;
 
     if (enabled) {
-      manager.startAutoSync(
-        interval: Duration(minutes: intervalMinutes ?? _syncIntervalMinutes),
-      );
+      manager.startAutoSync(interval: Duration(minutes: intervalMinutes ?? _syncIntervalMinutes));
     } else {
       manager.stopAutoSync();
     }
@@ -184,9 +176,7 @@ class _UnifiedSyncSettingsScreenState
   Widget _buildOverviewSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
       child: Padding(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         child: Column(
@@ -194,16 +184,9 @@ class _UnifiedSyncSettingsScreenState
           children: [
             const Row(
               children: [
-                Icon(
-                  Icons.info_outline,
-                  color: UIConstants.syncColor,
-                  size: UIConstants.iconSizeMD,
-                ),
+                Icon(Icons.info_outline, color: UIConstants.syncColor, size: UIConstants.iconSizeMD),
                 SizedBox(width: UIConstants.spacingSM),
-                Text(
-                  'حالة المزامنة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('حالة المزامنة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
@@ -212,18 +195,8 @@ class _UnifiedSyncSettingsScreenState
               value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
               icon: Icons.schedule,
             ),
-            const InfoRow(
-              label: 'حالة الاتصال',
-              value: 'متصل',
-              icon: Icons.wifi,
-              iconColor: Colors.green,
-            ),
-            const InfoRow(
-              label: 'عناصر معلقة',
-              value: '0',
-              icon: Icons.pending,
-              iconColor: Colors.orange,
-            ),
+            const InfoRow(label: 'حالة الاتصال', value: 'متصل', icon: Icons.wifi, iconColor: Colors.green),
+            const InfoRow(label: 'عناصر معلقة', value: '0', icon: Icons.pending, iconColor: Colors.orange),
           ],
         ),
       ),
@@ -233,9 +206,7 @@ class _UnifiedSyncSettingsScreenState
   Widget _buildGeneralSettingsSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
       child: Column(
         children: [
           SwitchListTile(
@@ -248,11 +219,8 @@ class _UnifiedSyncSettingsScreenState
                     key: _autoSyncKey,
                     value: value,
                     apply: () => _autoSyncEnabled = value,
-                    successMessage: value
-                        ? 'تم تفعيل المزامنة التلقائية'
-                        : 'تم إيقاف المزامنة التلقائية',
-                    applyToService: (enabled) =>
-                        _applyAutoSync(enabled && _appwriteSyncEnabled),
+                    successMessage: value ? 'تم تفعيل المزامنة التلقائية' : 'تم إيقاف المزامنة التلقائية',
+                    applyToService: (enabled) => _applyAutoSync(enabled && _appwriteSyncEnabled),
                   ),
             secondary: const Icon(Icons.sync),
           ),
@@ -267,9 +235,7 @@ class _UnifiedSyncSettingsScreenState
                     key: _syncOnStartupKey,
                     value: value,
                     apply: () => _syncOnStartup = value,
-                    successMessage: value
-                        ? 'ستعمل المزامنة عند بدء التطبيق'
-                        : 'لن تعمل المزامنة تلقائياً عند البدء',
+                    successMessage: value ? 'ستعمل المزامنة عند بدء التطبيق' : 'لن تعمل المزامنة تلقائياً عند البدء',
                   ),
             secondary: const Icon(Icons.power_settings_new),
           ),
@@ -289,25 +255,16 @@ class _UnifiedSyncSettingsScreenState
   Widget _buildPerformanceSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(
-                  Icons.speed,
-                  color: UIConstants.syncColor,
-                  size: UIConstants.iconSizeMD,
-                ),
+                Icon(Icons.speed, color: UIConstants.syncColor, size: UIConstants.iconSizeMD),
                 SizedBox(width: UIConstants.spacingSM),
-                Text(
-                  'الأداء والبطارية',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('الأداء والبطارية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -322,9 +279,7 @@ class _UnifiedSyncSettingsScreenState
                     key: _batteryOptimizationKey,
                     value: value,
                     apply: () => _batteryOptimization = value,
-                    successMessage: value
-                        ? 'تم تفعيل تحسين البطارية'
-                        : 'تم إيقاف تحسين البطارية',
+                    successMessage: value ? 'تم تفعيل تحسين البطارية' : 'تم إيقاف تحسين البطارية',
                   ),
             secondary: const Icon(Icons.battery_saver),
           ),
@@ -339,9 +294,7 @@ class _UnifiedSyncSettingsScreenState
                     key: _wifiOnlyKey,
                     value: value,
                     apply: () => _wifiOnly = value,
-                    successMessage: value
-                        ? 'ستقتصر المزامنة على WiFi'
-                        : 'ستعمل المزامنة على جميع الشبكات',
+                    successMessage: value ? 'ستقتصر المزامنة على WiFi' : 'ستعمل المزامنة على جميع الشبكات',
                   ),
             secondary: const Icon(Icons.wifi),
           ),
@@ -353,25 +306,16 @@ class _UnifiedSyncSettingsScreenState
   Widget _buildSmartSyncSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(
-                  Icons.psychology,
-                  color: Colors.purple,
-                  size: UIConstants.iconSizeMD,
-                ),
+                Icon(Icons.psychology, color: Colors.purple, size: UIConstants.iconSizeMD),
                 SizedBox(width: UIConstants.spacingSM),
-                Text(
-                  'المزامنة الذكية',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('المزامنة الذكية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -386,9 +330,7 @@ class _UnifiedSyncSettingsScreenState
                     key: _smartSyncKey,
                     value: value,
                     apply: () => _smartSyncEnabled = value,
-                    successMessage: value
-                        ? 'تم تفعيل المزامنة الذكية'
-                        : 'تم إيقاف المزامنة الذكية',
+                    successMessage: value ? 'تم تفعيل المزامنة الذكية' : 'تم إيقاف المزامنة الذكية',
                   ),
             secondary: const Icon(Icons.smart_toy),
           ),
@@ -400,25 +342,16 @@ class _UnifiedSyncSettingsScreenState
   Widget _buildAppwriteSyncSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(
-                  Icons.cloud_sync,
-                  color: Colors.blue,
-                  size: UIConstants.iconSizeMD,
-                ),
+                Icon(Icons.cloud_sync, color: Colors.blue, size: UIConstants.iconSizeMD),
                 SizedBox(width: UIConstants.spacingSM),
-                Text(
-                  'Appwrite Sync',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('Appwrite Sync', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -433,9 +366,7 @@ class _UnifiedSyncSettingsScreenState
                     key: _appwriteSyncKey,
                     value: value,
                     apply: () => _appwriteSyncEnabled = value,
-                    successMessage: value
-                        ? 'تم تفعيل مزامنة Appwrite'
-                        : 'تم إيقاف مزامنة Appwrite',
+                    successMessage: value ? 'تم تفعيل مزامنة Appwrite' : 'تم إيقاف مزامنة Appwrite',
                     applyToService: _applyAppwriteSync,
                   ),
             secondary: const Icon(Icons.cloud),
@@ -454,9 +385,7 @@ class _UnifiedSyncSettingsScreenState
                     key: _realtimeSyncKey,
                     value: value,
                     apply: () => _realtimeSyncEnabled = value,
-                    successMessage: value
-                        ? 'تم تفعيل المزامنة الفورية'
-                        : 'تم إيقاف المزامنة الفورية',
+                    successMessage: value ? 'تم تفعيل المزامنة الفورية' : 'تم إيقاف المزامنة الفورية',
                     applyToService: _applyRealtimeSync,
                   ),
             secondary: const Icon(Icons.flash_on),
@@ -475,9 +404,7 @@ class _UnifiedSyncSettingsScreenState
     if (at == null) return 'لم يُنفّذ سحب بعد في هذه الجلسة';
     final n = manager!.lastPullRecordsCount;
     final relative = DateTimeFormatter.getRelativeTime(at.toIso8601String());
-    return n > 0
-        ? 'آخر سحب: $relative — $n سجل'
-        : 'آخر سحب: $relative — لا جديد';
+    return n > 0 ? 'آخر سحب: $relative — $n سجل' : 'آخر سحب: $relative — لا جديد';
   }
 
   /// سحب فوري عند الطلب من المستخدم (زر «سحب الآن»).
@@ -488,39 +415,27 @@ class _UnifiedSyncSettingsScreenState
       final manager = AppwriteSyncManager.instance;
       if (manager == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'مدير المزامنة غير مهيّأ بعد — أعد المحاولة بعد فتح التطبيق',
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('مدير المزامنة غير مهيّأ بعد — أعد المحاولة بعد فتح التطبيق')));
         return;
       }
       final changed = await manager.pullRemoteChanges();
       if (!mounted) return;
       if (changed) {
         final n = manager.lastPullRecordsCount;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('تم السحب بنجاح — $n سجل جديد')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم السحب بنجاح — $n سجل جديد')));
       } else {
         // false يغطي: لا تغييرات، أو السحب مؤجل لوجود تغييرات محلية لم تُرفع.
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'لا توجد تغييرات جديدة — أو السحب مؤجل حتى تُرفع تغييراتك المحلية المعلّقة',
-            ),
-          ),
+          const SnackBar(content: Text('لا توجد تغييرات جديدة — أو السحب مؤجل حتى تُرفع تغييراتك المحلية المعلّقة')),
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('فشل السحب — تحقق من الاتصال بـ Appwrite وحاول مجدداً'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('فشل السحب — تحقق من الاتصال بـ Appwrite وحاول مجدداً')));
     } finally {
       if (mounted) setState(() => _isPullingNow = false);
     }
@@ -536,25 +451,16 @@ class _UnifiedSyncSettingsScreenState
         : '$enabled من $total جدول مفعّل للسحب';
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(
-                  Icons.dataset,
-                  color: Colors.indigo,
-                  size: UIConstants.iconSizeMD,
-                ),
+                Icon(Icons.dataset, color: Colors.indigo, size: UIConstants.iconSizeMD),
                 SizedBox(width: UIConstants.spacingSM),
-                Text(
-                  'جداول السحب من Appwrite',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                Text('جداول السحب من Appwrite', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -571,20 +477,13 @@ class _UnifiedSyncSettingsScreenState
             title: const Text('سحب الآن'),
             subtitle: Text(_lastPullSubtitle),
             leading: _isPullingNow
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.4),
-                  )
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4))
                 : const Icon(Icons.cloud_download),
             onTap: (_isPullingNow || _isSaving) ? null : _pullNow,
           ),
           const Divider(height: 1),
           const Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: UIConstants.spacingMD,
-              vertical: UIConstants.spacingSM,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: UIConstants.spacingMD, vertical: UIConstants.spacingSM),
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: Text(
@@ -615,8 +514,7 @@ class _UnifiedSyncSettingsScreenState
                   child: ListView(
                     shrinkWrap: true,
                     children: [
-                      for (final entry
-                          in SyncPullScope.catalogByCategory.entries) ...[
+                      for (final entry in SyncPullScope.catalogByCategory.entries) ...[
                         Padding(
                           padding: const EdgeInsetsDirectional.only(
                             top: UIConstants.spacingSM,
@@ -625,11 +523,7 @@ class _UnifiedSyncSettingsScreenState
                           ),
                           child: Text(
                             entry.key,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                              color: Colors.indigo,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo),
                           ),
                         ),
                         for (final meta in entry.value)
@@ -641,10 +535,7 @@ class _UnifiedSyncSettingsScreenState
                             subtitle: meta.core
                                 ? const Text(
                                     'أصل مرجعي — تعطيله قد يسبب سجلات يتيمة',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.orange,
-                                    ),
+                                    style: TextStyle(fontSize: 11, color: Colors.orange),
                                   )
                                 : null,
                             value: !working.contains(meta.name),
@@ -664,23 +555,14 @@ class _UnifiedSyncSettingsScreenState
                 ),
               ),
               actions: [
+                TextButton(onPressed: () => setDialogState(working.clear), child: const Text('تحديد الكل')),
                 TextButton(
-                  onPressed: () => setDialogState(working.clear),
-                  child: const Text('تحديد الكل'),
-                ),
-                TextButton(
-                  onPressed: () => setDialogState(
-                    () => working.addAll(SyncPullScope.catalogNames),
-                  ),
+                  onPressed: () => setDialogState(() => working.addAll(SyncPullScope.catalogNames)),
                   child: const Text('إلغاء الكل'),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('إلغاء'),
-                ),
+                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
                 FilledButton(
-                  onPressed: () =>
-                      Navigator.pop(dialogContext, Set<String>.from(working)),
+                  onPressed: () => Navigator.pop(dialogContext, Set<String>.from(working)),
                   child: const Text('حفظ'),
                 ),
               ],
@@ -723,9 +605,7 @@ class _UnifiedSyncSettingsScreenState
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر حفظ نطاق السحب. حاول مرة أخرى.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر حفظ نطاق السحب. حاول مرة أخرى.')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -738,23 +618,16 @@ class _UnifiedSyncSettingsScreenState
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_syncIntervalKey, minutes);
-      await _applyAutoSync(
-        _autoSyncEnabled && _appwriteSyncEnabled,
-        intervalMinutes: minutes,
-      );
+      await _applyAutoSync(_autoSyncEnabled && _appwriteSyncEnabled, intervalMinutes: minutes);
       if (!mounted) return;
       setState(() => _syncIntervalMinutes = minutes);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم ضبط فترة المزامنة على كل $minutes دقيقة')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم ضبط فترة المزامنة على كل $minutes دقيقة')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذر تحديث فترة المزامنة. حاول مرة أخرى.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تعذر تحديث فترة المزامنة. حاول مرة أخرى.')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -796,12 +669,7 @@ class _UnifiedSyncSettingsScreenState
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
       ),
     );
   }

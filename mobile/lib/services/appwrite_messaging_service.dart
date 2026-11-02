@@ -62,15 +62,13 @@ class MessagingTopics {
 class AppwriteMessagingService {
   factory AppwriteMessagingService() => _instance;
   AppwriteMessagingService._internal();
-  static final AppwriteMessagingService _instance =
-      AppwriteMessagingService._internal();
+  static final AppwriteMessagingService _instance = AppwriteMessagingService._internal();
 
   late final Account _account;
   late final Client _client;
   late final Databases _databases;
 
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
   String? _currentTargetId;
   String? _currentUserId;
@@ -83,13 +81,12 @@ class AppwriteMessagingService {
   // داخلي لاحقاً، لكنه معطّل افتراضياً لتجنب الإشعارات الكاذبة.
   static const bool _useRealtimeNotificationFallback = false;
 
-  static const AndroidNotificationChannel _messagingChannel =
-      AndroidNotificationChannel(
-        'marina_messaging_channel',
-        'رسائل فندق مارينا',
-        description: 'إشعارات Appwrite Messaging',
-        importance: Importance.high,
-      );
+  static const AndroidNotificationChannel _messagingChannel = AndroidNotificationChannel(
+    'marina_messaging_channel',
+    'رسائل فندق مارينا',
+    description: 'إشعارات Appwrite Messaging',
+    importance: Importance.high,
+  );
 
   /// تهيئة الخدمة — تُستدعى مرة واحدة من main.dart
   Future<void> initialize() async {
@@ -107,12 +104,7 @@ class AppwriteMessagingService {
       _isInitialized = true;
       dlog('✅ Appwrite Messaging Service initialized');
     } catch (e, st) {
-      AppLogger.error(
-        'فشل تهيئة Appwrite Messaging',
-        tag: 'Messaging',
-        error: e,
-        stackTrace: st,
-      );
+      AppLogger.error('فشل تهيئة Appwrite Messaging', tag: 'Messaging', error: e, stackTrace: st);
       // لا نمنع التطبيق من العمل
     }
   }
@@ -121,10 +113,7 @@ class AppwriteMessagingService {
   ///
   /// [fcmToken] التوكن من Firebase (مطلوب للأندرويد)
   /// [userId] معرف المستخدم (اختياري — يُربط الـ Target بحساب المستخدم)
-  Future<String?> registerDevice({
-    required String fcmToken,
-    String? userId,
-  }) async {
+  Future<String?> registerDevice({required String fcmToken, String? userId}) async {
     if (!_isInitialized) {
       dlog('⚠️ Messaging Service not initialized');
       return null;
@@ -191,10 +180,7 @@ class AppwriteMessagingService {
       if (userId != null) {
         try {
           await _account.updatePrefs(
-            prefs: {
-              'messaging_target_id': deviceId,
-              'messaging_registered_at': DateTime.now().toIso8601String(),
-            },
+            prefs: {'messaging_target_id': deviceId, 'messaging_registered_at': DateTime.now().toIso8601String()},
           );
         } catch (e) {
           // غير حرج
@@ -210,12 +196,7 @@ class AppwriteMessagingService {
 
       return deviceId;
     } catch (e, st) {
-      AppLogger.error(
-        'فشل تسجيل جهاز في Messaging',
-        tag: 'Messaging',
-        error: e,
-        stackTrace: st,
-      );
+      AppLogger.error('فشل تسجيل جهاز في Messaging', tag: 'Messaging', error: e, stackTrace: st);
       return null;
     }
   }
@@ -249,8 +230,7 @@ class AppwriteMessagingService {
         dlog(() => '✅ Subscribed to topic: $topicId');
 
         // حفظ قائمة الاشتراكات محلياً
-        final subscribed =
-            prefs.getStringList('messaging_subscribed_topics') ?? [];
+        final subscribed = prefs.getStringList('messaging_subscribed_topics') ?? [];
         if (!subscribed.contains(topicId)) {
           subscribed.add(topicId);
           await prefs.setStringList('messaging_subscribed_topics', subscribed);
@@ -265,8 +245,7 @@ class AppwriteMessagingService {
   Future<void> unsubscribeFromTopic(String topicId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final subscribed =
-          prefs.getStringList('messaging_subscribed_topics') ?? [];
+      final subscribed = prefs.getStringList('messaging_subscribed_topics') ?? [];
       subscribed.remove(topicId);
       await prefs.setStringList('messaging_subscribed_topics', subscribed);
       dlog(() => '✅ Unsubscribed from: $topicId');
@@ -290,28 +269,18 @@ class AppwriteMessagingService {
 
       _realtimeSubscription = subscription.stream.listen(
         (event) {
-          if (event.events.contains('messages.create') ||
-              event.events.contains('messages.update')) {
+          if (event.events.contains('messages.create') || event.events.contains('messages.update')) {
             _handleIncomingMessage(event.payload);
           }
         },
         onError: (Object e) {
-          AppLogger.warning(
-            'خطأ في Realtime subscription',
-            tag: 'Messaging',
-            error: e,
-          );
+          AppLogger.warning('خطأ في Realtime subscription', tag: 'Messaging', error: e);
         },
       );
 
       dlog('✅ Subscribed to Messaging Realtime');
     } catch (e, st) {
-      AppLogger.error(
-        'فشل الاشتراك في Realtime',
-        tag: 'Messaging',
-        error: e,
-        stackTrace: st,
-      );
+      AppLogger.error('فشل الاشتراك في Realtime', tag: 'Messaging', error: e, stackTrace: st);
     }
   }
 
@@ -320,8 +289,7 @@ class AppwriteMessagingService {
     try {
       // استخراج البيانات من الرسالة
       final data = payload['data'] as Map<String, dynamic>? ?? payload;
-      final title =
-          data['title'] as String? ?? payload['title'] as String? ?? 'إشعار';
+      final title = data['title'] as String? ?? payload['title'] as String? ?? 'إشعار';
       final body = data['body'] as String? ?? payload['body'] as String? ?? '';
 
       // التحقق أن الرسالة من نظامنا
@@ -352,11 +320,7 @@ class AppwriteMessagingService {
   }
 
   /// عرض إشعار محلي في الـ foreground
-  Future<void> _showLocalNotification(
-    String title,
-    String body,
-    Map<String, dynamic> data,
-  ) async {
+  Future<void> _showLocalNotification(String title, String body, Map<String, dynamic> data) async {
     try {
       const androidDetails = AndroidNotificationDetails(
         'marina_messaging_channel',
@@ -367,10 +331,7 @@ class AppwriteMessagingService {
         icon: '@mipmap/ic_launcher',
       );
       const iosDetails = DarwinNotificationDetails();
-      const details = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
+      const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
       await _localNotifications.show(
         DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -405,28 +366,20 @@ class AppwriteMessagingService {
   /// الحصول على معرف الجهاز المحفوظ
   Future<String?> _getMyDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('appwrite_device_id') ??
-        prefs.getString('appwrite_realtime_device_id');
+    return prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
   }
 
   /// تهيئة الإشعارات المحلية
   Future<void> _initLocalNotifications() async {
     try {
-      const androidSettings = AndroidInitializationSettings(
-        '@mipmap/ic_launcher',
-      );
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings();
-      const settings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
+      const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
       await _localNotifications.initialize(settings);
 
       if (Platform.isAndroid) {
         await _localNotifications
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >()
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
             ?.createNotificationChannel(_messagingChannel);
       }
       dlog('✅ Messaging: local notifications initialized');

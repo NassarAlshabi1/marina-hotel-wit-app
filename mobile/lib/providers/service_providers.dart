@@ -104,9 +104,7 @@ final syncOrchestratorProvider = Provider<SyncOrchestrator>((ref) {
 // ============================================================================
 // مزود مُحسّن أداء المزامنة
 // ============================================================================
-final syncPerformanceOptimizerProvider = Provider<SyncPerformanceOptimizer>((
-  ref,
-) {
+final syncPerformanceOptimizerProvider = Provider<SyncPerformanceOptimizer>((ref) {
   final service = SyncPerformanceOptimizer.instance;
   ref.onDispose(service.dispose);
   return service;
@@ -156,9 +154,7 @@ final maintenanceServiceProvider = Provider<MaintenanceService>((ref) {
 // ============================================================================
 // مزود تقرير صحة المزامنة
 // ============================================================================
-final syncHealthReportProvider = FutureProvider.autoDispose<SyncHealthReport>((
-  ref,
-) async {
+final syncHealthReportProvider = FutureProvider.autoDispose<SyncHealthReport>((ref) async {
   final db = ref.read(databaseProvider);
   final monitor = ref.read(syncHealthMonitorProvider);
   return monitor.getHealthReport(db);

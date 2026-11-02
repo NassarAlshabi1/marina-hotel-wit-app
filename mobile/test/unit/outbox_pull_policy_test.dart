@@ -10,9 +10,7 @@ void main() {
     });
 
     test('رسالة الحظر توضّح أولوية رفع التغييرات المحلية', () {
-      final message = OutboxPullPolicy.blockedMessage(
-        undeliveredOutboxCount: 3,
-      );
+      final message = OutboxPullPolicy.blockedMessage(undeliveredOutboxCount: 3);
 
       expect(message, contains('3'));
       expect(message, contains('رفع'));

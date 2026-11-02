@@ -49,10 +49,7 @@ class AdvancedQueryBuilder {
   ///
   /// [attribute] - اسم الحقل
   /// [value] - القيمة الدنيا (شاملة)
-  AdvancedQueryBuilder whereGreaterThanOrEqual(
-    String attribute,
-    dynamic value,
-  ) {
+  AdvancedQueryBuilder whereGreaterThanOrEqual(String attribute, dynamic value) {
     _queries.add(Query.greaterThanEqual(attribute, value));
     return this;
   }
@@ -80,11 +77,7 @@ class AdvancedQueryBuilder {
   /// [attribute] - اسم الحقل
   /// [min] - القيمة الدنيا
   /// [max] - القيمة القصوى
-  AdvancedQueryBuilder whereBetween(
-    String attribute,
-    dynamic min,
-    dynamic max,
-  ) {
+  AdvancedQueryBuilder whereBetween(String attribute, dynamic min, dynamic max) {
     _queries.add(Query.greaterThanEqual(attribute, min));
     _queries.add(Query.lessThanEqual(attribute, max));
     return this;

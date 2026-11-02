@@ -54,8 +54,7 @@ class TelegramReportService {
   TelegramReportService._();
 
   static TelegramReportService? _instance;
-  static TelegramReportService get instance =>
-      _instance ??= TelegramReportService._();
+  static TelegramReportService get instance => _instance ??= TelegramReportService._();
 
   final TelegramApiClient _api = TelegramApiClient.instance;
 
@@ -69,8 +68,7 @@ class TelegramReportService {
   /// يرسل تقريراً واحداً فقط لكل يوم فندقي بعد نجاح التسليم.
   Future<bool> sendDailyReport() async {
     try {
-      if (!await TelegramConfig.isEnabled() ||
-          !await TelegramConfig.isDailyReportEnabled()) {
+      if (!await TelegramConfig.isEnabled() || !await TelegramConfig.isDailyReportEnabled()) {
         return false;
       }
 
@@ -83,9 +81,7 @@ class TelegramReportService {
       final data = await _gatherReportData();
       if (data == null) return false;
 
-      final success = await _api.sendToDefaultChat(
-        text: _buildReportMessage(data),
-      );
+      final success = await _api.sendToDefaultChat(text: _buildReportMessage(data));
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
         dlog('✅ Telegram: تم إرسال التقرير اليومي بنجاح');
@@ -117,11 +113,7 @@ class TelegramReportService {
       final hotelDayKey = HotelTimeEngine.getHotelDayKey(dateTime: now);
       final range = HotelTimeEngine.getHotelDayRange(now);
       final startEpoch = range['start']!.millisecondsSinceEpoch ~/ 1000;
-      final endExclusiveEpoch =
-          range['end']!
-              .add(const Duration(milliseconds: 1))
-              .millisecondsSinceEpoch ~/
-          1000;
+      final endExclusiveEpoch = range['end']!.add(const Duration(milliseconds: 1)).millisecondsSinceEpoch ~/ 1000;
 
       // تجميعات SQL: صف واحد فقط بدلاً من فك جميع الكيانات في Dart.
       final summary = await db
@@ -193,8 +185,7 @@ SELECT
         for (final booking in overdueBookings)
           '⏰ تأخير مغادرة — غرفة ${_escapeHtml(booking.roomNumber)} '
               '(${_escapeHtml(booking.guestName)})',
-        if (count('unsettled_debts') > 0)
-          '💳 لديك ${count('unsettled_debts')} ديون غير مسددة',
+        if (count('unsettled_debts') > 0) '💳 لديك ${count('unsettled_debts')} ديون غير مسددة',
         if (maintenanceRooms > 0) '🔧 $maintenanceRooms غرف تحت الصيانة',
       ];
 
@@ -243,15 +234,9 @@ SELECT
       ..writeln('└ نشطة حالياً: ${data.activeBookings}')
       ..writeln()
       ..writeln('💰 <b>ملخص مالي</b>')
-      ..writeln(
-        '┌ الإيرادات: \$${CurrencyFormatter.formatAmount(data.todayRevenue)}',
-      )
-      ..writeln(
-        '├ المصروفات: \$${CurrencyFormatter.formatAmount(data.todayExpenses)}',
-      )
-      ..writeln(
-        '└ صافي الربح: \$${CurrencyFormatter.formatAmount(data.netProfit)}',
-      )
+      ..writeln('┌ الإيرادات: \$${CurrencyFormatter.formatAmount(data.todayRevenue)}')
+      ..writeln('├ المصروفات: \$${CurrencyFormatter.formatAmount(data.todayExpenses)}')
+      ..writeln('└ صافي الربح: \$${CurrencyFormatter.formatAmount(data.netProfit)}')
       ..writeln()
       ..writeln('💳 الديون غير المسددة: ${data.unsettledDebts}');
 
@@ -270,8 +255,6 @@ SELECT
     return buffer.toString().trimRight();
   }
 
-  static String _escapeHtml(String value) => value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;');
+  static String _escapeHtml(String value) =>
+      value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }

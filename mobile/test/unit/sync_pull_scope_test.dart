@@ -71,10 +71,7 @@ void main() {
 
       // التحقق من الاستمرارية: قراءة جديدة من التخزين تُرجع نفس الحالة
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getStringList(SyncPullScope.prefsKey), [
-        'guest_infos',
-        'salary_withdrawals',
-      ]);
+      expect(prefs.getStringList(SyncPullScope.prefsKey), ['guest_infos', 'salary_withdrawals']);
     });
 
     test('load يستعيد الحالة المحفوظة عبر دورة حياة التطبيق', () async {
@@ -89,32 +86,26 @@ void main() {
       expect(SyncPullScope.isDisabled('rooms'), isFalse);
     });
 
-    test(
-      'setDisabled يتجاهل الأسماء غير الموجودة في الكتالوج (تنظيف)',
-      () async {
-        await SyncPullScope.setDisabled({'ghost_collection', 'rooms'});
+    test('setDisabled يتجاهل الأسماء غير الموجودة في الكتالوج (تنظيف)', () async {
+      await SyncPullScope.setDisabled({'ghost_collection', 'rooms'});
 
-        expect(SyncPullScope.isDisabled('rooms'), isTrue);
-        expect(SyncPullScope.isDisabled('ghost_collection'), isFalse);
-        expect(SyncPullScope.disabledCount, 1);
+      expect(SyncPullScope.isDisabled('rooms'), isTrue);
+      expect(SyncPullScope.isDisabled('ghost_collection'), isFalse);
+      expect(SyncPullScope.disabledCount, 1);
 
-        final prefs = await SharedPreferences.getInstance();
-        expect(prefs.getStringList(SyncPullScope.prefsKey), ['rooms']);
-      },
-    );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getStringList(SyncPullScope.prefsKey), ['rooms']);
+    });
 
-    test(
-      'إعادة التفعيل: setDisabled بمجموعة أصغر يلغي التعطيل السابق',
-      () async {
-        await SyncPullScope.setDisabled({'guest_infos', 'debts'});
-        expect(SyncPullScope.isDisabled('guest_infos'), isTrue);
+    test('إعادة التفعيل: setDisabled بمجموعة أصغر يلغي التعطيل السابق', () async {
+      await SyncPullScope.setDisabled({'guest_infos', 'debts'});
+      expect(SyncPullScope.isDisabled('guest_infos'), isTrue);
 
-        // المستخدم أعاد تفعيل guest_infos من الإعدادات
-        await SyncPullScope.setDisabled({'debts'});
-        expect(SyncPullScope.isDisabled('guest_infos'), isFalse);
-        expect(SyncPullScope.isDisabled('debts'), isTrue);
-      },
-    );
+      // المستخدم أعاد تفعيل guest_infos من الإعدادات
+      await SyncPullScope.setDisabled({'debts'});
+      expect(SyncPullScope.isDisabled('guest_infos'), isFalse);
+      expect(SyncPullScope.isDisabled('debts'), isTrue);
+    });
   });
 
   group('SyncPullScope — اكتمال الكتالوج', () {
@@ -126,11 +117,7 @@ void main() {
       for (final meta in SyncPullScope.catalog) {
         expect(meta.name, isNotEmpty, reason: 'name فارغ');
         expect(meta.label, isNotEmpty, reason: 'label فارغ لـ ${meta.name}');
-        expect(
-          meta.category,
-          isNotEmpty,
-          reason: 'category فارغ لـ ${meta.name}',
-        );
+        expect(meta.category, isNotEmpty, reason: 'category فارغ لـ ${meta.name}');
       }
     });
 
@@ -140,22 +127,13 @@ void main() {
     });
 
     test('الجداول الأصلية المرجعية (core) تشمل rooms وbookings وemployees', () {
-      final coreNames = SyncPullScope.catalog
-          .where((m) => m.core)
-          .map((m) => m.name)
-          .toSet();
-      expect(
-        coreNames,
-        containsAll(<String>{'rooms', 'bookings', 'employees'}),
-      );
+      final coreNames = SyncPullScope.catalog.where((m) => m.core).map((m) => m.name).toSet();
+      expect(coreNames, containsAll(<String>{'rooms', 'bookings', 'employees'}));
     });
 
     test('التجميع حسب الفئة يغطي كل عناصر الكتالوج بلا فقد', () {
       final grouped = SyncPullScope.catalogByCategory;
-      final groupedTotal = grouped.values.fold<int>(
-        0,
-        (sum, list) => sum + list.length,
-      );
+      final groupedTotal = grouped.values.fold<int>(0, (sum, list) => sum + list.length);
       expect(groupedTotal, SyncPullScope.catalog.length);
       expect(grouped.keys, isNotEmpty);
     });

@@ -34,11 +34,7 @@ extension ResponsiveContext on BuildContext {
   /// (سلوك الهاتف الحالي بلا تغيير)، وفوقه يوسع الأعمدة بما يسمح به
   /// العرض بحيث لا يقل عرض العمود عن [itemMinWidth] ولا يتجاوز العدد
   /// [max].
-  int adaptiveColumns({
-    required int mobile,
-    double itemMinWidth = 220,
-    int max = 8,
-  }) {
+  int adaptiveColumns({required int mobile, double itemMinWidth = 220, int max = 8}) {
     if (!isWide) {
       return mobile;
     }
@@ -69,9 +65,7 @@ class ResponsiveContent extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: maxWidth ?? AppBreakpoints.contentMaxWidth,
-          ),
+          constraints: BoxConstraints(maxWidth: maxWidth ?? AppBreakpoints.contentMaxWidth),
           child: child,
         ),
       ),

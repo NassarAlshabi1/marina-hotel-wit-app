@@ -8,8 +8,7 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class SalaryCarryOverLogsAdapter
-    extends EntityAdapter<SalaryCarryOverLog, SalaryCarryOverLogsCompanion> {
+class SalaryCarryOverLogsAdapter extends EntityAdapter<SalaryCarryOverLog, SalaryCarryOverLogsCompanion> {
   SalaryCarryOverLogsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -23,11 +22,7 @@ class SalaryCarryOverLogsAdapter
   String get tableName => 'salary_carry_over_logs';
 
   @override
-  Future<ResolveResult> resolveRefs(
-    AppDatabase db,
-    Map<String, dynamic> json, {
-    required Source src,
-  }) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
     // ✅ (2026-09-19) إغلاق فجوة employee_uuid: نفس إصلاح salary_cycles_adapter —
     // 1) لا يُخزّن employeeId البعيد (id جهاز المصدر) كما هو لأن autoIncrement
     //    يختلف بين الأجهزة — الربط الصحيح عبر UUID أولاً ثم serverId.
@@ -37,8 +32,7 @@ class SalaryCarryOverLogsAdapter
         _asString(json, 'employee_uuid', src) ??
         _asString(json, 'employeeLocalUuid', src) ??
         _asString(json, 'employee_local_uuid', src);
-    final remoteEmployeeId =
-        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final remoteEmployeeId = _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
 
     final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedEmployeeId = await resolver.resolveEmployee(
@@ -52,9 +46,7 @@ class SalaryCarryOverLogsAdapter
     final lastModified = _asInt(json, 'lastModified', src);
 
     // إذا لم يُعثر على الموظف (يتيم): نتخطى لأن employeeId مطلوب (NOT NULL FK)
-    final shouldSkip =
-        resolvedEmployeeId == null &&
-        (src == Source.appwrite || src == Source.drive);
+    final shouldSkip = resolvedEmployeeId == null && (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'salary_carry_over_log: لا يمكن العثور على الموظف المرتبط '
               '(uuid=$remoteEmployeeUuid, originEmployeeId=$remoteEmployeeId, '
@@ -71,19 +63,11 @@ class SalaryCarryOverLogsAdapter
   }
 
   @override
-  SalaryCarryOverLogsCompanion fromJson(
-    Map<String, dynamic> json, {
-    required Source src,
-    required ResolveResult refs,
-  }) {
+  SalaryCarryOverLogsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
     return SalaryCarryOverLogsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(
-        _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
-      ),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
       employeeId: refs.employeeLocalId != null
           ? d.Value(refs.employeeLocalId!)
           : (src == Source.appwrite || src == Source.drive)
@@ -93,25 +77,13 @@ class SalaryCarryOverLogsAdapter
       employeeUuid: _vUuid(json, 'employeeUuid', src, altKey: 'employee_uuid'),
       amount: d.Value(_asDouble(json, 'amount', src) ?? 0),
       previousCycleStart: d.Value(
-        _asString(json, 'previousCycleStart', src) ??
-            _asString(json, 'previous_cycle_start', src) ??
-            '',
+        _asString(json, 'previousCycleStart', src) ?? _asString(json, 'previous_cycle_start', src) ?? '',
       ),
       previousCycleEnd: d.Value(
-        _asString(json, 'previousCycleEnd', src) ??
-            _asString(json, 'previous_cycle_end', src) ??
-            '',
+        _asString(json, 'previousCycleEnd', src) ?? _asString(json, 'previous_cycle_end', src) ?? '',
       ),
-      newCycleStart: d.Value(
-        _asString(json, 'newCycleStart', src) ??
-            _asString(json, 'new_cycle_start', src) ??
-            '',
-      ),
-      newCycleEnd: d.Value(
-        _asString(json, 'newCycleEnd', src) ??
-            _asString(json, 'new_cycle_end', src) ??
-            '',
-      ),
+      newCycleStart: d.Value(_asString(json, 'newCycleStart', src) ?? _asString(json, 'new_cycle_start', src) ?? ''),
+      newCycleEnd: d.Value(_asString(json, 'newCycleEnd', src) ?? _asString(json, 'new_cycle_end', src) ?? ''),
       reason: d.Value(_asString(json, 'reason', src) ?? ''),
       carriedAt: d.Value(_asInt(json, 'carriedAt', src) ?? now),
       createdAt: d.Value(_asInt(json, 'createdAt', src) ?? now),
@@ -131,19 +103,8 @@ class SalaryCarryOverLogsAdapter
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(
-        json,
-        'vectorClock',
-        src,
-        altKey: 'vector_clock',
-        fallback: '{}',
-      ),
-      idempotencyKey: _vStr(
-        json,
-        'idempotencyKey',
-        src,
-        altKey: 'idempotency_key',
-      ),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -156,8 +117,7 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'employeeId', 'employee_id'): model.employeeId,
       _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'amount', 'amount'): model.amount,
-      _k(src, 'previousCycleStart', 'previous_cycle_start'):
-          model.previousCycleStart,
+      _k(src, 'previousCycleStart', 'previous_cycle_start'): model.previousCycleStart,
       _k(src, 'previousCycleEnd', 'previous_cycle_end'): model.previousCycleEnd,
       _k(src, 'newCycleStart', 'new_cycle_start'): model.newCycleStart,
       _k(src, 'newCycleEnd', 'new_cycle_end'): model.newCycleEnd,
@@ -172,8 +132,7 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
-          model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -184,15 +143,8 @@ class SalaryCarryOverLogsAdapter
 }
 
 // Helpers
-d.Value<String> _vUuid(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-}) {
-  final raw =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null);
+d.Value<String> _vUuid(Map<String, dynamic> json, String key, Source src, {String? altKey}) {
+  final raw = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null);
   if (raw == null || raw.trim().isEmpty) return const d.Value.absent();
   final trimmed = raw.trim();
   final compact = trimmed.replaceAll('-', '');
@@ -207,31 +159,13 @@ d.Value<String> _vUuid(
   return d.Value(trimmed.toLowerCase());
 }
 
-d.Value<int> _vInt(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  int? fallback,
-}) {
-  final v =
-      _asInt(json, key, src) ??
-      (altKey != null ? _asInt(json, altKey, src) : null) ??
-      fallback;
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  String? fallback,
-}) {
-  final v =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -268,8 +202,7 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   final buf = StringBuffer();

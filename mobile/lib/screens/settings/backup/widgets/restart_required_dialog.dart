@@ -22,11 +22,7 @@ Future<void> showRestartRequiredDialog(BuildContext context) {
                     'جديد لتحميل البيانات المستعادة.',
         ),
         actions: [
-          if (!Platform.isIOS)
-            FilledButton(
-              onPressed: () => SystemNavigator.pop(),
-              child: const Text('إغلاق التطبيق'),
-            ),
+          if (!Platform.isIOS) FilledButton(onPressed: () => SystemNavigator.pop(), child: const Text('إغلاق التطبيق')),
         ],
       ),
     ),

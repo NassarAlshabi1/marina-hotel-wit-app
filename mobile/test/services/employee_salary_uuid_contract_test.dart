@@ -31,26 +31,16 @@ void main() {
     employeesRepository = EmployeesRepository(db);
     expensesRepository = ExpensesRepository(db);
     withdrawalsRepository = SalaryWithdrawalsRepository(db);
-    installmentsService = SalaryAdvanceInstallmentsService(
-      db,
-      expensesRepository,
-      withdrawalsRepository,
-    );
+    installmentsService = SalaryAdvanceInstallmentsService(db, expensesRepository, withdrawalsRepository);
   });
 
   tearDown(() async {
     await db.close();
   });
 
-  Future<Employee> seedEmployee({
-    required String uuid,
-    required String name,
-    String? hireDate,
-  }) async {
+  Future<Employee> seedEmployee({required String uuid, required String name, String? hireDate}) async {
     final nowDate = DateTime.now();
-    final effectiveHireDate =
-        hireDate ??
-        '${nowDate.year - 1}-${nowDate.month.toString().padLeft(2, '0')}-01';
+    final effectiveHireDate = hireDate ?? '${nowDate.year - 1}-${nowDate.month.toString().padLeft(2, '0')}-01';
     final id = await db
         .into(db.employees)
         .insert(
@@ -85,9 +75,7 @@ void main() {
             localUuid: d.Value(uuid),
             expenseType: d.Value(type),
             relatedId: d.Value(relatedId),
-            employeeUuid: employeeUuid == null
-                ? const d.Value.absent()
-                : d.Value(employeeUuid),
+            employeeUuid: employeeUuid == null ? const d.Value.absent() : d.Value(employeeUuid),
             description: d.Value(description),
             amount: d.Value(amount),
             date: d.Value(date),
@@ -116,12 +104,8 @@ void main() {
           SalaryWithdrawalsCompanion(
             localUuid: d.Value(uuid),
             employeeId: d.Value(employeeId),
-            employeeUuid: employeeUuid == null
-                ? const d.Value.absent()
-                : d.Value(employeeUuid),
-            expenseUuid: expenseUuid == null
-                ? const d.Value.absent()
-                : d.Value(expenseUuid),
+            employeeUuid: employeeUuid == null ? const d.Value.absent() : d.Value(employeeUuid),
+            expenseUuid: expenseUuid == null ? const d.Value.absent() : d.Value(expenseUuid),
             amount: d.Value(amount),
             withdrawDate: d.Value(date),
             hotelDayKey: d.Value(date),
@@ -134,81 +118,65 @@ void main() {
         );
   }
 
-  Future<Map<String, dynamic>> salaryWithdrawalOutboxPayload(
-    String uuid,
-  ) async {
-    final rows =
-        await (db.select(db.outbox)..where(
-              (o) =>
-                  o.entity.equals('salary_withdrawals') &
-                  o.localUuid.equals(uuid),
-            ))
-            .get();
+  Future<Map<String, dynamic>> salaryWithdrawalOutboxPayload(String uuid) async {
+    final rows = await (db.select(
+      db.outbox,
+    )..where((o) => o.entity.equals('salary_withdrawals') & o.localUuid.equals(uuid))).get();
     expect(rows, hasLength(1));
     return jsonDecode(rows.single.payload) as Map<String, dynamic>;
   }
 
-  test(
-    'الاستحقاق والدورة يقرآن عبر employee_uuid لا relatedId أو employeeId المحلي',
-    () async {
-      final employeeA = await seedEmployee(uuid: 'employee-A', name: 'أ');
-      final employeeB = await seedEmployee(uuid: 'employee-B', name: 'ب');
-      final currentCycleStart =
-          '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-01';
-      const expenseUuid = 'salary-expense-A';
+  test('الاستحقاق والدورة يقرآن عبر employee_uuid لا relatedId أو employeeId المحلي', () async {
+    final employeeA = await seedEmployee(uuid: 'employee-A', name: 'أ');
+    final employeeB = await seedEmployee(uuid: 'employee-B', name: 'ب');
+    final currentCycleStart = '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-01';
+    const expenseUuid = 'salary-expense-A';
 
-      // الرقم المحلي يعود إلى الموظف ب، لكن UUID هوية المصروف يثبت أنه للموظف أ.
-      await seedExpense(
-        uuid: expenseUuid,
-        relatedId: employeeB.id,
-        employeeUuid: employeeA.localUuid,
-        type: 'سحب راتب',
-        amount: 250,
-        date: currentCycleStart,
-      );
-      // مرآة المصروف ذاتها: employeeId المحلي متعارض، لكن employeeUuid وexpenseUuid صحيحان.
-      await seedWithdrawal(
-        uuid: 'mirror-withdrawal-A',
-        employeeId: employeeB.id,
-        employeeUuid: employeeA.localUuid,
-        expenseUuid: expenseUuid,
-        amount: 250,
-        date: currentCycleStart,
-        type: 'سحب راتب',
-        reason: 'exp_999999',
-      );
-      // سلفة مباشرة للموظف أ لا ترتبط بمصروف، وemployeeId المحلي متعارض.
-      await seedWithdrawal(
-        uuid: 'direct-advance-A',
-        employeeId: employeeB.id,
-        employeeUuid: employeeA.localUuid,
-        amount: 75,
-        date: currentCycleStart,
-        type: 'سلفة',
-        reason: 'direct_withdrawal_employee-A',
-      );
+    // الرقم المحلي يعود إلى الموظف ب، لكن UUID هوية المصروف يثبت أنه للموظف أ.
+    await seedExpense(
+      uuid: expenseUuid,
+      relatedId: employeeB.id,
+      employeeUuid: employeeA.localUuid,
+      type: 'سحب راتب',
+      amount: 250,
+      date: currentCycleStart,
+    );
+    // مرآة المصروف ذاتها: employeeId المحلي متعارض، لكن employeeUuid وexpenseUuid صحيحان.
+    await seedWithdrawal(
+      uuid: 'mirror-withdrawal-A',
+      employeeId: employeeB.id,
+      employeeUuid: employeeA.localUuid,
+      expenseUuid: expenseUuid,
+      amount: 250,
+      date: currentCycleStart,
+      type: 'سحب راتب',
+      reason: 'exp_999999',
+    );
+    // سلفة مباشرة للموظف أ لا ترتبط بمصروف، وemployeeId المحلي متعارض.
+    await seedWithdrawal(
+      uuid: 'direct-advance-A',
+      employeeId: employeeB.id,
+      employeeUuid: employeeA.localUuid,
+      amount: 75,
+      date: currentCycleStart,
+      type: 'سلفة',
+      reason: 'direct_withdrawal_employee-A',
+    );
 
-      final entitlementA = await entitlementService
-          .calculateEmployeeEntitlement(employeeA);
-      final entitlementB = await entitlementService
-          .calculateEmployeeEntitlement(employeeB);
-      expect(entitlementA.totalWithdrawals, 250);
-      expect(entitlementA.totalAdvances, 75);
-      expect(entitlementB.totalWithdrawals, 0);
-      expect(entitlementB.totalAdvances, 0);
+    final entitlementA = await entitlementService.calculateEmployeeEntitlement(employeeA);
+    final entitlementB = await entitlementService.calculateEmployeeEntitlement(employeeB);
+    expect(entitlementA.totalWithdrawals, 250);
+    expect(entitlementA.totalAdvances, 75);
+    expect(entitlementB.totalWithdrawals, 0);
+    expect(entitlementB.totalAdvances, 0);
 
-      final cycleA = await entitlementService.calculateCurrentCycle(employeeA);
-      final cycleB = await entitlementService.calculateCurrentCycle(employeeB);
-      expect(
-        cycleA.totalWithdrawals,
-        250,
-        reason: 'مصروف المرآة لا يُعَد مرتين',
-      );
-      expect(cycleA.totalAdvances, 75);
-      expect(cycleB.totalWithdrawals, 0);
-      expect(cycleB.totalAdvances, 0);
-    },
-  );
+    final cycleA = await entitlementService.calculateCurrentCycle(employeeA);
+    final cycleB = await entitlementService.calculateCurrentCycle(employeeB);
+    expect(cycleA.totalWithdrawals, 250, reason: 'مصروف المرآة لا يُعَد مرتين');
+    expect(cycleA.totalAdvances, 75);
+    expect(cycleB.totalWithdrawals, 0);
+    expect(cycleB.totalAdvances, 0);
+  });
 
   test('سجلات الترحيل تُقرأ وتُمنع ازدواجيتها عبر employee_uuid', () async {
     // حدود الدورة تُشتق من تاريخ التشغيل الفعلي (توظيف في أول الشهر يجعل
@@ -216,37 +184,20 @@ void main() {
     // بعد تغيّر الشهر الحالي.
     final today = DateTime.now();
     final currentCycleStart = DateTime(today.year, today.month, 1);
-    final currentCycleEnd = DateTime(
-      today.year,
-      today.month + 1,
-      1,
-    ).subtract(const Duration(days: 1));
+    final currentCycleEnd = DateTime(today.year, today.month + 1, 1).subtract(const Duration(days: 1));
     final previousCycleStart = DateTime(today.year, today.month - 1, 1);
-    final previousCycleEnd = currentCycleStart.subtract(
-      const Duration(days: 1),
-    );
-    String fmt(DateTime d) =>
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final previousCycleEnd = currentCycleStart.subtract(const Duration(days: 1));
+    String fmt(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-    final employeeA = await seedEmployee(
-      uuid: 'employee-carry-A',
-      name: 'أ',
-      hireDate: fmt(previousCycleStart),
-    );
-    final employeeB = await seedEmployee(
-      uuid: 'employee-carry-B',
-      name: 'ب',
-      hireDate: fmt(previousCycleStart),
-    );
+    final employeeA = await seedEmployee(uuid: 'employee-carry-A', name: 'أ', hireDate: fmt(previousCycleStart));
+    final employeeB = await seedEmployee(uuid: 'employee-carry-B', name: 'ب', hireDate: fmt(previousCycleStart));
     await seedExpense(
       uuid: 'over-limit-expense-A',
       relatedId: employeeB.id,
       employeeUuid: employeeA.localUuid,
       type: 'سحب راتب',
       amount: 1500,
-      date: fmt(
-        DateTime(previousCycleStart.year, previousCycleStart.month, 10),
-      ),
+      date: fmt(DateTime(previousCycleStart.year, previousCycleStart.month, 10)),
     );
     await db
         .into(db.salaryCarryOverLogs)
@@ -274,10 +225,7 @@ void main() {
     expect(cycleA.carriedOverFromPrevious, 500);
     expect(cycleA.carryOverLogs.map((e) => e.localUuid), ['carry-over-A']);
     expect(cycleB.carryOverLogs, isEmpty);
-    expect(
-      await entitlementService.getAllCarryOverLogs(employeeA.id),
-      hasLength(1),
-    );
+    expect(await entitlementService.getAllCarryOverLogs(employeeA.id), hasLength(1));
     expect(await entitlementService.getAllCarryOverLogs(employeeB.id), isEmpty);
 
     final logs = await db.select(db.salaryCarryOverLogs).get();
@@ -285,114 +233,96 @@ void main() {
     expect(logs.where((e) => e.deletedAt == null), hasLength(1));
   });
 
-  test(
-    'تحذير حذف الموظف لا ينسب سجلاً لموظف بسبب تصادم الرقم المحلي',
-    () async {
-      final employeeA = await seedEmployee(uuid: 'employee-count-A', name: 'أ');
-      final employeeB = await seedEmployee(uuid: 'employee-count-B', name: 'ب');
-      await seedExpense(
-        uuid: 'count-expense-A',
-        relatedId: employeeB.id,
-        employeeUuid: employeeA.localUuid,
-        type: 'سلفة',
-        amount: 300,
-        date: '2026-10-01',
-      );
-      await seedWithdrawal(
-        uuid: 'count-withdrawal-A',
-        employeeId: employeeB.id,
-        employeeUuid: employeeA.localUuid,
-        amount: 300,
-        date: '2026-10-01',
-        type: 'سلفة',
-      );
+  test('تحذير حذف الموظف لا ينسب سجلاً لموظف بسبب تصادم الرقم المحلي', () async {
+    final employeeA = await seedEmployee(uuid: 'employee-count-A', name: 'أ');
+    final employeeB = await seedEmployee(uuid: 'employee-count-B', name: 'ب');
+    await seedExpense(
+      uuid: 'count-expense-A',
+      relatedId: employeeB.id,
+      employeeUuid: employeeA.localUuid,
+      type: 'سلفة',
+      amount: 300,
+      date: '2026-10-01',
+    );
+    await seedWithdrawal(
+      uuid: 'count-withdrawal-A',
+      employeeId: employeeB.id,
+      employeeUuid: employeeA.localUuid,
+      amount: 300,
+      date: '2026-10-01',
+      type: 'سلفة',
+    );
 
-      expect(await employeesRepository.financialRecordsCount(employeeA.id), 2);
-      expect(await employeesRepository.financialRecordsCount(employeeB.id), 0);
-    },
-  );
+    expect(await employeesRepository.financialRecordsCount(employeeA.id), 2);
+    expect(await employeesRepository.financialRecordsCount(employeeB.id), 0);
+  });
 
-  test(
-    'إنشاء وتحديث مرآة السلفة يرسلان UUIDs ويحافظان على local_uuid للسحبة',
-    () async {
-      final employee = await seedEmployee(uuid: 'employee-outbox-A', name: 'أ');
-      final expenseId = await seedExpense(
-        uuid: 'expense-outbox-A',
-        relatedId: employee.id,
-        employeeUuid: employee.localUuid,
-        type: 'سلفة',
-        amount: 500,
-        date: '2026-10-02',
-      );
+  test('إنشاء وتحديث مرآة السلفة يرسلان UUIDs ويحافظان على local_uuid للسحبة', () async {
+    final employee = await seedEmployee(uuid: 'employee-outbox-A', name: 'أ');
+    final expenseId = await seedExpense(
+      uuid: 'expense-outbox-A',
+      relatedId: employee.id,
+      employeeUuid: employee.localUuid,
+      type: 'سلفة',
+      amount: 500,
+      date: '2026-10-02',
+    );
 
-      await withdrawalsRepository.saveFromExpense(
-        expenseId: expenseId,
-        employeeId: employee.id,
-        action: 'سلفة',
-        amount: 500,
-        date: '2026-10-02',
-      );
-      final createdRows = await (db.select(
-        db.salaryWithdrawals,
-      )..where((w) => w.expenseUuid.equals('expense-outbox-A'))).get();
-      expect(createdRows, hasLength(1));
-      final withdrawalUuid = createdRows.single.localUuid;
-      final createdPayload = await salaryWithdrawalOutboxPayload(
-        withdrawalUuid,
-      );
-      expect(createdPayload['employeeUuid'], employee.localUuid);
-      expect(createdPayload['expenseUuid'], 'expense-outbox-A');
+    await withdrawalsRepository.saveFromExpense(
+      expenseId: expenseId,
+      employeeId: employee.id,
+      action: 'سلفة',
+      amount: 500,
+      date: '2026-10-02',
+    );
+    final createdRows = await (db.select(
+      db.salaryWithdrawals,
+    )..where((w) => w.expenseUuid.equals('expense-outbox-A'))).get();
+    expect(createdRows, hasLength(1));
+    final withdrawalUuid = createdRows.single.localUuid;
+    final createdPayload = await salaryWithdrawalOutboxPayload(withdrawalUuid);
+    expect(createdPayload['employeeUuid'], employee.localUuid);
+    expect(createdPayload['expenseUuid'], 'expense-outbox-A');
 
-      await withdrawalsRepository.saveFromExpense(
-        expenseId: expenseId,
-        employeeId: employee.id,
-        action: 'سلفة',
-        amount: 650,
-        date: '2026-10-02',
-      );
-      final updatedRows = await (db.select(
-        db.salaryWithdrawals,
-      )..where((w) => w.expenseUuid.equals('expense-outbox-A'))).get();
-      expect(updatedRows, hasLength(1));
-      expect(updatedRows.single.localUuid, withdrawalUuid);
-      expect(updatedRows.single.amount, 650);
-      final updatedPayload = await salaryWithdrawalOutboxPayload(
-        withdrawalUuid,
-      );
-      expect(updatedPayload['employeeUuid'], employee.localUuid);
-      expect(updatedPayload['expenseUuid'], 'expense-outbox-A');
-      expect(updatedPayload['amount'], 650);
-    },
-  );
+    await withdrawalsRepository.saveFromExpense(
+      expenseId: expenseId,
+      employeeId: employee.id,
+      action: 'سلفة',
+      amount: 650,
+      date: '2026-10-02',
+    );
+    final updatedRows = await (db.select(
+      db.salaryWithdrawals,
+    )..where((w) => w.expenseUuid.equals('expense-outbox-A'))).get();
+    expect(updatedRows, hasLength(1));
+    expect(updatedRows.single.localUuid, withdrawalUuid);
+    expect(updatedRows.single.amount, 650);
+    final updatedPayload = await salaryWithdrawalOutboxPayload(withdrawalUuid);
+    expect(updatedPayload['employeeUuid'], employee.localUuid);
+    expect(updatedPayload['expenseUuid'], 'expense-outbox-A');
+    expect(updatedPayload['amount'], 650);
+  });
 
-  test(
-    'السحب المباشر من شاشة الموظفين يرفع employee_uuid دون اختلاق expense_uuid',
-    () async {
-      final employee = await seedEmployee(uuid: 'employee-direct-A', name: 'أ');
-      final withdrawalId = await withdrawalsRepository.createFromExpense(
-        expenseId: 0,
-        employeeId: employee.id,
-        reason: 'direct_withdrawal_${employee.localUuid}',
-        amount: 120,
-        date: '2026-10-03',
-        withdrawalType: 'سلفة',
-      );
-      final withdrawal = await (db.select(
-        db.salaryWithdrawals,
-      )..where((w) => w.id.equals(withdrawalId))).getSingle();
-      final payload = await salaryWithdrawalOutboxPayload(withdrawal.localUuid);
-      expect(withdrawal.localUuid, isNotEmpty);
-      expect(withdrawal.employeeUuid, employee.localUuid);
-      expect(payload['employeeUuid'], employee.localUuid);
-      expect(payload.containsKey('expenseUuid'), isFalse);
-    },
-  );
+  test('السحب المباشر من شاشة الموظفين يرفع employee_uuid دون اختلاق expense_uuid', () async {
+    final employee = await seedEmployee(uuid: 'employee-direct-A', name: 'أ');
+    final withdrawalId = await withdrawalsRepository.createFromExpense(
+      expenseId: 0,
+      employeeId: employee.id,
+      reason: 'direct_withdrawal_${employee.localUuid}',
+      amount: 120,
+      date: '2026-10-03',
+      withdrawalType: 'سلفة',
+    );
+    final withdrawal = await (db.select(db.salaryWithdrawals)..where((w) => w.id.equals(withdrawalId))).getSingle();
+    final payload = await salaryWithdrawalOutboxPayload(withdrawal.localUuid);
+    expect(withdrawal.localUuid, isNotEmpty);
+    expect(withdrawal.employeeUuid, employee.localUuid);
+    expect(payload['employeeUuid'], employee.localUuid);
+    expect(payload.containsKey('expenseUuid'), isFalse);
+  });
 
   test('السلفة المقسطة تنشئ مرآة outbox لكل حركة مرتبطة بهوية UUID', () async {
-    final employee = await seedEmployee(
-      uuid: 'employee-installments-A',
-      name: 'أ',
-    );
+    final employee = await seedEmployee(uuid: 'employee-installments-A', name: 'أ');
     await installmentsService.createInstallmentAdvance(
       employeeId: employee.id,
       totalAmount: 300,

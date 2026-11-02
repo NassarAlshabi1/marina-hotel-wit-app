@@ -56,17 +56,10 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    pullService = SyncPullService(
-      appwriteService: AppwriteService(),
-      database: db,
-      outboxDao: OutboxDao(db),
-    );
+    pullService = SyncPullService(appwriteService: AppwriteService(), database: db, outboxDao: OutboxDao(db));
     fakeNow = 1760000000;
     checkpoints = SyncCheckpointStore(db, clock: () => fakeNow);
-    engine = UnifiedPullEngine(
-      checkpoints: checkpoints,
-      pullService: pullService,
-    );
+    engine = UnifiedPullEngine(checkpoints: checkpoints, pullService: pullService);
   });
 
   tearDown(() async {
@@ -89,10 +82,7 @@ void main() {
       expect(SyncCheckpointStore.backoffSecondsFor(4), 30 * 60);
       expect(SyncCheckpointStore.backoffSecondsFor(5), 60 * 60);
       expect(SyncCheckpointStore.backoffSecondsFor(6), 120 * 60);
-      expect(
-        SyncCheckpointStore.backoffSecondsFor(50),
-        SyncCheckpointStore.maxBackoffSeconds,
-      );
+      expect(SyncCheckpointStore.backoffSecondsFor(50), SyncCheckpointStore.maxBackoffSeconds);
       expect(SyncCheckpointStore.maxBackoffSeconds, 6 * 60 * 60);
     });
 
@@ -131,10 +121,7 @@ void main() {
       expect(await checkpoints.registerFailure('expenses'), 3);
 
       expect(await checkpoints.isRetryDue('expenses'), isFalse);
-      expect(
-        await checkpoints.getRetryAfterTs('expenses'),
-        fakeNow + 15 * 60,
-      );
+      expect(await checkpoints.getRetryAfterTs('expenses'), fakeNow + 15 * 60);
 
       fakeNow += 15 * 60 + 1;
       expect(await checkpoints.isRetryDue('expenses'), isTrue);

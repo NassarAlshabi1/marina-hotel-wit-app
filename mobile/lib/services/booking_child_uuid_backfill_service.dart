@@ -12,8 +12,7 @@ import 'local_db.dart';
 /// the affected nights and notes for a one-off re-push.
 class BookingChildUuidBackfillService {
   BookingChildUuidBackfillService._();
-  static final BookingChildUuidBackfillService instance =
-      BookingChildUuidBackfillService._();
+  static final BookingChildUuidBackfillService instance = BookingChildUuidBackfillService._();
 
   static const notesRepushPrefKey = 'booking_notes_uuid_repush_v1';
   static const _chunkSize = 500;
@@ -60,27 +59,15 @@ class BookingChildUuidBackfillService {
     final outboxDao = OutboxDao(db);
     final clientTs = Time.nowEpoch();
     for (var i = 0; i < rows.length; i += _chunkSize) {
-      final chunk = rows.sublist(
-        i,
-        i + _chunkSize < rows.length ? i + _chunkSize : rows.length,
-      );
+      final chunk = rows.sublist(i, i + _chunkSize < rows.length ? i + _chunkSize : rows.length);
       await db.transaction(() async {
         for (final row in chunk) {
-          await (db.update(
-            db.bookingNights,
-          )..where((n) => n.id.equals(row.read<int>('id')))).write(
-            BookingNightsCompanion(
-              bookingUuidCache: d.Value(row.read<String>('booking_uuid')),
-            ),
+          await (db.update(db.bookingNights)..where((n) => n.id.equals(row.read<int>('id')))).write(
+            BookingNightsCompanion(bookingUuidCache: d.Value(row.read<String>('booking_uuid'))),
           );
         }
         await outboxDao.mergeBatch([
-          for (final row in chunk)
-            _outboxItem(
-              'booking_nights',
-              row.read<String>('night_uuid'),
-              clientTs,
-            ),
+          for (final row in chunk) _outboxItem('booking_nights', row.read<String>('night_uuid'), clientTs),
         ]);
       });
     }
@@ -106,24 +93,16 @@ class BookingChildUuidBackfillService {
     final outboxDao = OutboxDao(db);
     final clientTs = Time.nowEpoch();
     for (var i = 0; i < rows.length; i += _chunkSize) {
-      final chunk = rows.sublist(
-        i,
-        i + _chunkSize < rows.length ? i + _chunkSize : rows.length,
-      );
+      final chunk = rows.sublist(i, i + _chunkSize < rows.length ? i + _chunkSize : rows.length);
       await outboxDao.mergeBatch([
-        for (final row in chunk)
-          _outboxItem('booking_notes', row.read<String>('note_uuid'), clientTs),
+        for (final row in chunk) _outboxItem('booking_notes', row.read<String>('note_uuid'), clientTs),
       ]);
     }
     await prefs.setBool(notesRepushPrefKey, true);
     return rows.length;
   }
 
-  Map<String, dynamic> _outboxItem(
-    String entity,
-    String localUuid,
-    int clientTs,
-  ) => <String, dynamic>{
+  Map<String, dynamic> _outboxItem(String entity, String localUuid, int clientTs) => <String, dynamic>{
     'entity': entity,
     'op': 'update',
     'localUuid': localUuid,

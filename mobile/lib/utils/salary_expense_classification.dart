@@ -23,30 +23,18 @@ class SalaryExpenseClassification {
   ///
   /// مطابقة تامة بعد trim — نفس الأنواع التي تقرأها خدمة الاستحقاق
   /// كسحبيات (رواتب/سحب راتب/سحب من الراتب) وسلف (سلفة).
-  static const List<String> cashSalaryTypes = [
-    'رواتب',
-    'سحب راتب',
-    'سحب من الراتب',
-    'سلفة',
-  ];
+  static const List<String> cashSalaryTypes = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'سلفة'];
 
   /// أنواع الخصوم غير النقدية — تُخصم من استحقاق الموظف فقط
   /// ولا تُحسب مصروفات رواتب (لا نقد خرج منها).
   ///
   /// يشمل أقساط السلفة المسجلة بنوع «خصم من الراتب» التلقائي — استبعادها
   /// هنا هو ما يمنع ازدواج السلفة (السلفة تُحسب مرة واحدة عند خروج النقد).
-  static const List<String> nonCashDeductionTypes = [
-    'خصم راتب',
-    'خصم من الراتب',
-    'خصم',
-    'غياب',
-  ];
+  static const List<String> nonCashDeductionTypes = ['خصم راتب', 'خصم من الراتب', 'خصم', 'غياب'];
 
   /// هل النوع مصروف رواتب نقدي (خرج منه نقد فعلاً)؟
-  static bool isCashSalaryExpense(String type) =>
-      cashSalaryTypes.contains(type.trim());
+  static bool isCashSalaryExpense(String type) => cashSalaryTypes.contains(type.trim());
 
   /// هل النوع خصماً غير نقدي (يُخصم من الاستحقاق فقط، ليس مصروفاً نقدياً)؟
-  static bool isNonCashDeduction(String type) =>
-      nonCashDeductionTypes.contains(type.trim());
+  static bool isNonCashDeduction(String type) => nonCashDeductionTypes.contains(type.trim());
 }

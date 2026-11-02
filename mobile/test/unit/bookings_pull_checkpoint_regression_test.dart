@@ -40,11 +40,7 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 
 const int _kBaseEpochSec = 1760000000;
 
-models.Document _bookingDoc({
-  required String uuid,
-  required String roomNumber,
-  required int lastModified,
-}) {
+models.Document _bookingDoc({required String uuid, required String roomNumber, required int lastModified}) {
   return models.Document(
     $id: uuid,
     $sequence: 0,
@@ -88,9 +84,7 @@ Future<void> _seedRoom(AppDatabase db, String roomNumber, String uuid) async {
 }
 
 Future<Booking?> _bookingByUuid(AppDatabase db, String uuid) {
-  return (db.select(
-    db.bookings,
-  )..where((b) => b.localUuid.equals(uuid))).getSingleOrNull();
+  return (db.select(db.bookings)..where((b) => b.localUuid.equals(uuid))).getSingleOrNull();
 }
 
 void main() {
@@ -100,9 +94,7 @@ void main() {
     'درع فقدان bookings الصامت: فشل التطبيق يرفع StateError (المؤشر لا يتقدم) والدفعة تُشفى عند وصول الأب',
     () async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
-      final tmpDir = await Directory.systemTemp.createTemp(
-        'bookings_pull_regression',
-      );
+      final tmpDir = await Directory.systemTemp.createTemp('bookings_pull_regression');
       addTearDown(() async {
         try {
           await tmpDir.delete(recursive: true);
@@ -114,34 +106,21 @@ void main() {
       // قاعدة ملف حقيقية (WAL من beforeOpen الإنتاجي) — FK مفعّل،
       // تماماً كما في الإنتاج: حجز بغرفة غير موجودة يفشل على مستوى
       // SQLite لا في محاكاة.
-      final db = AppDatabase.forTesting(
-        NativeDatabase(File('${tmpDir.path}/app.db')),
-      );
+      final db = AppDatabase.forTesting(NativeDatabase(File('${tmpDir.path}/app.db')));
       addTearDown(db.close);
       AdapterRegistry.initialize(db);
 
       // المدير الحقيقي (مُنشئ factory بلا شبكة — تعيينات حقول فقط)،
       // نفس نمط pull_commit_visibility_test.dart.
-      final manager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: db,
-      );
+      final manager = AppwriteSyncManager(appwriteService: AppwriteService(), database: db);
 
       // الأب الموجود: غرفة 211 فقط. الحجز الجيد يشير إليها؛ الحجز
       // الفاشل يشير إلى غرفة 999 غير الموجودة (سيناريو rooms وصلت
       // متأخرة/ناقصة عن bookings في نفس الدورة).
       await _seedRoom(db, '211', 'room-uuid-211');
 
-      final goodDoc = _bookingDoc(
-        uuid: 'booking-uuid-good',
-        roomNumber: '211',
-        lastModified: _kBaseEpochSec + 10,
-      );
-      final badDoc = _bookingDoc(
-        uuid: 'booking-uuid-bad',
-        roomNumber: '999',
-        lastModified: _kBaseEpochSec + 20,
-      );
+      final goodDoc = _bookingDoc(uuid: 'booking-uuid-good', roomNumber: '211', lastModified: _kBaseEpochSec + 10);
+      final badDoc = _bookingDoc(uuid: 'booking-uuid-bad', roomNumber: '999', lastModified: _kBaseEpochSec + 20);
 
       // ═══════════════════════════════════════════════════════════════
       // الفصل A — فشل FK: StateError + تطبيق جزئي محفوظ + لا إدراج للفاشل
@@ -151,11 +130,7 @@ void main() {
         throwsA(
           isA<StateError>()
               .having((e) => e.message, 'message', contains('bookings'))
-              .having(
-                (e) => e.message,
-                'message',
-                contains('checkpoint must not advance'),
-              ),
+              .having((e) => e.message, 'message', contains('checkpoint must not advance')),
         ),
         reason:
             'الحجز الفاشل (غرفة مفقودة) يجب أن يفشل المهمة كلها كي يسجّله '
@@ -165,20 +140,12 @@ void main() {
 
       // الحجز السليم في نفس الدفعة مطبَّق — الفشل لا يلغي ما نجح.
       final goodAfterCycle1 = await _bookingByUuid(db, 'booking-uuid-good');
-      expect(
-        goodAfterCycle1,
-        isNotNull,
-        reason: 'التطبيق الجزئي محفوظ: الحجز السليم وصل رغم فشل زميله',
-      );
+      expect(goodAfterCycle1, isNotNull, reason: 'التطبيق الجزئي محفوظ: الحجز السليم وصل رغم فشل زميله');
       expect(goodAfterCycle1!.roomNumber, '211');
 
       // الحجز الفاشل غير مدرَج — لا صف نصف مكسور.
       final badAfterCycle1 = await _bookingByUuid(db, 'booking-uuid-bad');
-      expect(
-        badAfterCycle1,
-        isNull,
-        reason: 'الحجز الفاشل لم يُدرَج — سيصل كاملاً عند إعادة المحاولة',
-      );
+      expect(badAfterCycle1, isNull, reason: 'الحجز الفاشل لم يُدرَج — سيصل كاملاً عند إعادة المحاولة');
 
       // ═══════════════════════════════════════════════════════════════
       // الفصل B — وصول الأب (الغرفة 999) في دورة لاحقة: نفس الدفعة
@@ -205,11 +172,7 @@ void main() {
   test('عقد SyncResult: failedCollections يجعل الفشل الجزئي مرئياً', () {
     // ✅ هذا هو الأساس الذي يعتمد عليه زر لوحة التحكم الآن: قبل
     // الإصلاح لم يكن للمستهلكين أي وسيلة لمعرفة أن bookings لم تصل.
-    final clean = SyncResult(
-      status: SyncStatus.success,
-      timestamp: DateTime.now(),
-      duration: Duration.zero,
-    );
+    final clean = SyncResult(status: SyncStatus.success, timestamp: DateTime.now(), duration: Duration.zero);
     expect(clean.hasPullFailures, isFalse);
     expect(clean.failedCollections, isEmpty);
 
@@ -222,10 +185,6 @@ void main() {
     );
     expect(partial.hasPullFailures, isTrue);
     expect(partial.failedCollections, contains('bookings'));
-    expect(
-      partial.isSuccess,
-      isFalse,
-      reason: 'partial ليس نجاحاً — لا يجوز عرض «تم السحب بنجاح» عليه',
-    );
+    expect(partial.isSuccess, isFalse, reason: 'partial ليس نجاحاً — لا يجوز عرض «تم السحب بنجاح» عليه');
   });
 }

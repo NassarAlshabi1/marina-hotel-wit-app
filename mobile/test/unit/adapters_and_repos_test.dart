@@ -24,10 +24,7 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   // Helper: إدراج موظف للاختبار
   // ═══════════════════════════════════════════════════════════════
-  Future<int> insertEmployee({
-    String uuid = 'emp-1',
-    String name = 'أحمد',
-  }) async {
+  Future<int> insertEmployee({String uuid = 'emp-1', String name = 'أحمد'}) async {
     return db
         .into(db.employees)
         .insert(
@@ -52,10 +49,7 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   // Helper: إدراج غرفة وحجز للاختبار
   // ═══════════════════════════════════════════════════════════════
-  Future<int> insertRoomAndBooking({
-    String roomUuid = 'room-1',
-    String bookingUuid = 'booking-1',
-  }) async {
+  Future<int> insertRoomAndBooking({String roomUuid = 'room-1', String bookingUuid = 'booking-1'}) async {
     await db
         .into(db.rooms)
         .insert(
@@ -102,95 +96,86 @@ void main() {
   // SalaryCyclesAdapter — اختبار دوري كامل
   // ═══════════════════════════════════════════════════════════════
   group('SalaryCyclesAdapter — دوري كامل (appwrite)', () {
-    test(
-      'fresh schema enforces active 1:1 expenseUuid mirror identity',
-      () async {
-        await insertEmployee();
-        await db
+    test('fresh schema enforces active 1:1 expenseUuid mirror identity', () async {
+      await insertEmployee();
+      await db
+          .into(db.salaryWithdrawals)
+          .insert(
+            const SalaryWithdrawalsCompanion(
+              localUuid: d.Value('mirror-a'),
+              employeeId: d.Value(1),
+              employeeUuid: d.Value('emp-1'),
+              amount: d.Value(100),
+              withdrawDate: d.Value('2025-06-01'),
+              expenseUuid: d.Value('expense-a'),
+              createdAt: d.Value(1),
+              updatedAt: d.Value(1),
+              lastModified: d.Value(1),
+            ),
+          );
+      await expectLater(
+        db
             .into(db.salaryWithdrawals)
             .insert(
               const SalaryWithdrawalsCompanion(
-                localUuid: d.Value('mirror-a'),
+                localUuid: d.Value('mirror-b'),
                 employeeId: d.Value(1),
                 employeeUuid: d.Value('emp-1'),
-                amount: d.Value(100),
+                amount: d.Value(200),
                 withdrawDate: d.Value('2025-06-01'),
                 expenseUuid: d.Value('expense-a'),
-                createdAt: d.Value(1),
-                updatedAt: d.Value(1),
-                lastModified: d.Value(1),
+                createdAt: d.Value(2),
+                updatedAt: d.Value(2),
+                lastModified: d.Value(2),
               ),
-            );
-        await expectLater(
-          db
-              .into(db.salaryWithdrawals)
-              .insert(
-                const SalaryWithdrawalsCompanion(
-                  localUuid: d.Value('mirror-b'),
-                  employeeId: d.Value(1),
-                  employeeUuid: d.Value('emp-1'),
-                  amount: d.Value(200),
-                  withdrawDate: d.Value('2025-06-01'),
-                  expenseUuid: d.Value('expense-a'),
-                  createdAt: d.Value(2),
-                  updatedAt: d.Value(2),
-                  lastModified: d.Value(2),
-                ),
-              ),
-          throwsA(isA<Exception>()),
-        );
-      },
-    );
+            ),
+        throwsA(isA<Exception>()),
+      );
+    });
 
-    test(
-      'remote upsert never uses a colliding remote numeric id as conflict key',
-      () async {
-        final firstEmployeeId = await insertEmployee(uuid: 'emp-remote-a');
-        final secondEmployeeId = await insertEmployee(
-          uuid: 'emp-remote-b',
-          name: 'محمد',
-        );
-        // Simulate a local row already occupying the numeric id that the
-        // remote device sends for a different withdrawal.
-        final existingId = await db
-            .into(db.salaryWithdrawals)
-            .insert(
-              SalaryWithdrawalsCompanion(
-                localUuid: const d.Value('local-existing'),
-                employeeId: d.Value(firstEmployeeId),
-                employeeUuid: const d.Value('emp-remote-a'),
-                amount: const d.Value(111),
-                withdrawDate: const d.Value('2025-06-01'),
-                createdAt: const d.Value(1),
-                updatedAt: const d.Value(1),
-                lastModified: const d.Value(1),
-              ),
-            );
+    test('remote upsert never uses a colliding remote numeric id as conflict key', () async {
+      final firstEmployeeId = await insertEmployee(uuid: 'emp-remote-a');
+      final secondEmployeeId = await insertEmployee(uuid: 'emp-remote-b', name: 'محمد');
+      // Simulate a local row already occupying the numeric id that the
+      // remote device sends for a different withdrawal.
+      final existingId = await db
+          .into(db.salaryWithdrawals)
+          .insert(
+            SalaryWithdrawalsCompanion(
+              localUuid: const d.Value('local-existing'),
+              employeeId: d.Value(firstEmployeeId),
+              employeeUuid: const d.Value('emp-remote-a'),
+              amount: const d.Value(111),
+              withdrawDate: const d.Value('2025-06-01'),
+              createdAt: const d.Value(1),
+              updatedAt: const d.Value(1),
+              lastModified: const d.Value(1),
+            ),
+          );
 
-        final remoteId = existingId;
-        final insertedId = await adapters.salaryWithdrawals.upsertFromJson({
-          'id': remoteId,
-          'localUuid': 'remote-new-uuid',
-          'employeeUuid': 'emp-remote-b',
-          'amount': 222,
-          'withdrawDate': '2025-06-02',
-          'createdAt': 2,
-          'lastModified': 2,
-        }, src: Source.appwrite);
+      final remoteId = existingId;
+      final insertedId = await adapters.salaryWithdrawals.upsertFromJson({
+        'id': remoteId,
+        'localUuid': 'remote-new-uuid',
+        'employeeUuid': 'emp-remote-b',
+        'amount': 222,
+        'withdrawDate': '2025-06-02',
+        'createdAt': 2,
+        'lastModified': 2,
+      }, src: Source.appwrite);
 
-        expect(insertedId, isNot(equals(remoteId)));
-        final existing = await (db.select(
-          db.salaryWithdrawals,
-        )..where((w) => w.localUuid.equals('local-existing'))).getSingle();
-        final remote = await (db.select(
-          db.salaryWithdrawals,
-        )..where((w) => w.localUuid.equals('remote-new-uuid'))).getSingle();
-        expect(existing.amount, 111);
-        expect(existing.employeeId, firstEmployeeId);
-        expect(remote.amount, 222);
-        expect(remote.employeeId, secondEmployeeId);
-      },
-    );
+      expect(insertedId, isNot(equals(remoteId)));
+      final existing = await (db.select(
+        db.salaryWithdrawals,
+      )..where((w) => w.localUuid.equals('local-existing'))).getSingle();
+      final remote = await (db.select(
+        db.salaryWithdrawals,
+      )..where((w) => w.localUuid.equals('remote-new-uuid'))).getSingle();
+      expect(existing.amount, 111);
+      expect(existing.employeeId, firstEmployeeId);
+      expect(remote.amount, 222);
+      expect(remote.employeeId, secondEmployeeId);
+    });
 
     test('remote upsert refuses records without stable localUuid', () async {
       await insertEmployee();
@@ -221,11 +206,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, isNotNull);
@@ -248,11 +229,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.skipReason, isNull);
@@ -276,23 +253,12 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
-      final comp = adapters.salaryCycles.adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.salaryCycles.adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.salaryCycles).insert(comp);
 
       final row = await db.select(db.salaryCycles).getSingle();
-      final out = adapters.salaryCycles.toJsonForSource(
-        row,
-        src: Source.appwrite,
-      );
+      final out = adapters.salaryCycles.toJsonForSource(row, src: Source.appwrite);
 
       expect(out['localUuid'], 'sc-1');
       expect(out['cycleKey'], '2025-06');
@@ -318,16 +284,8 @@ void main() {
         'last_modified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.drive,
-      );
-      final comp = adapters.salaryCycles.adapter.fromJson(
-        json,
-        src: Source.drive,
-        refs: refs,
-      );
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.drive);
+      final comp = adapters.salaryCycles.adapter.fromJson(json, src: Source.drive, refs: refs);
       await db.into(db.salaryCycles).insert(comp);
 
       final row = await db.select(db.salaryCycles).getSingle();
@@ -345,34 +303,30 @@ void main() {
   // SalaryWithdrawalsAdapter — اختبار دوري كامل
   // ═══════════════════════════════════════════════════════════════
   group('SalaryWithdrawalsAdapter — دوري كامل (appwrite)', () {
-    test(
-      'upsert يتجاوز هدف conflict لفهرس expense_uuid جزئي ويكتب السجل عبر local_uuid',
-      () async {
-        await insertEmployee();
-        await db.customStatement(
-          'CREATE UNIQUE INDEX test_salary_expense_uuid_partial '
-          'ON salary_withdrawals (expense_uuid) '
-          'WHERE expense_uuid IS NOT NULL',
-        );
+    test('upsert يتجاوز هدف conflict لفهرس expense_uuid جزئي ويكتب السجل عبر local_uuid', () async {
+      await insertEmployee();
+      await db.customStatement(
+        'CREATE UNIQUE INDEX test_salary_expense_uuid_partial '
+        'ON salary_withdrawals (expense_uuid) '
+        'WHERE expense_uuid IS NOT NULL',
+      );
 
-        final rowId = await adapters.salaryWithdrawals.upsertFromJson({
-          'localUuid': 'sw-partial-index',
-          'employeeUuid': 'emp-1',
-          'amount': 1000,
-          'withdrawDate': '2025-06-15',
-          'expenseUuid': 'expense-uuid-1',
-          'createdAt': 100,
-          'lastModified': 200,
-        }, src: Source.appwrite);
+      final rowId = await adapters.salaryWithdrawals.upsertFromJson({
+        'localUuid': 'sw-partial-index',
+        'employeeUuid': 'emp-1',
+        'amount': 1000,
+        'withdrawDate': '2025-06-15',
+        'expenseUuid': 'expense-uuid-1',
+        'createdAt': 100,
+        'lastModified': 200,
+      }, src: Source.appwrite);
 
-        expect(rowId, greaterThan(0));
-        final saved =
-            await (db.select(db.salaryWithdrawals)
-                  ..where((row) => row.localUuid.equals('sw-partial-index')))
-                .getSingle();
-        expect(saved.expenseUuid, 'expense-uuid-1');
-      },
-    );
+      expect(rowId, greaterThan(0));
+      final saved = await (db.select(
+        db.salaryWithdrawals,
+      )..where((row) => row.localUuid.equals('sw-partial-index'))).getSingle();
+      expect(saved.expenseUuid, 'expense-uuid-1');
+    });
 
     test('resolveRefs يرجع shouldSkip=true عند عدم وجود الموظف', () async {
       final json = {
@@ -386,11 +340,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور'));
@@ -410,53 +360,38 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.employeeLocalId, isNotNull);
     });
 
-    test(
-      'fromJson يتعامل مع الحقول القديمة (date, action, note, expenseId)',
-      () async {
-        await insertEmployee();
+    test('fromJson يتعامل مع الحقول القديمة (date, action, note, expenseId)', () async {
+      await insertEmployee();
 
-        final json = {
-          'localUuid': 'sw-1',
-          'employeeUuid': 'emp-1',
-          'amount': 1000,
-          'date': '2025-06-15',
-          'action': 'سحب راتب',
-          'note': 'ملاحظة',
-          'expenseId': 5,
-          'hotelDayKey': '2025-06-15',
-          'createdAt': 100,
-          'lastModified': 200,
-        };
+      final json = {
+        'localUuid': 'sw-1',
+        'employeeUuid': 'emp-1',
+        'amount': 1000,
+        'date': '2025-06-15',
+        'action': 'سحب راتب',
+        'note': 'ملاحظة',
+        'expenseId': 5,
+        'hotelDayKey': '2025-06-15',
+        'createdAt': 100,
+        'lastModified': 200,
+      };
 
-        final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-          db,
-          json,
-          src: Source.appwrite,
-        );
-        final comp = adapters.salaryWithdrawals.adapter.fromJson(
-          json,
-          src: Source.appwrite,
-          refs: refs,
-        );
-        await db.into(db.salaryWithdrawals).insert(comp);
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.salaryWithdrawals.adapter.fromJson(json, src: Source.appwrite, refs: refs);
+      await db.into(db.salaryWithdrawals).insert(comp);
 
-        final row = await db.select(db.salaryWithdrawals).getSingle();
-        expect(row.withdrawDate, '2025-06-15');
-        expect(row.withdrawalType, 'سحب راتب');
-        expect(row.description, 'ملاحظة');
-        expect(row.reason, 'exp_5'); // appwriteExpenseId → 'exp_5'
-      },
-    );
+      final row = await db.select(db.salaryWithdrawals).getSingle();
+      expect(row.withdrawDate, '2025-06-15');
+      expect(row.withdrawalType, 'سحب راتب');
+      expect(row.description, 'ملاحظة');
+      expect(row.reason, 'exp_5'); // appwriteExpenseId → 'exp_5'
+    });
 
     test('toJson يستخرج expenseId من reason (exp_XX)', () async {
       await insertEmployee();
@@ -474,23 +409,12 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
-      final comp = adapters.salaryWithdrawals.adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.salaryWithdrawals.adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.salaryWithdrawals).insert(comp);
 
       final row = await db.select(db.salaryWithdrawals).getSingle();
-      final out = adapters.salaryWithdrawals.toJsonForSource(
-        row,
-        src: Source.appwrite,
-      );
+      final out = adapters.salaryWithdrawals.toJsonForSource(row, src: Source.appwrite);
 
       expect(out['expenseId'], 42);
       expect(out['date'], '2025-06-15'); // Appwrite required field
@@ -515,11 +439,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور على الحجز'));
@@ -540,11 +460,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.bookingLocalId, isNotNull);
@@ -569,16 +485,8 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
-      final comp = adapters.nights.adapter.fromJson(
-        json,
-        src: Source.appwrite,
-        refs: refs,
-      );
+      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final comp = adapters.nights.adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.bookingNights).insert(comp);
 
       final row = await db.select(db.bookingNights).getSingle();
@@ -607,11 +515,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryPayments.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryPayments.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور على دورة الراتب'));
@@ -654,11 +558,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryPayments.adapter.resolveRefs(
-        db,
-        json,
-        src: Source.appwrite,
-      );
+      final refs = await adapters.salaryPayments.adapter.resolveRefs(db, json, src: Source.appwrite);
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.salaryCycleLocalId, isNotNull);
@@ -669,29 +569,23 @@ void main() {
   // BaseRepository — upsertFromJson مع shouldSkip
   // ═══════════════════════════════════════════════════════════════
   group('BaseRepository — upsertFromJson مع shouldSkip', () {
-    test(
-      'upsertFromJson يرجع -1 عند shouldSkip=true (موظف غير موجود)',
-      () async {
-        final json = {
-          'localUuid': 'sc-orphan',
-          'employeeUuid': 'non-existent-uuid',
-          'cycleKey': '2025-06',
-          'hotelDayStart': '2025-06-01',
-          'hotelDayEnd': '2025-06-30',
-          'expectedAmount': 5000,
-          'status': 'draft',
-          'createdAt': 100,
-          'lastModified': 200,
-        };
+    test('upsertFromJson يرجع -1 عند shouldSkip=true (موظف غير موجود)', () async {
+      final json = {
+        'localUuid': 'sc-orphan',
+        'employeeUuid': 'non-existent-uuid',
+        'cycleKey': '2025-06',
+        'hotelDayStart': '2025-06-01',
+        'hotelDayEnd': '2025-06-30',
+        'expectedAmount': 5000,
+        'status': 'draft',
+        'createdAt': 100,
+        'lastModified': 200,
+      };
 
-        final result = await adapters.salaryCycles.upsertFromJson(
-          json,
-          src: Source.appwrite,
-        );
+      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
 
-        expect(result, -1); // تم التخطي
-      },
-    );
+      expect(result, -1); // تم التخطي
+    });
 
     test('upsertFromJson ينجح عند وجود الموظف', () async {
       await insertEmployee();
@@ -708,10 +602,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final result = await adapters.salaryCycles.upsertFromJson(
-        json,
-        src: Source.appwrite,
-      );
+      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
 
       expect(result, greaterThan(0)); // تم الإدراج بنجاح
     });
@@ -732,10 +623,7 @@ void main() {
         'lastModified': 200,
       };
 
-      final result = await adapters.salaryCycles.upsertFromJson(
-        json,
-        src: Source.appwrite,
-      );
+      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
 
       // تم الإدراج بنجاح رغم وجود id بعيد
       expect(result, greaterThan(0));
@@ -831,13 +719,7 @@ void main() {
       final repo = SalaryWithdrawalsRepository(db);
 
       // إنشاء أول
-      await repo.saveFromExpense(
-        expenseId: 5,
-        employeeId: empId,
-        action: 'سحب راتب',
-        amount: 2000,
-        date: '2025-06-15',
-      );
+      await repo.saveFromExpense(expenseId: 5, employeeId: empId, action: 'سحب راتب', amount: 2000, date: '2025-06-15');
 
       // تحديث بنفس expenseId
       await repo.saveFromExpense(
@@ -887,20 +769,8 @@ void main() {
       final empId2 = await insertEmployee(uuid: 'emp-2', name: 'محمد');
       final repo = SalaryWithdrawalsRepository(db);
 
-      await repo.createFromExpense(
-        expenseId: 1,
-        employeeId: empId1,
-        reason: 'exp_1',
-        amount: 1000,
-        date: '2025-06-15',
-      );
-      await repo.createFromExpense(
-        expenseId: 2,
-        employeeId: empId2,
-        reason: 'exp_2',
-        amount: 2000,
-        date: '2025-06-15',
-      );
+      await repo.createFromExpense(expenseId: 1, employeeId: empId1, reason: 'exp_1', amount: 1000, date: '2025-06-15');
+      await repo.createFromExpense(expenseId: 2, employeeId: empId2, reason: 'exp_2', amount: 2000, date: '2025-06-15');
 
       final emp1Withdrawals = await repo.listByEmployeeId(empId1);
       expect(emp1Withdrawals.length, 1);

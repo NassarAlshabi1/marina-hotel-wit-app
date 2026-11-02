@@ -11,12 +11,10 @@ class AppwriteConnectionSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteConnectionSettingsScreen({super.key});
 
   @override
-  ConsumerState<AppwriteConnectionSettingsScreen> createState() =>
-      _AppwriteConnectionSettingsScreenState();
+  ConsumerState<AppwriteConnectionSettingsScreen> createState() => _AppwriteConnectionSettingsScreenState();
 }
 
-class _AppwriteConnectionSettingsScreenState
-    extends ConsumerState<AppwriteConnectionSettingsScreen> {
+class _AppwriteConnectionSettingsScreenState extends ConsumerState<AppwriteConnectionSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _endpointController;
   late TextEditingController _projectIdController;
@@ -30,18 +28,10 @@ class _AppwriteConnectionSettingsScreenState
   @override
   void initState() {
     super.initState();
-    _endpointController = TextEditingController(
-      text: AppwriteConfigManager.endpoint,
-    );
-    _projectIdController = TextEditingController(
-      text: AppwriteConfigManager.projectId,
-    );
-    _databaseIdController = TextEditingController(
-      text: AppwriteConfigManager.databaseId,
-    );
-    _apiKeyController = TextEditingController(
-      text: AppwriteConfigManager.apiKey,
-    );
+    _endpointController = TextEditingController(text: AppwriteConfigManager.endpoint);
+    _projectIdController = TextEditingController(text: AppwriteConfigManager.projectId);
+    _databaseIdController = TextEditingController(text: AppwriteConfigManager.databaseId);
+    _apiKeyController = TextEditingController(text: AppwriteConfigManager.apiKey);
 
     _endpointController.addListener(_onChanged);
     _projectIdController.addListener(_onChanged);
@@ -119,15 +109,8 @@ class _AppwriteConnectionSettingsScreenState
             Text('إعادة تشغيل مطلوبة'),
           ],
         ),
-        content: const Text(
-          'لتطبيق الإعدادات الجديدة، يرجى إغلاق التطبيق وإعادة فتحه.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
-          ),
-        ],
+        content: const Text('لتطبيق الإعدادات الجديدة، يرجى إغلاق التطبيق وإعادة فتحه.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً'))],
       ),
     );
   }
@@ -137,14 +120,9 @@ class _AppwriteConnectionSettingsScreenState
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('إعادة تعيين الإعدادات'),
-        content: const Text(
-          'هل تريد إعادة تعيين إعدادات الاتصال إلى القيم الافتراضية؟',
-        ),
+        content: const Text('هل تريد إعادة تعيين إعدادات الاتصال إلى القيم الافتراضية؟'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop<bool>(context, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -281,10 +259,7 @@ class _AppwriteConnectionSettingsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'بيانات الاتصال',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            const Text('بيانات الاتصال', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             TextFormField(
               controller: _endpointController,
@@ -299,8 +274,7 @@ class _AppwriteConnectionSettingsScreenState
                 if (value == null || value.trim().isEmpty) {
                   return 'يرجى إدخال عنوان Endpoint';
                 }
-                if (!value.startsWith('http://') &&
-                    !value.startsWith('https://')) {
+                if (!value.startsWith('http://') && !value.startsWith('https://')) {
                   return 'يجب أن يبدأ العنوان بـ http:// أو https://';
                 }
                 return null;
@@ -344,15 +318,12 @@ class _AppwriteConnectionSettingsScreenState
               decoration: InputDecoration(
                 labelText: 'API Key',
                 hintText: 'مفتاح API من Appwrite (افتراضي مُدمج)',
-                helperText:
-                    'يُستخدم المفتاح الافتراضي تلقائياً. يمكنك استبداله بأي وقت.',
+                helperText: 'يُستخدم المفتاح الافتراضي تلقائياً. يمكنك استبداله بأي وقت.',
                 prefixIcon: const Icon(Icons.key),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   onPressed: () => setState(() => _showApiKey = !_showApiKey),
-                  icon: Icon(
-                    _showApiKey ? Icons.visibility_off : Icons.visibility,
-                  ),
+                  icon: Icon(_showApiKey ? Icons.visibility_off : Icons.visibility),
                 ),
               ),
               obscureText: !_showApiKey,
@@ -375,19 +346,14 @@ class _AppwriteConnectionSettingsScreenState
           children: [
             Row(
               children: [
-                Icon(
-                  isCustom ? Icons.settings : Icons.check_circle,
-                  color: isCustom ? Colors.orange : Colors.green,
-                ),
+                Icon(isCustom ? Icons.settings : Icons.check_circle, color: isCustom ? Colors.orange : Colors.green),
                 const SizedBox(width: 8),
                 Text(
                   isCustom ? 'إعدادات مخصصة' : 'الإعدادات الافتراضية',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: isCustom
-                        ? Colors.orange.shade700
-                        : Colors.green.shade700,
+                    color: isCustom ? Colors.orange.shade700 : Colors.green.shade700,
                   ),
                 ),
               ],
@@ -396,10 +362,7 @@ class _AppwriteConnectionSettingsScreenState
             _buildConfigRow('Endpoint', AppwriteConfigManager.endpoint),
             _buildConfigRow('Project ID', AppwriteConfigManager.projectId),
             _buildConfigRow('Database ID', AppwriteConfigManager.databaseId),
-            _buildConfigRow(
-              'API Key',
-              _maskApiKey(AppwriteConfigManager.apiKey),
-            ),
+            _buildConfigRow('API Key', _maskApiKey(AppwriteConfigManager.apiKey)),
           ],
         ),
       ),
@@ -425,16 +388,10 @@ class _AppwriteConnectionSettingsScreenState
         children: [
           SizedBox(
             width: 100,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
+            child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.w500)),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-            ),
+            child: Text(value, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
           ),
         ],
       ),
@@ -449,11 +406,7 @@ class _AppwriteConnectionSettingsScreenState
           child: ElevatedButton.icon(
             onPressed: _isSaving || !_hasChanges ? null : _saveConfig,
             icon: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.save),
             label: Text(_isSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات'),
             style: ElevatedButton.styleFrom(
@@ -470,11 +423,7 @@ class _AppwriteConnectionSettingsScreenState
               child: OutlinedButton.icon(
                 onPressed: _isTesting ? null : _testConnection,
                 icon: _isTesting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Icon(Icons.wifi_find),
                 label: const Text('اختبار الاتصال'),
               ),

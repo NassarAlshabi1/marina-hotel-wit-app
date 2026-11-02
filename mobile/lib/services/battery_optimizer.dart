@@ -109,8 +109,7 @@ class BatteryOptimizer extends ChangeNotifier {
   BatteryOptimizationLevel get optimizationLevel => _optimizationLevel;
   bool get isCharging => _isCharging;
   bool get shouldSync => _shouldSync();
-  BatterySyncSettings get syncSettings =>
-      BatterySyncSettings.fromLevel(_optimizationLevel);
+  BatterySyncSettings get syncSettings => BatterySyncSettings.fromLevel(_optimizationLevel);
 
   /// تهيئة الخدمة
   Future<void> initialize() async {
@@ -126,15 +125,9 @@ class BatteryOptimizer extends ChangeNotifier {
       // بدء المراقبة
       await startMonitoring();
 
-      developer.log(
-        '🔋 BatteryOptimizer initialized: $_batteryLevel% ($_batteryState)',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('🔋 BatteryOptimizer initialized: $_batteryLevel% ($_batteryState)', name: 'BatteryOptimizer');
     } catch (e) {
-      developer.log(
-        '⚠️ BatteryOptimizer init error: $e',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('⚠️ BatteryOptimizer init error: $e', name: 'BatteryOptimizer');
     }
   }
 
@@ -153,10 +146,7 @@ class BatteryOptimizer extends ChangeNotifier {
       _updateOptimizationLevel();
       notifyListeners();
 
-      developer.log(
-        '🔋 Battery state changed: $state (Level: $_batteryLevel%)',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('🔋 Battery state changed: $state (Level: $_batteryLevel%)', name: 'BatteryOptimizer');
     });
 
     // مراقبة مستوى البطارية — حفظ المؤقت في حقل لإلغائه لاحقاً
@@ -170,16 +160,11 @@ class BatteryOptimizer extends ChangeNotifier {
     });
 
     // مراقبة الاتصال
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
-      result,
-    ) {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((result) {
       _connectionState = result;
       notifyListeners();
 
-      developer.log(
-        '📡 Connectivity changed: $result',
-        name: 'BatteryOptimizer',
-      );
+      developer.log('📡 Connectivity changed: $result', name: 'BatteryOptimizer');
     });
   }
 
@@ -219,10 +204,7 @@ class BatteryOptimizer extends ChangeNotifier {
     _optimizationLevel = level;
     notifyListeners();
 
-    developer.log(
-      '🔋 Optimization level set to: $level',
-      name: 'BatteryOptimizer',
-    );
+    developer.log('🔋 Optimization level set to: $level', name: 'BatteryOptimizer');
   }
 
   /// التحقق مما إذا كان يجب المزامنة
@@ -335,9 +317,7 @@ class BatteryOptimizer extends ChangeNotifier {
     }
 
     if (_connectionState.contains(ConnectivityResult.mobile)) {
-      recommendations.add(
-        '📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية',
-      );
+      recommendations.add('📶 جاري استخدام بيانات الجوال - قد تستهلك رسوم إضافية');
     }
 
     if (syncSettings.compressData) {

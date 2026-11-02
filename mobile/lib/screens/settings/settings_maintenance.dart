@@ -61,12 +61,10 @@ class SettingsMaintenanceScreen extends ConsumerStatefulWidget {
   const SettingsMaintenanceScreen({super.key});
 
   @override
-  ConsumerState<SettingsMaintenanceScreen> createState() =>
-      _SettingsMaintenanceScreenState();
+  ConsumerState<SettingsMaintenanceScreen> createState() => _SettingsMaintenanceScreenState();
 }
 
-class _SettingsMaintenanceScreenState
-    extends ConsumerState<SettingsMaintenanceScreen> {
+class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceScreen> {
   _SystemInfo? _info;
   bool _isLoadingInfo = true;
   bool _isWorking = false;
@@ -126,11 +124,7 @@ class _SettingsMaintenanceScreenState
     ];
     for (final table in mainTables) {
       try {
-        final result = await db
-            .customSelect(
-              'SELECT COUNT(*) AS c FROM $table WHERE deleted_at IS NULL',
-            )
-            .getSingle();
+        final result = await db.customSelect('SELECT COUNT(*) AS c FROM $table WHERE deleted_at IS NULL').getSingle();
         final v = result.data['c'];
         totalRecords += (v is int)
             ? v
@@ -161,9 +155,7 @@ class _SettingsMaintenanceScreenState
     // التاريخي للعمليات المكتملة حتى لا تبدو الشاشة وكأن لديها عمليات معلقة.
     int outboxCount = 0;
     try {
-      outboxCount = await ref
-          .read(outboxDaoProvider)
-          .countUndeliveredToPrimary();
+      outboxCount = await ref.read(outboxDaoProvider).countUndeliveredToPrimary();
     } catch (_) {}
 
     // Logs
@@ -207,8 +199,7 @@ class _SettingsMaintenanceScreenState
 
   // ─── بناء الواجهة ─────────────────────────────────────
 
-  bool _canManage() =>
-      ref.read(authProvider).currentUser?.canManageRecords ?? false;
+  bool _canManage() => ref.read(authProvider).currentUser?.canManageRecords ?? false;
 
   bool _isAdmin() => ref.read(authProvider).currentUser?.isAdmin ?? false;
 
@@ -226,8 +217,7 @@ class _SettingsMaintenanceScreenState
 
   @override
   Widget build(BuildContext context) {
-    final canManage =
-        ref.watch(authProvider).currentUser?.canManageRecords ?? false;
+    final canManage = ref.watch(authProvider).currentUser?.canManageRecords ?? false;
     final isAdmin = ref.watch(authProvider).currentUser?.isAdmin ?? false;
     return AppScaffold(
       title: 'صيانة النظام',
@@ -342,10 +332,7 @@ class _SettingsMaintenanceScreenState
               children: [
                 const Icon(Icons.info_outline, color: Colors.blue, size: 22),
                 const SizedBox(width: 8),
-                const Text(
-                  'معلومات النظام',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                ),
+                const Text('معلومات النظام', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 if (!_isLoadingInfo)
                   IconButton(
@@ -359,18 +346,12 @@ class _SettingsMaintenanceScreenState
             const SizedBox(height: 12),
             if (_isLoadingInfo)
               const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: CircularProgressIndicator(),
-                ),
+                child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: CircularProgressIndicator()),
               )
             else if (_info != null)
               _buildRealSystemInfo(_info!)
             else
-              const Text(
-                'تعذر تحميل المعلومات',
-                style: TextStyle(color: Colors.grey),
-              ),
+              const Text('تعذر تحميل المعلومات', style: TextStyle(color: Colors.grey)),
           ],
         ),
       ),
@@ -386,17 +367,11 @@ class _SettingsMaintenanceScreenState
     return Column(
       children: [
         _infoRow(Icons.verified, 'إصدار التطبيق', info.appVersion),
-        _infoRow(
-          Icons.devices,
-          'الجهاز',
-          '${info.deviceModel} · ${info.osVersion}',
-        ),
+        _infoRow(Icons.devices, 'الجهاز', '${info.deviceModel} · ${info.osVersion}'),
         _infoRow(
           Icons.storage,
           'قاعدة البيانات',
-          info.dbConnected
-              ? 'متصلة (إصدار ${info.dbSchemaVersion})'
-              : 'غير متصلة',
+          info.dbConnected ? 'متصلة (إصدار ${info.dbSchemaVersion})' : 'غير متصلة',
           valueColor: info.dbConnected ? Colors.green : Colors.red,
         ),
         _infoRow(Icons.sd_storage, 'حجم قاعدة البيانات', '$dbSizeMb MB'),
@@ -419,12 +394,7 @@ class _SettingsMaintenanceScreenState
     );
   }
 
-  Widget _infoRow(
-    IconData icon,
-    String label,
-    String value, {
-    Color? valueColor,
-  }) {
+  Widget _infoRow(IconData icon, String label, String value, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
@@ -434,22 +404,14 @@ class _SettingsMaintenanceScreenState
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade700,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
             ),
           ),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: valueColor ?? Colors.black87,
-              ),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: valueColor ?? Colors.black87),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -517,10 +479,7 @@ class _SettingsMaintenanceScreenState
   }
 
   String _formatNumber(int n) {
-    return n.toString().replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]},',
-    );
+    return n.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
 
   // ─── مساعد: مؤشر تقدم ─────────────────────────────────
@@ -535,9 +494,7 @@ class _SettingsMaintenanceScreenState
           children: [
             const CircularProgressIndicator(strokeWidth: 2),
             const SizedBox(width: 16),
-            Expanded(
-              child: Text(message, style: const TextStyle(fontSize: 14)),
-            ),
+            Expanded(child: Text(message, style: const TextStyle(fontSize: 14))),
           ],
         ),
       ),
@@ -556,9 +513,7 @@ class _SettingsMaintenanceScreenState
 
   void _showSnack(String message, {Color? color}) {
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
     }
   }
 
@@ -582,18 +537,13 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
               _showLoading('جاري التنظيف...');
               try {
-                await ref
-                    .read(backupStatusProvider.notifier)
-                    .cleanupTempFiles();
+                await ref.read(backupStatusProvider.notifier).cleanupTempFiles();
                 ref.read(diagnosticsLoggerProvider).clear();
                 _hideLoading();
                 _showSnack('تم التنظيف بنجاح', color: Colors.green);
@@ -619,18 +569,13 @@ class _SettingsMaintenanceScreenState
         title: const Text('فحص قاعدة البيانات'),
         content: const Text('سيتم التحقق من سلامة الجداول وبياناتها.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
               _showLoading('جاري فحص قاعدة البيانات...');
               try {
-                final checks = await ref
-                    .read(syncOrchestratorProvider)
-                    .verifyDataIntegrity();
+                final checks = await ref.read(syncOrchestratorProvider).verifyDataIntegrity();
                 _hideLoading();
                 if (mounted) {
                   _showIntegrityResults(checks);
@@ -663,10 +608,7 @@ class _SettingsMaintenanceScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${checks.length} جدول تم فحصها',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
+              Text('${checks.length} جدول تم فحصها', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               const SizedBox(height: 12),
               Flexible(
                 child: ListView.builder(
@@ -684,10 +626,7 @@ class _SettingsMaintenanceScreenState
                         (check.checksum as String).length >= 8
                             ? (check.checksum as String).substring(0, 8)
                             : (check.checksum as String),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 10,
-                        ),
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
                       ),
                     );
                   },
@@ -696,12 +635,7 @@ class _SettingsMaintenanceScreenState
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إغلاق'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
       ),
     );
   }
@@ -727,17 +661,12 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                final pending = await ref
-                    .read(outboxDaoProvider)
-                    .countUndeliveredToPrimary();
+                final pending = await ref.read(outboxDaoProvider).countUndeliveredToPrimary();
                 if (pending > 0) {
                   _showSnack(
                     'لا يمكن ضغط قاعدة البيانات: توجد $pending تغييرات لم تُرفع إلى Appwrite.',
@@ -754,10 +683,7 @@ class _SettingsMaintenanceScreenState
                   final sizeAfter = await _getTotalDbSizeBytes();
                   final saved = sizeBefore - sizeAfter;
                   _hideLoading();
-                  _showSnack(
-                    'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
-                    color: Colors.green,
-                  );
+                  _showSnack('تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB', color: Colors.green);
                   unawaited(_loadSystemInfo());
                 } catch (e) {
                   _hideLoading();
@@ -806,10 +732,7 @@ class _SettingsMaintenanceScreenState
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -817,15 +740,9 @@ class _SettingsMaintenanceScreenState
               try {
                 await ref
                     .read(maintenanceServiceProvider)
-                    .resetSyncAndResync(
-                      resetOutboxErrors: () =>
-                          ref.read(outboxDaoProvider).resetErrors(),
-                    );
+                    .resetSyncAndResync(resetOutboxErrors: () => ref.read(outboxDaoProvider).resetErrors());
                 _hideLoading();
-                _showSnack(
-                  'تم إعادة تعيين المزامنة بنجاح',
-                  color: Colors.green,
-                );
+                _showSnack('تم إعادة تعيين المزامنة بنجاح', color: Colors.green);
                 unawaited(_loadSystemInfo());
               } catch (e) {
                 _hideLoading();
@@ -857,10 +774,7 @@ class _SettingsMaintenanceScreenState
           'إلى مدفوعات فعلية مع إعادة حساب الأرصدة.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -869,10 +783,7 @@ class _SettingsMaintenanceScreenState
                 final result = await _processPendingBalances(ref);
                 _hideLoading();
                 if (result.isEmpty) {
-                  _showSnack(
-                    'لا توجد مدفوعات تراكمية معلقة',
-                    color: Colors.blue,
-                  );
+                  _showSnack('لا توجد مدفوعات تراكمية معلقة', color: Colors.blue);
                 } else if (mounted) {
                   _showProcessingResultDialog(context, result);
                 }
@@ -889,9 +800,7 @@ class _SettingsMaintenanceScreenState
     );
   }
 
-  Future<List<Map<String, dynamic>>> _processPendingBalances(
-    WidgetRef ref,
-  ) async {
+  Future<List<Map<String, dynamic>>> _processPendingBalances(WidgetRef ref) async {
     final db = ref.read(databaseProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final derivedService = BookingDerivedFieldsService(db);
@@ -909,11 +818,7 @@ class _SettingsMaintenanceScreenState
 
     final affectedBookingIds = <int>{};
     for (final payment in pendingPayments) {
-      await paymentsRepo.update(
-        payment.id,
-        isPendingBalance: false,
-        revenueType: 'room',
-      );
+      await paymentsRepo.update(payment.id, isPendingBalance: false, revenueType: 'room');
       results.add({
         'id': payment.id,
         'roomNumber': payment.roomNumber ?? '—',
@@ -937,14 +842,8 @@ class _SettingsMaintenanceScreenState
     return results;
   }
 
-  void _showProcessingResultDialog(
-    BuildContext context,
-    List<Map<String, dynamic>> results,
-  ) {
-    final totalAmount = results.fold<double>(
-      0,
-      (s, r) => s + (r['amount'] as double),
-    );
+  void _showProcessingResultDialog(BuildContext context, List<Map<String, dynamic>> results) {
+    final totalAmount = results.fold<double>(0, (s, r) => s + (r['amount'] as double));
 
     showDialog<void>(
       context: context,
@@ -973,18 +872,12 @@ class _SettingsMaintenanceScreenState
                     const SizedBox(width: 8),
                     Text(
                       '${results.length} دفعة',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
                     ),
                     const Spacer(),
                     Text(
                       '${totalAmount.toStringAsFixed(0)} ر.ي',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
                     ),
                   ],
                 ),
@@ -1004,11 +897,7 @@ class _SettingsMaintenanceScreenState
                         backgroundColor: Colors.teal.withValues(alpha: 0.1),
                         child: Text(
                           r['roomNumber'] as String,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal,
-                          ),
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal),
                         ),
                       ),
                       title: Text(
@@ -1017,10 +906,7 @@ class _SettingsMaintenanceScreenState
                       ),
                       subtitle: Text(
                         r['paymentDate'] as String,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
-                        ),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey),
                       ),
                     );
                   },
@@ -1028,12 +914,7 @@ class _SettingsMaintenanceScreenState
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إغلاق'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
         ),
       ),
     );
@@ -1052,10 +933,7 @@ class _SettingsMaintenanceScreenState
           'لن تُحذف أي عملية أو بيانات محلية.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -1065,10 +943,7 @@ class _SettingsMaintenanceScreenState
                 await outboxDao.resetErrors();
                 final stuckCount = await outboxDao.cleanupStuckEntries();
                 _hideLoading();
-                _showSnack(
-                  'تم إعادة تعيين Outbox ($stuckCount عملية عالقة)',
-                  color: Colors.green,
-                );
+                _showSnack('تم إعادة تعيين Outbox ($stuckCount عملية عالقة)', color: Colors.green);
                 unawaited(_loadSystemInfo());
               } catch (e) {
                 _hideLoading();
@@ -1096,10 +971,7 @@ class _SettingsMaintenanceScreenState
           'قد يستغرق ذلك بضع ثوانٍ.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -1142,10 +1014,7 @@ class _SettingsMaintenanceScreenState
           'سيتم حذف جميع البيانات المحلية نهائياً وإعادة التهيئة.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -1182,25 +1051,17 @@ class _SettingsMaintenanceScreenState
                   controller: confirmationController,
                   autofocus: true,
                   onChanged: (_) => setDialogState(() {}),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'حذف',
-                  ),
+                  decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'حذف'),
                 ),
               ],
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('إلغاء'),
-              ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
               ElevatedButton(
                 onPressed: confirmationController.text.trim() == 'حذف'
                     ? () async {
                         try {
-                          final pending = await ref
-                              .read(outboxDaoProvider)
-                              .countUndeliveredToPrimary();
+                          final pending = await ref.read(outboxDaoProvider).countUndeliveredToPrimary();
                           if (pending > 0) {
                             Navigator.pop(ctx);
                             _showSnack(
@@ -1253,10 +1114,7 @@ class _SettingsMaintenanceScreenState
                             unawaited(_loadSystemInfo());
                           } catch (e) {
                             _hideLoading();
-                            _showSnack(
-                              'خطأ في إعادة التعيين: $e',
-                              color: Colors.red,
-                            );
+                            _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
                           } finally {
                             // ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف.
                             try {
@@ -1264,10 +1122,7 @@ class _SettingsMaintenanceScreenState
                             } catch (_) {}
                           }
                         } catch (e) {
-                          _showSnack(
-                            'تعذر التحقق من Outbox: $e',
-                            color: Colors.red,
-                          );
+                          _showSnack('تعذر التحقق من Outbox: $e', color: Colors.red);
                         }
                       }
                     : null,

@@ -11,19 +11,12 @@ import 'outbox_dao.dart';
 part 'employees_dao.g.dart';
 
 @DriftAccessor(tables: [Employees])
-class EmployeesDao extends DatabaseAccessor<AppDatabase>
-    with _$EmployeesDaoMixin {
-  EmployeesDao(super.db, this.outboxDao, [AdapterRegistry? a])
-    : adapters = a ?? AdapterRegistry.instance;
+class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixin {
+  EmployeesDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 
-  Future<List<Employee>> list({
-    String? search,
-    bool includeDeleted = false,
-    int? limit,
-    int offset = 0,
-  }) async {
+  Future<List<Employee>> list({String? search, bool includeDeleted = false, int? limit, int offset = 0}) async {
     final q = select(employees);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -38,12 +31,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Stream<List<Employee>> watchList({
-    String? search,
-    bool includeDeleted = false,
-    int? limit,
-    int offset = 0,
-  }) {
+  Stream<List<Employee>> watchList({String? search, bool includeDeleted = false, int? limit, int offset = 0}) {
     final q = select(employees);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -53,31 +41,21 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.name.like(s) | t.status.like(s));
     }
     // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT
-    q.orderBy([
-      (t) => OrderingTerm(expression: t.name),
-      (t) => OrderingTerm(expression: t.id),
-    ]);
+    q.orderBy([(t) => OrderingTerm(expression: t.name), (t) => OrderingTerm(expression: t.id)]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }
     return q.watch();
   }
 
-  Future<Employee?> getById(int id) =>
-      (select(employees)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Employee?> watchById(int id) =>
-      (select(employees)..where((t) => t.id.equals(id))).watchSingleOrNull();
-  Future<Employee?> getByLocalUuid(String localUuid) => (select(
-    employees,
-  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
-  Stream<Employee?> watchByLocalUuid(String localUuid) => (select(
-    employees,
-  )..where((t) => t.localUuid.equals(localUuid))).watchSingleOrNull();
+  Future<Employee?> getById(int id) => (select(employees)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Employee?> watchById(int id) => (select(employees)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Employee?> getByLocalUuid(String localUuid) =>
+      (select(employees)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Stream<Employee?> watchByLocalUuid(String localUuid) =>
+      (select(employees)..where((t) => t.localUuid.equals(localUuid))).watchSingleOrNull();
 
-  Future<int> insertOne(
-    EmployeesCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> insertOne(EmployeesCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -87,9 +65,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
-        deviceId: originIsServer
-            ? const Value.absent()
-            : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(employees).insert(comp);
       if (!originIsServer) {
@@ -104,11 +80,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(
-    int id,
-    EmployeesCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateById(int id, EmployeesCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -117,34 +89,21 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
-          : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        employees,
-      )..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(employees)..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          clientTs: now,
-        );
+        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
       }
       return rows;
     });
   }
 
-  Future<int> updateByLocalUuid(
-    String localUuid,
-    EmployeesCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateByLocalUuid(String localUuid, EmployeesCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
@@ -153,41 +112,25 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
-          : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        employees,
-      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
+      final rows = await (update(employees)..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          clientTs: now,
-        );
+        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
       }
       return rows;
     });
   }
 
-  Future<int> softDeleteByLocalUuid(
-    String localUuid, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> softDeleteByLocalUuid(String localUuid, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final existing = await getByLocalUuid(localUuid);
       if (existing == null) return 0;
-      return _softDeleteExisting(
-        existing,
-        originIsServer: originIsServer,
-        now: Time.nowEpoch(),
-      );
+      return _softDeleteExisting(existing, originIsServer: originIsServer, now: Time.nowEpoch());
     });
   }
 
@@ -197,76 +140,43 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
-      return _softDeleteExisting(
-        existing,
-        originIsServer: originIsServer,
-        now: Time.nowEpoch(),
-      );
+      return _softDeleteExisting(existing, originIsServer: originIsServer, now: Time.nowEpoch());
     });
   }
 
-  Future<int> _softDeleteExisting(
-    Employee existing, {
-    required bool originIsServer,
-    required int now,
-  }) async {
-    final rows =
-        await (update(employees)..where((t) => t.id.equals(existing.id))).write(
-          EmployeesCompanion(
-            deletedAt: Value(now),
-            updatedAt: Value(now),
-            lastModified: Value(now),
-          ),
-        );
+  Future<int> _softDeleteExisting(Employee existing, {required bool originIsServer, required int now}) async {
+    final rows = await (update(employees)..where((t) => t.id.equals(existing.id))).write(
+      EmployeesCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
+    );
     if (rows > 0 && !originIsServer) {
       // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
       // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
-      await _mergeOutbox(
-        op: 'update',
-        localUuid: existing.localUuid,
-        serverId: existing.serverId,
-        clientTs: now,
-      );
+      await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
     }
     return rows;
   }
 
-  Future<int> updateByServerId(
-    String? serverId,
-    EmployeesCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateByServerId(String? serverId, EmployeesCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
       if (parsedServerId == null) {
         return 0;
       }
       final now = Time.nowEpoch();
-      final existing = await (select(
-        employees,
-      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+      final existing = await (select(employees)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
       if (existing == null) {
         return 0;
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
-          : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        employees,
-      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+      final rows = await (update(employees)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(
-          op: 'update',
-          localUuid: existing.localUuid,
-          serverId: existing.serverId,
-          clientTs: now,
-        );
+        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
       }
       return rows;
     });
@@ -297,12 +207,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
             (employeeUuid.isEmpty
                 ? db.expenses.relatedId.equals(employeeId)
                 : db.expenses.employeeUuid.equals(employeeUuid) |
-                      ((db.expenses.employeeUuid.isNull() |
-                              db.expenses.employeeUuid.equals('')) &
+                      ((db.expenses.employeeUuid.isNull() | db.expenses.employeeUuid.equals('')) &
                           db.expenses.relatedId.equals(employeeId))),
       );
-    final expensesCount =
-        (await expensesQuery.getSingle()).read(expensesCountExp) ?? 0;
+    final expensesCount = (await expensesQuery.getSingle()).read(expensesCountExp) ?? 0;
 
     final withdrawalsCountExp = db.salaryWithdrawals.id.count();
     final withdrawalsQuery = db.selectOnly(db.salaryWithdrawals)
@@ -312,14 +220,11 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
             (employeeUuid.isEmpty
                 ? db.salaryWithdrawals.employeeId.equals(employeeId)
                 : db.salaryWithdrawals.employeeUuid.equals(employeeUuid) |
-                      ((db.salaryWithdrawals.employeeUuid.isNull() |
-                              db.salaryWithdrawals.employeeUuid.equals('')) &
+                      ((db.salaryWithdrawals.employeeUuid.isNull() | db.salaryWithdrawals.employeeUuid.equals('')) &
                           db.salaryWithdrawals.employeeId.equals(employeeId))) &
-            (db.salaryWithdrawals.expenseId.isNull() |
-                db.salaryWithdrawals.expenseId.equals(0)),
+            (db.salaryWithdrawals.expenseId.isNull() | db.salaryWithdrawals.expenseId.equals(0)),
       );
-    final unlinkedWithdrawalsCount =
-        (await withdrawalsQuery.getSingle()).read(withdrawalsCountExp) ?? 0;
+    final unlinkedWithdrawalsCount = (await withdrawalsQuery.getSingle()).read(withdrawalsCountExp) ?? 0;
 
     return expensesCount + unlinkedWithdrawalsCount;
   }
@@ -329,9 +234,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
     if (parsedServerId == null) {
       return Future.value();
     }
-    return (select(
-      employees,
-    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+    return (select(employees)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
   int? _parseServerId(String? value) {
@@ -386,10 +289,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد الموظفين من JSON
-  Future<void> importFromJson(
-    List<Map<String, dynamic>> data, {
-    bool clearExisting = false,
-  }) async {
+  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
     await transaction(() async {
       if (clearExisting) {
         await delete(employees).go();

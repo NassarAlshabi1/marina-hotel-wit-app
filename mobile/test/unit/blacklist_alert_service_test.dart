@@ -22,11 +22,7 @@ void main() {
   });
 
   Future<void> seedWanted() async {
-    await repo.addEntry(
-      name: 'أحمد محمد علي',
-      nationalId: '123456',
-      reason: 'مطلوب أمني',
-    );
+    await repo.addEntry(name: 'أحمد محمد علي', nationalId: '123456', reason: 'مطلوب أمني');
   }
 
   test('يعيد المطابقة عند تسجيل اسم مطلوب (ويطلق التنبيه)', () async {
@@ -34,11 +30,7 @@ void main() {
 
     // قناة إشعارات النظام غير متاحة في الاختبار — يجب أن يعيد المطابقة
     // رغم ذلك (فشل الإشعار لا يلغي النتيجة).
-    final match = await alerts.notifyIfBlacklisted(
-      guestName: 'أحمد محمد علي',
-      bookingId: 42,
-      roomNumber: '101',
-    );
+    final match = await alerts.notifyIfBlacklisted(guestName: 'أحمد محمد علي', bookingId: 42, roomNumber: '101');
 
     expect(match, isNotNull);
     expect(match!.name, 'أحمد محمد علي');
@@ -47,9 +39,7 @@ void main() {
   test('يعيد null للاسم غير المسجل دون إطلاق تنبيه', () async {
     await seedWanted();
 
-    final match = await alerts.notifyIfBlacklisted(
-      guestName: 'خالد عبدالله سالم',
-    );
+    final match = await alerts.notifyIfBlacklisted(guestName: 'خالد عبدالله سالم');
 
     expect(match, isNull);
   });
@@ -57,9 +47,7 @@ void main() {
   test('يطابق أول 3 أسماء مثل شاشة الحجز', () async {
     await seedWanted();
 
-    final match = await alerts.notifyIfBlacklisted(
-      guestName: 'أحمد محمد علي الحداد',
-    );
+    final match = await alerts.notifyIfBlacklisted(guestName: 'أحمد محمد علي الحداد');
 
     expect(match, isNotNull);
   });

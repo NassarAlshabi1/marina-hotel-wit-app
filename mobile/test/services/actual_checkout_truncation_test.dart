@@ -48,8 +48,7 @@ void main() {
   final nowB = DateTime(2024, 3, 20, 9);
   final nowC = DateTime(2024, 4, 5, 12);
 
-  Future<Booking> fetchBooking(int id) =>
-      (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
+  Future<Booking> fetchBooking(int id) => (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -59,9 +58,7 @@ void main() {
 
     PaymentSessionContext.start(userId: 1, userName: 'اختبار');
 
-    await RoomsRepository(
-      db,
-    ).create(roomNumber: '101', type: 'عادية', price: rate, status: 'شاغرة');
+    await RoomsRepository(db).create(roomNumber: '101', type: 'عادية', price: rate, status: 'شاغرة');
   });
 
   tearDown(() async {
@@ -124,139 +121,97 @@ void main() {
   }
 
   group('T1 — actualCheckout المسجّل يقطع تراكم الليالي', () {
-    test(
-      'StayBalanceCalculator يحسب حتى actualCheckout لا حتى الآن ولا المخطط',
-      () async {
-        final booking = await seedCheckedOutBooking();
+    test('StayBalanceCalculator يحسب حتى actualCheckout لا حتى الآن ولا المخطط', () async {
+      final booking = await seedCheckedOutBooking();
 
-        final stay = StayBalanceCalculator.calculate(
-          booking,
-          roomRate: rate,
-          now: nowA,
-        );
+      final stay = StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowA);
 
-        // 3 ليالٍ فعلية: حتى 03-04 10:00. لولاه لكانت 10 (حتى الآن)
-        // أو 2 (حتى المخطط) — القيمة تميّز المسار الصحيح وحده.
-        expect(
-          stay.actualNightsSpent,
-          3,
-          reason:
-              'الإقامة تنتهي عند actualCheckout=03-04 10:00 '
-              'وليس عند now=03-10 15:00 ولا plannedCheckout=03-02 14:00',
-        );
-        expect(stay.consumedCost, 300, reason: '3 ليالٍ × 100');
-        expect(stay.effectiveBalance, 50, reason: '350 مدفوع − 300 مستهلك');
-        expect(stay.manualNightsRemaining, 0, reason: 'المخطط مضى قبل الآن');
-      },
-    );
+      // 3 ليالٍ فعلية: حتى 03-04 10:00. لولاه لكانت 10 (حتى الآن)
+      // أو 2 (حتى المخطط) — القيمة تميّز المسار الصحيح وحده.
+      expect(
+        stay.actualNightsSpent,
+        3,
+        reason:
+            'الإقامة تنتهي عند actualCheckout=03-04 10:00 '
+            'وليس عند now=03-10 15:00 ولا plannedCheckout=03-02 14:00',
+      );
+      expect(stay.consumedCost, 300, reason: '3 ليالٍ × 100');
+      expect(stay.effectiveBalance, 50, reason: '350 مدفوع − 300 مستهلك');
+      expect(stay.manualNightsRemaining, 0, reason: 'المخطط مضى قبل الآن');
+    });
 
-    test(
-      'EnhancedBookingCalculationService يعتمد actualCheckout نهايةً للإقامة',
-      () async {
-        final booking = await seedCheckedOutBooking();
+    test('EnhancedBookingCalculationService يعتمد actualCheckout نهايةً للإقامة', () async {
+      final booking = await seedCheckedOutBooking();
 
-        final result = await calculator.calculateForBooking(booking, now: nowA);
+      final result = await calculator.calculateForBooking(booking, now: nowA);
 
-        expect(result.bookingActive, isFalse);
-        expect(result.checkout, actualCheckout);
-        expect(
-          result.financialSummary.totalNights,
-          3,
-          reason: 'التفصيل الليلي يُبنى حتى actualCheckout فقط',
-        );
-      },
-    );
+      expect(result.bookingActive, isFalse);
+      expect(result.checkout, actualCheckout);
+      expect(result.financialSummary.totalNights, 3, reason: 'التفصيل الليلي يُبنى حتى actualCheckout فقط');
+    });
   });
 
   group('T2 — بعد actualCheckout تبقى القيم ثابتة مهما تقدّم الآن', () {
-    test(
-      'StayBalanceCalculator: نفس الليالي والتكلفة والرصيد عبر ثلاث لحظات',
-      () async {
-        final booking = await seedCheckedOutBooking();
+    test('StayBalanceCalculator: نفس الليالي والتكلفة والرصيد عبر ثلاث لحظات', () async {
+      final booking = await seedCheckedOutBooking();
 
-        final results = [
-          StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowA),
-          StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowB),
-          StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowC),
-        ];
+      final results = [
+        StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowA),
+        StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowB),
+        StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowC),
+      ];
 
-        for (final stay in results) {
-          expect(stay.actualNightsSpent, 3);
-          expect(stay.consumedCost, 300);
-          expect(stay.effectiveBalance, 50);
-        }
-        expect(
-          results[0].consumedCost,
-          results[2].consumedCost,
-          reason: 'لا تراكم بعد انتهاء الإقامة الفعلية',
-        );
-      },
-    );
+      for (final stay in results) {
+        expect(stay.actualNightsSpent, 3);
+        expect(stay.consumedCost, 300);
+        expect(stay.effectiveBalance, 50);
+      }
+      expect(results[0].consumedCost, results[2].consumedCost, reason: 'لا تراكم بعد انتهاء الإقامة الفعلية');
+    });
 
-    test(
-      'المحرك الموحد: checkout وtotalNights لا يتغيران بتقدم الآن',
-      () async {
-        final booking = await seedCheckedOutBooking();
+    test('المحرك الموحد: checkout وtotalNights لا يتغيران بتقدم الآن', () async {
+      final booking = await seedCheckedOutBooking();
 
-        final rA = await calculator.calculateForBooking(booking, now: nowA);
-        final rB = await calculator.calculateForBooking(booking, now: nowB);
-        final rC = await calculator.calculateForBooking(booking, now: nowC);
+      final rA = await calculator.calculateForBooking(booking, now: nowA);
+      final rB = await calculator.calculateForBooking(booking, now: nowB);
+      final rC = await calculator.calculateForBooking(booking, now: nowC);
 
-        expect(rA.checkout, actualCheckout);
-        expect(rB.checkout, actualCheckout);
-        expect(rC.checkout, actualCheckout);
-        expect(rA.financialSummary.totalNights, 3);
-        expect(rB.financialSummary.totalNights, 3);
-        expect(rC.financialSummary.totalNights, 3);
-      },
-    );
+      expect(rA.checkout, actualCheckout);
+      expect(rB.checkout, actualCheckout);
+      expect(rC.checkout, actualCheckout);
+      expect(rA.financialSummary.totalNights, 3);
+      expect(rB.financialSummary.totalNights, 3);
+      expect(rC.financialSummary.totalNights, 3);
+    });
   });
 
   group('T3 — بلا actualCheckout: الاستمرار حتى الآن رغم مضي المخطط', () {
-    test(
-      'StayBalanceCalculator يراكم حتى now وليس حتى plannedCheckout',
-      () async {
-        final booking = await seedActiveBooking();
+    test('StayBalanceCalculator يراكم حتى now وليس حتى plannedCheckout', () async {
+      final booking = await seedActiveBooking();
 
-        final stay = StayBalanceCalculator.calculate(
-          booking,
-          roomRate: rate,
-          now: nowA,
-        );
+      final stay = StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowA);
 
-        // حتى الآن = 10 ليالٍ؛ لولا ذلك لكانت 2 (سقف المخطط).
-        expect(
-          stay.actualNightsSpent,
-          10,
-          reason:
-              'الحجز النشط يتراكم ديناميكياً حتى اللحظة الحالية، '
-              'والمغادرة المخططة 03-02 14:00 لا توقفه',
-        );
-        expect(stay.consumedCost, 1000, reason: '10 ليالٍ × 100');
-        expect(
-          stay.manualNightsRemaining,
-          0,
-          reason: 'لا ليالٍ متبقية حتى مخطط مضى',
-        );
-      },
-    );
+      // حتى الآن = 10 ليالٍ؛ لولا ذلك لكانت 2 (سقف المخطط).
+      expect(
+        stay.actualNightsSpent,
+        10,
+        reason:
+            'الحجز النشط يتراكم ديناميكياً حتى اللحظة الحالية، '
+            'والمغادرة المخططة 03-02 14:00 لا توقفه',
+      );
+      expect(stay.consumedCost, 1000, reason: '10 ليالٍ × 100');
+      expect(stay.manualNightsRemaining, 0, reason: 'لا ليالٍ متبقية حتى مخطط مضى');
+    });
 
-    test(
-      'المحرك الموحد: bookingActive=true وcheckout=now وtotalNights ديناميكي',
-      () async {
-        final booking = await seedActiveBooking();
+    test('المحرك الموحد: bookingActive=true وcheckout=now وtotalNights ديناميكي', () async {
+      final booking = await seedActiveBooking();
 
-        final result = await calculator.calculateForBooking(booking, now: nowA);
+      final result = await calculator.calculateForBooking(booking, now: nowA);
 
-        expect(result.bookingActive, isTrue);
-        expect(result.checkout, nowA);
-        expect(
-          result.financialSummary.totalNights,
-          10,
-          reason: 'الحساب ديناميكي حتى اللحظة الحالية',
-        );
-      },
-    );
+      expect(result.bookingActive, isTrue);
+      expect(result.checkout, nowA);
+      expect(result.financialSummary.totalNights, 10, reason: 'الحساب ديناميكي حتى اللحظة الحالية');
+    });
   });
 
   group('T4 — حدّ اليوم الفندقي بالثانية: 14:00:59 مقابل 14:01:00', () {
@@ -264,19 +219,13 @@ void main() {
       // بداية يوم الفندق: 03-01 14:01.
       // حتى 03-04 14:00:59 → 2×24h + 23:59:59 → ليلتان + أساس = 3.
       expect(
-        Time.nightsWithCutoff(
-          checkin,
-          checkout: DateTime(2024, 3, 4, 14, 0, 59),
-        ),
+        Time.nightsWithCutoff(checkin, checkout: DateTime(2024, 3, 4, 14, 0, 59)),
         3,
         reason: '14:00:59 ما زال داخل اليوم الفندقي — لا ليلة إضافية',
       );
       // حتى 03-04 14:01:00 → 3×24h بالضبط → 4 ليالٍ.
       expect(
-        Time.nightsWithCutoff(
-          checkin,
-          checkout: DateTime(2024, 3, 4, 14, 1, 0),
-        ),
+        Time.nightsWithCutoff(checkin, checkout: DateTime(2024, 3, 4, 14, 1, 0)),
         4,
         reason: '14:01:00 يبدأ يوماً فندقياً جديداً — ليلة إضافية',
       );
@@ -302,15 +251,9 @@ void main() {
     });
 
     test('actualCheckout عند 14:00:59 → 3 ليالٍ عبر مسار الإنتاج', () async {
-      final booking = await seedCheckedOutBooking(
-        actual: DateTime(2024, 3, 4, 14, 0, 59),
-      );
+      final booking = await seedCheckedOutBooking(actual: DateTime(2024, 3, 4, 14, 0, 59));
 
-      final stay = StayBalanceCalculator.calculate(
-        booking,
-        roomRate: rate,
-        now: nowA,
-      );
+      final stay = StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowA);
       expect(stay.actualNightsSpent, 3);
       expect(stay.consumedCost, 300);
 
@@ -320,15 +263,9 @@ void main() {
     });
 
     test('actualCheckout عند 14:01:00 → 4 ليالٍ عبر مسار الإنتاج', () async {
-      final booking = await seedCheckedOutBooking(
-        actual: DateTime(2024, 3, 4, 14, 1, 0),
-      );
+      final booking = await seedCheckedOutBooking(actual: DateTime(2024, 3, 4, 14, 1, 0));
 
-      final stay = StayBalanceCalculator.calculate(
-        booking,
-        roomRate: rate,
-        now: nowA,
-      );
+      final stay = StayBalanceCalculator.calculate(booking, roomRate: rate, now: nowA);
       expect(stay.actualNightsSpent, 4);
       expect(stay.consumedCost, 400);
 

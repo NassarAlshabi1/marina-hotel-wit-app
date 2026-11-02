@@ -21,12 +21,10 @@ class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
 
   @override
-  ConsumerState<PaymentsReportScreen> createState() =>
-      _PaymentsReportScreenState();
+  ConsumerState<PaymentsReportScreen> createState() => _PaymentsReportScreenState();
 }
 
-class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
-    with PdfExportGuardMixin {
+class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> with PdfExportGuardMixin {
   final DateFormat _dateLabelFormat = DateFormat('yyyy/MM/dd HH:mm');
   final NumberFormat _currencyFmt = NumberFormat('#,##0', 'en_US');
   final _filterController = DateFilterController();
@@ -45,8 +43,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
   double _totalRemaining = 0;
   double _totalDue = 0;
 
-  String _formatBookingCode(int bookingId) =>
-      bookingId.toString().padLeft(6, '0');
+  String _formatBookingCode(int bookingId) => bookingId.toString().padLeft(6, '0');
 
   @override
   void didChangeDependencies() {
@@ -70,10 +67,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
     try {
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
-      await derivedService.refreshAllActiveBookings(
-        enqueueOutbox: false,
-        promoteProvisional: false,
-      );
+      await derivedService.refreshAllActiveBookings(enqueueOutbox: false, promoteProvisional: false);
     } catch (_) {}
     await _fetchReport();
   }
@@ -86,8 +80,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
         _availableRooms
           ..clear()
           ..addAll(rooms.map((e) => e.roomNumber).toList()..sort());
-        if (_availableRooms.isNotEmpty &&
-            !_availableRooms.contains(_selectedRoom)) {
+        if (_availableRooms.isNotEmpty && !_availableRooms.contains(_selectedRoom)) {
           _selectedRoom = null;
         }
       });
@@ -144,13 +137,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
     //   _toDate  = 19-May 14:00:59 → toHotelDay   = "2026-05-18" ✓
     //   → فقط مدفوعات hotelDayKey="2026-05-18" ✅
     final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(
-            dateTime: _fromDate!.add(const Duration(seconds: 1)),
-          )
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!.add(const Duration(seconds: 1)))
         : null;
-    final toHotelDay = _toDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
-        : null;
+    final toHotelDay = _toDate != null ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate) : null;
 
     final outboxDao = OutboxDao(db);
     final paymentsDao = PaymentsDao(db, outboxDao);
@@ -169,15 +158,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
     // ✅ إزالة فلترة الغرفة في الذاكرة — يتم الآن على مستوى قاعدة البيانات
     final filteredPayments = payments;
 
-    final bookingIds = filteredPayments
-        .map((p) => p.bookingLocalId)
-        .whereType<int>()
-        .toSet();
+    final bookingIds = filteredPayments.map((p) => p.bookingLocalId).whereType<int>().toSet();
     final bookings = bookingIds.isEmpty
         ? <Booking>[]
-        : await (db.select(
-            db.bookings,
-          )..where((tbl) => tbl.id.isIn(bookingIds))).get();
+        : await (db.select(db.bookings)..where((tbl) => tbl.id.isIn(bookingIds))).get();
     final bookingMap = {for (final b in bookings) b.id: b};
 
     final rows = <_PaymentReportRow>[];
@@ -197,12 +181,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
       // ✅ إزالة الفلترة المكررة: نثق أن قاعدة البيانات أرجعَت دفعات ضمن النطاق
 
       final booking = bookingMap[payment.bookingLocalId];
-      final roomNumber =
-          booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
+      final roomNumber = booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
-      final bookingCode = booking != null
-          ? _formatBookingCode(booking.id)
-          : null;
+      final bookingCode = booking != null ? _formatBookingCode(booking.id) : null;
 
       if (_isRoomPayment(payment.revenueType)) {
         totalRoomPaid += payment.amount;
@@ -286,9 +267,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
                 roomNumber: row.roomNumber,
                 payerName: row.booking?.guestName ?? row.payerName,
                 bookingCode: row.bookingCode,
-                paymentMethod: _translatePaymentMethod(
-                  row.payment.paymentMethod,
-                ),
+                paymentMethod: _translatePaymentMethod(row.payment.paymentMethod),
               ),
             )
             .toList(),
@@ -298,9 +277,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
         totalDue: _totalDue,
         fromDate: _fromDate,
         toDate: _toDate,
-        roomFilterLabel: _selectedRoom?.isNotEmpty ?? false
-            ? _selectedRoom
-            : null,
+        roomFilterLabel: _selectedRoom?.isNotEmpty ?? false ? _selectedRoom : null,
       ),
     );
   }
@@ -406,19 +383,11 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
               children: [
                 Text(
                   _dateLabelFormat.format(row.paymentDate),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Colors.grey),
                 ),
                 Text(
                   _currencyFmt.format(row.amount),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Colors.green,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green),
                 ),
               ],
             ),
@@ -427,22 +396,12 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
               children: [
                 const Icon(Icons.room, size: 13, color: Colors.blue),
                 const SizedBox(width: 3),
-                Text(
-                  row.roomNumber,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(row.roomNumber, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
                 const SizedBox(width: 12),
                 const Icon(Icons.person, size: 13, color: Colors.grey),
                 const SizedBox(width: 3),
                 Expanded(
-                  child: Text(
-                    row.payerName,
-                    style: const TextStyle(fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(row.payerName, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
@@ -456,10 +415,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
                 const Spacer(),
-                Text(
-                  '#${row.bookingCode}',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                ),
+                Text('#${row.bookingCode}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
           ],
@@ -479,21 +435,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
           children: [
             Row(
               children: [
-                Expanded(
-                  child: _buildSummaryTile(
-                    'مدفوعات الغرفة',
-                    _currencyFmt.format(_totalPaid),
-                    Colors.green,
-                  ),
-                ),
+                Expanded(child: _buildSummaryTile('مدفوعات الغرفة', _currencyFmt.format(_totalPaid), Colors.green)),
                 Container(width: 1, height: 28, color: Colors.grey.shade200),
-                Expanded(
-                  child: _buildSummaryTile(
-                    'مدفوعات أخرى',
-                    _currencyFmt.format(_totalOtherPaid),
-                    Colors.teal,
-                  ),
-                ),
+                Expanded(child: _buildSummaryTile('مدفوعات أخرى', _currencyFmt.format(_totalOtherPaid), Colors.teal)),
               ],
             ),
             const Divider(height: 16),
@@ -549,21 +493,12 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
     return r == 'room' || r == 'غرفة' || r == 'إقامة';
   }
 
-  Widget _buildSummaryTile(
-    String label,
-    String value,
-    Color color, {
-    bool isLarge = false,
-  }) {
+  Widget _buildSummaryTile(String label, String value, Color color, {bool isLarge = false}) {
     return Column(
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: isLarge ? 18 : 13,
-            color: color,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: isLarge ? 18 : 13, color: color),
         ),
         const SizedBox(height: 2),
         Text(
@@ -580,9 +515,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
 
   /// ✅ تحسين تحليل التاريخ: إرجاع null عند فشل التحليل بدلاً من DateTime.now()
   DateTime? _parseDateTime(String value) {
-    final normalized = value.contains('T')
-        ? value
-        : value.replaceFirst(' ', 'T');
+    final normalized = value.contains('T') ? value : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
     } catch (_) {

@@ -57,12 +57,8 @@ void main() {
         .insert(
           ExpensesCompanion(
             expenseType: d.Value(type),
-            relatedId: relatedId != null
-                ? d.Value(relatedId)
-                : const d.Value.absent(),
-            employeeUuid: employeeUuid != null
-                ? d.Value(employeeUuid)
-                : const d.Value.absent(),
+            relatedId: relatedId != null ? d.Value(relatedId) : const d.Value.absent(),
+            employeeUuid: employeeUuid != null ? d.Value(employeeUuid) : const d.Value.absent(),
             description: const d.Value(''),
             amount: d.Value(amount),
             date: const d.Value('2026-08-02'),
@@ -78,13 +74,8 @@ void main() {
   /// سحبة يتيمة بموظف ميت — تُدرج عبر SQL خام لمحاكاة السجلات القديمة
   /// القادمة من مسارات ما قبل FK أو من مزامنة قديمة (FK في Drift يمنع
   /// الإدراج عبر ORM — واليتائم الواقعية موجودة فعلاً في قواعد الأجهزة).
-  Future<String> createOrphanWithdrawalRaw({
-    required int deadEmployeeId,
-    int? expenseId,
-    double amount = 5000,
-  }) async {
-    final localUuid =
-        'sw-orphan-$expenseId-$amount-${DateTime.now().microsecondsSinceEpoch}';
+  Future<String> createOrphanWithdrawalRaw({required int deadEmployeeId, int? expenseId, double amount = 5000}) async {
+    final localUuid = 'sw-orphan-$expenseId-$amount-${DateTime.now().microsecondsSinceEpoch}';
     // FK مفعل حتى للـ raw SQL — نطفئه مؤقتاً لمحاكاة سجل قديم وُجد قبل القيد
     await db.customStatement('PRAGMA foreign_keys = OFF');
     try {
@@ -113,80 +104,50 @@ void main() {
   }
 
   group('مصروفات: توحيد الرقمي والـ uuid', () {
-    test(
-      'uuid يفوز: relatedId لموظف آخر يُعاد توجيهه للصاحب الحقيقي',
-      () async {
-        final ormo = await createEmployee('uuid-ormo', name: 'الاورمو محمد');
-        final samah = await createEmployee('uuid-samah', name: 'سامح');
+    test('uuid يفوز: relatedId لموظف آخر يُعاد توجيهه للصاحب الحقيقي', () async {
+      final ormo = await createEmployee('uuid-ormo', name: 'الاورمو محمد');
+      final samah = await createEmployee('uuid-samah', name: 'سامح');
 
-        // المصروف يشير رقمياً لسامح لكن uuid يقول: الأورمو محمد
-        final expId = await createExpense(
-          uuid: 'exp-1',
-          relatedId: samah,
-          employeeUuid: 'uuid-ormo',
-        );
+      // المصروف يشير رقمياً لسامح لكن uuid يقول: الأورمو محمد
+      final expId = await createExpense(uuid: 'exp-1', relatedId: samah, employeeUuid: 'uuid-ormo');
 
-        final report = await consistency.repairLinksForEmployee(ormo);
+      final report = await consistency.repairLinksForEmployee(ormo);
 
-        expect(report.expensesRelinked, 1);
-        final exp = await (db.select(
-          db.expenses,
-        )..where((e) => e.id.equals(expId))).getSingle();
-        expect(exp.relatedId, ormo, reason: 'uuid يفوز — المصروف يعود لصاحبه');
-        expect(exp.employeeUuid, 'uuid-ormo');
-        // وسامح لا يخسر شيئاً — لم يكن مالكاً أصلاً
-        final samahExpenses = await (db.select(
-          db.expenses,
-        )..where((e) => e.relatedId.equals(samah))).get();
-        expect(samahExpenses, isEmpty);
-      },
-    );
+      expect(report.expensesRelinked, 1);
+      final exp = await (db.select(db.expenses)..where((e) => e.id.equals(expId))).getSingle();
+      expect(exp.relatedId, ormo, reason: 'uuid يفوز — المصروف يعود لصاحبه');
+      expect(exp.employeeUuid, 'uuid-ormo');
+      // وسامح لا يخسر شيئاً — لم يكن مالكاً أصلاً
+      final samahExpenses = await (db.select(db.expenses)..where((e) => e.relatedId.equals(samah))).get();
+      expect(samahExpenses, isEmpty);
+    });
 
     test('backfill: مصروف برقمي صحيح و uuid فارغ يُعَبّأ', () async {
       final ormo = await createEmployee('uuid-ormo');
-      final expId = await createExpense(
-        uuid: 'exp-2',
-        relatedId: ormo,
-        employeeUuid: null,
-      );
+      final expId = await createExpense(uuid: 'exp-2', relatedId: ormo, employeeUuid: null);
 
       final report = await consistency.repairLinksForEmployee(ormo);
 
       expect(report.expensesUuidBackfilled, 1);
-      final exp = await (db.select(
-        db.expenses,
-      )..where((e) => e.id.equals(expId))).getSingle();
+      final exp = await (db.select(db.expenses)..where((e) => e.id.equals(expId))).getSingle();
       expect(exp.employeeUuid, 'uuid-ormo');
     });
 
-    test(
-      'يتيم حقيقي: relatedId لموظف محذوف + uuid للموظف المعدَّل يُنقذ',
-      () async {
-        final ormo = await createEmployee('uuid-ormo');
-        // مصروف بمعرف رقمي ميت (999 غير موجود) و uuid صحيح
-        final expId = await createExpense(
-          uuid: 'exp-3',
-          relatedId: 999,
-          employeeUuid: 'uuid-ormo',
-        );
+    test('يتيم حقيقي: relatedId لموظف محذوف + uuid للموظف المعدَّل يُنقذ', () async {
+      final ormo = await createEmployee('uuid-ormo');
+      // مصروف بمعرف رقمي ميت (999 غير موجود) و uuid صحيح
+      final expId = await createExpense(uuid: 'exp-3', relatedId: 999, employeeUuid: 'uuid-ormo');
 
-        final report = await consistency.repairLinksForEmployee(ormo);
+      final report = await consistency.repairLinksForEmployee(ormo);
 
-        expect(report.expensesRelinked, 1);
-        final exp = await (db.select(
-          db.expenses,
-        )..where((e) => e.id.equals(expId))).getSingle();
-        expect(exp.relatedId, ormo);
-      },
-    );
+      expect(report.expensesRelinked, 1);
+      final exp = await (db.select(db.expenses)..where((e) => e.id.equals(expId))).getSingle();
+      expect(exp.relatedId, ormo);
+    });
 
     test('سليم لا يُمس: صفر إصلاحات وصفر ضوضاء outbox', () async {
       final ormo = await createEmployee('uuid-ormo');
-      await createExpense(
-        uuid: 'exp-ok',
-        relatedId: ormo,
-        employeeUuid: 'uuid-ormo',
-      );
+      await createExpense(uuid: 'exp-ok', relatedId: ormo, employeeUuid: 'uuid-ormo');
 
       final report = await consistency.repairLinksForEmployee(ormo);
 
@@ -197,101 +158,56 @@ void main() {
   });
 
   group('سحوبات: إنقاذ اليتيمة عبر رابط المصروف', () {
-    test(
-      'سحبة employeeId ميت + expense_id لمصروف يملكه الموظف → تُنقذ',
-      () async {
-        final ormo = await createEmployee('uuid-ormo');
-        final expId = await createExpense(
-          uuid: 'exp-owner',
-          relatedId: ormo,
-          employeeUuid: 'uuid-ormo',
-        );
-        // سحبة يتيمة تشير لموظف ميت (999) لكن مربوطة بمصروف الأورمو
-        final orphanUuid = await createOrphanWithdrawalRaw(
-          deadEmployeeId: 999,
-          expenseId: expId,
-          amount: 5000,
-        );
+    test('سحبة employeeId ميت + expense_id لمصروف يملكه الموظف → تُنقذ', () async {
+      final ormo = await createEmployee('uuid-ormo');
+      final expId = await createExpense(uuid: 'exp-owner', relatedId: ormo, employeeUuid: 'uuid-ormo');
+      // سحبة يتيمة تشير لموظف ميت (999) لكن مربوطة بمصروف الأورمو
+      final orphanUuid = await createOrphanWithdrawalRaw(deadEmployeeId: 999, expenseId: expId, amount: 5000);
 
-        final report = await consistency.repairLinksForEmployee(ormo);
+      final report = await consistency.repairLinksForEmployee(ormo);
 
-        expect(report.withdrawalsRescued, 1);
-        final sw = await (db.select(
-          db.salaryWithdrawals,
-        )..where((w) => w.localUuid.equals(orphanUuid))).getSingle();
-        expect(sw.employeeId, ormo);
-        // ✅ (ت5-ج2 2026-10-04 — قاعدة 10.3-أ) الإصلاح **محلي فقط**:
-        // خدمة الإصلاح لا ترفع شيئاً إلى outbox — السحابة لا تُكتب
-        // رجوعاً بشكل غير منضبط. رفع الإصدار المحلي يحمي الإصلاح من
-        // الطمس بمداد LWW، وينتشر طبيعياً فقط عند تعديل مشروع لاحق.
-        final outboxRows = await db.select(db.outbox).get();
-        expect(
-          outboxRows,
-          isEmpty,
-          reason: 'خدمة الإصلاح لا تدفع إلى outbox (10.3-أ)',
-        );
-      },
-    );
+      expect(report.withdrawalsRescued, 1);
+      final sw = await (db.select(db.salaryWithdrawals)..where((w) => w.localUuid.equals(orphanUuid))).getSingle();
+      expect(sw.employeeId, ormo);
+      // ✅ (ت5-ج2 2026-10-04 — قاعدة 10.3-أ) الإصلاح **محلي فقط**:
+      // خدمة الإصلاح لا ترفع شيئاً إلى outbox — السحابة لا تُكتب
+      // رجوعاً بشكل غير منضبط. رفع الإصدار المحلي يحمي الإصلاح من
+      // الطمس بمداد LWW، وينتشر طبيعياً فقط عند تعديل مشروع لاحق.
+      final outboxRows = await db.select(db.outbox).get();
+      expect(outboxRows, isEmpty, reason: 'خدمة الإصلاح لا تدفع إلى outbox (10.3-أ)');
+    });
 
-    test(
-      'سحبة يتيمة بلا رابط مصروف → لا تُلمس (لا تخمين) وتُحصى للتقرير',
-      () async {
-        final ormo = await createEmployee('uuid-ormo');
-        final orphanUuid = await createOrphanWithdrawalRaw(
-          deadEmployeeId: 999,
-          amount: 7000,
-        );
+    test('سحبة يتيمة بلا رابط مصروف → لا تُلمس (لا تخمين) وتُحصى للتقرير', () async {
+      final ormo = await createEmployee('uuid-ormo');
+      final orphanUuid = await createOrphanWithdrawalRaw(deadEmployeeId: 999, amount: 7000);
 
-        final report = await consistency.repairLinksForEmployee(ormo);
+      final report = await consistency.repairLinksForEmployee(ormo);
 
-        expect(report.withdrawalsRescued, 0);
-        expect(report.orphanWithdrawalsUnrescuable, 1);
-        final sw = await (db.select(
-          db.salaryWithdrawals,
-        )..where((w) => w.localUuid.equals(orphanUuid))).getSingle();
-        expect(
-          sw.employeeId,
-          999,
-          reason: 'بلا دليل هوية — لا إعادة إسناد تخمينية',
-        );
-      },
-    );
+      expect(report.withdrawalsRescued, 0);
+      expect(report.orphanWithdrawalsUnrescuable, 1);
+      final sw = await (db.select(db.salaryWithdrawals)..where((w) => w.localUuid.equals(orphanUuid))).getSingle();
+      expect(sw.employeeId, 999, reason: 'بلا دليل هوية — لا إعادة إسناد تخمينية');
+    });
   });
 
   group('الربط بمسار التعديل الفعلي', () {
     test('employeesRepo.update يستدعي الإصلاح تلقائياً', () async {
       final ormo = await createEmployee('uuid-ormo');
-      await createExpense(
-        uuid: 'exp-auto',
-        relatedId: 999,
-        employeeUuid: 'uuid-ormo',
-      );
+      await createExpense(uuid: 'exp-auto', relatedId: 999, employeeUuid: 'uuid-ormo');
 
       await employeesRepo.update(ormo, name: 'الاورمو محمد المعدَّل');
 
-      final expenses = await (db.select(
-        db.expenses,
-      )..where((e) => e.relatedId.equals(ormo))).get();
+      final expenses = await (db.select(db.expenses)..where((e) => e.relatedId.equals(ormo))).get();
       expect(expenses.length, 1, reason: 'الإصلاح جرى ضمن التعديل مباشرة');
     });
 
     test('terminate يستدعي الإصلاح تلقائياً', () async {
       final ormo = await createEmployee('uuid-ormo');
-      await createExpense(
-        uuid: 'exp-term',
-        relatedId: 999,
-        employeeUuid: 'uuid-ormo',
-      );
+      await createExpense(uuid: 'exp-term', relatedId: 999, employeeUuid: 'uuid-ormo');
 
-      await employeesRepo.terminate(
-        id: ormo,
-        terminationType: 'terminated',
-        terminationDate: '2026-09-14',
-      );
+      await employeesRepo.terminate(id: ormo, terminationType: 'terminated', terminationDate: '2026-09-14');
 
-      final expenses = await (db.select(
-        db.expenses,
-      )..where((e) => e.relatedId.equals(ormo))).get();
+      final expenses = await (db.select(db.expenses)..where((e) => e.relatedId.equals(ormo))).get();
       expect(expenses.length, 1);
     });
   });

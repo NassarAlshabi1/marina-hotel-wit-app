@@ -63,8 +63,7 @@ class AppwriteService {
   /// الذي دفعناه للتو يصبح "مُحكَماً عليه" محلياً فلا يُنزَّل في الدورة
   /// التالية). يجب ألا يرمي المراقب أبداً — خدمة الشبكة تلتقط أي استثناء
   /// منه ولن تؤثر على دلالات الرفع.
-  void Function(String collectionId, models.Document document)?
-  onDocumentUpserted;
+  void Function(String collectionId, models.Document document)? onDocumentUpserted;
   final _networkHelper = AppwriteNetworkHelper();
 
   /// ✅ جديد: getter لكشف حالة الـ circuit breaker من خارج الخدمة.
@@ -133,11 +132,7 @@ class AppwriteService {
   }
 
   /// دالة مساعدة عامة لإضافة Query للصفحات
-  List<String> _applyPagingQueries(
-    List<String> baseQueries, {
-    required int limit,
-    required int offset,
-  }) {
+  List<String> _applyPagingQueries(List<String> baseQueries, {required int limit, required int offset}) {
     final effectiveQueries = List<String>.from(baseQueries);
 
     // التحقق من وجود Limit/Offset مسبقاً لتجنب التكرار
@@ -260,18 +255,11 @@ class AppwriteService {
           final secondaryDocs = await _listFromSecondary(collectionId, queries);
           // نضع النتيجة في الكاش لتفادي إعادة Failover المتكرر
           if (useCache) {
-            _cache.set(
-              cacheKey,
-              secondaryDocs,
-              ttl: AppwriteConfig.cacheExpiry,
-            );
+            _cache.set(cacheKey, secondaryDocs, ttl: AppwriteConfig.cacheExpiry);
           }
           return secondaryDocs;
         } catch (secondaryError) {
-          dlog(
-            () =>
-                '❌ [Failover] Secondary also failed for $collectionId: $secondaryError',
-          );
+          dlog(() => '❌ [Failover] Secondary also failed for $collectionId: $secondaryError');
           // نرمي خطأ Primary الأصلي لأنه المصدر الرئيسي
           rethrow;
         }
@@ -293,12 +281,8 @@ class AppwriteService {
     // JSON فكانت startsWith('greaterThan(') لا تطابق أبداً وكل الأنماط
     // تُبلغ false.
     final isMetadataOnly = queries.any((q) => queryHasMethod(q, 'select'));
-    final isByIds =
-        !isMetadataOnly &&
-        queries.any((q) => queryHasMethod(q, 'equal') && q.contains(r'$id'));
-    final isDeltaWindow = queries.any(
-      (q) => queryHasMethod(q, 'greaterThan') && q.contains(r'$updatedAt'),
-    );
+    final isByIds = !isMetadataOnly && queries.any((q) => queryHasMethod(q, 'equal') && q.contains(r'$id'));
+    final isDeltaWindow = queries.any((q) => queryHasMethod(q, 'greaterThan') && q.contains(r'$updatedAt'));
     _logger.info(
       'Fetched total ${allDocuments.length} documents from $collectionId '
       '(metadataOnly=$isMetadataOnly, byIds=$isByIds, deltaWindow=$isDeltaWindow)',
@@ -331,18 +315,11 @@ class AppwriteService {
   }) async {
     // ✅ الفحص يتم في _listAllDocumentsInternal مسبقاً
     try {
-      return await _listAllDocumentsInternal(
-        collectionId: collectionId,
-        queries: queries,
-        useCache: useCache,
-      );
+      return await _listAllDocumentsInternal(collectionId: collectionId, queries: queries, useCache: useCache);
     } catch (e) {
       // إذا فشل Primary و Secondary متاح، نقرأ منه
-      if (SecondaryAppwriteConfig.isEnabled &&
-          SecondaryAppwriteConfig.isConfigured) {
-        dlog(
-          () => '⚠️ [Failover] Primary failed ($e), falling back to Secondary',
-        );
+      if (SecondaryAppwriteConfig.isEnabled && SecondaryAppwriteConfig.isConfigured) {
+        dlog(() => '⚠️ [Failover] Primary failed ($e), falling back to Secondary');
         return _listFromSecondary(collectionId, queries);
       }
       rethrow;
@@ -362,9 +339,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      dlog(
-        '🔄 [Failover] Manual failover active — reading from Secondary for getDocument',
-      );
+      dlog('🔄 [Failover] Manual failover active — reading from Secondary for getDocument');
       return _getFromSecondary(collectionId, documentId);
     }
 
@@ -384,12 +359,8 @@ class AppwriteService {
         documentId: documentId,
       );
     } catch (e) {
-      if (SecondaryAppwriteConfig.isEnabled &&
-          SecondaryAppwriteConfig.isConfigured) {
-        dlog(
-          () =>
-              '⚠️ [Failover] getDocument Primary failed ($e), falling back to Secondary',
-        );
+      if (SecondaryAppwriteConfig.isEnabled && SecondaryAppwriteConfig.isConfigured) {
+        dlog(() => '⚠️ [Failover] getDocument Primary failed ($e), falling back to Secondary');
         return _getFromSecondary(collectionId, documentId);
       }
       rethrow;
@@ -397,10 +368,7 @@ class AppwriteService {
   }
 
   /// قراءة مستندات من Secondary مباشرة
-  Future<List<models.Document>> _listFromSecondary(
-    String collectionId,
-    List<String> queries,
-  ) async {
+  Future<List<models.Document>> _listFromSecondary(String collectionId, List<String> queries) async {
     final db = _secondaryDb;
 
     final allDocuments = <models.Document>[];
@@ -408,11 +376,7 @@ class AppwriteService {
     const pageSize = AppwriteConfig.maxPageSize;
 
     while (true) {
-      final pagedQueries = _applyPagingQueries(
-        queries,
-        limit: pageSize,
-        offset: pageOffset,
-      );
+      final pagedQueries = _applyPagingQueries(queries, limit: pageSize, offset: pageOffset);
       final result = await db
           // ignore: deprecated_member_use
           .listDocuments(
@@ -430,10 +394,7 @@ class AppwriteService {
   }
 
   /// قراءة مستند واحد من Secondary مباشرة
-  Future<models.Document> _getFromSecondary(
-    String collectionId,
-    String documentId,
-  ) async {
+  Future<models.Document> _getFromSecondary(String collectionId, String documentId) async {
     final db = _secondaryDb;
     // ignore: deprecated_member_use
     return db.getDocument(
@@ -443,18 +404,11 @@ class AppwriteService {
     );
   }
 
-  Future<int> deleteAllDocuments({
-    required String collectionId,
-    List<String>? queries,
-  }) async {
+  Future<int> deleteAllDocuments({required String collectionId, List<String>? queries}) async {
     await _ensureInitialized();
 
     try {
-      final documents = await listAllDocuments(
-        collectionId: collectionId,
-        queries: queries,
-        useCache: false,
-      );
+      final documents = await listAllDocuments(collectionId: collectionId, queries: queries, useCache: false);
 
       var deleted = 0;
       for (final doc in documents) {
@@ -470,20 +424,12 @@ class AppwriteService {
           );
           deleted++;
         } catch (e) {
-          _logger.warning(
-            'Failed to delete document ${doc.$id} from $collectionId',
-            error: e,
-            tag: 'CRUD',
-          );
+          _logger.warning('Failed to delete document ${doc.$id} from $collectionId', error: e, tag: 'CRUD');
         }
       }
       return deleted;
     } catch (e) {
-      _logger.error(
-        'Failed to delete all documents from $collectionId',
-        error: e,
-        tag: 'CRUD',
-      );
+      _logger.error('Failed to delete all documents from $collectionId', error: e, tag: 'CRUD');
       rethrow;
     }
   }
@@ -496,11 +442,7 @@ class AppwriteService {
     await _ensureInitialized();
     final effectiveQueries = queries ?? const <String>[];
     if (!useCache) {
-      return _listAllDocumentsInternal(
-        collectionId: collectionId,
-        queries: effectiveQueries,
-        useCache: false,
-      );
+      return _listAllDocumentsInternal(collectionId: collectionId, queries: effectiveQueries, useCache: false);
     }
 
     final cacheKey = '${collectionId}_${effectiveQueries.join('_')}_all';
@@ -522,9 +464,7 @@ class AppwriteService {
   ///   document_invalid_structure: Unknown attribute: "X" (400)
   /// نلتقط اسم الحقل "X" لإزالته ثم إعادة المحاولة، بدل فشل السجل كاملاً.
   /// يُعيد null إذا لم يكن الخطأ من هذا النوع.
-  static final RegExp _unknownAttrPattern = RegExp(
-    r'Unknown attribute:\s*"([^"]+)"',
-  );
+  static final RegExp _unknownAttrPattern = RegExp(r'Unknown attribute:\s*"([^"]+)"');
 
   String? _extractUnknownAttribute(AppwriteException e) {
     final type = e.type ?? '';
@@ -557,11 +497,7 @@ class AppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        final doc = await _upsertDocumentOnce(
-          collectionId: collectionId,
-          documentId: canonicalId,
-          data: workingData,
-        );
+        final doc = await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
         // ✅ (2026-08-31) إشعار مراقب نجاح الرفع (echo immunization).
         // الالتقاط هنا عمداً: فشل المراقب (تشخيص/تحسين) لا يُفسد أبداً
         // دلالات رفع نجح فعلاً على الخادم.
@@ -574,11 +510,8 @@ class AppwriteService {
         return doc;
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
-        if (unknownAttr != null &&
-            workingData.containsKey(unknownAttr) &&
-            attempt < maxRetries) {
-          workingData = Map<String, dynamic>.from(workingData)
-            ..remove(unknownAttr);
+        if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)..remove(unknownAttr);
           _logger.warning(
             '⚠️ حقل غير معروف في مخطط Appwrite — تمت إزالته وإعادة المحاولة: '
             '$collectionId.$unknownAttr (شغّل unified_appwrite_setup.js '
@@ -600,9 +533,7 @@ class AppwriteService {
     final dbId = AppwriteConfigManager.databaseId;
 
     bool isNotFound(AppwriteException e) =>
-        e.code == 404 ||
-        (e.type ?? '').contains('document_not_found') ||
-        e.toString().contains('document_not_found');
+        e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
 
     bool isAlreadyExists(AppwriteException e) =>
         e.code == 409 ||
@@ -637,20 +568,11 @@ class AppwriteService {
     // ✅ إصلاح إرهاق 429 (2026-07-22): probe=true → محاولة واحدة فقط (كشف وجود
     //    سريع). المستندات الجديدة تُرجع 404 حتماً، فلا داعي لاستهلاك 2×60s على
     //    إعادة محاولات 429 قبل الانتقال للإنشاء. الكتابة الفعلية تبقى بكامل المحاولات.
-    Future<models.Document> doUpdate(
-      String id, {
-      bool suppressErrorLog = false,
-      bool probe = false,
-    }) async {
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
-            _databases.updateDocument(
-              databaseId: dbId,
-              collectionId: collectionId,
-              documentId: id,
-              data: data,
-            ),
+            _databases.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
         operationName: 'updateDocument',
         suppressErrorLog: suppressErrorLog,
         maxRetries: probe ? 1 : null,
@@ -662,12 +584,7 @@ class AppwriteService {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
-            _databases.createDocument(
-              databaseId: dbId,
-              collectionId: collectionId,
-              documentId: documentId,
-              data: data,
-            ),
+            _databases.createDocument(databaseId: dbId, collectionId: collectionId, documentId: documentId, data: data),
         operationName: 'createDocument',
         suppressErrorLog: true,
       );
@@ -680,10 +597,7 @@ class AppwriteService {
       return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
-        dlog(
-          () =>
-              '⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create',
-        );
+        dlog(() => '⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create');
         await Future<void>.delayed(const Duration(seconds: 65));
         // انتقل مباشرة للخطوة 2 (create)
       } else if (!isNotFound(updateError)) {
@@ -714,11 +628,7 @@ class AppwriteService {
     // إن وُجد، ونتجنّب الإنشاء المكرر تمامًا.
     if (altDocumentId.isNotEmpty) {
       try {
-        return await doUpdate(
-          altDocumentId,
-          suppressErrorLog: true,
-          probe: true,
-        );
+        return await doUpdate(altDocumentId, suppressErrorLog: true, probe: true);
       } on AppwriteException catch (altError) {
         if (!isNotFound(altError)) {
           rethrow; // خطأ آخر غير 404
@@ -744,10 +654,7 @@ class AppwriteService {
 
         if (altDocumentId.isNotEmpty) {
           try {
-            _logger.debug(
-              'upsert: trying alt ID (no dashes): $altDocumentId',
-              tag: 'UPSERT',
-            );
+            _logger.debug('upsert: trying alt ID (no dashes): $altDocumentId', tag: 'UPSERT');
             return await doUpdate(altDocumentId, suppressErrorLog: true);
           } on AppwriteException catch (altError) {
             if (!isNotFound(altError)) {
@@ -781,10 +688,7 @@ class AppwriteService {
     }
   }
 
-  Future<void> _deleteDocumentInternal({
-    required String collectionId,
-    required String documentId,
-  }) async {
+  Future<void> _deleteDocumentInternal({required String collectionId, required String documentId}) async {
     try {
       await _networkHelper.withRetryAndTimeout(
         // ignore: deprecated_member_use
@@ -809,10 +713,7 @@ class AppwriteService {
   // ---------------------------------------------------------------------------
 
   // Rooms
-  Future<List<models.Document>> listRooms({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listRooms({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.roomsCollectionId,
@@ -821,31 +722,18 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertRoom(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertRoom(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
-    return _upsertDocumentInternal(
-      collectionId: AppwriteConfig.roomsCollectionId,
-      documentId: documentId,
-      data: data,
-    );
+    return _upsertDocumentInternal(collectionId: AppwriteConfig.roomsCollectionId, documentId: documentId, data: data);
   }
 
   Future<void> deleteRoom(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.roomsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.roomsCollectionId, documentId: documentId);
   }
 
   // Bookings
-  Future<List<models.Document>> listBookings({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listBookings({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.bookingsCollectionId,
@@ -854,10 +742,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertBooking(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertBooking(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.bookingsCollectionId,
@@ -868,17 +753,11 @@ class AppwriteService {
 
   Future<void> deleteBooking(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.bookingsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.bookingsCollectionId, documentId: documentId);
   }
 
   // Employees
-  Future<List<models.Document>> listEmployees({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listEmployees({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.employeesCollectionId,
@@ -887,10 +766,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertEmployee(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertEmployee(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.employeesCollectionId,
@@ -901,17 +777,11 @@ class AppwriteService {
 
   Future<void> deleteEmployee(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.employeesCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.employeesCollectionId, documentId: documentId);
   }
 
   // Expenses
-  Future<List<models.Document>> listExpenses({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listExpenses({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.expensesCollectionId,
@@ -920,10 +790,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertExpense(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertExpense(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.expensesCollectionId,
@@ -934,17 +801,11 @@ class AppwriteService {
 
   Future<void> deleteExpense(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.expensesCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.expensesCollectionId, documentId: documentId);
   }
 
   // Payments
-  Future<List<models.Document>> listPayments({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listPayments({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.paymentsCollectionId,
@@ -953,10 +814,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertPayment(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertPayment(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.paymentsCollectionId,
@@ -967,17 +825,11 @@ class AppwriteService {
 
   Future<void> deletePayment(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.paymentsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.paymentsCollectionId, documentId: documentId);
   }
 
   // Debts
-  Future<List<models.Document>> listDebts({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listDebts({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.debtsCollectionId,
@@ -986,31 +838,18 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertDebt(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertDebt(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
-    return _upsertDocumentInternal(
-      collectionId: AppwriteConfig.debtsCollectionId,
-      documentId: documentId,
-      data: data,
-    );
+    return _upsertDocumentInternal(collectionId: AppwriteConfig.debtsCollectionId, documentId: documentId, data: data);
   }
 
   Future<void> deleteDebt(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.debtsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.debtsCollectionId, documentId: documentId);
   }
 
   // Shift Notes
-  Future<List<models.Document>> listShiftNotes({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listShiftNotes({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.shiftNotesCollectionId,
@@ -1019,10 +858,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertShiftNote(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertShiftNote(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.shiftNotesCollectionId,
@@ -1033,17 +869,11 @@ class AppwriteService {
 
   Future<void> deleteShiftNote(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.shiftNotesCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.shiftNotesCollectionId, documentId: documentId);
   }
 
   // Booking Notes
-  Future<List<models.Document>> listBookingNotes({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listBookingNotes({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.bookingNotesCollectionId,
@@ -1052,10 +882,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertBookingNote(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertBookingNote(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.bookingNotesCollectionId,
@@ -1066,10 +893,7 @@ class AppwriteService {
 
   Future<void> deleteBookingNote(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.bookingNotesCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.bookingNotesCollectionId, documentId: documentId);
   }
 
   // Booking Nights
@@ -1118,10 +942,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      dlog(
-        () =>
-            '🔄 [Failover] Manual failover active — reading page from Secondary',
-      );
+      dlog(() => '🔄 [Failover] Manual failover active — reading page from Secondary');
       return _listPageFromSecondary(collectionId, queries);
     }
 
@@ -1174,26 +995,16 @@ class AppwriteService {
 
   /// صفحة واحدة من Secondary بنفس استعلاماتها (طلب واحد بلا ترقيم داخلي —
   /// الترقيم مسؤولية المتصل التدفقي).
-  Future<List<models.Document>> _listPageFromSecondary(
-    String collectionId,
-    List<String> queries,
-  ) async {
+  Future<List<models.Document>> _listPageFromSecondary(String collectionId, List<String> queries) async {
     final db = _secondaryDb;
     final result = await db
         // ignore: deprecated_member_use
-        .listDocuments(
-          databaseId: SecondaryAppwriteConfig.databaseId,
-          collectionId: collectionId,
-          queries: queries,
-        )
+        .listDocuments(databaseId: SecondaryAppwriteConfig.databaseId, collectionId: collectionId, queries: queries)
         .timeout(const Duration(seconds: 30));
     return result.documents;
   }
 
-  Future<models.Document> upsertBookingNight(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertBookingNight(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.bookingNightsCollectionId,
@@ -1204,17 +1015,11 @@ class AppwriteService {
 
   Future<void> deleteBookingNight(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.bookingNightsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.bookingNightsCollectionId, documentId: documentId);
   }
 
   // Cash Transactions
-  Future<List<models.Document>> listCashTransactions({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listCashTransactions({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.cashTransactionsCollectionId,
@@ -1223,10 +1028,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertCashTransaction(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertCashTransaction(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.cashTransactionsCollectionId,
@@ -1237,17 +1039,11 @@ class AppwriteService {
 
   Future<void> deleteCashTransaction(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.cashTransactionsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.cashTransactionsCollectionId, documentId: documentId);
   }
 
   // Salary Cycles
-  Future<List<models.Document>> listSalaryCycles({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listSalaryCycles({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.salaryCyclesCollectionId,
@@ -1256,10 +1052,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertSalaryCycle(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertSalaryCycle(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.salaryCyclesCollectionId,
@@ -1270,17 +1063,11 @@ class AppwriteService {
 
   Future<void> deleteSalaryCycle(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.salaryCyclesCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.salaryCyclesCollectionId, documentId: documentId);
   }
 
   // Salary Payments
-  Future<List<models.Document>> listSalaryPayments({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listSalaryPayments({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.salaryPaymentsCollectionId,
@@ -1289,10 +1076,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertSalaryPayment(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertSalaryPayment(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.salaryPaymentsCollectionId,
@@ -1303,17 +1087,11 @@ class AppwriteService {
 
   Future<void> deleteSalaryPayment(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.salaryPaymentsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.salaryPaymentsCollectionId, documentId: documentId);
   }
 
   // GuestInfos
-  Future<List<models.Document>> listGuestInfos({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listGuestInfos({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.guestInfosCollectionId,
@@ -1322,10 +1100,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertGuestInfo(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertGuestInfo(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.guestInfosCollectionId,
@@ -1336,17 +1111,11 @@ class AppwriteService {
 
   Future<void> deleteGuestInfo(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.guestInfosCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.guestInfosCollectionId, documentId: documentId);
   }
 
   // SalaryWithdrawals
-  Future<List<models.Document>> listSalaryWithdrawals({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listSalaryWithdrawals({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
@@ -1355,10 +1124,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertSalaryWithdrawal(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertSalaryWithdrawal(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
@@ -1369,17 +1135,11 @@ class AppwriteService {
 
   Future<void> deleteSalaryWithdrawal(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.salaryWithdrawalsCollectionId, documentId: documentId);
   }
 
   // Blacklist
-  Future<List<models.Document>> listBlacklist({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
+  Future<List<models.Document>> listBlacklist({List<String>? queries, bool useCache = true}) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: AppwriteConfig.blacklistCollectionId,
@@ -1388,10 +1148,7 @@ class AppwriteService {
     );
   }
 
-  Future<models.Document> upsertBlacklist(
-    String documentId,
-    Map<String, dynamic> data,
-  ) async {
+  Future<models.Document> upsertBlacklist(String documentId, Map<String, dynamic> data) async {
     await _ensureInitialized();
     return _upsertDocumentInternal(
       collectionId: AppwriteConfig.blacklistCollectionId,
@@ -1402,10 +1159,7 @@ class AppwriteService {
 
   Future<void> deleteBlacklist(String documentId) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: AppwriteConfig.blacklistCollectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: AppwriteConfig.blacklistCollectionId, documentId: documentId);
   }
 
   // Generic methods for delta sync
@@ -1415,11 +1169,7 @@ class AppwriteService {
     bool useCache = true,
   }) async {
     await _ensureInitialized();
-    return _listAllDocumentsInternal(
-      collectionId: collectionId,
-      queries: queries ?? [],
-      useCache: useCache,
-    );
+    return _listAllDocumentsInternal(collectionId: collectionId, queries: queries ?? [], useCache: useCache);
   }
 
   /// ✅ (2026-08-30) الفجوتان 3+4 — سحب metadata فقط ($id + $updatedAt)
@@ -1457,10 +1207,7 @@ class AppwriteService {
   /// ✅ (2026-08-30) جلب مستندات كاملة بمعرّفاتها على دفعات
   /// (Query.equal على $id، 100 معرّفاً للدفعة) — مرافق metadata-first:
   /// بعد حصر المتغيّر من مقارنة الـ metadata لا نُنزّل إلا هو.
-  Future<List<models.Document>> listDocumentsByIds(
-    String collectionId,
-    List<String> ids,
-  ) async {
+  Future<List<models.Document>> listDocumentsByIds(String collectionId, List<String> ids) async {
     await _ensureInitialized();
     final out = <models.Document>[];
     const chunkSize = 100;
@@ -1477,15 +1224,9 @@ class AppwriteService {
     return out;
   }
 
-  Future<void> deleteRow({
-    required String collectionId,
-    required String documentId,
-  }) async {
+  Future<void> deleteRow({required String collectionId, required String documentId}) async {
     await _ensureInitialized();
-    return _deleteDocumentInternal(
-      collectionId: collectionId,
-      documentId: documentId,
-    );
+    return _deleteDocumentInternal(collectionId: collectionId, documentId: documentId);
   }
 
   Future<models.Document> upsertDocument({
@@ -1494,11 +1235,7 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     await _ensureInitialized();
-    return _upsertDocumentInternal(
-      collectionId: collectionId,
-      documentId: documentId,
-      data: data,
-    );
+    return _upsertDocumentInternal(collectionId: collectionId, documentId: documentId, data: data);
   }
 
   /// اختبار اتصال سريع (قراءة فقط)
@@ -1519,21 +1256,14 @@ class AppwriteService {
       _logger.info('Quick connection test successful', tag: 'CONNECTION');
       return true;
     } catch (e) {
-      _logger.warning(
-        'Quick connection test failed',
-        error: e,
-        tag: 'CONNECTION',
-      );
+      _logger.warning('Quick connection test failed', error: e, tag: 'CONNECTION');
       return false;
     }
   }
 
   /// اختبار شامل للاتصال (قراءة فقط - لا يعتمد على كتابة المستندات)
   Future<Map<String, dynamic>> fullConnectionTest() async {
-    final results = <String, dynamic>{
-      'tests': <String, dynamic>{},
-      'overall_success': false,
-    };
+    final results = <String, dynamic>{'tests': <String, dynamic>{}, 'overall_success': false};
 
     await _ensureInitialized();
 
@@ -1600,19 +1330,12 @@ class AppwriteService {
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
       } else {
-        _logger.warning(
-          'Full connection test failed: $results',
-          tag: 'CONNECTION_TEST',
-        );
+        _logger.warning('Full connection test failed: $results', tag: 'CONNECTION_TEST');
       }
 
       return results;
     } catch (e) {
-      _logger.error(
-        'Full connection test fatal error',
-        error: e,
-        tag: 'CONNECTION_TEST',
-      );
+      _logger.error('Full connection test fatal error', error: e, tag: 'CONNECTION_TEST');
       results['overall_success'] = false;
       results['error'] = e.toString();
       return results;
@@ -1630,15 +1353,10 @@ class AppwriteService {
     required String databaseId,
     required String apiKey,
   }) async {
-    final results = <String, dynamic>{
-      'tests': <String, dynamic>{},
-      'overall_success': false,
-    };
+    final results = <String, dynamic>{'tests': <String, dynamic>{}, 'overall_success': false};
 
     try {
-      final client = Client()
-          .setEndpoint(endpoint.trim())
-          .setProject(projectId.trim());
+      final client = Client().setEndpoint(endpoint.trim()).setProject(projectId.trim());
       final trimmedApiKey = apiKey.trim();
       if (trimmedApiKey.isNotEmpty) {
         client.addHeader('X-Appwrite-Key', trimmedApiKey);
@@ -1685,9 +1403,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      dlog(
-        '🔄 [Failover] Manual failover active — reading document from Secondary',
-      );
+      dlog('🔄 [Failover] Manual failover active — reading document from Secondary');
       return _getFromSecondary(collectionId, documentId);
     }
     return _networkHelper.withTimeout(
@@ -1736,11 +1452,8 @@ class AppwriteService {
         );
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
-        if (unknownAttr != null &&
-            workingData.containsKey(unknownAttr) &&
-            attempt < maxRetries) {
-          workingData = Map<String, dynamic>.from(workingData)
-            ..remove(unknownAttr);
+        if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)..remove(unknownAttr);
           _logger.warning(
             '⚠️ حقل غير معروف في مخطط Appwrite — أُزيل وأُعيدت المحاولة: '
             '$collectionId.$unknownAttr',
@@ -1781,11 +1494,8 @@ class AppwriteService {
         );
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
-        if (unknownAttr != null &&
-            workingData.containsKey(unknownAttr) &&
-            attempt < maxRetries) {
-          workingData = Map<String, dynamic>.from(workingData)
-            ..remove(unknownAttr);
+        if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)..remove(unknownAttr);
           _logger.warning(
             '⚠️ حقل غير معروف في مخطط Appwrite — أُزيل وأُعيدت المحاولة: '
             '$collectionId.$unknownAttr',
@@ -1808,15 +1518,8 @@ class AppwriteService {
   }
 
   /// جلب سجلات المزامنة
-  Future<List<models.Document>> listSyncLogs({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
-    return listRows(
-      collectionId: AppwriteConfig.syncLogsCollectionId,
-      queries: queries,
-      useCache: useCache,
-    );
+  Future<List<models.Document>> listSyncLogs({List<String>? queries, bool useCache = true}) async {
+    return listRows(collectionId: AppwriteConfig.syncLogsCollectionId, queries: queries, useCache: useCache);
   }
 
   /// إنشاء جهاز
@@ -1829,15 +1532,8 @@ class AppwriteService {
   }
 
   /// جلب الأجهزة
-  Future<List<models.Document>> listDevices({
-    List<String>? queries,
-    bool useCache = true,
-  }) async {
-    return listRows(
-      collectionId: AppwriteConfig.devicesCollectionId,
-      queries: queries,
-      useCache: useCache,
-    );
+  Future<List<models.Document>> listDevices({List<String>? queries, bool useCache = true}) async {
+    return listRows(collectionId: AppwriteConfig.devicesCollectionId, queries: queries, useCache: useCache);
   }
 
   // ---------------------------------------------------------------------------
@@ -1851,11 +1547,7 @@ class AppwriteService {
     List<String>? queries,
     bool useCache = true,
   }) {
-    return listRows(
-      collectionId: collectionId,
-      queries: queries,
-      useCache: useCache,
-    );
+    return listRows(collectionId: collectionId, queries: queries, useCache: useCache);
   }
 
   /// Alias for [getRow] — used by callers expecting `getDocument` name.
@@ -1864,11 +1556,7 @@ class AppwriteService {
     required String documentId,
     bool suppressErrorLog = false,
   }) {
-    return getRow(
-      collectionId: collectionId,
-      documentId: documentId,
-      suppressErrorLog: suppressErrorLog,
-    );
+    return getRow(collectionId: collectionId, documentId: documentId, suppressErrorLog: suppressErrorLog);
   }
 
   /// Alias for [updateRow] — used by callers expecting `updateDocument` name.
@@ -1877,11 +1565,7 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) {
-    return updateRow(
-      collectionId: collectionId,
-      documentId: documentId,
-      data: data,
-    );
+    return updateRow(collectionId: collectionId, documentId: documentId, data: data);
   }
 
   /// Alias for [createRow] — used by callers expecting `createDocument` name.
@@ -1890,18 +1574,11 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) {
-    return createRow(
-      collectionId: collectionId,
-      documentId: documentId,
-      data: data,
-    );
+    return createRow(collectionId: collectionId, documentId: documentId, data: data);
   }
 
   /// Alias for [deleteRow] — used by callers expecting `deleteDocument` name.
-  Future<void> deleteDocument({
-    required String collectionId,
-    required String documentId,
-  }) {
+  Future<void> deleteDocument({required String collectionId, required String documentId}) {
     return deleteRow(collectionId: collectionId, documentId: documentId);
   }
 

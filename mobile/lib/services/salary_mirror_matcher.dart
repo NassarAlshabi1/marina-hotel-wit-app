@@ -202,10 +202,7 @@ class SalaryMirrorMatcher {
   /// هل تحمل هذه السحبة "علامة مرآة" (رابط لمصروف — محلي أو أجنبي عن
   /// هذا الجهاز) بغض النظر عن نجاح حلّه؟ السحوبات المباشرة الحقيقية
   /// (direct_withdrawal_) تُستثنى دائماً — نقد خرج بلا مصروف مقابل.
-  static bool hasMirrorMarker({
-    required int? expenseId,
-    required String? reason,
-  }) {
+  static bool hasMirrorMarker({required int? expenseId, required String? reason}) {
     final rawReason = (reason ?? '').trim();
     if (rawReason.startsWith('direct_withdrawal_')) return false;
     if (expenseId != null && expenseId > 0) return true;
@@ -213,11 +210,7 @@ class SalaryMirrorMatcher {
   }
 
   /// مقارنة اليوم: hotelDayKey عند توفرهما، وإلا التاريخ التقويمي.
-  static bool _sameDay(
-    MirrorExpenseCandidate e,
-    String? withdrawalHotelDayKey,
-    String withdrawDate,
-  ) {
+  static bool _sameDay(MirrorExpenseCandidate e, String? withdrawalHotelDayKey, String withdrawDate) {
     final eDay = (e.hotelDayKey ?? '').trim();
     final wDay = (withdrawalHotelDayKey ?? '').trim();
     if (eDay.isNotEmpty && wDay.isNotEmpty) return eDay == wDay;
