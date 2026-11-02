@@ -6,7 +6,7 @@ name: Mobile Quality Gate - Enhanced
 # 
 # ميزات رئيسية:
 #   ✅ تحليل كود متقدم (Flutter Analyze + Dart Analysis)
-#   ✅ فحص تنسيق الكود (dart format)
+#   ✅ فحص تنسيق الكود (dart format — 80 عموداً، فحص حقيقي)
 #   ✅ اختبار وحدة مع تغطية كود (min 60% coverage)
 #   ✅ فحص أداء الكود (Performance Benchmarks)
 #   ✅ كشف الكود المكرر (jscpd — يدعم Dart)
@@ -174,22 +174,43 @@ jobs:
           cache: true
           
       - name: 📝 Check Code Formatting
+        # ✅ إصلاح (2026-11-02): كان هذا الفحص **بلا أثر** — لا يمرَّر
+        #    `--set-exit-if-changed` فيخرج دائماً بـ 0، ثم يُبحث عن كلمة
+        #    "Formatting" في مخرجات dart format وهي لا تظهر أبداً ⇒ الفحص
+        #    ينجح حتى مع ملفات غير منسّقة تماماً. وكان يقيس 120 عموداً بينما
+        #    المعيار الفعلي للشجرة 80 (نفس ci.yml). الآن: فحص حقيقي يُسقط
+        #    المهمة عند وجود مخالفة، على الملفات المكتوبة يدوياً فقط
+        #    (تُستثنى ملفات build_runner المولّدة).
         working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
         run: |
-          echo "🔍 Checking code formatting..."
-          dart format --output=none --line-length 120 lib test 2>&1 | tee format_check.log
-          
-          FORMAT_ISSUES=$(grep -c "Formatting" format_check.log || echo "0")
-          if [ "$FORMAT_ISSUES" -gt 0 ]; then
-            echo "❌ Found formatting issues. Please run: dart format lib test"
-            echo "### ❌ Formatting Issues Found" >> $GITHUB_STEP_SUMMARY
-            echo "Run: \`dart format lib test\`" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          else
-            echo "✅ Code formatting is correct"
-            echo "### ✅ Code Formatting" >> $GITHUB_STEP_SUMMARY
-            echo "All files are properly formatted" >> $GITHUB_STEP_SUMMARY
+          set -uo pipefail
+          echo "🔍 Checking code formatting (80 cols, hand-written files)..."
+          FILES=$(git ls-files '*.dart' | grep -v -E '\.(g|freezed|gr|mocks)\.dart$' || true)
+          if [ -z "$FILES" ]; then
+            echo "لا ملفات Dart للفحص"
+            echo "✅ Code formatting is correct" | tee format_check.log
+            exit 0
           fi
+          OUT=$(printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 \
+            dart format --line-length 80 --output=none --set-exit-if-changed 2>&1)
+          STATUS=$?
+          printf '%s\n' "$OUT" | tee format_check.log | tail -20
+          if [ $STATUS -ne 0 ]; then
+            echo "❌ Formatting issues found in the files above" | tee -a format_check.log
+            printf '%s\n' "$OUT" | sed -n 's/^Changed \(.*\)$/::error file=\1::غير منسّق — شغّل: dart format \1/p'
+            {
+              echo "### ❌ Formatting Issues Found"
+              echo ""
+              printf '%s\n' "$OUT" | sed -n 's/^Changed \(.*\)$/- `\1`/p'
+              echo ""
+              echo 'Run: `dart format <files>` أو workflow **Auto Format (dart)**.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "✅ Code formatting is correct"
+          echo "### ✅ Code Formatting" >> $GITHUB_STEP_SUMMARY
+          echo "All hand-written Dart files are formatted (80 cols)." >> $GITHUB_STEP_SUMMARY
           
       - name: 🔍 Static Code Analysis
         working-directory: ${{ env.WORKING_DIRECTORY }}
@@ -221,7 +242,7 @@ jobs:
             echo "|---|---|"
             
             if [ -f "format_check.log" ]; then
-              FORMAT_STATUS=$(grep -q "Formatting" format_check.log && echo "❌ Failed" || echo "✅ Passed")
+              FORMAT_STATUS=$(grep -q "❌" format_check.log && echo "❌ Failed" || echo "✅ Passed")
             else
               FORMAT_STATUS="✅ Passed"
             fi
