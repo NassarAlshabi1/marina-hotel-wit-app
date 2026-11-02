@@ -2482,6 +2482,46 @@ class AppwriteSyncManager {
   Future<int> syncSalaryCyclesForTesting(List<models.Document> documents) =>
       _syncSalaryCycles(documents);
 
+  /// ✅ (2026-11-03) جسور اختبارية — نفس نمط [syncBookingsForTesting]:
+  /// الكود الإنتاجي نفسه بلا محاكاة، لتعميم عقد «فشل تطبيق المستند لا
+  /// يتخطاه المؤشر» على الكيانات التسعة المتبقية (انظر
+  /// silent_loss_remaining_entities_regression_test.dart).
+  @visibleForTesting
+  Future<int> syncExpensesForTesting(List<models.Document> documents) =>
+      _syncExpenses(documents);
+
+  @visibleForTesting
+  Future<int> syncGuestInfosForTesting(List<models.Document> documents) =>
+      _syncGuestInfos(documents);
+
+  @visibleForTesting
+  Future<int> syncBlacklistForTesting(List<models.Document> documents) =>
+      _syncBlacklist(documents);
+
+  @visibleForTesting
+  Future<int> syncInventoryItemsForTesting(List<models.Document> documents) =>
+      _syncInventoryItems(documents);
+
+  @visibleForTesting
+  Future<int> syncShiftNotesForTesting(List<models.Document> documents) =>
+      _syncShiftNotes(documents);
+
+  @visibleForTesting
+  Future<int> syncCashTransactionsForTesting(List<models.Document> documents) =>
+      _syncCashTransactions(documents);
+
+  @visibleForTesting
+  Future<int> syncPriceAdjustmentsForTesting(List<models.Document> documents) =>
+      _syncPriceAdjustments(documents);
+
+  @visibleForTesting
+  Future<int> syncAuditLogsForTesting(List<models.Document> documents) =>
+      _syncAuditLogs(documents);
+
+  @visibleForTesting
+  Future<int> syncPaymentVoidsForTesting(List<models.Document> documents) =>
+      _syncPaymentVoids(documents);
+
   /// ✅ إعادة حساب حالة إشغال غرفة واحدة بناءً على الحجوزات النشطة
   /// يستخدم RoomsRepository لضمان تحديث version و lastModified
   Future<void> _refreshSingleRoomOccupancy(String roomNumber) async {
@@ -2632,6 +2672,9 @@ class AppwriteSyncManager {
           }
         : <String, Expense>{};
 
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2707,7 +2750,20 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync expense ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // المصروف سجل مالي — فشل تطبيقه مع تقدّم مؤشر expenses يعني فقدانه
+    // من كل دلتا لاحقة بلا أثر (نجاح زائف في الواجهة). الفشل المرئي
+    // أفضل من الفقدان الصامت؛ يُعاد سحبه في الدورة التالية.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'expenses: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -4106,6 +4162,9 @@ class AppwriteSyncManager {
           }
         : <String, GuestInfo>{};
 
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -4146,7 +4205,19 @@ class AppwriteSyncManager {
           'Failed to sync guest_info ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // guest_infos هوية النزيل — سجل مفقود صامتاً يعني بيانات هوية
+    // كاملة تختفي من هذا الجهاز للأبد مع نجاح زائف في الواجهة.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'guest_infos: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -7404,6 +7475,8 @@ class AppwriteSyncManager {
   Future<int> _syncBlacklist(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -7554,7 +7627,19 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync blacklist ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // blacklist قائمة أمنية — سجل مفقود صامتاً يعني نزيلاً ممنوعاً
+    // يُسجَّل مجدداً في الفندق دون أي إنذار.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'blacklist: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8127,6 +8212,8 @@ class AppwriteSyncManager {
   Future<int> _syncInventoryItems(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8166,7 +8253,20 @@ class AppwriteSyncManager {
           'Failed to sync inventory item ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // inventory_items أب FK لـ inventory_transactions (itemId NOT NULL) —
+    // فشل عنصر وتقدّم مؤشره يعني فشل حركاته إلى الأبد (نفس منطق rooms
+    // مقابل bookings). الفشل المرئي أفضل من الفقدان الصامت.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'inventory_items: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8203,10 +8303,8 @@ class AppwriteSyncManager {
         )).shouldApplyRemote) {
           continue;
         }
-        final result = await _adapterRegistry.inventoryTransactions.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
+        final result = await _adapterRegistry.inventoryTransactions
+            .upsertFromJson(data, src: Source.appwrite);
         if (result == -1) {
           // ✅ المسار B: صنف المخزون الأب غير محلول — تأجيل لا نجاح.
           _logger.debug(
@@ -8254,11 +8352,8 @@ class AppwriteSyncManager {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
           final localUuid = data['localUuid']?.toString() ?? '';
-          final result =
-              await _adapterRegistry.inventoryTransactions.upsertFromJson(
-                data,
-                src: Source.appwrite,
-              );
+          final result = await _adapterRegistry.inventoryTransactions
+              .upsertFromJson(data, src: Source.appwrite);
           if (result == -1) {
             failed.add('${doc.$id}: unresolved item parent (adapter skip)');
             continue;
@@ -8295,6 +8390,8 @@ class AppwriteSyncManager {
   Future<int> _syncShiftNotes(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8346,7 +8443,18 @@ class AppwriteSyncManager {
           'Failed to sync shift note ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // ملاحظة الوردية تُفقد صامتاً مع تقدّم المؤشر — الفشل المرئي أفضل.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'shift_notes: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -8848,6 +8956,8 @@ class AppwriteSyncManager {
   Future<int> _syncCashTransactions(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -8892,7 +9002,20 @@ class AppwriteSyncManager {
           'Failed to sync cash transaction ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // cash_transactions أب FK لـ payments (cashTransactionLocalId) — فشل
+    // حركة نقد وتقدّم مؤشرها يفشل مدفوعاتها المرتبطة كل دورة (نفس منطق
+    // inventory_items). حركة نقد مفقودة = كشف مالي غير متوازن.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'cash_transactions: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -9048,7 +9171,9 @@ class AppwriteSyncManager {
           if (result == -1) {
             // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
             // الـ adapter فشل؛ لا نجاحاً صامتاً.
-            failed.add('${data['localUuid']}: unresolved employee parent (adapter skip)');
+            failed.add(
+              '${data['localUuid']}: unresolved employee parent (adapter skip)',
+            );
             continue;
           }
           // ✅ Wave 7: notify remote change from another device
@@ -9185,7 +9310,9 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           if (result == -1) {
-            failed.add('${data['localUuid']}: unresolved cycle parent (adapter skip)');
+            failed.add(
+              '${data['localUuid']}: unresolved cycle parent (adapter skip)',
+            );
             continue;
           }
           // ✅ Wave 7: notify remote change from another device
@@ -9383,6 +9510,8 @@ class AppwriteSyncManager {
   Future<int> _syncPriceAdjustments(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
     // ✅ P1-13 إصلاح: تم نقل إنشاء الخدمة خارج الحلقة
     final derivedFieldsService = BookingDerivedFieldsService(database);
     for (final doc in documents) {
@@ -9477,7 +9606,19 @@ class AppwriteSyncManager {
           'Failed to sync price adjustment ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // تعديل سعر مفقود صامتاً يعني بقاء تسعير قديم على هذا الجهاز —
+    // اختلال تسعير بين الأجهزة بلا أي إنذار.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'price_adjustments: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -9487,6 +9628,8 @@ class AppwriteSyncManager {
   Future<int> _syncAuditLogs(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -9528,7 +9671,19 @@ class AppwriteSyncManager {
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync audit log ${doc.$id}: $e', tag: 'SYNC');
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // سجل التدقيق المالي — فقدانه الصامت يُفسد سلسلة المساءلة على هذا
+    // الجهاز (تقرير التدقيق يظهر ناقصاً بلا أي إنذار).
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'audit_logs: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -9776,6 +9931,8 @@ class AppwriteSyncManager {
   Future<int> _syncPaymentVoids(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+    // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
+    final failed = <String>[];
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -9820,7 +9977,19 @@ class AppwriteSyncManager {
           'Failed to sync payment void ${doc.$id}: $e',
           tag: 'SYNC',
         );
+        failed.add('${doc.$id}: $e');
       }
+    }
+
+    // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
+    // إلغاء دفع مفقود صامتاً = اختلال مالي مباشر (المبلغ يظهر مستحقاً
+    // وهو مُلغى على جهاز الإنشاء) — من أخطر حالات الفقدان الصامت.
+    if (failed.isNotEmpty) {
+      throw StateError(
+        'payment_voids: ${failed.length} document(s) failed to apply — '
+        'checkpoint must not advance past them; will retry next cycle. '
+        'First: ${failed.take(3).join(' | ')}',
+      );
     }
     return processed;
   }
@@ -9861,10 +10030,8 @@ class AppwriteSyncManager {
           continue;
         }
 
-        final result = await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
-          data,
-          src: Source.appwrite,
-        );
+        final result = await _adapterRegistry.salaryCarryOverLogs
+            .upsertFromJson(data, src: Source.appwrite);
         if (result == -1) {
           // ✅ المسار B: الموظف الأب غير محلول — تأجيل لا نجاح.
           _logger.debug(
@@ -9912,11 +10079,8 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
-          final result =
-              await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
-                data,
-                src: Source.appwrite,
-              );
+          final result = await _adapterRegistry.salaryCarryOverLogs
+              .upsertFromJson(data, src: Source.appwrite);
           if (result == -1) {
             failed.add('${doc.$id}: unresolved employee parent (adapter skip)');
             continue;
