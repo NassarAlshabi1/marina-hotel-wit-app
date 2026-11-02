@@ -119,6 +119,10 @@ class EnhancedBookingCalculationService {
     );
   }
 
+  /// إعادة حساب تابعة لسحب مزامنة — قراءة محلية صِرفة بلا أي كتابة
+  /// outbox: الليالي عبر enqueueOutbox:false، وحقول bookings المشتقة
+  /// بلا رفع lastModified. أي دفع هنا يعيد البيانات المسحوبة صدىً
+  /// إلى الأجهزة. (مواءمة مع تحصين c1dd9003 في فرع refactor.)
   Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {
     final booking = await (db.select(
       db.bookings,
@@ -128,10 +132,13 @@ class EnhancedBookingCalculationService {
     }
 
     final calculation = await calculateForBooking(booking, now: now);
+    // لا نعيد دفع الليالي إلى outbox — هذا التحويل نتيجة سحب، والدفع
+    // يعيد البيانات المسحوبة صدىً عبر الأجهزة (مواءمة مع c1dd9003).
     await _replaceBookingNights(
       booking: booking,
       breakdown: calculation.breakdown,
       forceRebuild: true,
+      enqueueOutbox: false,
     );
 
     final summary = calculation.financialSummary;
@@ -159,25 +166,6 @@ class EnhancedBookingCalculationService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
-
-    final updatedBooking = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
-    if (updatedBooking != null) {
-      final bookingsDao = BookingsDao(db, _outboxDao);
-      final payload = await bookingsDao.payloadForLocalUuid(
-        updatedBooking.localUuid,
-      );
-      if (payload != null) {
-        await _outboxDao.merge(
-          entity: 'bookings',
-          op: 'update',
-          localUuid: updatedBooking.localUuid,
-          payload: payload,
-          clientTs: stamp,
-        );
-      }
-    }
   }
 
   Future<List<NightlyBreakdown>> _buildNightlyBreakdown(

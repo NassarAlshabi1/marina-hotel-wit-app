@@ -699,7 +699,10 @@ class BookingPriceAdjustmentService {
     );
   }
 
-  Future<void> _recalculateBookingNights(int bookingId) async {
+  Future<void> _recalculateBookingNights(
+    int bookingId, {
+    bool enqueueOutbox = true,
+  }) async {
     final booking = await (db.select(
       db.bookings,
     )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
@@ -707,15 +710,20 @@ class BookingPriceAdjustmentService {
       return;
     }
 
-    await BookingDerivedFieldsService(
-      db,
-    ).refreshForBooking(booking, forceRebuild: true);
+    await BookingDerivedFieldsService(db).refreshForBooking(
+      booking,
+      forceRebuild: true,
+      enqueueOutbox: enqueueOutbox,
+    );
 
     dlog(() => '🔄 تم إعادة حساب الحجز #$bookingId');
   }
 
+  /// إعادة حساب تابعة لسحب مزامنة: البيانات مصدرها البعيد أصلاً، لذا
+  /// لا نعيد دفع الحقول المشتقة إلى outbox وإلا صرنا صدى تحديثات عبر
+  /// الأجهزة. (مواءمة مع تحصين c1dd9003 في فرع refactor — 2026-10-30.)
   Future<void> recalculateAfterSync(int bookingId) async {
-    await _recalculateBookingNights(bookingId);
+    await _recalculateBookingNights(bookingId, enqueueOutbox: false);
   }
 
   Future<List<Booking>> getLongStayBookingsWithoutSurcharge({

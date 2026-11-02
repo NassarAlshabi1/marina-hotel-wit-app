@@ -12,7 +12,10 @@
 //      — بلا شرط enqueueOutbox إطلاقاً (كتابة غير مشروطة!).
 //   W4 EnhancedBookingCalculationService._replaceBookingNights:540
 //      — فقط عند enqueueOutbox=true.
-//   W5 recalculateAfterSync (تعريفان) — كود ميت: صفر مستدعٍ في lib/.
+//   W5 recalculateAfterSync (تعريفان) — كود ميت: صفر مستدعٍ في lib/
+//      (وحُصّن لاحقاً: enqueueOutbox:false للليالي + إسقاط دمج
+//      bookings/update من الذيل — مواءمةً مع c1dd9003 في فرع
+//      refactor — فلو وُصل بمسار السحب يوماً فلن يكتب outbox).
 //   W6 المدير 3245 — دمج تعارض متزامن P0-F (يتطلب تعديلاً محلياً معلقاً).
 //   W7 المدير 3716 — استبدال حذفي (يتطلب عملية محلية معلقة).
 //   محيّد: bookings_adapter.dart — مجرد محوّل JSON بلا أي outbox.
