@@ -6969,6 +6969,23 @@ class AppwriteSyncManager {
         if (skipDeleted && log.deletedAt != null) continue;
         try {
           final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
+          // ✅ (2026-11-03) إغلاق فجوة employee_uuid في الرفع الكامل —
+          // كان مسار outbox فقط (_processSalaryCarryOverLogEntry) يُثري
+          // الموظف بالـ UUID، بينما الرفع الكامل كان يرسل payload بدون
+          // أي رابط هوية للموظف (employeeId الرقمي أُزيل من الـ mapper).
+          // نفس منطق المسار التزايدي: الموظف الحي أولاً ثم عمود السجل.
+          final carryEmployee =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(log.employeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+          if (carryEmployee != null) {
+            payload['employeeUuid'] = carryEmployee.localUuid;
+            payload['employeeLocalUuid'] = carryEmployee.localUuid;
+          } else if (log.employeeUuid != null && log.employeeUuid!.isNotEmpty) {
+            payload['employeeUuid'] = log.employeeUuid;
+            payload['employeeLocalUuid'] = log.employeeUuid;
+          }
           await appwriteService.upsertDocument(
             collectionId: 'salary_carry_over_logs',
             documentId: log.localUuid,
