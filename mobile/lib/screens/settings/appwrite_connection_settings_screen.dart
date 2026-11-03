@@ -323,6 +323,17 @@ class _AppwriteConnectionSettingsScreenState
 
     setState(() => _isTesting = true);
 
+    // ✅ (2026-11-06) نختبر **المفتاح الفعّال** لا الحقل كما هو: ترك الحقل
+    // فارغاً يعني استخدام المفتاح المدمج عند التشغيل (انظر
+    // AppwriteConfigManager.saveConfig)، لكن الاختبار كان يرسل بلا مفتاح
+    // فيقيس وصولاً "زائراً" لا الإعدادات التي ستُحفظ فعلاً — فينجح الاختبار
+    // ثم تفشل المزامنة بـ 401 (أو العكس).
+    final enteredApiKey = _apiKeyController.text.trim();
+    final usingBuiltinKey = enteredApiKey.isEmpty;
+    final effectiveApiKey = usingBuiltinKey
+        ? AppwriteConfig.defaultApiKey
+        : enteredApiKey;
+
     try {
       final result = await ref
           .read(ap.appwriteServiceProvider)
@@ -330,7 +341,7 @@ class _AppwriteConnectionSettingsScreenState
             endpoint: _endpointController.text,
             projectId: _projectIdController.text,
             databaseId: _databaseIdController.text,
-            apiKey: _apiKeyController.text,
+            apiKey: effectiveApiKey,
           );
       if (!mounted) {
         return;
@@ -342,9 +353,8 @@ class _AppwriteConnectionSettingsScreenState
       // المُدخلة غير المحفوظة؛ والتشخيص كان سطراً واحداً لا يفرّق بين
       // Endpoint خاطئ وProject خاطئ وDatabase غير موجود ومفتاح بلا صلاحية.
       final hint = result['hint']?.toString();
-      final usesBuiltinKey = result['uses_builtin_api_key'] == true;
-      final keyNote = usesBuiltinKey && !success && hint == null
-          ? '\nلم يُدخَل API Key — يُستخدم المفتاح المدمج.'
+      final keyNote = !success && usingBuiltinKey && effectiveApiKey.isEmpty
+          ? '\nلا يوجد API Key مُدخل ولا مفتاح مدمج — الطلب بلا مصادقة.'
           : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
