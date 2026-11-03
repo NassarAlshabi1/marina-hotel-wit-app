@@ -18,6 +18,31 @@ class AppwriteConfigManager {
   // وتُحمَّل بدلاً من الافتراضي عند بدء التشغيل التالي.
   static String _apiKeyValue = AppwriteConfig.defaultApiKey;
 
+  /// ✅ (2026-11-06) تطبيع Endpoint قبل الحفظ/الاختبار.
+  ///
+  /// **العطل المؤكد**: شاشة إعدادات الاتصال تحفظ النص كما هو، ولوحة تحكم
+  /// Appwrite تعرض الـ Endpoint أحياناً بشرطة مائلة نهائية
+  /// (`https://fra.cloud.appwrite.io/v1/`). عند نسخها كما هي يبني عميل
+  /// Appwrite مسارات مزدوجة الشرطة (`/v1//databases/...`) فيرد الخادم 404،
+  /// فيظهر "فشل الاتصال" مع أن كل القيم صحيحة. التطبيع هنا يجعل الحفظ
+  /// والاختبار والتشغيل تستخدم الصيغة نفسها دائماً.
+  static String normalizeEndpoint(String raw) {
+    var value = raw.trim();
+    while (value.endsWith('/')) {
+      value = value.substring(0, value.length - 1);
+    }
+    return value.trim();
+  }
+
+  /// تطبيع معرّفات Appwrite (Project/Database): إزالة الفراغات الطرفية فقط —
+  /// الفراغ الطرفي الناتج عن النسخ/اللصق يسبب 404 `project_not_found`.
+  static String normalizeId(String raw) => raw.trim();
+
+  /// بصمة هدف المزامنة الفعّال (Endpoint + Project + Database).
+  /// مصدر واحد للحقيقة يستخدمه [AppwriteSyncManager] في حرس تغيير الهدف،
+  /// حتى لا يختلف تنسيق البصمة بين الحفظ والفحص.
+  static String get targetIdentity => '$_endpoint|$_projectId|$_databaseId';
+
   static String get endpoint => _endpoint;
   static String get projectId => _projectId;
   static String get databaseId => _databaseId;
@@ -25,12 +50,30 @@ class AppwriteConfigManager {
 
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _endpoint = prefs.getString(_endpointKey) ?? AppwriteConfig.endpoint;
-    _projectId = prefs.getString(_projectIdKey) ?? AppwriteConfig.projectId;
-    _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteConfig.databaseId;
+    // ✅ (2026-11-06) القيم المخزَّنة من نسخ سابقة قد تكون بشرطة مائلة نهائية
+    // أو فارغة؛ تُطبَّع عند التحميل حتى تُشفى الأجهزة المتأثرة تلقائياً.
+    final storedEndpoint = normalizeEndpoint(
+      prefs.getString(_endpointKey) ?? '',
+    );
+    final storedProjectId = normalizeId(prefs.getString(_projectIdKey) ?? '');
+    final storedDatabaseId = normalizeId(prefs.getString(_databaseIdKey) ?? '');
+    _endpoint = storedEndpoint.isEmpty
+        ? AppwriteConfig.endpoint
+        : storedEndpoint;
+    _projectId = storedProjectId.isEmpty
+        ? AppwriteConfig.projectId
+        : storedProjectId;
+    _databaseId = storedDatabaseId.isEmpty
+        ? AppwriteConfig.databaseId
+        : storedDatabaseId;
     // ✅ إذا لم يُخزَّن مفتاح API في prefs، نستخدم المفتاح الافتراضي المُدمج.
     // هذا يضمن أن التطبيق يعمل "out-of-the-box" دون الحاجة لإدخال مفتاح يدوياً.
-    _apiKeyValue = prefs.getString(_apiKey) ?? AppwriteConfig.defaultApiKey;
+    // ✅ (2026-11-06) مفتاح فارغ مخزَّن من نسخة سابقة يُعامل كغير مخزَّن،
+    // وإلا بقي التطبيق بلا X-Appwrite-Key إلى الأبد (401 على كل طلب).
+    final storedApiKey = (prefs.getString(_apiKey) ?? '').trim();
+    _apiKeyValue = storedApiKey.isEmpty
+        ? AppwriteConfig.defaultApiKey
+        : storedApiKey;
 
     if (kDebugMode) {
       dlog('📱 Appwrite Config Loaded:');
@@ -50,17 +93,37 @@ class AppwriteConfigManager {
     required String databaseId,
     required String apiKey,
   }) async {
+    final normalizedEndpoint = normalizeEndpoint(endpoint);
+    final normalizedProjectId = normalizeId(projectId);
+    final normalizedDatabaseId = normalizeId(databaseId);
+    final normalizedApiKey = apiKey.trim();
+
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setString(_endpointKey, endpoint);
-    await prefs.setString(_projectIdKey, projectId);
-    await prefs.setString(_databaseIdKey, databaseId);
-    await prefs.setString(_apiKey, apiKey);
+    await prefs.setString(_endpointKey, normalizedEndpoint);
+    await prefs.setString(_projectIdKey, normalizedProjectId);
+    await prefs.setString(_databaseIdKey, normalizedDatabaseId);
 
-    _endpoint = endpoint;
-    _projectId = projectId;
-    _databaseId = databaseId;
-    _apiKeyValue = apiKey;
+    // ✅ (2026-11-06) مفتاح API الفارغ لا يُحفظ أبداً.
+    //
+    // **العطل المؤكد**: الحفظ كان يكتب '' في prefs دائماً، و[init] يقرأ
+    // `prefs.getString(_apiKey) ?? default` — و'' ليست null ⇒ يُلغي المفتاح
+    // المُدمج (المُمرَّر بـ --dart-define) نهائياً. النتيجة: كل طلبات
+    // Appwrite تخرج بلا ترويسة X-Appwrite-Key فتُرفض 401، والحقل يقول
+    // "يُستخدم المفتاح الافتراضي تلقائياً" والشاشة تقول "تم الحفظ بنجاح".
+    // الآن: فارغ ⇒ حذف المفتاح المخزَّن ⇒ الرجوع إلى المفتاح المُدمج.
+    if (normalizedApiKey.isEmpty) {
+      await prefs.remove(_apiKey);
+    } else {
+      await prefs.setString(_apiKey, normalizedApiKey);
+    }
+
+    _endpoint = normalizedEndpoint;
+    _projectId = normalizedProjectId;
+    _databaseId = normalizedDatabaseId;
+    _apiKeyValue = normalizedApiKey.isEmpty
+        ? AppwriteConfig.defaultApiKey
+        : normalizedApiKey;
 
     if (kDebugMode) {
       dlog('💾 Appwrite Config Saved:');

@@ -307,6 +307,12 @@ class AppwriteRealtimeSync {
     _intentionallyStopped = true;
     await _subscription?.close();
     _subscription = null;
+    // ✅ (2026-11-06) إسقاط كائن Realtime نفسه: كان يُبنى مرة واحدة من
+    // `AppwriteService().client` ويبقى محفوظاً، فبعد تغيير إعدادات الاتصال
+    // (وإعادة بناء العميل) يظل الاستماع معلّقاً على **المشروع القديم** ولا
+    // يستقبل التغييرات من الهدف الجديد. الإسقاط يجبر [start] على إعادة
+    // البناء بالعميل الجديد.
+    _realtime = null;
     _isListening = false;
     _debounceTimer?.cancel();
     _stopPollingFallback();

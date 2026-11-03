@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'adapters/id_resolver.dart';
 import 'appwrite_cache_manager.dart';
@@ -21,8 +22,11 @@ class AppwriteService {
   AppwriteService._internal();
   static final AppwriteService _instance = AppwriteService._internal();
 
-  late final Client _client;
-  late final Databases _databases;
+  // ✅ (2026-11-06) ليست final: تغيير إعدادات الاتصال في وقت التشغيل يتطلب
+  // إعادة بناء العميل. `late final` يجعل الإسناد الثاني يرمي
+  // LateInitializationError، وهو ما فرض سابقاً "إعادة تشغيل مطلوبة".
+  late Client _client;
+  late Databases _databases;
 
   /// Cached secondary client & databases – lazily initialised on first failover call.
   Client? _secondaryClient;
@@ -99,6 +103,24 @@ class AppwriteService {
     _databases = Databases(_client);
     _initialized = true;
     _logger.info('AppwriteService initialized', tag: 'INIT');
+  }
+
+  /// ✅ (2026-11-06) إعادة بناء عميل Appwrite بعد تغيير إعدادات الاتصال.
+  ///
+  /// **المشكلة المؤكدة**: [initialize] يبني العميل مرة واحدة ويحرسه بـ
+  /// `_initialized`، ولا يوجد أي مسار لإعادة بنائه. لذلك بعد حفظ Endpoint أو
+  /// Project أو Database جديد من شاشة إعدادات الاتصال تظل كل الطلبات
+  /// (المزامنة، الرفع، السحب، الرفع اليدوي) تذهب إلى **المشروع القديم** حتى
+  /// إعادة تشغيل التطبيق — ولذلك كانت الشاشة تفرض حوار "إعادة تشغيل مطلوبة".
+  ///
+  /// هذه الدالة تُبطل: العميل الأساسي، عميل Secondary المخزَّن مؤقتاً،
+  /// والذاكرة المؤقتة للاستجابات (وإلا خُدمت مستندات المشروع القديم من
+  /// الكاش بعد التبديل). ثم تعيد التهيئة من القيم المحفوظة الجديدة.
+  Future<void> reinitialize() async {
+    _initialized = false;
+    invalidateSecondaryClient();
+    _cache.clear();
+    await initialize();
   }
 
   Future<void> _ensureInitialized() async {
@@ -1635,11 +1657,26 @@ class AppwriteService {
       'overall_success': false,
     };
 
+    // ✅ (2026-11-06) نفس التطبيع المستخدم في الحفظ — وإلا اختُبر عنوان
+    // غير العنوان الذي سيُحفظ فعلاً (شرطة مائلة نهائية ⇒ 404 وهمي).
+    final normalizedEndpoint = AppwriteConfigManager.normalizeEndpoint(
+      endpoint,
+    );
+    final normalizedProjectId = AppwriteConfigManager.normalizeId(projectId);
+    final normalizedDatabaseId = AppwriteConfigManager.normalizeId(
+      databaseId,
+    );
+    final trimmedApiKey = apiKey.trim();
+
+    results['endpoint'] = normalizedEndpoint;
+    results['projectId'] = normalizedProjectId;
+    results['databaseId'] = normalizedDatabaseId;
+    results['uses_builtin_api_key'] = trimmedApiKey.isEmpty;
+
     try {
       final client = Client()
-          .setEndpoint(endpoint.trim())
-          .setProject(projectId.trim());
-      final trimmedApiKey = apiKey.trim();
+          .setEndpoint(normalizedEndpoint)
+          .setProject(normalizedProjectId);
       if (trimmedApiKey.isNotEmpty) {
         client.addHeader('X-Appwrite-Key', trimmedApiKey);
       }
@@ -1648,7 +1685,7 @@ class AppwriteService {
       await databases
           // ignore: deprecated_member_use
           .listDocuments(
-            databaseId: databaseId.trim(),
+            databaseId: normalizedDatabaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
             queries: [Query.limit(1)],
           )
@@ -1662,8 +1699,57 @@ class AppwriteService {
       results['tests']['rooms'] = false;
       results['tests']['ping'] = false;
       results['error'] = e.toString();
+      results['hint'] = describeConnectionFailure(e);
       return results;
     }
+  }
+
+  /// ✅ (2026-11-06) تشخيص طبقة الفشل في اختبار الاتصال.
+  ///
+  /// سابقاً كان كل فشل يظهر كسطر `AppwriteException: ...` واحد لا يميّز
+  /// بين Endpoint خاطئ، أو Project ID خاطئ، أو Database ID غير موجود، أو
+  /// مفتاح API بلا صلاحية — وهي أربع مشاكل مختلفة تماماً في الحل.
+  @visibleForTesting
+  static String describeConnectionFailure(Object error) {
+    final message = error.toString().toLowerCase();
+
+    if (error is AppwriteException) {
+      final code = error.code;
+      if (code == 401 || code == 403) {
+        return 'المفتاح غير مقبول: أضف API Key صالحاً (أو مفتاحاً مدمجاً) '
+            'يملك صلاحية قراءة مجموعة rooms.';
+      }
+      // Database قبل Project: رسالة Appwrite لمورد قاعدة البيانات تحتوي
+      // الكلمتين معاً أحياناً، وخطأ القاعدة هو الأكثر شيوعاً بعد نسخ معرّف.
+      if (message.contains('database') || message.contains('collection')) {
+        return 'Database ID أو مجموعة rooms غير موجودة في هذا المشروع: '
+            'تحقّق من Database ID ومن إنشاء المجموعات.';
+      }
+      if (message.contains('project')) {
+        return 'Project ID غير موجود على هذا الـ Endpoint.';
+      }
+      if (code == 400) {
+        return 'الطلب مرفوض (400): غالباً Project ID لا يطابق الـ Endpoint.';
+      }
+      if (code == 404) {
+        return 'مورد غير موجود (404): راجع Project ID و Database ID '
+            'ووجود مجموعة rooms.';
+      }
+      if (code == 0) {
+        return 'تعذّر الوصول إلى الـ Endpoint: تحقّق من العنوان واتصال الشبكة.';
+      }
+    }
+
+    if (message.contains('socketexception') ||
+        message.contains('failed host lookup') ||
+        message.contains('connection refused') ||
+        message.contains('handshake') ||
+        message.contains('timeout') ||
+        message.contains('timed out')) {
+      return 'تعذّر الوصول إلى الـ Endpoint: تحقّق من العنوان واتصال الشبكة.';
+    }
+
+    return 'فشل غير مصنّف — راجع الرسالة أعلاه.';
   }
 
   /// Getter للتحقق من حالة التهيئة

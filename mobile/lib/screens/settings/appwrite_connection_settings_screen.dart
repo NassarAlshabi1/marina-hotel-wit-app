@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,9 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_config.dart';
 import '../../services/appwrite_config_manager.dart';
+import '../../services/appwrite_realtime_sync.dart';
+import '../../services/appwrite_service.dart';
+import '../../services/appwrite_sync_manager.dart';
 import '../../utils/snackbar_helper.dart';
 
 class AppwriteConnectionSettingsScreen extends ConsumerStatefulWidget {
@@ -78,24 +83,57 @@ class _AppwriteConnectionSettingsScreenState
     setState(() => _isSaving = true);
 
     try {
+      final previousIdentity = AppwriteConfigManager.targetIdentity;
+      final previousApiKey = AppwriteConfigManager.apiKey;
+
+      // القيم تُطبَّع داخل saveConfig، فلا حاجة لـ trim هنا (وإلا اختلف ما
+      // تختبره الشاشة عمّا يُحفظ فعلاً).
       await AppwriteConfigManager.saveConfig(
-        endpoint: _endpointController.text.trim(),
-        projectId: _projectIdController.text.trim(),
-        databaseId: _databaseIdController.text.trim(),
-        apiKey: _apiKeyController.text.trim(),
+        endpoint: _endpointController.text,
+        projectId: _projectIdController.text,
+        databaseId: _databaseIdController.text,
+        apiKey: _apiKeyController.text,
       );
 
-      if (mounted) {
+      final identityChanged =
+          AppwriteConfigManager.targetIdentity != previousIdentity;
+      final credentialsChanged =
+          identityChanged || AppwriteConfigManager.apiKey != previousApiKey;
+
+      final applyError = await _applySavedConfig(
+        credentialsChanged: credentialsChanged,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _syncControllersWithSavedConfig();
+      setState(() => _hasChanges = false);
+
+      if (applyError != null) {
+        // الحفظ نجح لكن التطبيق الفوري تعذّر — لا نُخفي ذلك خلف "تم الحفظ".
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم حفظ الإعدادات، لكن لم تُطبَّق فوراً: $applyError',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم حفظ الإعدادات بنجاح'),
+            content: Text('تم حفظ الإعدادات وتطبيقها فوراً'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
         );
-        setState(() => _hasChanges = false);
+      }
 
-        _showRestartDialog();
+      if (identityChanged) {
+        _showTargetChangedDialog();
       }
     } catch (e) {
       if (mounted) {
@@ -108,19 +146,99 @@ class _AppwriteConnectionSettingsScreenState
     }
   }
 
-  void _showRestartDialog() {
+  /// ✅ (2026-11-06) تطبيق الإعدادات المحفوظة على الخدمات العاملة فوراً.
+  ///
+  /// **العطل المؤكد**: كان الحفظ يكتفي بكتابة SharedPreferences ثم يُظهر حوار
+  /// "إعادة تشغيل مطلوبة"، لأن `AppwriteService.initialize()` يبني عميل
+  /// Appwrite مرة واحدة ويحرسه بـ `_initialized` بلا أي مسار لإعادة البناء.
+  /// أي أن كل ما يعمل في هذه الأثناء (المزامنة التلقائية، الرفع اليدوي،
+  /// السحب، الـ Realtime) يظل يخاطب **المشروع القديم** بعد "حفظ ناجح".
+  ///
+  /// الترتيب مقصود: إعادة بناء العميل ← إعادة بناء الـ Realtime (يُبنى من
+  /// نفس العميل ويُسقط عند التوقف) ← إبلاغ مدير المزامنة ليعيد فحص هوية
+  /// الهدف (وإلا سحب بمؤشرات قديمة على هدف جديد = نقص صامت).
+  ///
+  /// تعيد `null` عند النجاح، أو الخطأ عند الفشل (الحفظ يبقى ناجحاً).
+  Future<String?> _applySavedConfig({required bool credentialsChanged}) async {
+    try {
+      // ⚠️ لا نُبدّل العميل في منتصف دورة مزامنة جارية: الصفوف التي رُفعت
+      // فعلاً إلى الهدف **القديم** تُحذف من outbox عند النجاح، فلو بدّلنا
+      // الهدف في منتصف الدورة لبقي نصف التغييرات في المشروع القديم ونصفها
+      // في الجديد — انحراف بيانات لا يُكتشف لاحقاً. ننتظر انتهاء الدورة.
+      final manager = AppwriteSyncManager.instance;
+      if (manager != null && manager.isSyncing) {
+        final idle = await _waitForSyncIdle(manager);
+        if (!idle) {
+          return 'المزامنة جارية الآن؛ أُجِّل تطبيق الإعدادات. '
+              'أعد المحاولة بعد انتهائها (أو أعد تشغيل التطبيق).';
+        }
+      }
+
+      // عبر الـ singleton مباشرةً (لا `ref`) لأن التطبيق يجب أن يُنجَز حتى لو
+      // أُغلقت الشاشة أثناء الحفظ — و`ref` بعد dispose يرمي استثناءً.
+      await AppwriteService().reinitialize();
+
+      if (credentialsChanged && AppwriteRealtimeSync().isListening) {
+        await AppwriteRealtimeSync().stop();
+        await AppwriteRealtimeSync().start();
+      }
+
+      await AppwriteSyncManager.notifyConfigChanged();
+
+      if (credentialsChanged && mounted) {
+        // تحديث مؤشر الحالة في الشاشة السابقة بلا حجب زر الحفظ.
+        unawaited(
+          ref.read(ap.connectionStatusProvider.notifier).checkConnection(),
+        );
+      }
+      return null;
+    } catch (e) {
+      return '$e';
+    }
+  }
+
+  /// ينتظر انتهاء دورة المزامنة الجارية (فحص كل 250ms بحد أقصى 20 ثانية).
+  /// يعيد `false` إن لم تنتهِ الدورة في الوقت المحدد — فلا نُطبّق في المنتصف.
+  Future<bool> _waitForSyncIdle(
+    AppwriteSyncManager manager, {
+    Duration limit = const Duration(seconds: 20),
+  }) async {
+    final deadline = DateTime.now().add(limit);
+    while (manager.isSyncing) {
+      if (DateTime.now().isAfter(deadline)) {
+        return false;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    return true;
+  }
+
+  /// إعادة حقول النموذج إلى القيم المحفوظة المطبَّعة فعلياً (بلا شرطة مائلة
+  /// نهائية أو فراغات) حتى لا تُظهر الشاشة نصاً غير الذي حُفظ.
+  void _syncControllersWithSavedConfig() {
+    _endpointController.text = AppwriteConfigManager.endpoint;
+    _projectIdController.text = AppwriteConfigManager.projectId;
+    _databaseIdController.text = AppwriteConfigManager.databaseId;
+    _apiKeyController.text = AppwriteConfigManager.apiKey;
+  }
+
+  /// تحذير عند تغيير هدف المزامنة: المؤشرات القديمة لا تُستخدم، والدورة
+  /// القادمة سحب كامل (upsert) من الهدف الجديد — وهذا سلوك مقصود لا خطأ.
+  void _showTargetChangedDialog() {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.info, color: Colors.blue),
+            Icon(Icons.swap_horiz, color: Colors.blue),
             SizedBox(width: 8),
-            Text('إعادة تشغيل مطلوبة'),
+            Text('تم التبديل إلى هدف مزامنة جديد'),
           ],
         ),
         content: const Text(
-          'لتطبيق الإعدادات الجديدة، يرجى إغلاق التطبيق وإعادة فتحه.',
+          'طُبّقت الإعدادات فوراً. لأن Endpoint أو Project أو Database تغيّر، '
+          'ستبدأ المزامنة القادمة بسحب كامل من الهدف الجديد (إدراج/تحديث '
+          'idempotent) بدل الاعتماد على مؤشرات السحب القديمة.',
         ),
         actions: [
           TextButton(
@@ -158,7 +276,13 @@ class _AppwriteConnectionSettingsScreenState
       return;
     }
 
+    final previousIdentity = AppwriteConfigManager.targetIdentity;
+
     await AppwriteConfigManager.resetToDefaults();
+
+    // ✅ (2026-11-06) إعادة التعيين تُطبَّق فوراً أيضاً — كانت تُظهر نفس
+    // حوار "إعادة تشغيل مطلوبة" وتبقي العميل على الإعدادات المخصّصة القديمة.
+    final applyError = await _applySavedConfig(credentialsChanged: true);
 
     if (!mounted) {
       return;
@@ -174,14 +298,21 @@ class _AppwriteConnectionSettingsScreenState
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم إعادة تعيين الإعدادات'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(
+            applyError == null
+                ? 'تم إعادة تعيين الإعدادات وتطبيقها فوراً'
+                : 'تم إعادة تعيين الإعدادات، لكن لم تُطبَّق فوراً: '
+                      '$applyError',
+          ),
+          backgroundColor: applyError == null ? Colors.green : Colors.orange,
+          duration: Duration(seconds: applyError == null ? 3 : 6),
         ),
       );
 
-      _showRestartDialog();
+      if (AppwriteConfigManager.targetIdentity != previousIdentity) {
+        _showTargetChangedDialog();
+      }
     }
   }
 
@@ -207,15 +338,24 @@ class _AppwriteConnectionSettingsScreenState
 
       final success = result['overall_success'] == true;
       final error = result['error']?.toString();
+      // ✅ (2026-11-06) التسمية كانت تقول "القيم الحالية" وهي تختبر القيم
+      // المُدخلة غير المحفوظة؛ والتشخيص كان سطراً واحداً لا يفرّق بين
+      // Endpoint خاطئ وProject خاطئ وDatabase غير موجود ومفتاح بلا صلاحية.
+      final hint = result['hint']?.toString();
+      final usesBuiltinKey = result['uses_builtin_api_key'] == true;
+      final keyNote = usesBuiltinKey && !success && hint == null
+          ? '\nلم يُدخَل API Key — يُستخدم المفتاح المدمج.'
+          : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             success
-                ? 'نجح اختبار الاتصال بـ Appwrite باستخدام القيم الحالية'
-                : 'فشل اختبار الاتصال${error == null ? '' : ': $error'}',
+                ? 'نجح اختبار الاتصال بالقيم المُدخلة (لم تُحفظ بعد)'
+                : 'فشل اختبار الاتصال: ${hint ?? error ?? 'سبب غير معروف'}'
+                      '$keyNote',
           ),
           backgroundColor: success ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 4),
+          duration: Duration(seconds: success ? 4 : 7),
         ),
       );
     } catch (e) {
@@ -264,7 +404,11 @@ class _AppwriteConnectionSettingsScreenState
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'يمكنك تغيير إعدادات الاتصال بـ Appwrite Cloud هنا. تأكد من إدخال البيانات الصحيحة من لوحة تحكم Appwrite.',
+                // ✅ (2026-11-06) النص كان يصف الإعدادات بلا ذكر أثرها؛ الآن
+                // تُطبَّق فوراً بلا إعادة تشغيل (انظر _applySavedConfig).
+                'يمكنك تغيير إعدادات الاتصال بـ Appwrite Cloud هنا. تأكد من '
+                'إدخال البيانات الصحيحة من لوحة تحكم Appwrite. '
+                'تُطبَّق التغييرات فوراً على المزامنة بلا إعادة تشغيل التطبيق.',
                 style: TextStyle(color: Colors.blue.shade700),
               ),
             ),
@@ -344,8 +488,14 @@ class _AppwriteConnectionSettingsScreenState
               decoration: InputDecoration(
                 labelText: 'API Key',
                 hintText: 'مفتاح API من Appwrite (افتراضي مُدمج)',
-                helperText:
-                    'يُستخدم المفتاح الافتراضي تلقائياً. يمكنك استبداله بأي وقت.',
+                // ✅ (2026-11-06) كان النص يَعِد بأن المفتاح الافتراضي يُستخدم
+                // "تلقائياً" بينما حفظ الحقل فارغاً كان يطمس المفتاح المدمج
+                // نهائياً (see AppwriteConfigManager.saveConfig).
+                helperText: AppwriteConfig.defaultApiKey.isEmpty
+                    ? 'لم يُمرَّر مفتاح مدمج في بناء التطبيق — أدخل مفتاحاً '
+                          'يملك صلاحية قراءة/كتابة المجموعات.'
+                    : 'اتركه فارغاً لاستخدام المفتاح الافتراضي المدمج، أو '
+                          'أدخل مفتاحاً بديلاً.',
                 prefixIcon: const Icon(Icons.key),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(

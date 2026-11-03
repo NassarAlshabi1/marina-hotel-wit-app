@@ -226,6 +226,20 @@ class AppwriteSyncManager {
   /// وقت اكتمال آخر دورة سحب (null = لم تكتمل دورة بعد في هذه الجلسة).
   DateTime? get lastPullAt => _lastPullAt;
 
+  /// ✅ (2026-11-06) إبلاغ مدير المزامنة النشط بتغيّر إعدادات الاتصال،
+  /// بلا إنشاء نسخة جديدة (النسخة قد لا تكون مهيّأة بعد في الاختبارات).
+  ///
+  /// **المشكلة المؤكدة**: [reinitializeAfterConfigChange] كانت معرَّفة لكن
+  /// **لا يستدعيها أي موضع في التطبيق** — شاشة إعدادات الاتصال تحفظ ثم تطلب
+  /// إعادة تشغيل التطبيق فقط. بعد إتاحة التطبيق الفوري للعميل صار من
+  /// الضروري أن يُعاد فحص هوية هدف المزامنة فوراً، وإلا صار السحب يعمل
+  /// بهدف جديد بينما مؤشرات السحب محسوبة على الهدف القديم (نقص صامت).
+  static Future<void> notifyConfigChanged() async {
+    final manager = _instance;
+    if (manager == null) return;
+    await manager.reinitializeAfterConfigChange();
+  }
+
   /// إعادة تهيئة المزامنة بعد تغيير إعدادات Secondary
   Future<void> reinitializeAfterConfigChange() async {
     try {
@@ -267,10 +281,9 @@ class AppwriteSyncManager {
   Future<void> _ensureSyncTargetIdentity() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final identity =
-          '${AppwriteConfigManager.endpoint}|'
-          '${AppwriteConfigManager.projectId}|'
-          '${AppwriteConfigManager.databaseId}';
+      // مصدر واحد للحقيقة (انظر AppwriteConfigManager.targetIdentity) —
+      // كان التنسيق مكرَّراً هنا فقط، فأي تغيير في أحدهما يفصل البصمة.
+      final identity = AppwriteConfigManager.targetIdentity;
       final stored = prefs.getString(_syncTargetIdentityKey);
 
       if (stored == identity) return;

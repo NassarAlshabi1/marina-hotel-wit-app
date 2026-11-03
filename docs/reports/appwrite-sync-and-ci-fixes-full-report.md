@@ -483,3 +483,93 @@ Future<int> prepareForManualPush({
 - `_processAppUserEntry`: استجابة 404 (الحساب غير موجود سحابياً) ⇒ تُعامَل «مُسلَّمة» لأن التحديث غير ممكن أصلاً. موثّق في الكود.
 - عناصر `source = 'restore'` لا يرفعها هذا المسار (تخص استعادة النسخ) — نطاق `takeBatch` هو `['local']` عمداً.
 - بطء/فشل الشبكة لا يُسقط السجل: يُعاد إلى `failed` مع `attempts+1` ويبقى مرئياً في الشارة.
+
+---
+
+## 14) قسم «إدارة اتصال Appwrite» في شاشة الإعدادات (2026‑11‑06)
+
+المسار: `الإعدادات ← Appwrite ← إعدادات الاتصال السحابي`
+(`mobile/lib/screens/settings/appwrite_connection_settings_screen.dart`، 496 سطراً قبل الإصلاح).
+
+### 14.1 ما كان يعمل بشكل صحيح (تحقّق لا إصلاح)
+
+| البند | النتيجة |
+|---|---|
+| الوصول إلى الشاشة | ✅ `AppwriteSettingsScreen` ← `ListTile('إعدادات الاتصال السحابي')` ← `AppwriteConnectionSettingsScreen` |
+| المفتاح مخفي | ✅ `obscureText` + زر إظهار/إخفاء، والعرض في بطاقة الحالة مقيّد بآخر 4 أحرف |
+| «اختبار الاتصال» لا يلوّث الجلسة | ✅ يبني `Client` مؤقتاً داخل `testConnectionWithConfig` ولا يمسّ `AppwriteService` العامل |
+| الحفظ لا يمسّ Secondary | ✅ مفاتيح `appwrite_endpoint / _project_id / _database_id / _api_key` فقط |
+| «إعادة تعيين» | ✅ يحذف المفاتيح ويعيد `AppwriteConfig.defaultApiKey` (لا يمسحه) |
+
+### 14.2 الأعطال المؤكدة (أربعة) والإصلاحات
+
+**(1) العميل لا يُعاد بناؤه ⇒ «إعادة تشغيل مطلوبة» بعد كل حفظ**
+
+- **الكود قبل:** `AppwriteService` يعلن `late final Client _client; late final Databases _databases;` و`initialize()` يحرسها بـ `_initialized`. لا يوجد أي مسار لإعادة البناء (والإسناد الثاني كان يرمي `LateInitializationError` أصلاً).
+- **الأثر:** بعد «تم حفظ الإعدادات بنجاح» تظل **كل** الطلبات (المزامنة التلقائية، الرفع اليدوي، السحب، الـ Realtime) تذهب إلى المشروع القديم حتى إعادة تشغيل التطبيق. أي أن نجاح الحفظ لا يعني نجاح التبديل.
+- **الإصلاح:**
+```dart
+late Client _client;      // بدل late final
+late Databases _databases;
+
+Future<void> reinitialize() async {
+  _initialized = false;
+  invalidateSecondaryClient();  // عميل Secondary المخزَّن مؤقتاً
+  _cache.clear();               // وإلا خُدمت مستندات المشروع القديم من الكاش
+  await initialize();
+}
+```
+- الشاشة تستدعي `AppwriteService().reinitialize()` فور الحفظ، ثم تُبلغ مدير المزامنة.
+
+**(2) `reinitializeAfterConfigChange()` كانت شيفرة ميتة**
+
+- **قبل:** الدالة معرَّفة في `AppwriteSyncManager` لكن **لا يستدعيها أي موضع**، وفيها حرس هوية الهدف `_ensureSyncTargetIdentity()` (تصفير مؤشرات السحب عند تغيير المشروع/القاعدة).
+- **الأثر المزدوج:** (أ) لا إعادة فحص للهوية في الجلسة؛ (ب) بعد إتاحة التطبيق الفوري كان يمكن أن يعمل السحب بهدف جديد بينما المؤشرات محسوبة على القديم ⇒ **نقص صامت** في البيانات.
+- **الإصلاح:** `static Future<void> notifyConfigChanged()` تستدعيها الشاشة بعد الحفظ (لا تُنشئ نسخة جديدة إن لم تكن مهيّأة — آمنة في الاختبارات)، وبصمة الهدف صارت مصدراً واحداً للحقيقة:
+```dart
+// AppwriteConfigManager
+static String get targetIdentity => '$_endpoint|$_projectId|$_databaseId';
+```
+
+**(3) مفتاح API الفارغ كان يطمس المفتاح المدمج نهائياً**
+
+- **الكود قبل:** `saveConfig` يكتب `prefs.setString(_apiKey, apiKey)` دائماً، و`init()` يقرأ `prefs.getString(_apiKey) ?? AppwriteConfig.defaultApiKey` — و`''` ليست `null` ⇒ **يُلغى** المفتاح المُمرَّر بـ `--dart-define` نهائياً.
+- **الأثر:** كل طلبات Appwrite تخرج بلا `X-Appwrite-Key` ⇒ 401، بينما نص الحقل يقول «يُستخدم المفتاح الافتراضي تلقائياً» والشاشة تقول «تم الحفظ بنجاح».
+- **الإصلاح:** الحقل الفارغ يعني «استخدم المدمج»:
+```dart
+if (normalizedApiKey.isEmpty) {
+  await prefs.remove(_apiKey);   // لا نخزّن ''
+} else {
+  await prefs.setString(_apiKey, normalizedApiKey);
+}
+_apiKeyValue = normalizedApiKey.isEmpty
+    ? AppwriteConfig.defaultApiKey
+    : normalizedApiKey;
+```
+و`init()` يشفى من القيم الفارغة المخزَّنة في النسخ السابقة.
+
+**(4) لا تطبيع لـ Endpoint، وفشل الاختبار بلا تشخيص**
+
+- **قبل:** القيمة تُحفظ كما هي. لوحة تحكم Appwrite تعرض `https://fra.cloud.appwrite.io/v1/`؛ نسخها بشرطة مائلة نهائية ينتج مساراً مزدوجاً (`/v1//databases/...`) ⇒ 404 يظهر كـ«فشل اتصال» مع صحة كل القيم. وعند الفشل كان يُعرض سطر `AppwriteException: ...` واحد لا يفرّق بين Endpoint وProject وDatabase والمفتاح.
+- **الإصلاح:** `normalizeEndpoint` (إزالة الفراغات وكل الشرطات النهائية) و`normalizeId` تُطبَّقان في الحفظ وفي `init()` وفي `testConnectionWithConfig` معاً؛ وأُضيف `describeConnectionFailure` يصنّف الفشل إلى: مفتاح (401/403)، قاعدة/مجموعة، مشروع، عنوان/شبكة، أو «غير مصنّف»، ويُعرض في الـ SnackBar.
+
+### 14.3 حمايات أُضيفت مع التطبيق الفوري
+
+- **لا تبديل في منتصف دورة مزامنة:** الصفوف التي رُفعت فعلاً إلى الهدف القديم تُحذف من `outbox` عند النجاح؛ لو بدّلنا الهدف في منتصف الدورة لبقيت نصف التغييرات في مشروع ونصفها في آخر. الشاشة تنتظر انتهاء الدورة (فحص كل 250ms بحد 20 ثانية)، وإن لم تنتهِ تُبقي الإعدادات محفوظة وتُبلّغ بوضوح بدل التطبيق في المنتصف.
+- **الـ Realtime:** `AppwriteRealtimeSync.stop()` تُسقط كائن `Realtime` نفسه (كان يُبنى مرة من `AppwriteService().client` ويبقى محفوظاً ⇒ استماع على المشروع القديم).
+- **رسائل صادقة:** «تم حفظ الإعدادات وتطبيقها فوراً» عند النجاح، و«تم حفظ الإعدادات، لكن لم تُطبَّق فوراً: <السبب>» عند الفشل — بدل حوار «إعادة تشغيل مطلوبة» في كل الحالات. و«اختبار الاتصال» صار يقول «بالقيم المُدخلة (لم تُحفظ بعد)» بدل «القيم الحالية».
+
+### 14.4 اختبارات الانحدار
+
+`mobile/test/services/appwrite_connection_config_test.dart` — 12 حالة:
+
+1. الـ Endpoint يُحفظ مطبَّعاً (شرطة مائلة + فراغات).
+2. `normalizeEndpoint` على الحالات الحدّية (`/`, `///`, فراغات، نص فارغ).
+3. المفتاح الفارغ **لا** يُخزَّن (المفتاح السابق للعيب: حفظ `''` يطمس المدمج).
+4. `init()` يشفى من `appwrite_api_key = ''` وEndpoint قديم بشرطة مائلة.
+5. مفتاح غير فارغ يُخزَّن ويُستخدم فعلاً.
+6. `resetToDefaults` يحذف المفتاح ويعيد المدمج.
+7. صيغة `targetIdentity` مطبَّعة وموحّدة.
+8. `reinitialize()` يعيد كائن `Client` جديداً (قبل الإصلاح: `late final` ⇒ استحالة).
+9. `initialize()` المتكرر آمن.
+10–12. تصنيف الفشل: 401/403 ⇒ مفتاح، `database/collection` ⇒ قاعدة البيانات، `project` ⇒ مشروع، Socket/timeout ⇒ عنوان، غير ذلك ⇒ «غير مصنّف» (لا تصنيف زائف).
