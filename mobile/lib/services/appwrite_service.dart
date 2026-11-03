@@ -21,8 +21,14 @@ class AppwriteService {
   AppwriteService._internal();
   static final AppwriteService _instance = AppwriteService._internal();
 
-  late final Client _client;
-  late final Databases _databases;
+  // ✅ إصلاح شاشة إعدادات Appwrite Cloud: ليست final — يجب السماح
+  // بإعادة بناء العميل عند تغيير إعدادات الاتصال وقت التشغيل
+  // (reconfigure) بدلاً من إبقاء العميل القديم حتى إعادة تشغيل التطبيق.
+  late Client _client;
+  late Databases _databases;
+
+  /// آخر إعدادات استُخدمت في بناء [_client] — لمقارنة reconfigureIfNeeded.
+  Map<String, String>? _lastInitConfig;
 
   /// Cached secondary client & databases – lazily initialised on first failover call.
   Client? _secondaryClient;
@@ -98,7 +104,48 @@ class AppwriteService {
 
     _databases = Databases(_client);
     _initialized = true;
+    _lastInitConfig = Map<String, String>.from(
+      AppwriteConfigManager.currentConfig,
+    );
     _logger.info('AppwriteService initialized', tag: 'INIT');
+  }
+
+  /// ✅ إعادة بناء العميل بالإعدادات الفعّالة الحالية.
+  ///
+  /// يُستدعى بعد حفظ/إعادة تعيين إعدادات الاتصال من شاشة إعدادات
+  /// Appwrite Cloud حتى تُطبَّق القيم الجديدة فوراً على كل عمليات
+  /// القراءة/الكتابة/المزامنة — دون الحاجة لإغلاق التطبيق وإعادة فتحه.
+  /// (قبل هذا الإصلاح كان العميل singleton بـ late final يُبنى مرة
+  /// واحدة فقط، فكان زر «اختبار الاتصال» يفحص الإعدادات القديمة
+  /// والشاشة تعرض «غير متصل» رغم صحة القيم الجديدة المحفوظة).
+  Future<void> reconfigure() async {
+    _initialized = false;
+    invalidateSecondaryClient();
+    await initialize();
+    _logger.info(
+      'AppwriteService reconfigured → ${AppwriteConfigManager.endpoint} / '
+      '${AppwriteConfigManager.projectId}',
+      tag: 'INIT',
+    );
+  }
+
+  /// يعيد بناء العميل فقط إذا كانت الإعدادات الفعّالة مختلفة عن
+  /// الإعدادات التي بُني بها العميل الحالي. آمن للاستدعاء المتكرر.
+  Future<void> reconfigureIfNeeded() async {
+    final current = AppwriteConfigManager.currentConfig;
+    if (!_initialized ||
+        _lastInitConfig == null ||
+        !_sameConfig(_lastInitConfig!, current)) {
+      await reconfigure();
+    }
+  }
+
+  bool _sameConfig(Map<String, String> a, Map<String, String> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
   }
 
   Future<void> _ensureInitialized() async {

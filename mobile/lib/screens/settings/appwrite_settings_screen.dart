@@ -124,6 +124,14 @@ class _AppwriteSettingsScreenState
     await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
   }
 
+  /// ✅ إصلاح شاشة إعدادات Appwrite Cloud: يُستدعى عند العودة من شاشة
+  /// إعدادات الاتصال — يعيد فحص الاتصال ويُحدّث معلومات المشروع المعروضة
+  /// (Endpoint/Project/Database) التي كانت تبقى قديمة بعد تغيير الإعدادات.
+  Future<void> _refreshAfterConfigChange() async {
+    ref.invalidate(ap.projectInfoProvider);
+    await _checkConnection();
+  }
+
   @override
   Widget build(BuildContext context) {
     final connectionState = ref.watch(ap.connectionStatusProvider);
@@ -138,6 +146,7 @@ class _AppwriteSettingsScreenState
       body: RefreshIndicator(
         onRefresh: () async {
           await _checkConnection();
+          ref.invalidate(ap.projectInfoProvider);
           ref.invalidate(ap.syncStatsProvider);
           ref.invalidate(ap.devicesListProvider);
         },
@@ -271,12 +280,18 @@ class _AppwriteSettingsScreenState
               title: const Text('إعدادات الاتصال السحابي'),
               subtitle: const Text('تغيير Endpoint و Project و Database'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => const AppwriteConnectionSettingsScreen(),
-                ),
-              ),
+              onTap: () async {
+                await Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AppwriteConnectionSettingsScreen(),
+                  ),
+                );
+                // تحديث الحالة والمعلومات فور العودة من شاشة إعدادات الاتصال
+                if (mounted) {
+                  await _refreshAfterConfigChange();
+                }
+              },
             ),
             const Divider(height: 24),
 
