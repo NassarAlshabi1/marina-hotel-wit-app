@@ -26,6 +26,11 @@
 //      لكل سجل (طوفان سجلات الإنتاج) والمؤشر يتقدم فوقها.
 //  ت9) مطالبة نزعها حارس التحكيم لا تُحسب «بلا رابط» ولا تُسجل رسالة
 //      «وصل بلا expenseUuid» المضللة (سبب النزع مسجّل بسياقه الكامل).
+//  ت10) مطالبة تشير لمصروف محذوف ناعماً → لا خطأ «رفض ربط» لكل مستند
+//      ولا expense_id، والمطالبة تبقى كما وصلت (لا حذف بيانات) +
+//      ملخص واحد لكل دفعة (طوفان ~90 سطراً بدفعة الإنتاج 22:17).
+//  ت11) uuid الموظف مخزّن بصيغتين مختلفتين (شرطات) لنفس الموظف →
+//      الربط يُكتب — لا «رفض ربط» شكلياً بالمقارنة الخام.
 
 import 'dart:io';
 
@@ -520,6 +525,109 @@ void main() {
         relinkLogs.where((l) => l.message.contains('بلا expenseUuid')).length,
         0,
         reason: 'المطالبة المنزوعة لا تُحسب سجلاً قديماً بلا رابط',
+      );
+    },
+  );
+
+  test(
+    'ت10: مطالبة تشير لمصروف محذوف ناعماً → لا خطأ «رفض ربط» ولا رابط مرآة',
+    () async {
+      await addEmployee('emp-a');
+      await addEmployee('emp-b');
+      // مصروفات محذوفة ناعماً لموظف B — مطالبات سحبات موظف A تشير إليها
+      // (مرايا دُمجت/أزواج فاسدة من الحقبة الرقمية). حارس التحكيم لا
+      // يراها أصلاً (يستثني deleted_at) فتمرّ المطالبات صامتة قبل الكتابة،
+      // وكان حل المرآة يصطدم بها فيخطئ لكل مستند.
+      for (final expenseUuid in ['exp-del-1', 'exp-del-2', 'exp-del-3']) {
+        await addExpense(uuid: expenseUuid, employeeUuid: 'emp-b');
+        await (db.update(db.expenses)
+              ..where((e) => e.localUuid.equals(expenseUuid)))
+            .write(const ExpensesCompanion(deletedAt: d.Value(1770000000)));
+      }
+      final logger = AppwriteLogger();
+      final manager = newManager();
+      logger.clearLogs();
+
+      final applied = await manager.syncSalaryWithdrawalsForTesting([
+        withdrawalDoc(uuid: 'sw-d1', expenseUuid: 'exp-del-1', expenseId: 999),
+        withdrawalDoc(uuid: 'sw-d2', expenseUuid: 'exp-del-2', expenseId: 999),
+        withdrawalDoc(uuid: 'sw-d3', expenseUuid: 'exp-del-3', expenseId: 999),
+      ]);
+
+      expect(applied, 3, reason: 'كل السحبات تُطبَّق بلا فشل');
+      for (final uuid in ['sw-d1', 'sw-d2', 'sw-d3']) {
+        final row = await rowByUuid(uuid);
+        expect(row, isNotNull, reason: 'السحبة تُخزَّن');
+        // قبل الإصلاح: خطأ «رفض ربط ... employeeUuid mismatch» لكل مستند
+        // (طوفان ~90 سطراً في دفعة إنتاج واحدة 2026-11-03 22:17).
+        expect(row!.expenseId, isNull, reason: 'المصروف المحذوف لا يُحلّ إليه');
+        expect(
+          row.expenseUuid,
+          isNotNull,
+          reason: 'المطالبة تبقى مخزّنة كما وصلت — لا حذف بيانات',
+        );
+      }
+      final relinkLogs = logger
+          .getLogs()
+          .where((l) => l.tag == 'SYNC_RELINK')
+          .toList();
+      expect(
+        relinkLogs.where((l) => l.message.contains('رفض ربط')).length,
+        0,
+        reason: 'لا خطأ لكل مستند — الحارس لم يرَ المحذوف أصلاً',
+      );
+      final deadSummaries = relinkLogs
+          .where((l) => l.message.contains('محذوف ناعماً'))
+          .toList();
+      expect(deadSummaries.length, 1, reason: 'ملخص واحد للدفعة كلها');
+      expect(
+        deadSummaries.single.message,
+        contains('3'),
+        reason: 'الملخص يذكر العدد كاملاً',
+      );
+      expect(deadSummaries.single.level, LogLevel.info);
+    },
+  );
+
+  test(
+    'ت11: uuid الموظف بصيغتين مختلفتين لنفس الموظف → الربط يُكتب ولا «رفض» شكلي',
+    () async {
+      await addEmployee('emp-a');
+      // مصروف حيّ لنفس الموظف لكن uuid الموظف مخزّن بلا شرطة — اختلاف
+      // تنسيق لا هوية (الحارس يوحّد المقارنة فيسمح بالمطالبة). قبل
+      // الإصلاح: المقارنة الخام في حل المرآة ترفض الربط خطأً.
+      final expenseRowId = await addExpense(
+        uuid: 'exp-live-1',
+        employeeUuid: 'empa',
+      );
+      final logger = AppwriteLogger();
+      final manager = newManager();
+      logger.clearLogs();
+
+      final applied = await manager.syncSalaryWithdrawalsForTesting([
+        withdrawalDoc(
+          uuid: 'sw-fmt',
+          expenseUuid: 'exp-live-1',
+          expenseId: 999,
+        ),
+      ]);
+
+      expect(applied, 1);
+      final row = await rowByUuid('sw-fmt');
+      expect(row, isNotNull);
+      expect(
+        row!.expenseId,
+        expenseRowId,
+        reason: 'نفس الموظف بعد التوحيد → الرابط يُكتب',
+      );
+      final relinkLogs = logger
+          .getLogs()
+          .where((l) => l.tag == 'SYNC_RELINK')
+          .toList();
+      expect(
+        relinkLogs.where((l) => l.message.contains('رفض ربط')).length,
+        0,
+        reason: 'اختلاف التنسيق ليس mismatch حقيقياً',
       );
     },
   );

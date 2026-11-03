@@ -4304,6 +4304,11 @@ class AppwriteSyncManager {
     // في سجلات الإنتاج). المطالبات التي نزعها حارس التحكيم مستثناة لأن
     // سبب نزعها يُسجَّل هناك بسياقه الكامل.
     var legacyNoClaimCount = 0;
+    // ✅ (2026-11-04) مطالبات رابط مرآة تشير لمصروف محذوف ناعماً (مرايا
+    // دُمجت/أزواج فاسدة من الحقبة الرقمية) — تُطبَّق السحبة بلا رابط
+    // مرآة وتُجمَّع بملخص واحد بدل خطأ «رفض ربط» لكل مستند مكرر في كل
+    // سحب كامل (~90 سطراً بدفعة إنتاج واحدة 2026-11-03 22:17).
+    var deadMirrorClaimCount = 0;
     // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
     final employeeFkResolver = IdResolver(database);
 
@@ -4457,12 +4462,15 @@ class AppwriteSyncManager {
         // لا يصلح عبر الأجهزة (autoincrement معاد الترقيم) — إصلاح جذر
         // انكسار رابط سحبة↔مصروف (643/688 زوجاً خاطئاً على السحابة).
         // (الحارس أعلاه أزال الرقمي الخام من data فلا يُكتب أبداً.)
-        await _resolveAndWriteMirrorExpenseId(
+        final mirrorOutcome = await _resolveAndWriteMirrorExpenseId(
           insertedId,
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
         );
+        if (mirrorOutcome == _MirrorLinkOutcome.expenseDeleted) {
+          deadMirrorClaimCount++;
+        }
         if (!arrivedWithMirrorClaim) {
           legacyNoClaimCount++;
         }
@@ -4512,29 +4520,6 @@ class AppwriteSyncManager {
       );
     }
 
-    // ✅ (2026-11-03) ملخص المستندات المكررة (توأم) — ليست فشلاً: السجل
-    // ممثَّل محلياً بسحبة قائمة تمتلك رابط المرآة، والمؤشر يتقدم فوقها.
-    if (mirrorDuplicates > 0) {
-      _logger.info(
-        '🧹 تخطي $mirrorDuplicates مستند سحبة مكرر (توأم يمتلك رابط المرآة '
-        'محلياً) — ممثَّل محلياً بالفعل ولا يُحتسب فشلاً',
-        tag: 'SYNC_RELINK',
-      );
-    }
-
-    // ✅ (2026-11-03) ملخص السحبات القديمة بلا expenseUuid — سطر واحد
-    // لكل دفعة بدل تحذير لكل سجل (كانت تُغرق سجلات الإنتاج، خصوصاً السحب
-    // الأولي الكامل لجهاز جديد بمئات السحبات التاريخية). ليست فشلاً:
-    // الرقمي البعيد يُتجاهل عمداً (autoincrement جهاز المصدر غير موثوق
-    // عبر الأجهزة) والمؤشر يتقدم فوقها.
-    if (legacyNoClaimCount > 0) {
-      _logger.info(
-        'ℹ️ $legacyNoClaimCount سحبة وصلت بلا expenseUuid (سجلات أقدم من '
-        'ميزة رابط المرآة) — الرقمي البعيد يُتجاهل عمداً وليست فشلاً',
-        tag: 'SYNC_RELINK',
-      );
-    }
-
     // ✅ إعادة محاولة السجلات المؤجلة بعد اكتمال باقي السجلات
     if (deferred.isNotEmpty) {
       _logger.info(
@@ -4566,12 +4551,15 @@ class AppwriteSyncManager {
           }
           // ✅ (migration 68) كتابة expense_id عبر حل uuid المرآة أولاً
           // (نفس منطق الموقع الرئيسي أعلاه — راجع التوثيق هناك).
-          await _resolveAndWriteMirrorExpenseId(
+          final deferredOutcome = await _resolveAndWriteMirrorExpenseId(
             deferredInsertedId,
             expenseUuid: _asNullableString(
               data['expenseUuid'] ?? data['expense_uuid'],
             ),
           );
+          if (deferredOutcome == _MirrorLinkOutcome.expenseDeleted) {
+            deadMirrorClaimCount++;
+          }
           if (!arrivedWithMirrorClaim) {
             legacyNoClaimCount++;
           }
@@ -4592,6 +4580,45 @@ class AppwriteSyncManager {
           failed.add('${data['localUuid']}: $e');
         }
       }
+    }
+
+    // ✅ (2026-11-04) الملخصات المجمعّة تُسجَّل بعد حلقة إعادة المحاولة
+    // المؤجلة كي تشمل الدفعة كاملة (كانت قبلها تفلت منها السجلات التي
+    // نجحت بعد التأجيل — نفس نمط 4fbc328a على عدادات الدفعة كلها).
+
+    // ✅ (2026-11-03) ملخص المستندات المكررة (توأم) — ليست فشلاً: السجل
+    // ممثَّل محلياً بسحبة قائمة تمتلك رابط المرآة، والمؤشر يتقدم فوقها.
+    if (mirrorDuplicates > 0) {
+      _logger.info(
+        '🧹 تخطي $mirrorDuplicates مستند سحبة مكرر (توأم يمتلك رابط المرآة '
+        'محلياً) — ممثَّل محلياً بالفعل ولا يُحتسب فشلاً',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
+    // ✅ (2026-11-03) ملخص السحبات القديمة بلا expenseUuid — سطر واحد
+    // لكل دفعة بدل تحذير لكل سجل (كانت تُغرق سجلات الإنتاج، خصوصاً السحب
+    // الأولي الكامل لجهاز جديد بمئات السحبات التاريخية). ليست فشلاً:
+    // الرقمي البعيد يُتجاهل عمداً (autoincrement جهاز المصدر غير موثوق
+    // عبر الأجهزة) والمؤشر يتقدم فوقها.
+    if (legacyNoClaimCount > 0) {
+      _logger.info(
+        'ℹ️ $legacyNoClaimCount سحبة وصلت بلا expenseUuid (سجلات أقدم من '
+        'ميزة رابط المرآة) — الرقمي البعيد يُتجاهل عمداً وليست فشلاً',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
+    // ✅ (2026-11-04) ملخص مطالبات المصروف المحذوف ناعماً — سطر واحد لكل
+    // دفعة بدل خطأ «رفض ربط» لكل مستند مكرر (طوفان سجلات الإنتاج). ليست
+    // فشلاً: الزوج ميت (المصروف محذوف) فلا رابط يُكتب، والمؤشر يتقدم.
+    if (deadMirrorClaimCount > 0) {
+      _logger.info(
+        'ℹ️ $deadMirrorClaimCount مطالبة رابط مرآة تشير لمصروف محذوف '
+        'ناعماً (أزواج ميتة من الحقبة الرقمية/مرايا دُمجت) — تُطبَّق السحبة '
+        'بلا رابط مرآة ولا يُحتسب فشلاً',
+        tag: 'SYNC_RELINK',
+      );
     }
 
     // ✅ (2026-11-03) عقد «لا يتقدّم المؤشر فوق الفشل» (تعميم 724610cf):
@@ -4711,6 +4738,9 @@ class AppwriteSyncManager {
     // ✅ (2026-11-03) سحبات قديمة بلا expenseUuid استُعيدت من الطابور —
     // ملخص واحد بدل تحذير لكل سجل (نمط تقليل السبام المعتمد أعلاه).
     var legacyNoClaimCount = 0;
+    // ✅ (2026-11-04) مطالبات تشير لمصروف محذوف ناعماً — ملخص واحد
+    // (نمط تقليل السبام المعتمد في _syncSalaryWithdrawals).
+    var deadMirrorClaimCount = 0;
     final stillPending = <Map<String, dynamic>>[];
 
     for (final data in pending) {
@@ -4768,12 +4798,15 @@ class AppwriteSyncManager {
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
 
-        await _resolveAndWriteMirrorExpenseId(
+        final orphanOutcome = await _resolveAndWriteMirrorExpenseId(
           insertedId,
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
         );
+        if (orphanOutcome == _MirrorLinkOutcome.expenseDeleted) {
+          deadMirrorClaimCount++;
+        }
         if (!arrivedWithMirrorClaim) {
           legacyNoClaimCount++;
         }
@@ -4816,6 +4849,16 @@ class AppwriteSyncManager {
       _logger.info(
         'ℹ️ $legacyNoClaimCount من السحوبات المستعادة وصلت بلا expenseUuid '
         '(سجلات أقدم من ميزة رابط المرآة) — الرقمي البعيد يُتجاهل عمداً',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
+    // ✅ (2026-11-04) ملخص مطالبات المصروف المحذوف بين المستعادات.
+    if (deadMirrorClaimCount > 0) {
+      _logger.info(
+        'ℹ️ $deadMirrorClaimCount من المطالبات المستعادة تشير لمصروف '
+        'محذوف ناعماً (أزواج ميتة من الحقبة الرقمية) — تُطبَّق السحبة بلا '
+        'رابط مرآة',
         tag: 'SYNC_RELINK',
       );
     }
@@ -4939,53 +4982,32 @@ class AppwriteSyncManager {
   /// السحبات القديمة بلا expenseUuid تبقى بلا رابط مرآة، وتُجمَّع بملخص
   /// واحد عند المتصلين (انظر _syncSalaryWithdrawals) بدل تحذير لكل سجل.
   ///
+  /// ✅ (2026-11-04) المصروف المحذوف ناعماً لا يُحلّ إليه الرابط — نفس
+  /// استثناء حارس التحكيم (_prepareSalaryWithdrawalMirrorClaim) و
+  /// _relinkMirrorExpenseIds (deleted_at IS NULL). المطالبات التي تشير
+  /// لمصروف محذوف (مرايا دُمجت/أزواج فاسدة من الحقبة الرقمية) يمرّرها
+  /// الحارس صامتةً لأنه لا يرى المحذوف أصلاً، فكان هذا الفحص يصطدم بها
+  /// ويُغرق السجل بخطأ «رفض ربط» لكل مستند مكرر في كل سحب كامل (~90
+  /// سطراً بدفعة الإنتاج 2026-11-03 22:17). الآن: لا رابط ولا خطأ —
+  /// والمطالبة تبقى مخزّنة كما وصلت (لا حذف بيانات)، ويجمعها المتصلون
+  /// في ملخص واحد لكل دفعة.
+  ///
+  /// ✅ (2026-11-04) مقارنة هوية الموظف بالتوحيد القياسي (trim + بلا
+  /// شرطات + lowercase — نفس معيار الحارس قبل الكتابة): uuid الموظف قد
+  /// يُخزَّن بصيغتين مختلفتين عبر الأجهزة/الحقب، والمقارنة الخام كانت
+  /// ترفض الربط لنفس الموظف خطأً (mismatch شكلي لا حقيقي).
+  ///
   /// ⚠️ إذا وُجد expense_uuid لكن المصروف لم يصل محلياً بعد، لا نكتب
   /// الرابط الخام (معروف بأنه غير موثوق عبر الأجهزة) — العمود يبقى null
   /// وexpense_uuid محفوظ في عمود السحبة نفسه، و_relinkMirrorExpenseIds
   /// يُصلح الرابط في دورة لاحقة بعد وصول المصروف.
-  Future<void> _resolveAndWriteMirrorExpenseId(
+  ///
+  /// تعيد نتيجة الحل (_MirrorLinkOutcome) كي تجمعّها مواقع الاستدعاء
+  /// الثلاثة في ملخصات الدفعة (نمط 4fbc328a).
+  Future<_MirrorLinkOutcome> _resolveAndWriteMirrorExpenseId(
     int salaryWithdrawalRowId, {
     String? expenseUuid,
   }) async {
-    int? resolvedExpenseId;
-    if (expenseUuid != null && expenseUuid.isNotEmpty) {
-      try {
-        final linkedExpense =
-            await (database.select(database.expenses)
-                  ..where((e) => e.localUuid.equals(expenseUuid))
-                  ..limit(1))
-                .getSingleOrNull();
-        if (linkedExpense != null) {
-          final withdrawal =
-              await (database.select(database.salaryWithdrawals)
-                    ..where((w) => w.id.equals(salaryWithdrawalRowId))
-                    ..limit(1))
-                  .getSingleOrNull();
-          final withdrawalEmployeeUuid = withdrawal?.employeeUuid?.trim();
-          final expenseEmployeeUuid = linkedExpense.employeeUuid?.trim();
-          if (withdrawalEmployeeUuid != null &&
-              withdrawalEmployeeUuid.isNotEmpty &&
-              expenseEmployeeUuid != null &&
-              expenseEmployeeUuid.isNotEmpty &&
-              withdrawalEmployeeUuid != expenseEmployeeUuid) {
-            _logger.error(
-              '❌ رفض ربط السحبة #$salaryWithdrawalRowId بالمصروف '
-              '$expenseUuid: employeeUuid mismatch '
-              '($withdrawalEmployeeUuid != $expenseEmployeeUuid)',
-              tag: 'SYNC_RELINK',
-            );
-            return;
-          }
-        }
-        resolvedExpenseId = linkedExpense?.id;
-      } catch (e) {
-        _logger.warning(
-          '⚠️ فشل حل expense_uuid=$expenseUuid للسحبة '
-          '#$salaryWithdrawalRowId: $e',
-          tag: 'SYNC',
-        );
-      }
-    }
     if (expenseUuid == null || expenseUuid.trim().isEmpty) {
       // Remote numeric expense_id is a source-device autoincrement value.
       // It is never safe to copy it into this device because the same number
@@ -4997,23 +5019,65 @@ class AppwriteSyncManager {
       // الإنتاج — مئات الأسطر في السحب الأولي لجهاز جديد)، والمطالبات
       // التي نزعها حارس التحكيم سُجِّل سبب نزعها هناك بسياقه الكامل.
       // المتصلون يجمعون الحالة الأولى في سطر ملخص واحد لكل دفعة.
-      return;
+      return _MirrorLinkOutcome.noClaim;
     }
-
-    if (resolvedExpenseId == null) {
-      // UUID is authoritative but the expense may not have arrived yet. Do
-      // not fall back to the remote numeric id. _relinkMirrorExpenseIds()
-      // will resolve it after the expense is pulled.
-      return;
-    }
-
-    final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
-    if (swAdapter is SalaryWithdrawalsAdapter) {
-      await swAdapter.writeExpenseIdRaw(
-        database,
-        salaryWithdrawalRowId,
-        resolvedExpenseId,
+    try {
+      final linkedExpense =
+          await (database.select(database.expenses)
+                ..where((e) => e.localUuid.equals(expenseUuid))
+                ..limit(1))
+              .getSingleOrNull();
+      if (linkedExpense == null) {
+        // UUID is authoritative but the expense may not have arrived yet. Do
+        // not fall back to the remote numeric id. _relinkMirrorExpenseIds()
+        // will resolve it after the expense is pulled.
+        return _MirrorLinkOutcome.expenseNotLocal;
+      }
+      if (linkedExpense.deletedAt != null) {
+        // ✅ (2026-11-04) زوج ميت: المصروف محذوف ناعماً (مرآة دُمجت أو
+        // بقايا الحقبة الرقمية) — الحارس لم يرَه أصلاً (يستثني المحذوف)
+        // فلا معنى لخطأ «رفض ربط» هنا ولا لربط يُكتب: يبقى expense_id
+        // فارغاً والمطالبة كما وصلت، ويجمعها المتصل بملخص الدفعة.
+        return _MirrorLinkOutcome.expenseDeleted;
+      }
+      final withdrawal =
+          await (database.select(database.salaryWithdrawals)
+                ..where((w) => w.id.equals(salaryWithdrawalRowId))
+                ..limit(1))
+              .getSingleOrNull();
+      final withdrawalEmployeeUuid = withdrawal?.employeeUuid?.trim();
+      final expenseEmployeeUuid = linkedExpense.employeeUuid?.trim();
+      final withdrawalEmployeeCompact = _compactUuidToken(
+        withdrawalEmployeeUuid,
       );
+      final expenseEmployeeCompact = _compactUuidToken(expenseEmployeeUuid);
+      if (withdrawalEmployeeCompact.isNotEmpty &&
+          expenseEmployeeCompact.isNotEmpty &&
+          withdrawalEmployeeCompact != expenseEmployeeCompact) {
+        _logger.error(
+          '❌ رفض ربط السحبة #$salaryWithdrawalRowId بالمصروف '
+          '$expenseUuid: employeeUuid mismatch '
+          '($withdrawalEmployeeUuid != $expenseEmployeeUuid)',
+          tag: 'SYNC_RELINK',
+        );
+        return _MirrorLinkOutcome.employeeMismatch;
+      }
+      final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
+      if (swAdapter is SalaryWithdrawalsAdapter) {
+        await swAdapter.writeExpenseIdRaw(
+          database,
+          salaryWithdrawalRowId,
+          linkedExpense.id,
+        );
+      }
+      return _MirrorLinkOutcome.linked;
+    } catch (e) {
+      _logger.warning(
+        '⚠️ فشل حل expense_uuid=$expenseUuid للسحبة '
+        '#$salaryWithdrawalRowId: $e',
+        tag: 'SYNC',
+      );
+      return _MirrorLinkOutcome.error;
     }
   }
 
@@ -11034,4 +11098,32 @@ class AppwriteSyncManager {
     // = إعادة سحب الموظف في الدورة التالية (upsert idempotent).
     throw lastError!;
   }
+}
+
+/// ✅ (2026-11-04) نتيجة حل رابط المرآة سحبة→مصروف في
+/// AppwriteSyncManager._resolveAndWriteMirrorExpenseId — تستخدمها مواقع
+/// الاستدعاء الثلاثة لتجميع ملخص واحد لكل دفعة (نمط 4fbc328a) بدل
+/// سجل لكل مستند.
+enum _MirrorLinkOutcome {
+  /// لا مطالبة أصلاً (سجل أقدم من الميزة أو نزعها حارس التحكيم —
+  /// التمييز يحسبه المتصل من data قبل الحارس).
+  noClaim,
+
+  /// المصروف لم يصل محلياً بعد — يعاد الفحص في دورة لاحقة عبر
+  /// _relinkMirrorExpenseIds بعد سحب المصروفات.
+  expenseNotLocal,
+
+  /// المصروف محذوف ناعماً — زوج ميت من الحقبة الرقمية: لا رابط يُكتب
+  /// ولا خطأ؛ يجمعه المتصل في ملخص الدفعة.
+  expenseDeleted,
+
+  /// مصروف حيّ لموظف مختلف — رُفض الربط وسُجِّل بخطأ (شبكة أمان ما بعد
+  /// حارس التحكيم؛ عملياً غير متوقع لأن الحارس ينزعها قبل الكتابة).
+  employeeMismatch,
+
+  /// فشل استعلام مؤقت — سُجِّل تحذيراً ولا رابط يُكتب.
+  error,
+
+  /// الرابط حُلَّ وكُتب expense_id بنجاح.
+  linked,
 }
