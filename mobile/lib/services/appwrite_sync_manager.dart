@@ -4296,6 +4296,9 @@ class AppwriteSyncManager {
     // (بيانات قديمة بلا employeeUuid — تُشفى عبر
     // scripts/appwrite/backfill_salary_withdrawals_employee_uuid.js)
     final orphans = <String>[];
+    // ✅ (2026-11-03) مستندات مكررة (توأم) يمتلك رابط المرآة محلياً سجلٌّ
+    // قائم — تُتخطى ولا تُحتسب فشلاً (انظر _prepareSalaryWithdrawalMirrorClaim).
+    var mirrorDuplicates = 0;
     // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
     final employeeFkResolver = IdResolver(database);
 
@@ -4425,6 +4428,17 @@ class AppwriteSyncManager {
         // قيم خام قد تفشل عبر الأجهزة.
         data['employeeUuid'] = employee.localUuid;
 
+        // ✅ (2026-11-03) حسم تصادم مطالبة رابط المرآة قبل الـ upsert —
+        // يمنع SqliteException(2067) على ux_salary_withdrawals_expense_
+        // uuid_active (فهرس جزئي لا يقبل ON CONFLICT) الذي كان يقيّد مؤشر
+        // salary_withdrawals إلى الأبد: مستندات سحابة مكررة/قديمة تطالب
+        // بنفس expenseUuid بمعرفات مختلفة.
+        final rawRemoteExpenseId = _asIntSafe(data, 'expenseId');
+        if (!await _prepareSalaryWithdrawalMirrorClaim(data)) {
+          mirrorDuplicates++;
+          continue;
+        }
+
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
 
@@ -4433,12 +4447,14 @@ class AppwriteSyncManager {
         // ✅ الآن بحل uuid المرآة أولاً: expense_id الخام من جهاز المصدر
         // لا يصلح عبر الأجهزة (autoincrement معاد الترقيم) — إصلاح جذر
         // انكسار رابط سحبة↔مصروف (643/688 زوجاً خاطئاً على السحابة).
+        // (الرقمي الخام يُمرَّر هنا للتشخيص في السجل فقط — الحارس أعلاه
+        // أزاله من data فلا يُكتب أبداً.)
         await _resolveAndWriteMirrorExpenseId(
           insertedId,
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
-          rawExpenseId: _asIntSafe(data, 'expenseId'),
+          rawExpenseId: rawRemoteExpenseId,
         );
 
         // ✅ Wave 7 tighten: notify remote change from another device
@@ -4486,6 +4502,16 @@ class AppwriteSyncManager {
       );
     }
 
+    // ✅ (2026-11-03) ملخص المستندات المكررة (توأم) — ليست فشلاً: السجل
+    // ممثَّل محلياً بسحبة قائمة تمتلك رابط المرآة، والمؤشر يتقدم فوقها.
+    if (mirrorDuplicates > 0) {
+      _logger.info(
+        '🧹 تخطي $mirrorDuplicates مستند سحبة مكرر (توأم يمتلك رابط المرآة '
+        'محلياً) — ممثَّل محلياً بالفعل ولا يُحتسب فشلاً',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
     // ✅ إعادة محاولة السجلات المؤجلة بعد اكتمال باقي السجلات
     if (deferred.isNotEmpty) {
       _logger.info(
@@ -4494,6 +4520,14 @@ class AppwriteSyncManager {
       );
       for (final data in deferred) {
         try {
+          // ✅ (2026-11-03) نفس حارس تصادم مطالبة رابط المرآة قبل الكتابة —
+          // مشهد المطالبة قد يتغير داخل الدفعة الواحدة (سحبة أخرى من نفس
+          // الدفعة احتلت الرابط أثناء التأجيل).
+          final rawRemoteExpenseId = _asIntSafe(data, 'expenseId');
+          if (!await _prepareSalaryWithdrawalMirrorClaim(data)) {
+            mirrorDuplicates++;
+            continue;
+          }
           final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
               .upsertFromJson(data, src: Source.appwrite);
           if (deferredInsertedId == -1) {
@@ -4512,7 +4546,7 @@ class AppwriteSyncManager {
             expenseUuid: _asNullableString(
               data['expenseUuid'] ?? data['expense_uuid'],
             ),
-            rawExpenseId: _asIntSafe(data, 'expenseId'),
+            rawExpenseId: rawRemoteExpenseId,
           );
           // ✅ Wave 7 tighten: notify remote change from another device
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
@@ -4686,6 +4720,19 @@ class AppwriteSyncManager {
         data['employeeId'] = employee.id;
         data['employeeUuid'] = employee.localUuid;
 
+        // ✅ (2026-11-03) نفس حارس تصادم مطالبة رابط المرآة قبل الكتابة —
+        // حتى مستندات طابور اليتامى الدائم لا تنكسر على الفهرس الفريد.
+        final rawRemoteExpenseId = _asIntSafe(data, 'expenseId');
+        if (!await _prepareSalaryWithdrawalMirrorClaim(data)) {
+          recovered++;
+          _logger.info(
+            '🧹 سحبة يتيمة معلّقة ${data['localUuid']} توأم مكرر يمثّله '
+            'محلياً — أُسقطت من الطابور بلا إدراج',
+            tag: 'SYNC_RELINK',
+          );
+          continue;
+        }
+
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
 
@@ -4694,7 +4741,7 @@ class AppwriteSyncManager {
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
-          rawExpenseId: _asIntSafe(data, 'expenseId'),
+          rawExpenseId: rawRemoteExpenseId,
         );
 
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
@@ -4924,6 +4971,179 @@ class AppwriteSyncManager {
       );
     }
   }
+
+  /// ✅ (2026-11-03) حسم تصادم مطالبة رابط المرآة (expense_uuid) قبل
+  /// الكتابة — يمنع انكسار الـ upsert على الفهرس الفريد الجزئي
+  /// ux_salary_withdrawals_expense_uuid_active.
+  ///
+  /// المشكلة: الفهرس يفرض «سحبة نشطة واحدة لكل expense_uuid»، لكن
+  /// السحابة تحمل مستندات مكررة/قديمة يختلف localUuid فيها وتطالب بنفس
+  /// expenseUuid (بقايا استيراد النسخ الاحتياطي وحقبة ما قبل
+  /// idempotency — نفس السحبة المنطقية بمعرفين، وأزواج فاسدة من حقبة
+  /// expenseId الرقمي). الـ upsert الثاني كان يفشل بـ SqliteException(2067)
+  /// — ولا يمكن حمله على ON CONFLICT لأن SQLite لا يقبل الفهارس الجزئية
+  /// كأهداف conflict — فيتراكم في قائمة الفشل ويقيّد مؤشر
+  /// salary_withdrawals إلى الأبد (نفس الدفعة تُعاد كل دورة بلا تقدم).
+  ///
+  /// الحسم قبل الكتابة (بالترتيب):
+  ///  1) الرقمي الخام expenseId البعيد لا يُخزَّن أبداً (autoincrement جهاز
+  ///     المصدر — نفس قرار _resolveAndWriteMirrorExpenseId: الكاتب الشرعي
+  ///     الوحيد لعمود expense_id هو حلّ المرآة بالـ UUID؛ كان الـ adapter
+  ///     ينسخه خاماً فيبقى خطأً في الصف إن لم يُحلّ الـ UUID لاحقاً).
+  ///  2) المصروف صاحب الـ uuid موجود محلياً لموظف مختلف → زوج فاسد:
+  ///     تُنزع المطالبة كي لا تحتكر خانة الفهرس الفريد وتحجب السحبة
+  ///     الصحيحة (حارس mismatch نفسه لكن قبل الكتابة).
+  ///  3) الرابط مطلوب من سحبة نشطة أخرى: ختم المصروف العكسي
+  ///     expenses.withdrawal_uuid هو الحَكَم — صاحبه الموثوق يفوز (ويُنزع
+  ///     الرابط من المتنازع القائم)، والخاسر يُكتب بلا رابط مرآة.
+  ///  4) لا حُكم من المصروف (لم يصل بعد/بلا ختم): تطابق توأم
+  ///     (موظف+مبلغ+تاريخ) → مستند مكرر لسجل موجود — يُتخطى كلياً؛
+  ///     وإلا فأول مطالِب قائم يفوز والقادم يُكتب بلا رابط.
+  ///
+  /// تعيد false إذا وجب تخطي المستند (توأم مكرر ممثَّل محلياً)، وإلا true
+  /// — وقد تكون data قد عُدّلت (نزع المطالبة/الرقمي الخام) قبل الكتابة.
+  Future<bool> _prepareSalaryWithdrawalMirrorClaim(
+    Map<String, dynamic> data,
+  ) async {
+    // (1) الرقمي الخام لا يُخزَّن أبداً من مصدر بعيد.
+    data.remove('expenseId');
+    data.remove('expense_id');
+
+    final claimRaw = _asNullableString(
+      data['expenseUuid'] ?? data['expense_uuid'],
+    );
+    final claim = _compactUuidToken(claimRaw);
+    if (claim.isEmpty) return true;
+
+    final incomingUuid = _compactUuidToken(data['localUuid']);
+    final incomingEmployee = _compactUuidToken(
+      data['employeeUuid'] ??
+          data['employee_uuid'] ??
+          data['employeeLocalUuid'] ??
+          data['employee_local_uuid'],
+    );
+
+    // (2) اتساق الموظف مع المصروف صاحب الـ uuid قبل احتلال خانة الرابط.
+    final expenseRows = await database
+        .customSelect(
+          'SELECT e.id AS eid, e.withdrawal_uuid AS wuuid, e.employee_uuid '
+          'AS empuuid FROM expenses e '
+          "WHERE REPLACE(LOWER(TRIM(e.local_uuid)), '-', '') = ? "
+          'AND e.deleted_at IS NULL LIMIT 1',
+          variables: [drift.Variable.withString(claim)],
+        )
+        .get();
+    if (expenseRows.isNotEmpty) {
+      final expenseEmployee = _compactUuidToken(
+        expenseRows.first.read<String?>('empuuid'),
+      );
+      if (incomingEmployee.isNotEmpty &&
+          expenseEmployee.isNotEmpty &&
+          incomingEmployee != expenseEmployee) {
+        data.remove('expenseUuid');
+        data.remove('expense_uuid');
+        _logger.error(
+          '❌ نُزعت مطالبة رابط المرآة قبل الكتابة: السحبة '
+          '${data['localUuid']} تطالب بالمصروف uuid=$claimRaw لكن موظفها '
+          '($incomingEmployee) != موظف المصروف ($expenseEmployee) — زوج '
+          'فاسد من حقبة الروابط الرقمية',
+          tag: 'SYNC_RELINK',
+        );
+        return true;
+      }
+    }
+
+    // (3) هل تطالب سحبة نشطة أخرى بنفس الرابط؟
+    final claimantRows = await database
+        .customSelect(
+          'SELECT w.id AS wid, w.local_uuid AS wuuid, w.employee_uuid AS '
+          'empuuid, w.amount AS amount, w.withdraw_date AS wdate '
+          'FROM salary_withdrawals w '
+          "WHERE REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') = ? "
+          "AND REPLACE(LOWER(TRIM(w.local_uuid)), '-', '') != ? "
+          'AND w.deleted_at IS NULL LIMIT 1',
+          variables: [
+            drift.Variable.withString(claim),
+            drift.Variable.withString(incomingUuid),
+          ],
+        )
+        .get();
+    if (claimantRows.isEmpty) return true;
+    final claimant = claimantRows.first;
+
+    if (expenseRows.isNotEmpty) {
+      final ownerUuid = _compactUuidToken(
+        expenseRows.first.read<String?>('wuuid'),
+      );
+      if (ownerUuid.isNotEmpty) {
+        if (ownerUuid == incomingUuid) {
+          // القادم هو صاحب الرابط الموثوق — ننزعه من المتنازع القائم.
+          await database.customStatement(
+            'UPDATE salary_withdrawals SET expense_uuid = NULL, '
+            'expense_id = NULL WHERE id = ?',
+            [claimant.read<int>('wid')],
+          );
+          _logger.info(
+            '🔗 نُقل رابط المرآة ($claimRaw) من السحبة '
+            '${claimant.read<String?>('wuuid')} إلى صاحبه الموثوق '
+            '${data['localUuid']} وفق expenses.withdrawal_uuid',
+            tag: 'SYNC_RELINK',
+          );
+          return true;
+        }
+        data.remove('expenseUuid');
+        data.remove('expense_uuid');
+        _logger.warning(
+          '⚠️ نُزعت مطالبة السحبة ${data['localUuid']} بالرابط $claimRaw '
+          '— المصروف يعلن ملكية السحبة $ownerUuid (ختم المرآة العكسي)',
+          tag: 'SYNC_RELINK',
+        );
+        return true;
+      }
+    }
+
+    // (4-أ) توأم مطابق (موظف+مبلغ+تاريخ) → مستند مكرر لسجل موجود.
+    final claimantEmployee = _compactUuidToken(
+      claimant.read<String?>('empuuid'),
+    );
+    final incomingAmount = (data['amount'] as num?)?.toDouble();
+    final claimantAmount = claimant.read<double>('amount');
+    final incomingDate = (data['withdrawDate'] ?? data['withdraw_date'])
+        ?.toString();
+    final claimantDate = claimant.read<String>('wdate');
+    final sameEmployee =
+        claimantEmployee.isNotEmpty && claimantEmployee == incomingEmployee;
+    final sameAmount =
+        incomingAmount != null &&
+        (incomingAmount - claimantAmount).abs() < 0.001;
+    final sameDate =
+        incomingDate != null && incomingDate.trim() == claimantDate.trim();
+    if (sameEmployee && sameAmount && sameDate) {
+      _logger.debug(
+        '🧹 تخطي مستند سحبة مكرر ${data['localUuid']} — السحبة '
+        '${claimant.read<String?>('wuuid')} توأمه وتمتلك الرابط $claimRaw '
+        'محلياً',
+        tag: 'SYNC_RELINK',
+      );
+      return false;
+    }
+
+    // (4-ب) أول مطالِب قائم يفوز.
+    data.remove('expenseUuid');
+    data.remove('expense_uuid');
+    _logger.warning(
+      '⚠️ نُزعت مطالبة السحبة ${data['localUuid']} بالرابط $claimRaw — '
+      'مملوك مسبقاً للسحبة ${claimant.read<String?>('wuuid')} وليس توأماً '
+      'ولا حكماً من المصروف (أول مطالِب يفوز)',
+      tag: 'SYNC_RELINK',
+    );
+    return true;
+  }
+
+  /// ✅ (2026-11-03) تطبيع UUID للمقارنة: trim + بدون الشرطات + lowercase
+  /// — يطابق REPLACE(LOWER(TRIM(col)), '-', '') في استعلامات الحارس أعلاه.
+  String _compactUuidToken(Object? value) =>
+      (value?.toString() ?? '').trim().replaceAll('-', '').toLowerCase();
 
   /// ✅ (migration 68) إصلاح روابط المرآة salary_withdrawals.expense_id
   /// عبر expense_uuid المخزّن على السحبة نفسه — يُشغَّل في كل دورة مزامنة
