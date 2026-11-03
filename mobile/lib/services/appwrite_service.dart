@@ -1663,9 +1663,7 @@ class AppwriteService {
       endpoint,
     );
     final normalizedProjectId = AppwriteConfigManager.normalizeId(projectId);
-    final normalizedDatabaseId = AppwriteConfigManager.normalizeId(
-      databaseId,
-    );
+    final normalizedDatabaseId = AppwriteConfigManager.normalizeId(databaseId);
     final trimmedApiKey = apiKey.trim();
 
     results['endpoint'] = normalizedEndpoint;

@@ -76,7 +76,8 @@ void main() {
       expect(
         prefs.containsKey('appwrite_api_key'),
         isFalse,
-        reason: 'حفظ \'\' كان يجعل init() يتجاوز المفتاح المدمج (?? لا يلتقط '
+        reason:
+            'حفظ \'\' كان يجعل init() يتجاوز المفتاح المدمج (?? لا يلتقط '
             'السلسلة الفارغة) فتُرفض كل الطلبات بـ 401',
       );
       // القيمة الفعّالة وقت التشغيل ترجع إلى المفتاح المدمج مباشرة.
@@ -173,7 +174,8 @@ void main() {
       expect(
         identical(service.client, firstClient),
         isFalse,
-        reason: 'late final كان يمنع إعادة الإسناد تماماً، فتبقى الطلبات على '
+        reason:
+            'late final كان يمنع إعادة الإسناد تماماً، فتبقى الطلبات على '
             'المشروع القديم حتى إعادة تشغيل التطبيق',
       );
       expect(service.isInitialized, isTrue);
@@ -196,10 +198,7 @@ void main() {
         hintFor(AppwriteException('Unauthorized', 401)),
         contains('المفتاح'),
       );
-      expect(
-        hintFor(AppwriteException('Forbidden', 403)),
-        contains('المفتاح'),
-      );
+      expect(hintFor(AppwriteException('Forbidden', 403)), contains('المفتاح'));
     });
 
     test('Database/Collection غير موجودة ⇒ مشكلة قاعدة البيانات', () {
