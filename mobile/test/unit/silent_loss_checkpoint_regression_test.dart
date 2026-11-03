@@ -167,7 +167,9 @@ void main() {
       );
 
       // غرفة 211 + حجزها. الملاحظة اليتيمة تشير لحجز غير موجود.
-      await db.into(db.rooms).insert(
+      await db
+          .into(db.rooms)
+          .insert(
             const RoomsCompanion(
               roomNumber: d.Value('211'),
               type: d.Value('عادية'),
@@ -263,54 +265,51 @@ void main() {
     },
   );
 
-  test(
-    'درع فقدان salary_cycles الصامت (المسار C): يتيم الموظف يفشل المهمة '
-    'ولا يُدرَج — وإعادة المحاولة ترمي ثانية بلا حالة عالقة',
-    () async {
-      // مُنشئ factory: نفس نسخة الاختبار الأول (قاعدة الملف المشتركة،
-      // لا تزال مفتوحة — انظر الترويسة).
-      final manager = AppwriteSyncManager(
-        appwriteService: AppwriteService(),
-        database: db,
-      );
+  test('درع فقدان salary_cycles الصامت (المسار C): يتيم الموظف يفشل المهمة '
+      'ولا يُدرَج — وإعادة المحاولة ترمي ثانية بلا حالة عالقة', () async {
+    // مُنشئ factory: نفس نسخة الاختبار الأول (قاعدة الملف المشتركة،
+    // لا تزال مفتوحة — انظر الترويسة).
+    final manager = AppwriteSyncManager(
+      appwriteService: AppwriteService(),
+      database: db,
+    );
 
-      // لا موظفين محلياً إطلاقاً — الدورة يتيمة حكماً.
-      final orphanCycle = _cycleDoc(
-        uuid: 'cycle-uuid-1',
-        employeeUuid: 'emp-uuid-missing',
-        employeeId: 9,
-        lastModified: _kBaseEpochSec + 10,
-      );
+    // لا موظفين محلياً إطلاقاً — الدورة يتيمة حكماً.
+    final orphanCycle = _cycleDoc(
+      uuid: 'cycle-uuid-1',
+      employeeUuid: 'emp-uuid-missing',
+      employeeId: 9,
+      lastModified: _kBaseEpochSec + 10,
+    );
 
-      await expectLater(
-        manager.syncSalaryCyclesForTesting([orphanCycle]),
-        throwsA(
-          isA<StateError>()
-              .having((e) => e.message, 'message', contains('salary_cycles'))
-              .having((e) => e.message, 'message', contains('orphan')),
-        ),
-        reason:
-            'دورة راتب يتيمة الموظف (لا طابور دائم لها بعكس '
-            'salary_withdrawals) يجب أن تفشل المهمة كي لا يتقدم مؤشرها '
-            'فوقها — قبل الإصلاح كانت تُتخطى بـ continue فيفقد السجل نهائياً',
-      );
+    await expectLater(
+      manager.syncSalaryCyclesForTesting([orphanCycle]),
+      throwsA(
+        isA<StateError>()
+            .having((e) => e.message, 'message', contains('salary_cycles'))
+            .having((e) => e.message, 'message', contains('orphan')),
+      ),
+      reason:
+          'دورة راتب يتيمة الموظف (لا طابور دائم لها بعكس '
+          'salary_withdrawals) يجب أن تفشل المهمة كي لا يتقدم مؤشرها '
+          'فوقها — قبل الإصلاح كانت تُتخطى بـ continue فيفقد السجل نهائياً',
+    );
 
-      expect(
-        await _cycleByUuid(db, 'cycle-uuid-1'),
-        isNull,
-        reason: 'الدورة اليتيمة لم تُدرَج — ستصل عند وصول الموظف',
-      );
+    expect(
+      await _cycleByUuid(db, 'cycle-uuid-1'),
+      isNull,
+      reason: 'الدورة اليتيمة لم تُدرَج — ستصل عند وصول الموظف',
+    );
 
-      // إعادة الاستدعاء ترمي ثانية: لا حالة عالقة، والإعادة مضمونة كل دورة
-      // حتى يصل الموظف (upsert idempotent عند الشفاء).
-      await expectLater(
-        manager.syncSalaryCyclesForTesting([orphanCycle]),
-        throwsA(isA<StateError>()),
-        reason: 'إعادة المحاولة ترمي ثانية — العقد مستقر عبر الدورات',
-      );
-      expect(await _cycleByUuid(db, 'cycle-uuid-1'), isNull);
-    },
-  );
+    // إعادة الاستدعاء ترمي ثانية: لا حالة عالقة، والإعادة مضمونة كل دورة
+    // حتى يصل الموظف (upsert idempotent عند الشفاء).
+    await expectLater(
+      manager.syncSalaryCyclesForTesting([orphanCycle]),
+      throwsA(isA<StateError>()),
+      reason: 'إعادة المحاولة ترمي ثانية — العقد مستقر عبر الدورات',
+    );
+    expect(await _cycleByUuid(db, 'cycle-uuid-1'), isNull);
+  });
 }
 
 Future<BookingNote?> _noteByUuid(AppDatabase db, String uuid) {

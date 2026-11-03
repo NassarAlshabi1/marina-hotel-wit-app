@@ -100,7 +100,8 @@ void main() {
     expect(
       service.client.endPoint,
       endpointBefore,
-      reason: 'initialize() على العميل المهيأ يجب أن يبقى no-op — '
+      reason:
+          'initialize() على العميل المهيأ يجب أن يبقى no-op — '
           'لهذا وُجد reconfigure()',
     );
 
@@ -131,34 +132,35 @@ void main() {
   });
 
   test(
-      'reconfigureIfNeeded يلتقط التغيير تلقائياً (مسار checkConnection)',
-      () async {
-    SharedPreferences.setMockInitialValues({});
-    await AppwriteConfigManager.init();
-    final service = AppwriteService();
-    await service.initialize();
-    final clientBefore = service.client;
+    'reconfigureIfNeeded يلتقط التغيير تلقائياً (مسار checkConnection)',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      await AppwriteConfigManager.init();
+      final service = AppwriteService();
+      await service.initialize();
+      final clientBefore = service.client;
 
-    // المستخدم حفظ إعدادات جديدة من شاشة إعدادات الاتصال ثم ضغط
-    // «اختبار الاتصال» في الشاشة الرئيسية:
-    await AppwriteConfigManager.saveConfig(
-      endpoint: 'https://tor.cloud.appwrite.io/v1',
-      projectId: 'project_picked_up_automatically',
-      databaseId: 'db_auto_1',
-      apiKey: 'standard_auto_key',
-    );
+      // المستخدم حفظ إعدادات جديدة من شاشة إعدادات الاتصال ثم ضغط
+      // «اختبار الاتصال» في الشاشة الرئيسية:
+      await AppwriteConfigManager.saveConfig(
+        endpoint: 'https://tor.cloud.appwrite.io/v1',
+        projectId: 'project_picked_up_automatically',
+        databaseId: 'db_auto_1',
+        apiKey: 'standard_auto_key',
+      );
 
-    // ConnectionStatusNotifier.checkConnection يستدعي reconfigureIfNeeded
-    // قبل الفحص — يجب أن يلتقط التغيير ويبني عميلاً جديداً (بالقيم
-    // الجديدة) لا أن يفحص بالإعدادات القديمة.
-    await service.reconfigureIfNeeded();
-    expect(identical(clientBefore, service.client), isFalse);
-    expect(
-      service.client.config['project'],
-      'project_picked_up_automatically',
-    );
-    expect(service.client.endPoint, 'https://tor.cloud.appwrite.io/v1');
-  });
+      // ConnectionStatusNotifier.checkConnection يستدعي reconfigureIfNeeded
+      // قبل الفحص — يجب أن يلتقط التغيير ويبني عميلاً جديداً (بالقيم
+      // الجديدة) لا أن يفحص بالإعدادات القديمة.
+      await service.reconfigureIfNeeded();
+      expect(identical(clientBefore, service.client), isFalse);
+      expect(
+        service.client.config['project'],
+        'project_picked_up_automatically',
+      );
+      expect(service.client.endPoint, 'https://tor.cloud.appwrite.io/v1');
+    },
+  );
 
   test('resetToDefaults يعود للعميل الافتراضي بعد إعادة التعيين', () async {
     // البدء بإعدادات مخصصة محفوظة (كجهاز سبق أن غيّر إعداداته)
@@ -179,13 +181,7 @@ void main() {
     await AppwriteConfigManager.resetToDefaults();
     await service.reconfigure();
 
-    expect(
-      service.client.endPoint,
-      AppwriteConfigManager.endpoint,
-    );
-    expect(
-      service.client.config['project'],
-      AppwriteConfigManager.projectId,
-    );
+    expect(service.client.endPoint, AppwriteConfigManager.endpoint);
+    expect(service.client.config['project'], AppwriteConfigManager.projectId);
   });
 }
