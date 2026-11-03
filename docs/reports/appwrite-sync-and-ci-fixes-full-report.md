@@ -573,3 +573,5 @@ _apiKeyValue = normalizedApiKey.isEmpty
 8. `reinitialize()` يعيد كائن `Client` جديداً (قبل الإصلاح: `late final` ⇒ استحالة).
 9. `initialize()` المتكرر آمن.
 10–12. تصنيف الفشل: 401/403 ⇒ مفتاح، `database/collection` ⇒ قاعدة البيانات، `project` ⇒ مشروع، Socket/timeout ⇒ عنوان، غير ذلك ⇒ «غير مصنّف» (لا تصنيف زائف).
+
+> **التنسيق:** الكوميت `5eeed56` (Auto Format الرسمي، `--line-length 80`) أُضيف بعد `a2834c6` لتوافق الشجرة مع بوابة `Dart Format` في CI؛ لم يغيّر أي دلالة — فقط لفّ سطور في `appwrite_service.dart` و`appwrite_connection_config_test.dart`.
