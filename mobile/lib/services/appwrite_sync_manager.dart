@@ -4299,6 +4299,11 @@ class AppwriteSyncManager {
     // ✅ (2026-11-03) مستندات مكررة (توأم) يمتلك رابط المرآة محلياً سجلٌّ
     // قائم — تُتخطى ولا تُحتسب فشلاً (انظر _prepareSalaryWithdrawalMirrorClaim).
     var mirrorDuplicates = 0;
+    // ✅ (2026-11-03) سحبات وصلت بلا expenseUuid أصلاً (سجلات أقدم من ميزة
+    // رابط المرآة) — تُجمَّع بملخص واحد بدل تحذير لكل سجل (طوفان تحذيرات
+    // في سجلات الإنتاج). المطالبات التي نزعها حارس التحكيم مستثناة لأن
+    // سبب نزعها يُسجَّل هناك بسياقه الكامل.
+    var legacyNoClaimCount = 0;
     // ✅ (المرحلة 0 — P0.2) محلّل FK واحد لكل دفعة سحب.
     final employeeFkResolver = IdResolver(database);
 
@@ -4433,7 +4438,11 @@ class AppwriteSyncManager {
         // uuid_active (فهرس جزئي لا يقبل ON CONFLICT) الذي كان يقيّد مؤشر
         // salary_withdrawals إلى الأبد: مستندات سحابة مكررة/قديمة تطالب
         // بنفس expenseUuid بمعرفات مختلفة.
-        final rawRemoteExpenseId = _asIntSafe(data, 'expenseId');
+        // (يُلتقط وجود المطالبة قبل الحارس لأنه ينزعها من data عند الحسم —
+        // المطالبة المنزوعة ليست «سجلاً قديماً بلا رابط».)
+        final arrivedWithMirrorClaim =
+            _asNullableString(data['expenseUuid'] ?? data['expense_uuid']) !=
+            null;
         if (!await _prepareSalaryWithdrawalMirrorClaim(data)) {
           mirrorDuplicates++;
           continue;
@@ -4447,15 +4456,16 @@ class AppwriteSyncManager {
         // ✅ الآن بحل uuid المرآة أولاً: expense_id الخام من جهاز المصدر
         // لا يصلح عبر الأجهزة (autoincrement معاد الترقيم) — إصلاح جذر
         // انكسار رابط سحبة↔مصروف (643/688 زوجاً خاطئاً على السحابة).
-        // (الرقمي الخام يُمرَّر هنا للتشخيص في السجل فقط — الحارس أعلاه
-        // أزاله من data فلا يُكتب أبداً.)
+        // (الحارس أعلاه أزال الرقمي الخام من data فلا يُكتب أبداً.)
         await _resolveAndWriteMirrorExpenseId(
           insertedId,
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
-          rawExpenseId: rawRemoteExpenseId,
         );
+        if (!arrivedWithMirrorClaim) {
+          legacyNoClaimCount++;
+        }
 
         // ✅ Wave 7 tighten: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
@@ -4512,6 +4522,19 @@ class AppwriteSyncManager {
       );
     }
 
+    // ✅ (2026-11-03) ملخص السحبات القديمة بلا expenseUuid — سطر واحد
+    // لكل دفعة بدل تحذير لكل سجل (كانت تُغرق سجلات الإنتاج، خصوصاً السحب
+    // الأولي الكامل لجهاز جديد بمئات السحبات التاريخية). ليست فشلاً:
+    // الرقمي البعيد يُتجاهل عمداً (autoincrement جهاز المصدر غير موثوق
+    // عبر الأجهزة) والمؤشر يتقدم فوقها.
+    if (legacyNoClaimCount > 0) {
+      _logger.info(
+        'ℹ️ $legacyNoClaimCount سحبة وصلت بلا expenseUuid (سجلات أقدم من '
+        'ميزة رابط المرآة) — الرقمي البعيد يُتجاهل عمداً وليست فشلاً',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
     // ✅ إعادة محاولة السجلات المؤجلة بعد اكتمال باقي السجلات
     if (deferred.isNotEmpty) {
       _logger.info(
@@ -4523,7 +4546,9 @@ class AppwriteSyncManager {
           // ✅ (2026-11-03) نفس حارس تصادم مطالبة رابط المرآة قبل الكتابة —
           // مشهد المطالبة قد يتغير داخل الدفعة الواحدة (سحبة أخرى من نفس
           // الدفعة احتلت الرابط أثناء التأجيل).
-          final rawRemoteExpenseId = _asIntSafe(data, 'expenseId');
+          final arrivedWithMirrorClaim =
+              _asNullableString(data['expenseUuid'] ?? data['expense_uuid']) !=
+              null;
           if (!await _prepareSalaryWithdrawalMirrorClaim(data)) {
             mirrorDuplicates++;
             continue;
@@ -4546,8 +4571,10 @@ class AppwriteSyncManager {
             expenseUuid: _asNullableString(
               data['expenseUuid'] ?? data['expense_uuid'],
             ),
-            rawExpenseId: rawRemoteExpenseId,
           );
+          if (!arrivedWithMirrorClaim) {
+            legacyNoClaimCount++;
+          }
           // ✅ Wave 7 tighten: notify remote change from another device
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
             entity: 'salary_withdrawals',
@@ -4681,6 +4708,9 @@ class AppwriteSyncManager {
     if (pending.isEmpty) return 0;
 
     var recovered = 0;
+    // ✅ (2026-11-03) سحبات قديمة بلا expenseUuid استُعيدت من الطابور —
+    // ملخص واحد بدل تحذير لكل سجل (نمط تقليل السبام المعتمد أعلاه).
+    var legacyNoClaimCount = 0;
     final stillPending = <Map<String, dynamic>>[];
 
     for (final data in pending) {
@@ -4722,7 +4752,9 @@ class AppwriteSyncManager {
 
         // ✅ (2026-11-03) نفس حارس تصادم مطالبة رابط المرآة قبل الكتابة —
         // حتى مستندات طابور اليتامى الدائم لا تنكسر على الفهرس الفريد.
-        final rawRemoteExpenseId = _asIntSafe(data, 'expenseId');
+        final arrivedWithMirrorClaim =
+            _asNullableString(data['expenseUuid'] ?? data['expense_uuid']) !=
+            null;
         if (!await _prepareSalaryWithdrawalMirrorClaim(data)) {
           recovered++;
           _logger.info(
@@ -4741,8 +4773,10 @@ class AppwriteSyncManager {
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
-          rawExpenseId: rawRemoteExpenseId,
         );
+        if (!arrivedWithMirrorClaim) {
+          legacyNoClaimCount++;
+        }
 
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'salary_withdrawals',
@@ -4772,6 +4806,16 @@ class AppwriteSyncManager {
     if (recovered > 0) {
       _logger.info(
         '🔗 تم استرجاع $recovered/${pending.length} سحب راتب يتيم من الطابور المعلّق',
+        tag: 'SYNC_RELINK',
+      );
+    }
+
+    // ✅ (2026-11-03) ملخص السحبات المستعادة القديمة بلا expenseUuid —
+    // سطر واحد لكل دورة استعادة.
+    if (legacyNoClaimCount > 0) {
+      _logger.info(
+        'ℹ️ $legacyNoClaimCount من السحوبات المستعادة وصلت بلا expenseUuid '
+        '(سجلات أقدم من ميزة رابط المرآة) — الرقمي البعيد يُتجاهل عمداً',
         tag: 'SYNC_RELINK',
       );
     }
@@ -4890,9 +4934,10 @@ class AppwriteSyncManager {
   /// UUID هو هوية ثابتة عبر الأجهزة، فيُحل دائماً إلى المصروف الصحيح
   /// (بعد وصول المصروف محلياً — المصروفات تُسحب قبل السحبات).
   ///
-  /// المستوى 2 (احتياطي للسجلات القديمة قبل ترحيل السحابة): expense_id
-  /// الخام من جهاز المصدر — نفس السلوك التاريخي. تُترك القيمة الخام
-  /// للترحيل 68 + _relinkMirrorExpenseIds لتصحيحها لاحقاً.
+  /// المستوى 2 (أُلغي 2026-11-03): expense_id الخام من جهاز المصدر لم
+  /// يعد يُكتب أبداً — autoincrement جهاز المصدر غير موثوق عبر الأجهزة.
+  /// السحبات القديمة بلا expenseUuid تبقى بلا رابط مرآة، وتُجمَّع بملخص
+  /// واحد عند المتصلين (انظر _syncSalaryWithdrawals) بدل تحذير لكل سجل.
   ///
   /// ⚠️ إذا وُجد expense_uuid لكن المصروف لم يصل محلياً بعد، لا نكتب
   /// الرابط الخام (معروف بأنه غير موثوق عبر الأجهزة) — العمود يبقى null
@@ -4901,7 +4946,6 @@ class AppwriteSyncManager {
   Future<void> _resolveAndWriteMirrorExpenseId(
     int salaryWithdrawalRowId, {
     String? expenseUuid,
-    int? rawExpenseId,
   }) async {
     int? resolvedExpenseId;
     if (expenseUuid != null && expenseUuid.isNotEmpty) {
@@ -4947,11 +4991,12 @@ class AppwriteSyncManager {
       // It is never safe to copy it into this device because the same number
       // may belong to a completely different expense/employee here. Preserve
       // the existing local value and wait for a UUID-bearing record/relink.
-      _logger.warning(
-        '⚠️ salary_withdrawal #$salaryWithdrawalRowId arrived without '
-        'expenseUuid; raw remote expenseId=$rawExpenseId was deliberately ignored',
-        tag: 'SYNC_RELINK',
-      );
+      //
+      // ✅ (2026-11-03) لا تحذير لكل سجل هنا: السجلات الأقدم من ميزة رابط
+      // المرآة تصل بلا expenseUuid بشكل مشروع (طوفان تحذيرات في سجلات
+      // الإنتاج — مئات الأسطر في السحب الأولي لجهاز جديد)، والمطالبات
+      // التي نزعها حارس التحكيم سُجِّل سبب نزعها هناك بسياقه الكامل.
+      // المتصلون يجمعون الحالة الأولى في سطر ملخص واحد لكل دفعة.
       return;
     }
 

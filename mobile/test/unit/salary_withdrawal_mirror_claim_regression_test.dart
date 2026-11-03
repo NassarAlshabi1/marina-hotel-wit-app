@@ -22,6 +22,10 @@
 //      الفهرس وتحجب السحبة الصحيحة (تُثبت أن الخنة تبقى حرة).
 //  ت6) الرقمي الخام expenseId البعيد لا يصل عمود expense_id أبداً.
 //  ت7) دفعة واحدة بمطالبتين متصادمتين → لا StateError ولا 2067.
+//  ت8) سحبات قديمة بلا expenseUuid → ملخص واحد لكل دفعة بدل تحذير
+//      لكل سجل (طوفان سجلات الإنتاج) والمؤشر يتقدم فوقها.
+//  ت9) مطالبة نزعها حارس التحكيم لا تُحسب «بلا رابط» ولا تُسجل رسالة
+//      «وصل بلا expenseUuid» المضللة (سبب النزع مسجّل بسياقه الكامل).
 
 import 'dart:io';
 
@@ -31,6 +35,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
+import 'package:marina_hotel_mobile/services/appwrite_logger.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
@@ -423,4 +428,99 @@ void main() {
     final second = await rowByUuid('sw-b');
     expect(second!.expenseUuid, isNull, reason: 'الثانية بلا رابط — لا فشل');
   });
+
+  test(
+    'ت8: سحبات قديمة بلا expenseUuid → ملخص واحد لكل دفعة بدل تحذير لكل سجل',
+    () async {
+      await addEmployee('emp-a');
+      final logger = AppwriteLogger();
+      final manager = newManager();
+      logger.clearLogs();
+
+      final applied = await manager.syncSalaryWithdrawalsForTesting([
+        withdrawalDoc(uuid: 'sw-legacy-1', expenseId: 101),
+        withdrawalDoc(uuid: 'sw-legacy-2', expenseId: 102),
+        withdrawalDoc(uuid: 'sw-legacy-3', expenseId: 103),
+      ]);
+
+      expect(applied, 3, reason: 'السجلات القديمة تُطبَّق كاملة بلا فشل');
+      for (final uuid in ['sw-legacy-1', 'sw-legacy-2', 'sw-legacy-3']) {
+        final row = await rowByUuid(uuid);
+        expect(row, isNotNull, reason: 'السجل القديم يُخزَّن');
+        expect(row!.expenseId, isNull, reason: 'الرقمي الخام لا يُكتب');
+        expect(row.expenseUuid, isNull);
+      }
+
+      final relinkLogs = logger
+          .getLogs()
+          .where((l) => l.tag == 'SYNC_RELINK')
+          .toList();
+      // قبل الإصلاح: 3 تحذيرات «arrived without expenseUuid» — واحد لكل
+      // سجل (طوفان في السحب الأولي لجهاز جديد بمئات السحبات التاريخية).
+      expect(
+        relinkLogs.where((l) => l.message.contains('arrived without')).length,
+        0,
+        reason: 'لا تحذير لكل سجل بعد الإصلاح',
+      );
+      final summaries = relinkLogs
+          .where((l) => l.message.contains('بلا expenseUuid'))
+          .toList();
+      expect(summaries.length, 1, reason: 'سطر ملخص واحد لكل الدفعة');
+      expect(
+        summaries.single.message,
+        contains('3'),
+        reason: 'الملخص يذكر العدد كاملاً',
+      );
+      expect(summaries.single.level, LogLevel.info);
+    },
+  );
+
+  test(
+    'ت9: مطالبة نُزعت بالتحكيم لا تُحسب «بلا رابط» ولا تُسجل تحذيراً مضللاً',
+    () async {
+      await addEmployee('emp-a');
+      await addEmployee('emp-b');
+      // مصروف موظف B بلا ختم ملكية (withdrawal_uuid) — يكفي وجوده محلياً
+      // ليثبت حارس التحكيم أن سحبة موظف A تطالب بمصروف غيرها (زوج فاسد).
+      await addExpense(employeeUuid: 'emp-b');
+      final logger = AppwriteLogger();
+      final manager = newManager();
+      logger.clearLogs();
+
+      final applied = await manager.syncSalaryWithdrawalsForTesting([
+        withdrawalDoc(
+          uuid: 'sw-corrupt',
+          expenseUuid: 'exp-uuid-1',
+          expenseId: 999,
+        ),
+      ]);
+
+      expect(applied, 1);
+      final row = await rowByUuid('sw-corrupt');
+      expect(row, isNotNull, reason: 'السحبة تُخزَّن بلا رابط مرآة');
+      expect(row!.expenseUuid, isNull, reason: 'المطالبة الفاسدة نُزعت');
+
+      final relinkLogs = logger
+          .getLogs()
+          .where((l) => l.tag == 'SYNC_RELINK')
+          .toList();
+      expect(
+        relinkLogs.where((l) => l.message.contains('نُزعت مطالبة')).length,
+        1,
+        reason: 'قرار التحكيم يُسجَّل مرة واحدة بسياقه الكامل',
+      );
+      expect(
+        relinkLogs.where((l) => l.message.contains('arrived without')).length,
+        0,
+        reason:
+            'لا رسالة «وصل بلا expenseUuid» لمطالبة نزعها التحكيم — '
+            'المستند وصل بمطالبة وحُسمت بقرار مسجّل',
+      );
+      expect(
+        relinkLogs.where((l) => l.message.contains('بلا expenseUuid')).length,
+        0,
+        reason: 'المطالبة المنزوعة لا تُحسب سجلاً قديماً بلا رابط',
+      );
+    },
+  );
 }
