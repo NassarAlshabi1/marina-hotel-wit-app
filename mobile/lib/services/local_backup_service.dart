@@ -21,6 +21,7 @@ import 'adapters/source.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'sqlite_backup_restore.dart';
+import 'sync_core/financial_link_relink_service.dart';
 
 export 'google_drive_backup_service.dart' show BackupFormat;
 
@@ -522,11 +523,13 @@ class LocalBackupService {
       final extension = p.extension(filePath).toLowerCase();
       if (extension == '.sqlite' || extension == '.db') {
         await _restoreFromSqliteBackup(filePath);
+        await _postRestoreRelinkAndCheckpoints();
         return;
       }
 
       if (extension == '.json' || extension == '.gz') {
         await _restoreFromJsonBackup(filePath);
+        await _postRestoreRelinkAndCheckpoints();
         return;
       }
 
@@ -536,6 +539,46 @@ class LocalBackupService {
     } catch (e) {
       dlog(() => '❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       rethrow;
+    }
+  }
+
+  /// ✅ (وثيقة §9.1/§9.2/§8.3 — PR-6) خطوة ما بعد الاستعادة الموحدة:
+  ///
+  /// 1. **relink مالي** (§9.1: «بعد import، ينفذ LocalLinkResolver.relink
+  ///    محلياً بلا outbox/version bump»؛ §9.2: «Full restore: يعيد اشتقاق
+  ///    employeeId/relatedId/expenseId من UUID — لا يكتفي بإعادة ربط
+  ///    payments/debts؛ يشمل expenses وsalary_withdrawals وsalary_cycles
+  ///    وsalary_payments وsalary_carry_over_logs»).
+  /// 2. **مسح checkpoints** (§8.3: «عند restore قاعدة محلية: امسح
+  ///    checkpoints لإجبار pull مناسب، ولا تمسح outbox غير المرفوع»)
+  ///    — يشمل جدول sync_checkpoints المخصص وجدول sync_state؛ outbox
+  ///    غير المرفوع يبقى كما هو.
+  Future<void> _postRestoreRelinkAndCheckpoints() async {
+    // 1) مسح checkpoints — يُجبر السحب الكامل المناسب بعد الاستعادة.
+    try {
+      final db = getDatabase();
+      await db.customStatement('DELETE FROM sync_checkpoints');
+      dlog('🧹 تم مسح sync_checkpoints — السحب سيبدأ مناسباً بعد الاستعادة');
+    } catch (_) {
+      // الجدول المخصص قد لا يكون مُنشأً بعد على نسخة قديمة — غير حرج.
+    }
+    try {
+      final db = getDatabase();
+      await db.delete(db.syncState).go();
+      dlog('🧹 تم مسح sync_state — إجبار pull مناسب بعد الاستعادة');
+    } catch (e) {
+      dlog(() => '⚠️ فشل مسح sync_state بعد الاستعادة: $e');
+    }
+
+    // 2) إعادة اشتقاق الأرقام المحلية من UUID — بلا outbox/version bump.
+    try {
+      final db = getDatabase();
+      final report = await FinancialLinkRelinkService(db).relinkAll();
+      dlog(() => '🔗 relink مالي بعد الاستعادة: $report');
+    } catch (e) {
+      // فشل relink لا يُفشل الاستعادة نفسها — الأرقام تُشتق أيضاً في
+      // مسارات السحب/التشغيل، والخلل يظهر في تقرير السلامة (§11).
+      dlog(() => '⚠️ فشل relink مالي بعد الاستعادة: $e');
     }
   }
 

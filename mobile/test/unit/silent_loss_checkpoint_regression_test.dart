@@ -19,8 +19,12 @@
 //   1) booking_notes (المسار B): ملاحظة يتيمة (حجز أب مفقود) → تأجيل →
 //      فشل إعادة المحاولة → StateError؛ الملاحظة السليمة في نفس الدفعة
 //      مطبَّقة (تطبيق جزئي محفوظ)؛ الشفاء الذاتي عند وصول الحجز لاحقاً.
-//   2) salary_cycles (المسار C): دورة يتيمة الموظف → StateError ولا
-//      تُدرَج، وإعادة الاستدعاء ترمي ثانية (لا حالة عالقة ولا فقدان).
+//   2) salary_cycles (المسار C): ✅ (2026-11-04 — وثيقة §4.1/§8.1) تحدّث
+//      العقد: الدورة اليتيمة تُحفظ **دائماً** في جدول pending_links
+//      (payload كامل قابل لإعادة التطبيق) بلا رمي ولا إدراج — المؤشر
+//      قد يتقدم لأن الـ payload محفوظ محلياً بشكل دائم («لا يجوز التقدم
+//      إذا لم يتم حفظه»)، وإعادة المحاولة بعد وصول الموظف تطبّقه
+//      (_retryPendingFinancialLinks) وتعلّم الصف كمحلول بلا حذف.
 //
 // ⚠️ قاعدة واحدة لكل الملف (نفس قيد phase0_data_integrity_test):
 // AppwriteSyncManager singleton بمُنشئ factory يتجاهل المعامل بعد أول
@@ -265,8 +269,8 @@ void main() {
     },
   );
 
-  test('درع فقدان salary_cycles الصامت (المسار C): يتيم الموظف يفشل المهمة '
-      'ولا يُدرَج — وإعادة المحاولة ترمي ثانية بلا حالة عالقة', () async {
+  test('درع فقدان salary_cycles الصامت (المسار C): يتيم الموظف يُحفظ دائماً '
+      'في pending_links (وثيقة §8.1) — ويُطبَّق عند وصول الموظف', () async {
     // مُنشئ factory: نفس نسخة الاختبار الأول (قاعدة الملف المشتركة،
     // لا تزال مفتوحة — انظر الترويسة).
     final manager = AppwriteSyncManager(
@@ -282,33 +286,71 @@ void main() {
       lastModified: _kBaseEpochSec + 10,
     );
 
-    await expectLater(
-      manager.syncSalaryCyclesForTesting([orphanCycle]),
-      throwsA(
-        isA<StateError>()
-            .having((e) => e.message, 'message', contains('salary_cycles'))
-            .having((e) => e.message, 'message', contains('orphan')),
-      ),
-      reason:
-          'دورة راتب يتيمة الموظف (لا طابور دائم لها بعكس '
-          'salary_withdrawals) يجب أن تفشل المهمة كي لا يتقدم مؤشرها '
-          'فوقها — قبل الإصلاح كانت تُتخطى بـ continue فيفقد السجل نهائياً',
-    );
+    // ✅ العقد الجديد (وثيقة §8.1): لا رمي — اليتيم يُحفظ في pending_links
+    // ثم يمكن للمؤشر التقدم لأن payload محفوظ محلياً بشكل دائم.
+    final processed = await manager.syncSalaryCyclesForTesting([orphanCycle]);
+    expect(processed, 0, reason: 'لم يُطبَّق شيء — لكن بلا فقدان (انظر أسفل)');
 
+    // الدورة لم تُدرَج في جدولها — لكنها **محفوظة دائماً** في pending_links.
     expect(
       await _cycleByUuid(db, 'cycle-uuid-1'),
       isNull,
-      reason: 'الدورة اليتيمة لم تُدرَج — ستصل عند وصول الموظف',
+      reason: 'لم تُدرَج في salary_cycles بعد — الأب غير موجود',
     );
+    final pendingRow = await (db.select(db.pendingLinks)
+          ..where((r) => r.entity.equals('salary_cycles'))
+          ..where((r) => r.localUuid.equals('cycle-uuid-1'))
+          ..limit(1))
+        .getSingleOrNull();
+    expect(pendingRow, isNotNull,
+        reason: 'الـ payload محفوظ دائماً — لا فقدان صامت (§1.3-1/§8.1)');
+    expect(pendingRow!.parentEntity, 'employees');
+    expect(pendingRow.parentUuid, 'emp-uuid-missing');
+    expect(pendingRow.resolvedAt, isNull);
+    expect(pendingRow.attempts, 1);
 
-    // إعادة الاستدعاء ترمي ثانية: لا حالة عالقة، والإعادة مضمونة كل دورة
-    // حتى يصل الموظف (upsert idempotent عند الشفاء).
-    await expectLater(
-      manager.syncSalaryCyclesForTesting([orphanCycle]),
-      throwsA(isA<StateError>()),
-      reason: 'إعادة المحاولة ترمي ثانية — العقد مستقر عبر الدورات',
-    );
-    expect(await _cycleByUuid(db, 'cycle-uuid-1'), isNull);
+    // إعادة الاستدعاء تزيد عدّاد المحاولات (upsert) — بلا صف ثانٍ ولا رمي:
+    // العقد مستقر عبر الدورات حتى يصل الموظف.
+    await manager.syncSalaryCyclesForTesting([orphanCycle]);
+    final rows = await db.select(db.pendingLinks).get();
+    expect(rows.length, 1, reason: 'القيد الفريد (entity, local_uuid)');
+    expect(rows.first.attempts, 2);
+
+    // ═══ الشفاء الذاتي: وصول الموظف ثم إعادة محاولة pending links ═══
+    await db.into(db.employees).insert(
+          EmployeesCompanion.insert(
+            localUuid: 'emp-uuid-missing',
+            createdAt: _kBaseEpochSec,
+            updatedAt: _kBaseEpochSec,
+            lastModified: _kBaseEpochSec,
+            name: 'موظف متأخر الوصول',
+            basicSalary: 1000,
+            status: 'active',
+          ),
+        );
+
+    final healed = await manager.retryPendingFinancialLinksForTesting();
+    expect(healed, greaterThanOrEqualTo(1),
+        reason: 'بعد وصول الموظف يُطبَّق الـ payload المحفوظ (§8.1)');
+
+    final cycleAfterHeal = await _cycleByUuid(db, 'cycle-uuid-1');
+    expect(cycleAfterHeal, isNotNull,
+        reason: 'الدورة تطبَّقت من pending_links عند وصول الموظف');
+    final emp = await (db.select(db.employees)
+          ..where((e) => e.localUuid.equals('emp-uuid-missing'))
+          ..limit(1))
+        .getSingle();
+    expect(cycleAfterHeal!.employeeId, emp.id,
+        reason: 'employeeId اشتُق من employeeUuid (UUID-first — §5.1)');
+
+    final resolvedRow = await (db.select(db.pendingLinks)
+          ..where((r) => r.entity.equals('salary_cycles'))
+          ..where((r) => r.localUuid.equals('cycle-uuid-1'))
+          ..limit(1))
+        .getSingleOrNull();
+    expect(resolvedRow, isNotNull);
+    expect(resolvedRow!.resolvedAt, isNotNull,
+        reason: 'الصف يُعلَّم محلولاً — الأثر يبقى بلا حذف (§1.3-1)');
   });
 }
 

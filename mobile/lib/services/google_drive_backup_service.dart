@@ -31,6 +31,7 @@ import 'google_drive_sign_in_manager.dart';
 import 'local_db.dart';
 import 'restore_fix_service.dart';
 import 'sqlite_backup_restore.dart';
+import 'sync_core/financial_link_relink_service.dart';
 
 enum BackupFormat { json, sqlite }
 
@@ -1837,6 +1838,20 @@ class GoogleDriveBackupService {
           // هذه الخطوة تربط المدفوعات بالحجوزات باستخدام bookingUuidCache/localUuid.
           await _relinkPaymentsToBookings(db);
           await _relinkDebtsToBookings(db);
+
+          // ✅ (وثيقة §9.2 — PR-6) relink الجداول المالية كاملة: «لا يكتفي
+          // بإعادة ربط payments/debts؛ يشمل expenses وsalary_withdrawals
+          // وsalary_cycles وsalary_payments وsalary_carry_over_logs» —
+          // إعادة اشتقاق employeeId/relatedId/expenseId/cycleId من UUID
+          // بلا outbox/version bump (§10.2).
+          try {
+            final relink = await FinancialLinkRelinkService(
+              db,
+            ).relinkAll();
+            _log('🔗 relink مالي بعد الاستعادة: $relink');
+          } catch (e) {
+            _log('⚠️ فشل relink مالي بعد الاستعادة: $e');
+          }
         }); // نهاية db.transaction
       } finally {
         // ✅ إعادة تفعيل FOREIGN KEYS خارج المعاملة
@@ -1866,6 +1881,27 @@ class GoogleDriveBackupService {
       // ✅ إصلاح (2026-06-28): إعادة ربط خارج transaction أيضاً (احتياطي)
       await _relinkPaymentsToBookings(db);
       await _relinkDebtsToBookings(db);
+
+      // ✅ (وثيقة §9.2) احتياطي خارج transaction: relink الجداول المالية
+      // كاملة (idempotent — يُصلح ما تبقى فقط).
+      try {
+        final relink = await FinancialLinkRelinkService(db).relinkAll();
+        if (relink.hasRepairs) {
+          _log('🔗 relink مالي (احتياطي خارج المعاملة): $relink');
+        }
+      } catch (e) {
+        _log('⚠️ فشل relink مالي (احتياطي): $e');
+      }
+
+      // ✅ (وثيقة §8.3) مسح checkpoints بعد الاستعادة لإجبار pull مناسب —
+      // ولا تمسح outbox غير المرفوع.
+      try {
+        await db.customStatement('DELETE FROM sync_checkpoints');
+        _log('🧹 تم مسح sync_checkpoints بعد استعادة Drive');
+      } catch (_) {}
+      try {
+        await db.delete(db.syncState).go();
+      } catch (_) {}
 
       // مزامنة البيانات المستعادة مع Appwrite فقط عند طلبها صراحةً.
       // الاستعادة من Drive لا تغيّر Cloud افتراضياً.

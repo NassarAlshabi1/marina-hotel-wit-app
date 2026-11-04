@@ -48,7 +48,7 @@ import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync/outbox_pull_policy.dart';
 import 'sync_core/outbox_tombstone_guard.dart';
-import 'sync_core/smart_conflict_resolver.dart';
+import 'sync_core/pending_links_service.dart';
 import 'sync_core/sync_checkpoint_store.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
@@ -213,6 +213,8 @@ class AppwriteSyncManager {
       checkpoints: _checkpointStore,
       pullService: _pullService!,
     );
+    // ✅ (وثيقة §4.1/§8.1 — PR-5) تهيئة خدمة الروابط المعلّقة.
+    _pendingLinks = PendingLinksService(database);
   }
   static AppwriteSyncManager? _instance;
 
@@ -260,6 +262,14 @@ class AppwriteSyncManager {
   /// الذي يجعل `sync()` و`pullRemoteChanges()` على مسار سحب واحد.
   late final SyncCheckpointStore _checkpointStore;
   late final UnifiedPullEngine _unifiedPull;
+
+  /// ✅ (وثيقة §4.1/§5.2/§8.1 — PR-5) الروابط المعلّقة الدائمة: الـ payloads
+  /// التي وصلت قبل أبيها (موظف/دورة) تُحفظ هنا وتُعاد محاولتها بعد وصوله
+  /// — بلا حذف وبلا تقدم للمؤشر قبل الحفظ الدائم.
+  late final PendingLinksService _pendingLinks;
+
+  /// حارس ضد التداخل: إعادة محاولة pending links لا تُشغَّل داخل نفسها.
+  bool _retryingPendingLinks = false;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
   final PayloadMapper _payloadMapper = const PayloadMapper();
@@ -1754,15 +1764,18 @@ class AppwriteSyncManager {
   /// 2. إذا كان المحلي يحدث قبل البعيد → البعيد أحدث → طبّق البعيد
   /// 3. إذا كانا متساويين → لا حاجة للتحديث
   /// 4. إذا كانا متزامنين (concurrent) → ⚠️ تعارض حقيقي!
-  ///    → نُسجّل التعارض في sync_conflicts
-  ///    → نحاول الحل الذكي عبر SmartConflictResolver (3-way merge)
-  ///    → إذا فشل الحل التلقائي، نطبّق LWW كحل احتياطي آمن
+  ///    → ✅ (وثيقة §7.5 — 2026-11-04) **Cloud Wins**: تُطبَّق نسخة Appwrite
+  ///      كاملة — لا دمج حقول (أُزيل SmartConflictResolver من هذا المسار)
+  ///      ولا LWW بالساعة؛ عمليات Outbox المحلية المتعارضة تُعلَّم
+  ///      `superseded_by_cloud` ولا يُعاد رفعها، ويُسجّل التعارض في
+  ///      sync_conflicts كأثر تشخيصي فقط.
   ///
   /// Vector Clock يكتشف التعارضات المتزامنة حتى لو كانت ساعات الأجهزة
   /// متطابقة أو متزامنة، لأنه يعتمد على العلاقة السببية وليس الزمن الفيزيائي.
   ///
-  /// ✅ إصلاح (2026-06-28 P0-3): تكامل SmartConflictResolver في فرع concurrent.
-  /// النتيجة تحتوي على mergedData إذا تم الدمج التلقائي بنجاح.
+  /// ✅ (2026-11-04) أثر الدمج القديم: كانت نتيجة الدمج تُطبَّق محلياً وتُرفع
+  /// للسحابة (mergedData + pushedToRemote) — أُزيلت من هذا المسار؛ Cloud Wins
+  /// يعني اعتماد السجل السحابي كاملاً دون كتابة مشتقة من نسخة الجهاز.
   Future<_RemoteNewerResult> _isRemoteDataNewer(
     Map<String, dynamic> remoteData,
     int? localLastModified, {
@@ -1980,73 +1993,30 @@ class AppwriteSyncManager {
 
       case VectorClockComparison.concurrent:
         // ⚠️ تعارض متزامن! كلا الجهازين عدّلا نفس السجل بشكل مستقل.
+        //
+        // ✅ (2026-11-04 — وثيقة الربط والمزامنة الموحدة §7.5) **Cloud Wins**:
+        // نسخة Appwrite هي المرجع والفائزة دائماً عند تعارض الأجهزة:
+        // - تُطبَّق النسخة السحابية **كاملة** — لا دمج حقول (3-way merge)
+        //   ولا ترجيح بساعة الجهاز (LWW): «Cloud Wins يعني اعتماد السجل
+        //   السحابي كاملاً» و«لا تدمج حقول السجل المالية تلقائياً بين
+        //   نسختين متزامنتين».
+        // - عمليات Outbox المحلية المتعارضة للسجل نفسه تُعلَّم
+        //   `superseded_by_cloud` ولا يُعاد رفعها فوق السحابة — نفس سلوك
+        //   SyncPullService.checkAndResolveConflict (مسار السحب الفردي)
+        //   حتى يتطابق المساران (§7.5).
+        // - `VectorClock` أداة كشف/تشخيص فقط — لا يختار الفائز.
         _logger.warning(
-          '⚠️ CONCURRENT CONFLICT detected! '
-          'entity=$entityName, uuid=$localUuid, '
-          'localVc=$localVectorClock, remoteVc=$remoteVcStr, '
-          'localLastModified=$localLastModified, remoteLastModified=$effectiveRemoteTs.',
+          '⚠️ CONCURRENT CONFLICT (Cloud Wins): entity=$entityName, '
+          'uuid=$localUuid, localVectorClock=$localVectorClock, '
+          'cloudVectorClock=$remoteVcStr, '
+          'localLastModified=$localLastModified, '
+          'cloudLastModified=$effectiveRemoteTs — '
+          'تُطبَّق نسخة Appwrite كاملة وتُعلَّم عمليات Outbox المحلية '
+          'superseded_by_cloud (وثيقة §7.5).',
           tag: 'CONFLICT',
         );
 
-        // ✅ P0-3: محاولة الحل الذكي عبر SmartConflictResolver (3-way merge)
-        if (entityName != null && localUuid != null && localData != null) {
-          try {
-            final ancestor = await _ancestorCacheDao.getAncestor(
-              entityName,
-              localUuid,
-            );
-            // ✅ P0-5 Audit Fix: حفظ نسخة من البيانات البعيدة الأصلية
-            // قبل التعديل (remoteData سيُعدَّل in-place بعد الدمج).
-            final remoteDataOriginal = Map<String, dynamic>.from(remoteData);
-            final resolution = SmartConflictResolver.resolve(
-              entity: entityName,
-              localData: localData,
-              remoteData: remoteData,
-              commonAncestor: ancestor,
-            );
-
-            if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
-              _logger.info(
-                '✅ Concurrent conflict auto-resolved via 3-way merge: '
-                'entity=$entityName, uuid=$localUuid, '
-                'warnings=${resolution.warnings.length}',
-                tag: 'CONFLICT',
-              );
-              // ✅ P0-2 إصلاح (2026-06-28): كتابة البيانات المدمجة في remoteData
-              // في المكان (in-place) ليتم تطبيقها من المُتصل. المُتصل يستخدم نفس
-              // كائن Map كـ `data` وبعد الـ check يمرره مباشرة إلى
-              // adapter.upsertFromJson(data, ...). بتعديل remoteData مباشرة،
-              // نضمن أن المُتصل يُطبق نتيجة الدمج بدلاً من البيانات البعيدة الخام.
-              // ⚠️ آمن: remoteData هو نسخة محلية Map.from(doc.data) وليس كائن Appwrite الأصلي.
-              remoteData.clear();
-              remoteData.addAll(resolution.mergedData);
-              // ✅ P0-5 Audit Fix (2026-08-06): حفظ البيانات البعيدة الأصلية كـ ancestor
-              // (وليس البيانات المدموجة). الـ ancestor يجب أن يكون "آخر نسخة مشتركة"
-              // بين الجهازين. البيانات المدموجة لم تُرفع للسحابة بعد، فلا يمكن اعتبارها
-              // "مشتركة". حفظ البيانات المدموجة كـ ancestor يكسر الدمج في التعارض
-              // التالي لأن الـ ancestor سيعكس التغييرات المحلية بدلاً من المشترك.
-              // ملاحظة: الـ ancestor الحقيقي سيُحدّث تلقائياً عند الـ push التالي
-              // (انظر _bumpVectorClockBeforePush + _occCheckAndMerge).
-              await _ancestorCacheDao.saveAncestor(
-                entity: entityName,
-                localUuid: localUuid,
-                data: remoteDataOriginal,
-              );
-              return _RemoteNewerResult(
-                shouldApplyRemote: true,
-                mergedData: resolution.mergedData,
-                pushedToRemote: resolution.pushedToRemote,
-              );
-            }
-          } catch (e) {
-            _logger.warning(
-              '⚠️ SmartConflictResolver failed, falling back to LWW: $e',
-              tag: 'CONFLICT',
-            );
-          }
-        }
-
-        // تسجيل التعارض في sync_conflicts (LWW fallback)
+        // أثر تشخيصي في sync_conflicts — لا يُستخدم لإعادة الإرسال (§7.5).
         await _logConcurrentConflict(
           entity: entityName ?? 'unknown',
           uuid: localUuid ?? remoteData['localUuid']?.toString() ?? '',
@@ -2057,19 +2027,205 @@ class AppwriteSyncManager {
           localData: localData,
           remoteData: remoteData,
         );
-        // ✅ توحيد كسر التعادل: LWW + عند التساوي يفوز deviceId الأصغر معجمياً
-        // نُقارن deviceId البعيد مع deviceId المحلي: إذا كان البعيد أصغر
-        // معجمياً، يفوز البعيد (لتطبيق سلوك حتمي ومتناظر بين الأجهزة).
-        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
-            ? effectiveRemoteTs ~/ 1000
-            : effectiveRemoteTs;
-        final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
-        final localDeviceId = _currentDeviceId ?? '';
-        final shouldApply =
-            normalizedRemoteTs > localLastModified ||
-            (normalizedRemoteTs == localLastModified &&
-                remoteDeviceId.compareTo(localDeviceId) < 0);
-        return _RemoteNewerResult(shouldApplyRemote: shouldApply);
+
+        await _supersedeConflictingOutboxOps(entityName, localUuid);
+
+        return const _RemoteNewerResult(shouldApplyRemote: true);
+    }
+  }
+
+  /// ✅ (وثيقة §7.5) تعليم عمليات Outbox المحلية المعلّقة للسجل المتعارض
+  /// بحالة `superseded_by_cloud` — لا يُعاد رفعها فوق نسخة السحابة الفائزة.
+  ///
+  /// نفس قواعد SyncPullService._supersedeLocalOutboxOps: تُعلَّم عمليات
+  /// هذا السجل فقط (entity + localUuid) — لا تُمس عمليات سجلات أخرى أو
+  /// عمليات غير متعارضة؛ الحالة تبقى أثراً تشخيصياً غير قابل لإعادة
+  /// الإرسال (takeBatch يلتقط pending/failed فقط).
+  Future<void> _supersedeConflictingOutboxOps(
+    String? entityName,
+    String? localUuid,
+  ) async {
+    if (entityName == null || entityName.isEmpty) return;
+    if (localUuid == null || localUuid.isEmpty) return;
+    try {
+      final marked =
+          await (database.update(database.outbox)..where(
+                (t) =>
+                    t.entity.equals(entityName) &
+                    t.localUuid.equals(localUuid) &
+                    t.processingStatus.isIn(const [
+                      'pending',
+                      'processing',
+                      'failed',
+                    ]),
+              ))
+              .write(
+                const OutboxCompanion(
+                  processingStatus: drift.Value('superseded_by_cloud'),
+                  lastError: drift.Value(
+                    'superseded_by_cloud: Appwrite Cloud Wins — تعارض '
+                    'متزامن حُسم لصالح نسخة السحابة (وثيقة §7.5)؛ '
+                    'لا يُعاد الرفع',
+                  ),
+                ),
+              );
+      if (marked > 0) {
+        _logger.info(
+          '🏷️ تم تعليم $marked عملية Outbox المحلية للمتعارض '
+          '$entityName/$localUuid بحالة superseded_by_cloud',
+          tag: 'CONFLICT',
+        );
+      }
+    } catch (e) {
+      // فشل التعليم لا يمنع تطبيق نسخة السحابة (الأهم)، ويُسجل للتشخيص.
+      _logger.warning(
+        '⚠️ فشل تعليم عمليات Outbox بحالة superseded_by_cloud '
+        '$entityName/$localUuid: $e',
+        tag: 'CONFLICT',
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ✅ (وثيقة §8.1 — PR-5) إعادة محاولة pending links بعد وصول الآباء.
+  //
+  // «بعد سحب employees/expenses، إعادة محاولة pending links» — الـ payloads
+  // المحفوظة دائماً في pending_links (سجلات cycles/payments/carry-over
+  // التي وصلت قبل أبيها) تُعاد عبر مسارات التطبيق المعتمدة نفسها
+  // (_syncSalaryCycles إلخ)، ثم يُعلَّم ما ظهر فعلاً في الجداول كمحلول.
+  // ما لم يُحل بعد يبقى في الطابور — لا حذف أبداً (§1.3-1) وعدّاد
+  // محاولاته يُحدَّث تلقائياً عبر recordUnresolved لعرضه في تقرير §11.
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// يعيد تطبيق السجلات المعلّقة بعد وصول آبائها. يعيد عدد ما طُبّق.
+  ///
+  /// تُستدعى من: apply callback لمهمة employees (وصول الموظفين يحلّ
+  /// cycles/payments/carry-over)، وapply callback لمهمة salary_carry_over_logs
+  /// (آخر مهمة مالية في الترتيب — الدورات وصلت في الدورة نفسها).
+  @visibleForTesting
+  Future<int> retryPendingFinancialLinksForTesting() =>
+      _retryPendingFinancialLinks();
+
+  Future<int> _retryPendingFinancialLinks() async {
+    if (_retryingPendingLinks) return 0;
+    _retryingPendingLinks = true;
+    try {
+      var applied = 0;
+      final appliers = <String, Future<int> Function(List<models.Document>)>{
+        'salary_cycles': _syncSalaryCycles,
+        'salary_payments': _syncSalaryPayments,
+        'salary_carry_over_logs': _syncSalaryCarryOverLogs,
+      };
+      for (final entry in appliers.entries) {
+        final List<PendingLinkRow> rows;
+        try {
+          rows = await _pendingLinks.unresolved(entity: entry.key);
+        } catch (e) {
+          _logger.warning(
+            '⚠️ قراءة pending_links لـ ${entry.key} فشلت: $e',
+            tag: 'SYNC_PENDING',
+          );
+          continue;
+        }
+        if (rows.isEmpty) continue;
+
+        final docs = <models.Document>[];
+        for (final row in rows) {
+          try {
+            docs.add(_documentFromPendingRow(row));
+          } catch (e) {
+            // payload تالف — يبقى محفوظاً (لا حذف — §1.3-1) ويظهر في تقرير §11.
+            _logger.warning(
+              '⚠️ payload تالف في pending_links '
+              '(${row.entity}/${row.localUuid}): $e — يبقى محفوظاً',
+              tag: 'SYNC_PENDING',
+            );
+          }
+        }
+        if (docs.isEmpty) continue;
+
+        _logger.info(
+          '🔁 إعادة محاولة ${docs.length} سجل ${entry.key} معلّق '
+          '(وصل الأب — وثيقة §8.1)',
+          tag: 'SYNC_PENDING',
+        );
+        try {
+          applied += await entry.value(docs);
+        } catch (e) {
+          // ما زال بعضها غير محلول — يبقى في pending_links (لا حذف) ويُعاد
+          // في الدورة التالية. عدّاد المحاولات تحدّث عبر recordUnresolved.
+          _logger.debug(
+            '🔁 ما زالت هناك سجلات ${entry.key} معلّقة بعد المحاولة: $e',
+            tag: 'SYNC_PENDING',
+          );
+        }
+
+        // علّم ما ظهر فعلاً في الجداول كمحلول — الأثر يبقى (resolvedAt).
+        for (final row in rows) {
+          try {
+            if (await _financialRowExistsLocally(entry.key, row.localUuid)) {
+              await _pendingLinks.markResolved(entry.key, row.localUuid);
+            }
+          } catch (_) {}
+        }
+      }
+      return applied;
+    } finally {
+      _retryingPendingLinks = false;
+    }
+  }
+
+  /// يعيد بناء models.Document من صف pending_links المحفوظ دائماً.
+  ///
+  /// $id = localUuid (هوية Appwrite المنطقية)، وdata = الـ payload الأصلي
+  /// كما ورد من السحابة — تُعاد عبر نفس مسارات التطبيق (Cloud Wins
+  /// داخلها يبقى ساريًا عبر _isRemoteDataNewer).
+  models.Document _documentFromPendingRow(PendingLinkRow row) {
+    final decoded = jsonDecode(row.payloadJson);
+    if (decoded is! Map) {
+      throw FormatException('payload ليس Map: ${row.entity}/${row.localUuid}');
+    }
+    final data = Map<String, dynamic>.from(decoded);
+    data['localUuid'] ??= row.localUuid;
+    final tsSec = row.lastAttemptAt ?? row.createdAt;
+    final ts = DateTime.fromMillisecondsSinceEpoch(
+      tsSec * 1000,
+    ).toIso8601String();
+    return models.Document(
+      $id: row.localUuid,
+      $sequence: 0,
+      $collectionId: row.entity,
+      $databaseId: 'pending_links',
+      $createdAt: ts,
+      $updatedAt: ts,
+      $permissions: const [],
+      data: data,
+    );
+  }
+
+  /// هل السجل وُجد فعلاً في جدوله المحلي؟ (لتحديد الصفوف التي حُلّت فعلاً).
+  Future<bool> _financialRowExistsLocally(
+    String entity,
+    String localUuid,
+  ) async {
+    const tableByEntity = <String, String>{
+      'salary_cycles': 'salary_cycles',
+      'salary_payments': 'salary_payments',
+      'salary_carry_over_logs': 'salary_carry_over_logs',
+      'expenses': 'expenses',
+      'salary_withdrawals': 'salary_withdrawals',
+    };
+    final table = tableByEntity[entity];
+    if (table == null) return false;
+    try {
+      final row = await database.customSelect(
+        'SELECT 1 FROM $table WHERE local_uuid = ? LIMIT 1',
+        variables: [drift.Variable.withString(localUuid)],
+        readsFrom: Set.unmodifiable({}),
+      ).getSingleOrNull();
+      return row != null;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -3446,8 +3602,8 @@ class AppwriteSyncManager {
 
   /// ✅ P0-5: القفل التفاؤلي (OCC) لكل الكيانات — واجهة مختصرة تستخدم
   /// اسم الكيان فقط وتحدد collectionId تلقائياً.
-  /// يُرجع الحمولة النهائية (أصلية أو مدموجة).
-  Future<Map<String, dynamic>> _occPushCheck({
+  /// يُرجع الحمولة النهائية، أو `null` = Cloud Wins — تخطَّ الدفع (§7.5).
+  Future<Map<String, dynamic>?> _occPushCheck({
     required String entity,
     required String documentId,
     required Map<String, dynamic> localPayload,
@@ -3499,16 +3655,19 @@ class AppwriteSyncManager {
   /// قبل كل عملية update، نقرأ المستند البعيد ونتحقق:
   /// 1. إذا لم يكن موجوداً → نتابع الدفع العادي (create)
   /// 2. إذا كان موجوداً بنفس النسخة → نتابع الدفع العادي (لا تعارض)
-  /// 3. إذا كان موجوداً بنسخة أحدث → تعارض! نُشغّل SmartConflictResolver
-  ///    ونُرجع البيانات المدموجة ليستخدمها المُتصل بدل الحمولة الأصلية
+  /// 3. إذا كان موجوداً بنسخة أحدث → تعارض! ✅ (وثيقة §7.5) **Cloud Wins**:
+  ///    يُرفض الدفع المحلي المتقادم — لا يُكتب فوق السحابة (لا دمج حقول
+  ///    ولا LWW)، تُعلَّم عمليات Outbox لهذا السجل `superseded_by_cloud`
+  ///    ولا يُعاد رفعها، ونسخة السحابة تصل محلياً عبر السحب (هي المصدر).
   ///
   /// [collectionId] — معرف مجموعة Appwrite
   /// [documentId] — localUuid للمستند
   /// [localPayload] — الحمولة المحلية المراد دفعها
-  /// [entity] — اسم الكيان (للـ SmartConflictResolver)
+  /// [entity] — اسم الكيان (للتشخيص والتسجيل)
   ///
-  /// يُرجع: الحمولة النهائية للدفع (الأصلية أو المدموجة)
-  Future<Map<String, dynamic>> _occCheckAndMerge({
+  /// يُرجع: الحمولة النهائية للدفع، أو `null` = تعارض Cloud Wins —
+  /// **تخطَّ الدفع** (العملية حُسمت لصالح السحابة).
+  Future<Map<String, dynamic>?> _occCheckAndMerge({
     required String collectionId,
     required String documentId,
     required Map<String, dynamic> localPayload,
@@ -3532,48 +3691,52 @@ class AppwriteSyncManager {
         return localPayload;
       }
 
-      // 4) تعارض! النسخة البعيدة أحدث → نُشغّل SmartConflictResolver
+      // 4) تعارض! النسخة البعيدة أحدث → ✅ (وثيقة §7.5) **Cloud Wins**:
+      //    نسخة Appwrite أحدث من التعديل المحلي المُرفوع — يُرفض الدفع
+      //    المتقادم: لا يُكتب فوق السحابة (لا دمج 3-way ولا LWW)، وتُعلَّم
+      //    عمليات Outbox لهذا السجل superseded_by_cloud ولا يُعاد رفعها.
+      //    نسخة السحابة ستُطبَّق محلياً عبر السحب (هي المصدر النهائي).
       _logger.warning(
-        '⚠️ OCC conflict detected: entity=$entity, uuid=$documentId, '
-        'localVersion=$localVersion, remoteVersion=$remoteVersion → merging',
+        '⚠️ OCC conflict (Cloud Wins): entity=$entity, uuid=$documentId, '
+        'localVersion=$localVersion, cloudVersion=$remoteVersion → '
+        'يُرفض الدفع المتقادم وتُعلَّم عمليات Outbox superseded_by_cloud',
         tag: 'OCC',
       );
 
-      // محاولة الحصول على ancestor من الـ cache
-      Map<String, dynamic>? ancestor;
+      // أثر تشخيصي موحّد في sync_conflicts — لا يُستخدم لإعادة الإرسال.
       try {
-        ancestor = await _ancestorCacheDao.getAncestor(entity, documentId);
+        await _logConcurrentConflict(
+          entity: entity,
+          uuid: documentId,
+          localVc:
+              (localPayload['vectorClock'] as String?) ??
+              (localPayload['vector_clock'] as String?) ??
+              '{}',
+          remoteVc:
+              (remoteData['vectorClock'] as String?) ??
+              (remoteData['vector_clock'] as String?) ??
+              '{}',
+          localLastModified:
+              (localPayload['lastModified'] as int?) ?? 0,
+          remoteLastModified:
+              (remoteData['lastModified'] as int?) ?? 0,
+          localData: localPayload,
+          remoteData: remoteData,
+        );
       } catch (_) {}
 
-      // تشغيل SmartConflictResolver
-      final resolution = SmartConflictResolver.resolve(
-        entity: entity,
-        localData: localPayload,
-        remoteData: remoteData,
-        commonAncestor: ancestor,
-      );
+      await _supersedeConflictingOutboxOps(entity, documentId);
 
-      if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
-        _logger.info(
-          '✅ OCC conflict resolved via 3-way merge: entity=$entity, uuid=$documentId',
-          tag: 'OCC',
+      try {
+        await _ancestorCacheDao.saveAncestor(
+          entity: entity,
+          localUuid: documentId,
+          data: remoteData,
         );
-        try {
-          await _ancestorCacheDao.saveAncestor(
-            entity: entity,
-            localUuid: documentId,
-            data: remoteData,
-          );
-        } catch (_) {}
-        return resolution.mergedData;
-      }
+      } catch (_) {}
 
-      // إذا فشل الدمج، نستخدم LWW كـ fallback آمن
-      _logger.warning(
-        '⚠️ OCC merge failed, falling back to LWW: entity=$entity',
-        tag: 'OCC',
-      );
-      return localPayload;
+      // `null` = تخطَّ الدفع — العملية حُسمت لصالح نسخة السحابة.
+      return null;
     } on AppwriteException catch (e) {
       // ✅ Sync Safety Fix (2026-08-10): تفريق صريح بين 404 وفشل شبكة.
       // 404 يعني أن المستند غير موجود → جديد → لا تعارض ممكن → متابعة الدفع.
@@ -3655,6 +3818,9 @@ class AppwriteSyncManager {
       documentId: room.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
 
     try {
       await appwriteService.upsertRoom(
@@ -3711,15 +3877,19 @@ class AppwriteSyncManager {
       localPayload: payload,
       entity: 'bookings',
     );
+    // ✅ (وثيقة §7.5) Cloud Wins على مسار الرفع: نسخة السحابة أحدث —
+    // لا يُرفع المتقادم؛ العملية معلَّمة superseded_by_cloud والنسخة
+    // السحابية ستصل محلياً عبر السحب.
+    if (occPayload == null) return true;
 
     // ✅ تسجيل تشخيصي: تسجيل الحقول الحرجة قبل الرفع
+    // (الدمج أُزيل — occPayload هنا إما الحمولة الأصلية أو null سبق رجوعه)
     _logger.info(
       '📤 Push booking ${booking.localUuid.substring(0, 8)}... '
       'status=${booking.status} '
       'actualCheckout=${booking.actualCheckout} '
       'calculatedNights=${booking.calculatedNights} '
-      'lastModified=${booking.lastModified}'
-      '${occPayload != payload ? " [OCC merged]" : ""}',
+      'lastModified=${booking.lastModified}',
       tag: 'SYNC',
     );
 
@@ -3856,6 +4026,8 @@ class AppwriteSyncManager {
       localPayload: payload,
       entity: 'expenses',
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: لا يُرفع المتقادم فوق نسخة أحدث سحابياً.
+    if (occPayload == null) return true;
     try {
       await appwriteService.upsertExpense(
         expense.localUuid,
@@ -3910,6 +4082,8 @@ class AppwriteSyncManager {
       localPayload: payload,
       entity: 'payments',
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: لا يُرفع المتقادم فوق نسخة أحدث سحابياً.
+    if (occPayload == null) return true;
     try {
       await appwriteService.upsertPayment(
         payment.localUuid,
@@ -3962,6 +4136,8 @@ class AppwriteSyncManager {
       localPayload: payload,
       entity: 'debts',
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: لا يُرفع المتقادم فوق نسخة أحدث سحابياً.
+    if (occPayload == null) return true;
     try {
       await appwriteService.upsertDebt(
         debt.localUuid,
@@ -4283,6 +4459,9 @@ class AppwriteSyncManager {
       documentId: info.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.guestInfosCollectionId,
       documentId: info.localUuid,
@@ -5000,6 +5179,9 @@ class AppwriteSyncManager {
       documentId: withdrawal.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
       documentId: withdrawal.localUuid,
@@ -6438,6 +6620,20 @@ class AppwriteSyncManager {
               tag: 'SYNC_RELINK',
             );
           }
+          // ✅ (وثيقة §8.1) بعد سحب employees: إعادة محاولة pending links
+          // — السجلات المعلّقة المنتظرة موظفاً تُعاد عبر مسارات التطبيق
+          // المعتمدة نفسها.
+          try {
+            await _retryPendingFinancialLinks();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _retryPendingFinancialLinks فشلت بعد سحب الموظفين — '
+              'تعاد في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_PENDING',
+            );
+          }
           return synced;
         },
       ),
@@ -6663,7 +6859,24 @@ class AppwriteSyncManager {
           collectionId: 'salary_carry_over_logs',
           queries: plan.queries,
         ),
-        apply: (docs) => _syncSalaryCarryOverLogs(docs),
+        apply: (docs) async {
+          final synced = await _syncSalaryCarryOverLogs(docs);
+          // ✅ (وثيقة §8.1) آخر مهمة مالية في ترتيب السحب: الموظفون
+          // والدورات وصلوا في هذه الدورة — أعِد تطبيق المعلّق المنتظرهم
+          // (payments المنتظرة دورة/موظف، cycles المنتظرة موظفاً...).
+          try {
+            await _retryPendingFinancialLinks();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _retryPendingFinancialLinks فشلت بعد carry-over — '
+              'تعاد في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_PENDING',
+            );
+          }
+          return synced;
+        },
       ),
     ];
 
@@ -7608,6 +7821,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertSalaryPayment(
       item.localUuid,
       _filterPayload('salary_payments', _addIdempotencyKey(occPayload, entry)),
@@ -7649,6 +7865,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
 
     await appwriteService.upsertCashTransaction(
       item.localUuid,
@@ -7693,6 +7912,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
 
     await appwriteService.upsertShiftNote(
       item.localUuid,
@@ -7777,6 +7999,9 @@ class AppwriteSyncManager {
       documentId: entry.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: 'salary_carry_over_logs',
       documentId: entry.localUuid,
@@ -7817,6 +8042,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertBlacklist(
       item.localUuid,
       _filterPayload('blacklist', _addIdempotencyKey(occPayload, entry)),
@@ -7885,6 +8113,9 @@ class AppwriteSyncManager {
       documentId: localRow.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
       documentId: localRow.localUuid,
@@ -8103,6 +8334,9 @@ class AppwriteSyncManager {
       documentId: voidRecord.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.paymentVoidsCollectionId,
       documentId: voidRecord.localUuid,
@@ -8161,6 +8395,9 @@ class AppwriteSyncManager {
       documentId: entry.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.auditLogsCollectionId,
       documentId: entry.localUuid,
@@ -8269,6 +8506,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.inventoryItemsCollectionId,
       documentId: item.localUuid,
@@ -8315,6 +8555,9 @@ class AppwriteSyncManager {
       documentId: movement.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
       documentId: movement.localUuid,
@@ -8385,6 +8628,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     try {
       await appwriteService.upsertEmployee(
         item.localUuid,
@@ -8446,6 +8692,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertBookingNote(
       item.localUuid,
       _filterPayload('booking_notes', _addIdempotencyKey(occPayload, entry)),
@@ -8488,6 +8737,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertBookingNight(
       item.localUuid,
       _filterPayload('booking_nights', _addIdempotencyKey(occPayload, entry)),
@@ -8536,6 +8788,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertSalaryCycle(
       item.localUuid,
       _filterPayload('salary_cycles', _addIdempotencyKey(occPayload, entry)),
@@ -8579,6 +8834,9 @@ class AppwriteSyncManager {
       documentId: item.localUuid,
       localPayload: payload,
     );
+    // ✅ (وثيقة §7.5) Cloud Wins: نسخة السحابة أحدث — لا يُرفع المتقادم؛
+    // العملية عُلّمت superseded_by_cloud والنسخة السحابية ستصل عبر السحب.
+    if (occPayload == null) return true;
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
       documentId: item.localUuid,
@@ -9524,11 +9782,21 @@ class AppwriteSyncManager {
           orphans.add(
             '${doc.$id} (employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
           );
-          // ✅ (2026-11-03) يتيم الموظف فشل تطبيق لا نجاح — بدون هذا يبتلعه
-          // المؤشر نهائياً (لا طابور دائماً لهذا الكيان بعكس withdrawals).
-          failed.add(
-            '${doc.$id}: orphan — employee unresolved '
-            '(employeeId=$remoteEmployeeId, uuid=${employeeUuid ?? "null"})',
+          // ✅ (2026-11-04 — وثيقة §4.1/§5.2/§8.1) اليتيم يُحفظ دائماً في
+          // pending_links (payload كامل قابل لإعادة التطبيق) — ثم يمكن
+          // للمؤشر التقدم لأن الـ payload محفوظ محلياً بشكل دائم: «يُحفظ
+          // في pending_links، ثم يمكن التقدم لأن payload محفوظ محلياً
+          // بشكل دائم؛ لا يجوز التقدم إذا لم يتم حفظه». إعادة المحاولة
+          // بعد وصول employees عبر _retryPendingFinancialLinks (§8.1).
+          // كان الفشل الدائم (StateError) يجمّد checkpoint المجموعة كلها
+          // في كل دورة — الآن البيانات محفوظة والمسار غير مسدود.
+          await _pendingLinks.recordUnresolved(
+            entity: 'salary_cycles',
+            localUuid: localUuid,
+            parentEntity: 'employees',
+            parentUuid: employeeUuid,
+            payload: data,
+            reason: 'employee unresolved (employeeId=$remoteEmployeeId)',
           );
           continue;
         }
@@ -9599,10 +9867,18 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           if (result == -1) {
-            // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
-            // الـ adapter فشل؛ لا نجاحاً صامتاً.
-            failed.add(
-              '${data['localUuid']}: unresolved employee parent (adapter skip)',
+            // ✅ (2026-11-04 — وثيقة §8.1) المسار B: الموظف الأب غير محلول
+            // — يُحفظ في pending_links بدل فشل يجمّد المؤشر؛ يُعاد تطبيقه
+            // عند وصول الموظف. لا حذف ولا إسقاط من أي طابور (§1.3-1).
+            await _pendingLinks.recordUnresolved(
+              entity: 'salary_cycles',
+              localUuid: (data['localUuid'] as String?) ?? '',
+              parentEntity: 'employees',
+              parentUuid:
+                  (data['employeeUuid'] as String?) ??
+                  (data['employee_uuid'] as String?),
+              payload: data,
+              reason: 'employee unresolved (adapter skip)',
             );
             continue;
           }
@@ -9683,14 +9959,23 @@ class AppwriteSyncManager {
           src: Source.appwrite,
         );
         if (result == -1) {
-          // ✅ (2026-11-03) المسار B: BaseRepository.shouldSkip — دورة الأب
-          // غير محلولة — تأجيل لا نجاحاً؛ كان -1 يُبتلع فيتقدم المؤشر فوق
-          // الدفعة نهائياً (لا طابور دائماً هنا بعكس withdrawals).
+          // ✅ (2026-11-04 — وثيقة §8.1) المسار B: دورة الأب غير محلولة —
+          // تُحفظ الدفعة في pending_links (دائماً وإعادة المحاولة عند وصول
+          // الدورة) بدل تأجيل يُعاد ثم يفشل نهائياً في نهاية الدفعة.
           _logger.debug(
             'Deferring salary payment ${doc.$id}: unresolved cycle parent (adapter skip)',
             tag: 'SYNC',
           );
-          deferred.add(data);
+          await _pendingLinks.recordUnresolved(
+            entity: 'salary_payments',
+            localUuid: localUuid,
+            parentEntity: 'salary_cycles',
+            parentUuid:
+                (data['cycleUuid'] as String?) ??
+                (data['cycle_uuid'] as String?),
+            payload: data,
+            reason: 'cycle parent unresolved (adapter skip)',
+          );
           continue;
         }
         // ✅ Wave 7: notify remote change from another device
@@ -9740,8 +10025,17 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           if (result == -1) {
-            failed.add(
-              '${data['localUuid']}: unresolved cycle parent (adapter skip)',
+            // ✅ (وثيقة §8.1) الموظف/الدورة الأب غير محلولين — يُحفظ في
+            // pending_links ويُعاد عند وصولهما؛ لا فشل يجمّد المؤشر.
+            await _pendingLinks.recordUnresolved(
+              entity: 'salary_payments',
+              localUuid: (data['localUuid'] as String?) ?? '',
+              parentEntity: 'salary_cycles',
+              parentUuid:
+                  (data['cycleUuid'] as String?) ??
+                  (data['cycle_uuid'] as String?),
+              payload: data,
+              reason: 'cycle parent unresolved (deferred retry)',
             );
             continue;
           }
@@ -10463,12 +10757,23 @@ class AppwriteSyncManager {
         final result = await _adapterRegistry.salaryCarryOverLogs
             .upsertFromJson(data, src: Source.appwrite);
         if (result == -1) {
-          // ✅ المسار B: الموظف الأب غير محلول — تأجيل لا نجاح.
+          // ✅ (2026-11-04 — وثيقة §8.1) الموظف الأب غير محلول — يُحفظ في
+          // pending_links (دائم + إعادة محاولة عند وصول الموظف) بدل تأجيل
+          // يفشل نهائياً في نهاية الدفعة.
           _logger.debug(
             'Deferring salary carry over log ${doc.$id}: unresolved employee parent (adapter skip)',
             tag: 'SYNC',
           );
-          deferred.add(doc);
+          await _pendingLinks.recordUnresolved(
+            entity: 'salary_carry_over_logs',
+            localUuid: localUuid,
+            parentEntity: 'employees',
+            parentUuid:
+                (data['employeeUuid'] as String?) ??
+                (data['employee_uuid'] as String?),
+            payload: data,
+            reason: 'employee unresolved (adapter skip)',
+          );
           continue;
         }
         // ✅ Wave 7: notify remote change from another device
@@ -10512,7 +10817,18 @@ class AppwriteSyncManager {
           final result = await _adapterRegistry.salaryCarryOverLogs
               .upsertFromJson(data, src: Source.appwrite);
           if (result == -1) {
-            failed.add('${doc.$id}: unresolved employee parent (adapter skip)');
+            // ✅ (وثيقة §8.1) الموظف الأب غير محلول — يُحفظ في
+            // pending_links ويُعاد عند وصوله؛ لا فشل يجمّد المؤشر.
+            await _pendingLinks.recordUnresolved(
+              entity: 'salary_carry_over_logs',
+              localUuid: (data['localUuid'] as String?) ?? '',
+              parentEntity: 'employees',
+              parentUuid:
+                  (data['employeeUuid'] as String?) ??
+                  (data['employee_uuid'] as String?),
+              payload: data,
+              reason: 'employee unresolved (deferred retry)',
+            );
             continue;
           }
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
