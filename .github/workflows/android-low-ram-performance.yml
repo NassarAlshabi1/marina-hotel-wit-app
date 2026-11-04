@@ -58,6 +58,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # ─── 1.5) تحرير مساحة القرص قبل تثبيت SDK ───────────────
+      # فشل سابق (2026-11-04): "No space left on device" أثناء تنزيل
+      # صورة المحاكي API 35 بعد تثبيت NDK+build-tools. نحذف الحزم
+      # المثبتة مسبقاً غير اللازمة لهذا الـ workflow.
+      - name: Free disk space
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/local/.ghcup || true
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/* || true
+          sudo docker image prune -af > /dev/null 2>&1 || true
+          sudo apt-get clean || true
+          df -h / | tail -1
+
       # ─── 2) تمكين KVM (تسريع المحاكي) ──────────────────────
       - name: Enable KVM
         run: |
