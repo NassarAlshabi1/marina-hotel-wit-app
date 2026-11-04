@@ -14,3 +14,4 @@
 # طلب تنسيق: 2026-11-03 — بعد إصلاح مسار push/outbox وزر رفع التغييرات.
 format request: connection-settings-live-apply (a2834c6)
 format request: PR-1/PR-2 link schema (e137535)
+format request: after link-index alignment (65157e8)
