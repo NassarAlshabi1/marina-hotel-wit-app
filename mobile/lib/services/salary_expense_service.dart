@@ -1,0 +1,409 @@
+import 'package:drift/drift.dart' show Value, Variable;
+
+import '../utils/app_logger.dart';
+import '../utils/id.dart';
+import '../utils/time.dart';
+import 'daos/expenses_dao.dart';
+import 'daos/outbox_dao.dart';
+import 'local_db.dart';
+import 'local_link_resolver.dart';
+import 'repositories/salary_withdrawals_repository.dart';
+
+/// التصنيف الصريح للمصروف (وثيقة الربط §3.2).
+///
+/// **الغرض:** إنهاء الاعتماد على `expense_type` النصي الحر في القرارات
+/// المالية (`contains`/`LIKE`). القيمة `code` هي ما يُخزَّن في
+/// `expenses.expense_kind` وما يُرسل/يُستقبل في Appwrite، و[legacyLabel]
+/// يبقى مكتوباً في `expense_type` للتوافق مع الأجهزة القديمة (§10.3-4).
+enum ExpenseKind {
+  salaryWithdrawal('salary_withdrawal', 'سحب راتب'),
+  salaryDeduction('salary_deduction', 'خصم راتب'),
+  advance('advance', 'سلفة'),
+  advanceInstallment('advance_installment', 'قسط سلفة'),
+  payroll('payroll', 'رواتب'),
+  general('general', 'عام');
+
+  const ExpenseKind(this.code, this.legacyLabel);
+
+  /// القيمة الثابتة المخزَّنة سحابياً ومحلياً (English enum code).
+  final String code;
+
+  /// نص `expense_type` القديم — للعرض والتوافق فقط، لا للقرار.
+  final String legacyLabel;
+
+  /// هل ينتمي هذا المصروف لعائلة الرواتب (له مرآة في `salary_withdrawals`)؟
+  bool get isSalaryFamily => this != ExpenseKind.general;
+
+  static ExpenseKind? fromCode(String? code) {
+    final normalized = code?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    for (final kind in ExpenseKind.values) {
+      if (kind.code == normalized) return kind;
+    }
+    return null;
+  }
+
+  /// مصنّف **انتقالي** للنص القديم فقط (يُستخدم مرة واحدة في backfill،
+  /// ولا يجوز استخدامه في قرار مالي جديد — §3.2/§5.3).
+  static ExpenseKind classifyLegacyLabel(String? legacyLabel) {
+    final text = (legacyLabel ?? '').trim();
+    if (text == 'سحب راتب' || text == 'سحب من الراتب') {
+      return ExpenseKind.salaryWithdrawal;
+    }
+    if (text == 'خصم راتب' || text == 'خصم من الراتب') {
+      return ExpenseKind.salaryDeduction;
+    }
+    if (text == 'سلفة') return ExpenseKind.advance;
+    if (text.contains('سلفة')) return ExpenseKind.advanceInstallment;
+    if (text == 'رواتب') return ExpenseKind.payroll;
+    return ExpenseKind.general;
+  }
+}
+
+/// يُرمى عند محاولة حفظ/إسناد مصروف راتب لموظف غير موجود محلياً.
+///
+/// وثيقة الربط §5.2: لا يُنسب السجل تخميناً ولا يُحذف، ولا تُستخدم
+/// `employeeId` قادمة من Appwrite. هنا نرفض **إنشاء** سجل جديد ناقص الربط
+/// بدل حفظه بمرآة مفقودة، ويُعرض السبب للمستخدم ليُزامن الموظف أولاً.
+class SalaryExpenseUnresolvedEmployee implements Exception {
+  SalaryExpenseUnresolvedEmployee({
+    required this.employeeUuid,
+    required this.expenseUuid,
+  });
+
+  final String employeeUuid;
+  final String expenseUuid;
+
+  @override
+  String toString() =>
+      'SalaryExpenseUnresolvedEmployee(expense=$expenseUuid, '
+      'employeeUuid=$employeeUuid غير موجود محلياً)';
+}
+
+/// `SalaryExpenseService` — المسار الوحيد لإنشاء/تعديل/حذف/إعادة إسناد
+/// مصروفات عائلة الرواتب (وثيقة الربط §6.1، PR‑3).
+///
+/// القواعد الملزمة المنفَّذة هنا:
+/// - **الهوية أولاً:** المدخل والمخرج `expenseUuid`، والرقم المحلي يُشتق
+///   داخلياً عبر [LocalLinkResolver] — لا يُقبل رقم من Appwrite.
+/// - **ذرّية:** المصروف + مرآته + الـ outbox في **معاملة واحدة**؛ فشل أي
+///   خطوة يُلغي الكل (لا مصروف بلا مرآة ولا مرآة بلا مصروف).
+/// - **لا مرآة ثانية نشطة:** التعديل يحدّث المرآة نفسها (عبر
+///   `saveFromExpense` الذي يطابق بالهوية)، والقيد الفريد على
+///   `salary_withdrawals.expense_uuid` يمنع الازدواج على مستوى القاعدة.
+/// - **تصنيف صريح:** `expense_kind` يُكتب من [ExpenseKind] ولا يُشتق من النص.
+/// - الإشعارات/التحديثات خارج المعاملة (تُطلق بعد نجاح commit).
+class SalaryExpenseService {
+  SalaryExpenseService(this._db)
+    : _outbox = OutboxDao(_db),
+      _links = LocalLinkResolver(_db),
+      _withdrawals = SalaryWithdrawalsRepository(_db) {
+    _expenses = ExpensesDao(_db, _outbox);
+  }
+
+  final AppDatabase _db;
+  final OutboxDao _outbox;
+  final LocalLinkResolver _links;
+  final SalaryWithdrawalsRepository _withdrawals;
+  late final ExpensesDao _expenses;
+
+  Future<Expense?> _expenseByUuid(String expenseUuid) {
+    return (_db.select(_db.expenses)
+          ..where((e) => e.localUuid.equals(expenseUuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  /// حفظ (إنشاء أو تعديل) مصروف عائلة الرواتب مع مرآته في معاملة واحدة.
+  ///
+  /// يُعيد `localUuid` المصروف (الهوية الدائمة).
+  /// يرمي [SalaryExpenseUnresolvedEmployee] إن كان الموظف غير موجود محلياً،
+  /// و[ArgumentError] على مدخلات ناقصة — وفي الحالتين لا يُحفظ شيء.
+  Future<String> saveSalaryExpense({
+    required ExpenseKind kind,
+    required double amount,
+    required String date,
+    required String employeeUuid,
+    String? expenseUuid,
+    String? description,
+    String? hotelDayKey,
+    String? categoryUuid,
+    String? cashFlowUuid,
+    String? recorderName,
+    bool isAutoGenerated = false,
+  }) async {
+    final normalizedEmployeeUuid = employeeUuid.trim();
+    if (normalizedEmployeeUuid.isEmpty) {
+      throw ArgumentError.value(employeeUuid, 'employeeUuid', 'مطلوب');
+    }
+    if (date.trim().isEmpty) {
+      throw ArgumentError.value(date, 'date', 'مطلوب');
+    }
+
+    final uuid = (expenseUuid ?? '').trim().isNotEmpty
+        ? expenseUuid!.trim()
+        : IdGen.uuid();
+
+    // الهوية فقط: الرقم المحلي مشتق من UUID، ولا يُقبل رقم بعيد (§1.3).
+    final employeeId = await _links.employeeIdForUuid(normalizedEmployeeUuid);
+    if (employeeId == null) {
+      throw SalaryExpenseUnresolvedEmployee(
+        employeeUuid: normalizedEmployeeUuid,
+        expenseUuid: uuid,
+      );
+    }
+
+    final now = Time.nowEpoch();
+    final text = (description ?? '').trim();
+
+    await _db.transaction(() async {
+      final existing = await _expenseByUuid(uuid);
+
+      if (existing == null) {
+        final expenseId = await _expenses.insertOne(
+          ExpensesCompanion.insert(
+            localUuid: uuid,
+            expenseType: kind.legacyLabel,
+            amount: amount,
+            date: date,
+            description: text,
+            createdAt: now,
+            updatedAt: now,
+            lastModified: now,
+            relatedId: Value(employeeId),
+            employeeUuid: Value(normalizedEmployeeUuid),
+            hotelDayKey: Value(hotelDayKey),
+            categoryUuid: Value(categoryUuid),
+            cashFlowUuid: Value(cashFlowUuid),
+            isAutoGenerated: Value(isAutoGenerated),
+          ),
+        );
+
+        await _writeExpenseKind(expenseId, kind);
+
+        if (kind.isSalaryFamily) {
+          await _withdrawals.createFromExpense(
+            expenseId: expenseId,
+            employeeId: employeeId,
+            reason: 'exp_$expenseId',
+            amount: amount,
+            date: date,
+            hotelDayKey: hotelDayKey,
+            withdrawalType: kind.legacyLabel,
+            description: text.isEmpty ? null : text,
+            recorderName: recorderName,
+          );
+        }
+        return;
+      }
+
+      // ── تعديل: نفس الهوية، لا سجل ثانٍ ولا مرآة ثانية ──
+      final previousAmount = existing.amount;
+      final previousEmployeeId = existing.relatedId;
+
+      await (_db.update(_db.expenses)..where((e) => e.id.equals(existing.id)))
+          .write(
+            ExpensesCompanion(
+              expenseType: Value(kind.legacyLabel),
+              amount: Value(amount),
+              date: Value(date),
+              description: Value(text.isEmpty ? existing.description : text),
+              relatedId: Value(employeeId),
+              employeeUuid: Value(normalizedEmployeeUuid),
+              hotelDayKey: Value(hotelDayKey ?? existing.hotelDayKey),
+              categoryUuid: Value(categoryUuid ?? existing.categoryUuid),
+              cashFlowUuid: Value(cashFlowUuid ?? existing.cashFlowUuid),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+              version: Value(existing.version + 1),
+            ),
+          );
+
+      await _writeExpenseKind(existing.id, kind);
+
+      await _outbox.merge(
+        entity: 'expenses',
+        op: 'update',
+        localUuid: uuid,
+        payload: {'expenseKind': kind.code, 'employeeUuid': employeeUuid},
+        clientTs: now,
+        serverId: existing.serverId,
+      );
+
+      if (kind.isSalaryFamily) {
+        await _withdrawals.saveFromExpense(
+          expenseId: existing.id,
+          employeeId: employeeId,
+          action: kind.legacyLabel,
+          amount: amount,
+          date: date,
+          note: text.isEmpty ? null : text,
+          hotelDayKey: hotelDayKey,
+          previousAmount: previousAmount,
+          previousEmployeeId: previousEmployeeId,
+        );
+      }
+    });
+
+    return uuid;
+  }
+
+  /// حذف منطقي (tombstone) للمصروف **ومرآته** في معاملة واحدة.
+  ///
+  /// يعيد `false` إذا لم يكن المصروف موجوداً محلياً (لا خطأ — ربما حُذف
+  /// سابقاً أو لم يُسحب بعد).
+  Future<bool> deleteSalaryExpense(
+    String expenseUuid, {
+    bool originIsServer = false,
+  }) async {
+    final uuid = expenseUuid.trim();
+    if (uuid.isEmpty) return false;
+
+    return _db.transaction(() async {
+      final existing = await _expenseByUuid(uuid);
+      if (existing == null) return false;
+
+      final rows = await _expenses.softDelete(
+        existing.id,
+        originIsServer: originIsServer,
+      );
+
+      // المرآة تُحذف بنفس المعاملة — وبدون مطابقة رقمية عمياء:
+      // `deleteByExpenseId` يبدأ بالهوية (expense_uuid ← withdrawal_uuid)
+      // ثم يقيّد الروابط الرقمية بحارس الجهاز/الموظف.
+      await _withdrawals.deleteByExpenseId(
+        existing.id,
+        originIsServer: originIsServer,
+        employeeId: existing.relatedId,
+        employeeUuid: existing.employeeUuid,
+      );
+
+      return rows > 0;
+    });
+  }
+
+  /// إعادة إسناد المصروف ومرآته لموظف آخر — مع إعادة اشتقاق الأرقام
+  /// المحلية من UUID (§6.3).
+  ///
+  /// يرمي [SalaryExpenseUnresolvedEmployee] إذا لم يوجد الموظف الجديد محلياً
+  /// (لا إسناد تخميني ولا كتابة جزئية).
+  Future<bool> reassignEmployee({
+    required String expenseUuid,
+    required String employeeUuid,
+    String? recorderName,
+  }) async {
+    final uuid = expenseUuid.trim();
+    final newEmployeeUuid = employeeUuid.trim();
+    if (uuid.isEmpty || newEmployeeUuid.isEmpty) return false;
+
+    final newEmployeeId = await _links.employeeIdForUuid(newEmployeeUuid);
+    if (newEmployeeId == null) {
+      throw SalaryExpenseUnresolvedEmployee(
+        employeeUuid: newEmployeeUuid,
+        expenseUuid: uuid,
+      );
+    }
+
+    final now = Time.nowEpoch();
+
+    return _db.transaction(() async {
+      final existing = await _expenseByUuid(uuid);
+      if (existing == null) return false;
+
+      await (_db.update(_db.expenses)..where((e) => e.id.equals(existing.id)))
+          .write(
+            ExpensesCompanion(
+              employeeUuid: Value(newEmployeeUuid),
+              relatedId: Value(newEmployeeId),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+              version: Value(existing.version + 1),
+            ),
+          );
+
+      await _outbox.merge(
+        entity: 'expenses',
+        op: 'update',
+        localUuid: uuid,
+        payload: {'employeeUuid': newEmployeeUuid},
+        clientTs: now,
+        serverId: existing.serverId,
+      );
+
+      // المرايا المرتبطة بهوية هذا المصروف فقط؛ والرقم يُقبل كبديل **فقط**
+      // إذا كانت المرآة بلا هوية (روابط تراثية) — وإلا لخُطف سجل جهاز آخر.
+      final mirrors = await _db
+          .customSelect(
+            'SELECT id, local_uuid FROM salary_withdrawals '
+            'WHERE deleted_at IS NULL AND '
+            '(expense_uuid = ? OR '
+            '(expense_uuid IS NULL AND expense_id = ?))',
+            variables: [
+              Variable.withString(uuid),
+              Variable.withInt(existing.id),
+            ],
+          )
+          .get();
+
+      for (final mirror in mirrors) {
+        final mirrorUuid = '${mirror.data['local_uuid']}';
+        await (_db.update(
+          _db.salaryWithdrawals,
+        )..where((w) => w.localUuid.equals(mirrorUuid))).write(
+          SalaryWithdrawalsCompanion(
+            employeeUuid: Value(newEmployeeUuid),
+            employeeId: Value(newEmployeeId),
+            // ⚠️ لا نكتب expense_uuid هنا: المرآة المطابقة بالرقم فقط قد
+            // تكون لجهاز آخر (تصادم autoincrement). تبنّي الهوية عملية
+            // تدقيق منفصلة، وإعادة الإسناد تُحدّث الموظف لا الهوية (§6.3).
+            updatedAt: Value(now),
+            lastModified: Value(now),
+          ),
+        );
+        await _outbox.merge(
+          entity: 'salary_withdrawals',
+          op: 'update',
+          localUuid: mirrorUuid,
+          payload: {
+            'employeeUuid': newEmployeeUuid,
+            'expenseUuid': uuid,
+            if (recorderName != null && recorderName.isNotEmpty)
+              'recorderName': recorderName,
+          },
+          clientTs: now,
+        );
+      }
+
+      return true;
+    });
+  }
+
+  /// تصنيف صريح في `expense_kind` (عمود raw خارج تعريف Drift — PR‑1).
+  Future<void> _writeExpenseKind(int expenseId, ExpenseKind kind) async {
+    try {
+      await _db.customStatement(
+        'UPDATE expenses SET expense_kind = ? WHERE id = ?',
+        [kind.code, expenseId],
+      );
+    } catch (e) {
+      // العمود يُنشأ في beforeOpen؛ فشل التصنيف لا يجوز أن يُسقط الحفظ،
+      // لكنه لا يُبتلع صامتاً — يُسجّل ليُصلح في التعبئة التالية.
+      AppLogger.warning(
+        '⚠️ تعذّر كتابة expense_kind للمصروف #$expenseId: $e',
+        tag: 'SALARY_EXPENSE',
+      );
+    }
+  }
+
+  /// تصنيف المصروف المخزَّن (أو null إذا لم يُصنَّف بعد).
+  Future<ExpenseKind?> kindOf(String expenseUuid) async {
+    final rows = await _db
+        .customSelect(
+          'SELECT expense_kind FROM expenses WHERE local_uuid = ? LIMIT 1',
+          variables: [Variable.withString(expenseUuid.trim())],
+        )
+        .get();
+    if (rows.isEmpty) return null;
+    return ExpenseKind.fromCode(rows.first.data['expense_kind'] as String?);
+  }
+}
