@@ -1,3 +1,4 @@
 diag: local_link_resolver_test
 diag run 2: full suite
 diag run 3: full suite after deferring unique index
+diag run 4: full suite after aligning with existing unique index

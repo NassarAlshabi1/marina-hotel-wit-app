@@ -618,13 +618,15 @@ _apiKeyValue = normalizedApiKey.isEmpty
 - الفهارس: `idx_exp_employee_uuid`, `idx_exp_kind_day`, `idx_sw_expense_uuid`,
   `idx_sw_employee_id`, `idx_sc_employee_uuid`, `idx_emp_local_uuid` — كلها
   `IF NOT EXISTS`.
-- `ux_sw_expense_uuid_active` (فريد جزئي) — **مؤجَّل عمداً** إلى PR‑3:
-  §4.1 يمنع إنشاءه قبل معالجة التكرارات وتقريرها، و§6.1 يجعل منع المرآة الثانية
-  مسؤولية `SalaryExpenseService` الذرية. تشغيل الاختبارات أثبت أن فرض القيد
-  الآن يكسر مسارات مشروعة (`UNIQUE constraint failed:
-  salary_withdrawals.expense_uuid` في `operation_identity_semantics_test`)،
-  لذا نكتفي الآن بـ **كشف وعدّ** المرايا المكررة (`duplicateActiveMirrors`)
-  وتسجيلها، بلا حذف وبلا حظر كتابة. يُفعَّل القيد في PR‑3 بعد تنظيفها.
+- القيد الفريد للمرآة النشطة: **موجود أصلاً** في المخطط باسم
+  `ux_salary_withdrawals_expense_uuid_active` (`@TableIndex.sql` على
+  `SalaryWithdrawals` + migration 69/70 التي تُنشئه فقط عندما تخلو البيانات من
+  التكرار). لذلك **لم نُضِف قيداً ثانياً** بالاسم الوارد في §4.1: التجربة أثبتت
+  أن القيد الإضافي بشرط مختلف (`expense_uuid IS NOT NULL` بلا استثناء السلسلة
+  الفارغة) يكسر بيانات مشروعة — `UNIQUE constraint failed:
+  salary_withdrawals.expense_uuid` في `operation_identity_semantics_test`.
+  المتبقّي في PR‑3 هو منع إنشاء المرآة الثانية **قبل** الكتابة (وليس بعدها)،
+  وهو ما يفعله `SalaryExpenseService` الذرية.
 
 لماذا raw SQL لا تعريف Drift للأعمدة الجديدة؟ إعلانها في Drift يوجب إعادة توليد
 `local_db.g.dart` (codegen غير متاح في بيئة التنفيذ)، والـ raw SQL هو النمط
@@ -676,8 +678,9 @@ UUID إلى أرقام محلية:
 
 `mobile/test/services/local_link_resolver_test.dart` — 16 حالة:
 
-- المخطط: وجود `expense_kind`، أعمد `pending_links`، وغياب القيد الفريد المؤجَّل
-  مع كشف المرايا المكررة وعدم حظر كتابتها.
+- المخطط: وجود `expense_kind`، أعمد `pending_links`، ووجود القيد الفريد الفعلي
+  `ux_salary_withdrawals_expense_uuid_active` مع **عدم** إضافة قيد مكرر،
+  ومنع المرآة الثانية فعلياً، وعدم عدّ السلسلة الفارغة رابطاً.
 - التعبئة: تصنيف كل نوع مصروف (سحب/خصم/سلفة/رواتب/عام)، `expense_uuid` للموظف
   الصحيح و**رفض** الربط عبر الموظف الخاطئ، وثبات `version`/`last_modified`/outbox.
 - الحل: موظف/مصروف/دفعة، تجاهل المحذوف منطقياً، وقيم فارغة ⇒ `null`.

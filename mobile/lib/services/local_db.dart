@@ -4051,17 +4051,16 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS idx_emp_local_uuid ON employees(local_uuid)',
     );
 
-    // (4) المرايا المكررة: **كشف وتقرير فقط** في هذه الدفعة.
+    // (4) المرايا المكررة: كشف وتقرير.
     //
-    //     §4.1 يطلب `ux_sw_expense_uuid_active` لكنه يمنع إنشاءه قبل معالجة
-    //     التكرارات وتقريرها، و§6.1 يجعل منع المرآة الثانية مسؤولية
-    //     `SalaryExpenseService` الذرية (PR-3). إنشاء الفهرس الفريد الآن
-    //     يفرض قيداً قبل وجود المسار الذري الذي يمنع التكرار ⇒ يفشل أي مسار
-    //     كتابة/سحب يصل فيه مصروفان لمرآة واحدة (أثبته تشغيل الاختبارات:
+    //     §4.1 يطلب قيداً فريداً للمرآة النشطة، وهو **موجود أصلاً** في المخطط:
+    //     `ux_salary_withdrawals_expense_uuid_active` (تعريف `@TableIndex.sql`
+    //     على `SalaryWithdrawals` + migration 69/70 التي تُنشئه فقط عند خلو
+    //     البيانات من التكرار). لذلك **لا نضيف قيداً ثانياً**: قيد إضافي
+    //     بشرط مختلف (`expense_uuid IS NOT NULL` بلا استثناء السلسلة الفارغة)
+    //     كسر مسارات مشروعة — أثبته تشغيل الاختبارات بـ
     //     `UNIQUE constraint failed: salary_withdrawals.expense_uuid` في
-    //     operation_identity_semantics_test) — وهو إسقاط لبيانات مشروعة
-    //     بغلاف "قيد". لذلك: الكشف والعدّ في `uuidLinkHealthCounts`،
-    //     والفهرس الفريد يُفعَّل في PR-3 بعد تنظيف التكرارات وتقريرها.
+    //     operation_identity_semantics_test. نكتفي بالكشف والعدّ هنا.
     await _reportDuplicateActiveMirrors();
   }
 
@@ -4079,7 +4078,8 @@ class AppDatabase extends _$AppDatabase {
       final duplicates = await customSelect(
         'SELECT expense_uuid, COUNT(*) AS active_mirrors '
         'FROM salary_withdrawals '
-        'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL '
+        "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+        'AND deleted_at IS NULL '
         'GROUP BY expense_uuid HAVING COUNT(*) > 1',
       ).get();
 
@@ -4198,7 +4198,8 @@ class AppDatabase extends _$AppDatabase {
       ),
       'withdrawalsMissingExpenseUuid': await count(
         'SELECT COUNT(*) FROM salary_withdrawals '
-        'WHERE expense_uuid IS NULL AND expense_id IS NOT NULL',
+        "WHERE (expense_uuid IS NULL OR TRIM(expense_uuid) = '') "
+        'AND expense_id IS NOT NULL',
       ),
       'salaryExpensesMissingEmployeeUuid': await count(
         "SELECT COUNT(*) FROM expenses WHERE employee_uuid IS NULL "
@@ -4207,14 +4208,16 @@ class AppDatabase extends _$AppDatabase {
       ),
       'orphanMirrors': await count(
         'SELECT COUNT(*) FROM salary_withdrawals w '
-        'WHERE w.expense_uuid IS NOT NULL AND w.deleted_at IS NULL '
+        "WHERE w.expense_uuid IS NOT NULL AND TRIM(w.expense_uuid) != '' "
+        'AND w.deleted_at IS NULL '
         'AND NOT EXISTS (SELECT 1 FROM expenses e '
         '  WHERE e.local_uuid = w.expense_uuid AND e.deleted_at IS NULL)',
       ),
       'duplicateActiveMirrors': await count(
         'SELECT COUNT(*) FROM (SELECT expense_uuid '
         'FROM salary_withdrawals '
-        'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL '
+        "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+        'AND deleted_at IS NULL '
         'GROUP BY expense_uuid HAVING COUNT(*) > 1)',
       ),
       'pendingLinks': await count('SELECT COUNT(*) FROM pending_links'),

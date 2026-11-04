@@ -118,41 +118,81 @@ void main() {
     });
 
     test(
-      'لا قيد فريد على expense_uuid الآن (مؤجّل إلى PR-3) — تقرير لا حظر',
+      'القيد الفريد للمرآة موجود أصلاً بالاسم الفعلي (لا قيد ثانٍ)',
       () async {
-        // §4.1: لا يُنشأ الفهرس الفريد قبل معالجة التكرارات وتقريرها، و§6.1
-        // يجعل منع المرآة الثانية مسؤولية SalaryExpenseService الذرية (PR-3).
-        // إنشاء القيد الآن يمنع كتابة/سحب مرايا مشروعة قبل وجود ذلك المسار
-        // (أثبته تشغيل CI: UNIQUE constraint failed في اختبارات الهوية).
-        final idx = await db
-            .customSelect(
-              "SELECT name FROM sqlite_master WHERE type = 'index' "
-              "AND name = 'ux_sw_expense_uuid_active'",
-            )
-            .get();
-        expect(idx, isEmpty, reason: 'القيد مؤجّل عمداً إلى PR-3');
+        // §4.1 يطلب قيداً فريداً للمرآة النشطة — وهو موجود في المخطط الفعلي
+        // باسم `ux_salary_withdrawals_expense_uuid_active` (تعريف
+        // @TableIndex.sql + migration 69/70). إضافة قيد ثانٍ بشرط مختلف تكسر
+        // البيانات المشروعة (السلسلة الفارغة ليست رابطاً) — أثبته CI.
+        final names = (await db
+                .customSelect(
+                  "SELECT name FROM sqlite_master WHERE type = 'index' "
+                  'AND tbl_name = \'salary_withdrawals\'',
+                )
+                .get())
+            .map((r) => '${r.data['name']}')
+            .toSet();
 
-        // ومع ذلك: المرايا المكررة تُكتب بلا فشل، وتُكشف في التقرير.
-        final empId = await insertEmployee('emp-dup');
-        await insertWithdrawal(
-          uuid: 'w-dup-1',
-          employeeId: empId,
-          employeeUuid: 'emp-dup',
+        expect(names, contains('ux_salary_withdrawals_expense_uuid_active'));
+        expect(
+          names.contains('ux_sw_expense_uuid_active'),
+          isFalse,
+          reason: 'لا نضيف قيداً مكرراً بشرط مختلف',
         );
-        await insertWithdrawal(
-          uuid: 'w-dup-2',
-          employeeId: empId,
-          employeeUuid: 'emp-dup',
-        );
-        await db.customStatement(
-          "UPDATE salary_withdrawals SET expense_uuid = 'exp-shared' "
-          "WHERE local_uuid IN ('w-dup-1','w-dup-2')",
-        );
-
-        final counts = await db.uuidLinkHealthCounts();
-        expect(counts['duplicateActiveMirrors'], 1);
       },
     );
+
+    test('المرآة الثانية النشطة لنفس expense_uuid يمنعها القيد', () async {
+      final empId = await insertEmployee('emp-dup');
+      await insertWithdrawal(
+        uuid: 'w-dup-1',
+        employeeId: empId,
+        employeeUuid: 'emp-dup',
+      );
+      await db.customStatement(
+        "UPDATE salary_withdrawals SET expense_uuid = 'exp-shared' "
+        "WHERE local_uuid = 'w-dup-1'",
+      );
+      await insertWithdrawal(
+        uuid: 'w-dup-2',
+        employeeId: empId,
+        employeeUuid: 'emp-dup',
+      );
+
+      await expectLater(
+        db.customStatement(
+          "UPDATE salary_withdrawals SET expense_uuid = 'exp-shared' "
+          "WHERE local_uuid = 'w-dup-2'",
+        ),
+        throwsA(anything),
+        reason: 'قيد ux_salary_withdrawals_expense_uuid_active يحمي 1:1',
+      );
+      final counts = await db.uuidLinkHealthCounts();
+      expect(counts['duplicateActiveMirrors'], 0);
+    });
+
+    test('السلسلة الفارغة ليست رابطاً: لا يُعدّها التقرير تكراراً', () async {
+      final empId = await insertEmployee('emp-empty');
+      await insertWithdrawal(
+        uuid: 'w-empty-1',
+        employeeId: empId,
+        employeeUuid: 'emp-empty',
+      );
+      await insertWithdrawal(
+        uuid: 'w-empty-2',
+        employeeId: empId,
+        employeeUuid: 'emp-empty',
+      );
+      // '' ليست expense_uuid صالحاً ⇒ قيد الفهرس الجزئي لا ينطبق عليها
+      await db.customStatement(
+        "UPDATE salary_withdrawals SET expense_uuid = '' "
+        "WHERE local_uuid IN ('w-empty-1','w-empty-2')",
+      );
+
+      final counts = await db.uuidLinkHealthCounts();
+      expect(counts['duplicateActiveMirrors'], 0);
+      expect(counts['orphanMirrors'], 0);
+    });
 
     test('تعبئة expense_kind من المصنّف النصي مرة واحدة', () async {
       await insertExpense(uuid: 'e-withdraw', expenseType: 'سحب راتب');
