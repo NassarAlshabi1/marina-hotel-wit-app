@@ -37,6 +37,7 @@ import 'crashlytics_service.dart';
 import 'daos/ancestor_cache_dao.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'local_link_resolver.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'salary_fix_helper.dart';
@@ -1334,6 +1335,30 @@ class AppwriteSyncManager {
                   error: e,
                   stackTrace: st,
                   tag: 'SALARY_FIX',
+                );
+              }
+
+              // ✅ (2026-11-06) إعادة محاولة روابط UUID المعلّقة بعد السحب
+              // (وثيقة الربط §5.2/§8.1: «بعد سحب employees/expenses، أعد
+              // محاولة pending links»). السجل الذي وصل أبوه متأخراً يُربط
+              // الآن برقمه المحلي؛ وما لم يُحل يبقى محفوظاً بمحاولاته.
+              // غير محجوب — أخطاؤه لا توقف المزامنة.
+              try {
+                final resolvedLinks = await LocalLinkResolver(
+                  database,
+                ).retryPendingLinks();
+                if (resolvedLinks > 0) {
+                  _logger.info(
+                    '🔗 تم حل $resolvedLinks رابطاً معلّقاً بعد السحب',
+                    tag: 'LINK_RESOLVER',
+                  );
+                }
+              } catch (e, st) {
+                _logger.warning(
+                  '⚠️ تعذّرت إعادة محاولة الروابط المعلّقة — تُعاد لاحقاً.',
+                  error: e,
+                  stackTrace: st,
+                  tag: 'LINK_RESOLVER',
                 );
               }
             }

@@ -577,3 +577,119 @@ _apiKeyValue = normalizedApiKey.isEmpty
 10–12. تصنيف الفشل: 401/403 ⇒ مفتاح، `database/collection` ⇒ قاعدة البيانات، `project` ⇒ مشروع، Socket/timeout ⇒ عنوان، غير ذلك ⇒ «غير مصنّف» (لا تصنيف زائف).
 
 > **التنسيق:** الكوميت `5eeed56` (Auto Format الرسمي، `--line-length 80`) أُضيف بعد `a2834c6` لتوافق الشجرة مع بوابة `Dart Format` في CI؛ لم يغيّر أي دلالة — فقط لفّ سطور في `appwrite_service.dart` و`appwrite_connection_config_test.dart`.
+
+---
+
+## 15) تنفيذ «وثيقة الربط والمزامنة الموحدة» — الدفعة الأولى (PR‑1 + PR‑2)
+
+المرجع: `وثيقة_الربط_والمزامنة_Appwrite_الموحدة.md` (900 سطر، 16 قسماً). الدفعة
+المنفَّذة هنا تقابل **PR‑1** (UUID backfill والتحقق من الروابط) و**PR‑2**
+(`LocalLinkResolver`) من §12، إضافةً إلى فحوص §4.1/§4.2/§5.1/§5.2/§8.1/§11.
+
+### 15.1 تدقيق ما كان مُنفَّذاً بالفعل (لم يُعَد تنفيذه)
+
+| بند PR‑0 | الحالة في الشيفرة | الدليل |
+|---|---|---|
+| إزالة hard delete من فحص السلامة | ✅ منفَّذ سابقاً | `_performPostSyncIntegrityCheck` — تعليق `المرحلة 0 — P0.1/R1`، لا `DELETE` |
+| إزالة «remote employeeId = local id» («الطريقة 2») | ✅ | `appwrite_sync_manager.dart:4488` و`:9215` (`P0.2/R2`) |
+| منع raw `relatedId` fallback | ✅ | `P0.3` في `salary_withdrawals_repository` و`expenses_list` |
+| إبقاء غير المحلول في outbox | ✅ | `P0.5` |
+| حماية `deleteByExpenseId` | ✅ | `P0.5` |
+| إضافة «سلفة» إلى المصنّف | ✅ | `local_db.dart:1373/1502` |
+| Drive Delta للجداول الناقصة | ✅ | `P0.6` في `google_drive_delta_sync.dart` |
+| `employee_uuid` في جداول الرواتب + `expense_uuid`/`withdrawal_uuid` | ✅ | migration 67 و68 |
+
+ما كان **ناقصاً فعلاً** (وهو ما نُفِّذ الآن): `expenses.expense_kind`، جدول
+`pending_links`، الفهارس النصّية في §4.1، الفهرس الفريد `ux_sw_expense_uuid_active`،
+تعبئة `expense_uuid` بحراس، وخدمة `LocalLinkResolver` المركزية.
+
+### 15.2 Migration 75 — مخطط الربط
+
+`schemaVersion` 74 → **75**. الإنشاء يتم في **`beforeOpen`** عبر
+`_ensureUuidLinkSchema()` بمعرّف (idempotent)، لأن `onCreate` (التثبيت الجديد) و
+`onUpgrade` (الترقية) لا يمرّان على نفس المسار — وهذا نصّ §4.1: «تُنشأ فعلياً في
+`beforeOpen` أو `onCreate` باستخدام `IF NOT EXISTS`».
+
+- `ALTER TABLE expenses ADD COLUMN expense_kind TEXT` — بعد فحص `PRAGMA table_info`
+  (SQLite لا يدعم `ADD COLUMN IF NOT EXISTS`).
+- `pending_links(id, entity, local_uuid, missing_kind, missing_uuid, payload_json,
+  attempts, last_error, created_at, updated_at, UNIQUE(entity,local_uuid,missing_kind,missing_uuid))`
+  + فهرسان.
+- الفهارس: `idx_exp_employee_uuid`, `idx_exp_kind_day`, `idx_sw_expense_uuid`,
+  `idx_sw_employee_id`, `idx_sc_employee_uuid`, `idx_emp_local_uuid` — كلها
+  `IF NOT EXISTS`.
+- `ux_sw_expense_uuid_active` (فريد جزئي: `expense_uuid IS NOT NULL AND deleted_at IS NULL`):
+  **لا يُنشأ إن وُجد تكرار** — يُسجَّل التكرار في السجل ويُعرض في التقرير،
+  ولا يُحذف أي صف (نصّ §4.1: لا تُحذف التكرارات تلقائياً).
+
+لماذا raw SQL لا تعريف Drift للأعمدة الجديدة؟ إعلانها في Drift يوجب إعادة توليد
+`local_db.g.dart` (codegen غير متاح في بيئة التنفيذ)، والـ raw SQL هو النمط
+المستخدم أصلاً في migrations 42/67/68 للأعمدة الإضافية.
+
+### 15.3 التعبئة الآمنة (§4.2)
+
+`_backfillUuidLinksAfterUpgrade()` — تعمل داخل migration 75، وكلها **محلية وحتمية**:
+
+1. `expense_kind` يُقترح **مرة واحدة** من المصنّف النصي الحالي (نفس قائمة
+   migration 67 + «سلفة» + أقساط السلف) ثم لا يُعاد اشتقاقه من النص.
+2. `salary_withdrawals.expense_uuid` من `expense_id` المحلي **بشرطين**:
+   المصروف موجود و`local_uuid` غير فارغ وغير محذوف، **وأن `employee_uuid`
+   متطابق** (أو أحدهما NULL) — فلا يُنسب مصروف موظف لموظف آخر.
+3. `expenses.withdrawal_uuid` العكسي يُملأ فقط إذا كانت هناك **مرآة نشطة واحدة**
+   تشير إليه (لا تخمين بين مرايا متعددة).
+4. **بلا** كتابة إلى outbox، **بلا** رفع `version`، **بلا** تغيير `lastModified` —
+   مغطّى باختبار صريح.
+5. الأعداد (مسحوبات بلا `employeeUuid`، مسحوبات بلا `expenseUuid`، مصروفات رواتب
+   بلا موظف، مرايا مكررة) تُسجَّل في `developer.log` باسم `db.link`.
+
+### 15.4 `LocalLinkResolver` (§5.1/§5.2)
+
+`mobile/lib/services/local_link_resolver.dart` — الخدمة المركزية الوحيدة لتحويل
+UUID إلى أرقام محلية:
+
+- `employeeIdForUuid` / `expenseIdForUuid` / `employeeIdsForUuids` (دفعة باستعلام واحد).
+- **لا fallback** إلى `employeeId`/`relatedId`/`expenseId` القادمة من Appwrite،
+  ولا `serverId` (§1.3/§5.3).
+- `recordPendingLink(...)` — `INSERT … ON CONFLICT DO UPDATE` فلا تكرار لنفس العطل،
+  وتزداد المحاولات.
+- `retryPendingLinks()` — يحل ما وصل أبوه، ويكتب الرقم المحلي **بلا** تعديل هوية
+  أو `version`، ويحذف صف `pending_links`؛ وما لم يُحل يبقى بزيادة محاولة وسبب
+  واضح، والسجل الأصلي لا يُحذف ولا يُسقط من outbox.
+- `pendingLinks()` / `pendingLinksCount()` — أساس تقرير §11.
+- نوع ربط غير معروف **لا يكتب شيئاً** (بدل تخمين عمود).
+
+**نقطة الربط:** `AppwriteSyncManager` بعد اكتمال دورة السحب — مباشرةً بعد
+`SalaryFixHelper.runOnceAfterFirstPull()`: استدعاء `retryPendingLinks()` داخل
+`try/catch` غير حاجب (فشله لا يُفشل المزامنة)، مطابقةً لنصّ §8.1.
+
+### 15.5 تقرير السلامة (§11)
+
+`AppDatabase.uuidLinkHealthCounts()` — قراءة فقط: مسحوبات بلا `employeeUuid`،
+مسحوبات بلا `expenseUuid`، مصروفات رواتب بلا موظف، مرايا يتيمة، مرايا مكررة،
+`pending_links`، ومصروفات بلا تصنيف. لا حذف ولا تصحيح تلقائي.
+
+### 15.6 الاختبارات
+
+`mobile/test/services/local_link_resolver_test.dart` — 16 حالة:
+
+- المخطط: وجود `expense_kind`، أعمد `pending_links`، والفهرس الفريد.
+- التعبئة: تصنيف كل نوع مصروف (سحب/خصم/سلفة/رواتب/عام)، `expense_uuid` للموظف
+  الصحيح و**رفض** الربط عبر الموظف الخاطئ، وثبات `version`/`last_modified`/outbox.
+- الحل: موظف/مصروف/دفعة، تجاهل المحذوف منطقياً، وقيم فارغة ⇒ `null`.
+- `pending_links`: التسجيل، منع التكرار، الحل بعد وصول الأب، البقاء عند غيابه،
+  نوع غير معروف لا يكتب، وربط المرآة عبر `expense_uuid`.
+- التقرير: المفاتيح المطلوبة، والمرآة اليتيمة تُعدّ ولا تُحذف.
+
+### 15.7 ما تبقّى من الوثيقة (لم يُنفَّذ في هذه الدفعة — عمداً)
+
+| PR | المتبقّي | السبب |
+|---|---|---|
+| PR‑3 | `SalaryExpenseService` (save/delete/reassign ذرية + منع مرآة ثانية) | يمسّ مسارات إنشاء المصروف والمرآة في الواجهات؛ يحتاج جولة مستقلة مع اختبارات atomicity |
+| PR‑4 | Payload UUID-first واستقباله في كل Adapter + Cloud Wins على `revision` | الأجهزة القديمة ما زالت ترسل الأرقام؛ تغييره يحتاج تحققاً من attributes في Appwrite أولاً |
+| PR‑5 | Checkpoints دقيقة بعد commit لكل صفحة + إعادة محاولة `pending_links` داخل محرّك السحب | محرّك السحب الحالي يحدّث checkpoint بعد الدفعة؛ يحتاج إعادة هيكلة دقيقة |
+| PR‑6 | `EmployeeFinancialReportRepository` ونموذج الحركة الموحّد + منع ازدواج المصروف/المرآة في التقارير | نطاق تقارير كامل (16.2–16.9) |
+| PR‑7 | إغلاق التوافق القديم (`reason='exp_N'`، `expense_id`، fallback) | مشروط بتحديث جميع الأجهزة وصفر اعتماد قديم |
+
+حتى تُنفَّذ PR‑3/PR‑4: `expense_kind` **مُعبّأ** للسجلات القائمة ولا يُشتق من النص،
+لكن المسارات الجديدة ما زالت تكتب `expense_type` النصي؛ لذلك يُصنَّف عند الحفظ
+بمصنّف موحّد لاحقاً في PR‑3.

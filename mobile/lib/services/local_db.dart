@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -1258,7 +1259,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 74;
+  int get schemaVersion => 75;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1285,8 +1286,23 @@ class AppDatabase extends _$AppDatabase {
       // page_size يجب تعيينه فقط عند إنشاء قاعدة بيانات جديدة، وبما أن
       // قاعدة البيانات موجودة مسبقاً بقيمة مختلفة (غالباً 1024) فهذا إهدار I/O
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
+      // ✅ (2026-11-06) مخطط الربط UUID-first — يُنشأ بمعرّف (idempotent)
+      // هنا لأنه يعمل لكل قاعدة: التثبيت الجديد (onCreate) والترقية
+      // (onUpgrade) معاً. التفاصيل في [_ensureUuidLinkSchema].
+      await _ensureUuidLinkSchema();
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-11-06) Migration 75 — PR-1 من وثيقة الربط الموحدة:
+      // `expenses.expense_kind` + جدول `pending_links` + فهارس UUID،
+      // ثم تعبئة آمنة للروابط (بلا outbox، بلا version، بلا lastModified).
+      if (from < 75) {
+        await _ensureUuidLinkSchema();
+        await _backfillUuidLinksAfterUpgrade();
+        developer.log(
+          'Migration 75: expense_kind + pending_links + UUID indexes',
+          name: 'db.migration',
+        );
+      }
       // Migration 74: تاريخ الدخول للسجلات الجديدة فقط. لا تتم تعبئة
       // السجلات الموجودة حتى تبقى مستثناة من التاريخ في تقرير PDF.
       if (from < 74) {
@@ -3956,6 +3972,261 @@ class AppDatabase extends _$AppDatabase {
       'guests': <Map<String, dynamic>>[],
       'services': <Map<String, dynamic>>[],
       'settings': <Map<String, dynamic>>[],
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  مخطط الربط UUID-first — PR-1 من وثيقة الربط والمزامنة الموحدة
+  //
+  //  الملزم في الوثيقة (§4.1): إضافة `salary_withdrawals.expense_uuid`،
+  //  `expenses.expense_kind`، جدول `pending_links`، وفهارس UUID — وأن تُنشأ
+  //  **فعلياً** بـ `IF NOT EXISTS` (لا يُعتمد على `List<Index> get indexes`
+  //  وحدها).
+  //
+  //  لماذا raw SQL لا تعريف Drift؟ لأن الأعمدة/الجدول هنا إضافية ولا
+  //  تحتاج codegen؛ إعلانها في Drift يستلزم إعادة توليد `local_db.g.dart`
+  //  (وهو غير متاح في بيئة التنفيذ) — والـ raw SQL هو النمط المستخدم أصلاً
+  //  لهذا النوع (انظر migration 42/67/68 في onUpgrade).
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// يُنشئ/يكمل مخطط الربط بمعرّف (idempotent) — يُستدعى في كل `beforeOpen`
+  /// وفي migration 75، فلا يهم ترتيب التشغيل ولا وجود القاعدة مسبقاً.
+  Future<void> _ensureUuidLinkSchema() async {
+    // (1) expenses.expense_kind — التصنيف الصريح (enum) بدل النص الحر.
+    //     ALTER TABLE في SQLite لا يدعم IF NOT EXISTS ⇒ فحص PRAGMA أولاً.
+    if (!await _columnExists('expenses', 'expense_kind')) {
+      await customStatement(
+        'ALTER TABLE expenses ADD COLUMN expense_kind TEXT',
+      );
+    }
+
+    // (2) pending_links — حفظ السجلات التي وصل رابطها الأبوي متأخراً،
+    //     بدل نسبتها تخميناً أو حذفها (§5.2). UNIQUE يمنع تكرار نفس العطل.
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS pending_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity TEXT NOT NULL,
+        local_uuid TEXT NOT NULL,
+        missing_kind TEXT NOT NULL,
+        missing_uuid TEXT NOT NULL,
+        payload_json TEXT,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (entity, local_uuid, missing_kind, missing_uuid)
+      )
+    ''');
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_pending_links_missing '
+      'ON pending_links (missing_kind, missing_uuid)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_pending_links_entity '
+      'ON pending_links (entity, local_uuid)',
+    );
+
+    // (3) فهارس الهوية والربط المطلوبة نصّاً في §4.1.
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_exp_employee_uuid '
+      'ON expenses(employee_uuid)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_exp_kind_day '
+      'ON expenses(expense_kind, hotel_day_key)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sw_expense_uuid '
+      'ON salary_withdrawals(expense_uuid)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sw_employee_id '
+      'ON salary_withdrawals(employee_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sc_employee_uuid '
+      'ON salary_cycles(employee_uuid)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_emp_local_uuid ON employees(local_uuid)',
+    );
+
+    // (4) الفهرس الفريد للمرآة النشطة — §4.1 يمنع إنشاءه قبل معالجة
+    //     التكرارات وتقريرها: نتحقق أولاً، وإن وُجد تكرار **لا نُنشئ الفهرس
+    //     ولا نحذف شيئاً** — نُسجّل التكرار للمراجعة اليدوية.
+    await _ensureUniqueActiveMirrorIndex();
+  }
+
+  /// هل العمود موجود في الجدول؟ (SQLite لا يوفر ADD COLUMN IF NOT EXISTS)
+  Future<bool> _columnExists(String table, String column) async {
+    final info = await customSelect('PRAGMA table_info($table)').get();
+    return info.any((row) => row.data['name'] == column);
+  }
+
+  /// الفهرس الفريد `ux_sw_expense_uuid_active`: قيمة `expense_uuid` واحدة
+  /// نشطة لكل مصروف (لا مرآة ثانية). يُنشأ فقط عند خلو القاعدة من التكرار.
+  Future<void> _ensureUniqueActiveMirrorIndex() async {
+    try {
+      final duplicates = await customSelect(
+        'SELECT expense_uuid, COUNT(*) AS active_mirrors '
+        'FROM salary_withdrawals '
+        'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL '
+        'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+      ).get();
+
+      if (duplicates.isNotEmpty) {
+        final details = duplicates
+            .map(
+              (r) => '${r.data['expense_uuid']}x${r.data['active_mirrors']}',
+            )
+            .join(', ');
+        developer.log(
+          '⚠️ ux_sw_expense_uuid_active لم يُنشأ: ${duplicates.length} '
+          'expense_uuid لها أكثر من مرآة نشطة (تُعرض في تقرير السلامة '
+          'ولا تُحذف تلقائياً): $details',
+          name: 'db.link',
+          level: 900,
+        );
+        return;
+      }
+
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS ux_sw_expense_uuid_active '
+        'ON salary_withdrawals(expense_uuid) '
+        'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
+      );
+    } catch (e) {
+      // الفهرس تحسين سلامة لا شرط تشغيل — لا نُفشل فتح القاعدة بسببه.
+      developer.log(
+        'تعذّر إنشاء ux_sw_expense_uuid_active: $e',
+        name: 'db.link',
+        level: 900,
+      );
+    }
+  }
+
+  /// تعبئة الروابط بعد الترقية إلى 75 — **محلية وحتمية فقط** (§4.2):
+  /// - بلا outbox، بلا رفع `version`، بلا تغيير `lastModified`.
+  /// - لا يُستنتج رابط من رقم قادم من Appwrite؛ فقط من روابط داخل الجهاز.
+  /// - ما لا يُحسم يبقى NULL ويظهر في تقرير غير المرتبط.
+  Future<void> _backfillUuidLinksAfterUpgrade() async {
+    try {
+      // (أ) expense_kind: يُقترح **مرة واحدة** من المصنّف النصي الحالي
+      //     (نفس قائمة migration 67) ثم لا يُعاد اشتقاقه من النص أبداً.
+      await customStatement(
+        "UPDATE expenses SET expense_kind = CASE "
+        "WHEN TRIM(expense_type) IN ('سحب راتب','سحب من الراتب') "
+        "  THEN 'salary_withdrawal' "
+        "WHEN TRIM(expense_type) IN ('خصم راتب','خصم من الراتب') "
+        "  THEN 'salary_deduction' "
+        "WHEN TRIM(expense_type) = 'سلفة' THEN 'advance' "
+        "WHEN TRIM(expense_type) LIKE '%سلفة%' THEN 'advance_installment' "
+        "WHEN TRIM(expense_type) = 'رواتب' THEN 'payroll' "
+        "ELSE 'general' END "
+        'WHERE expense_kind IS NULL',
+      );
+
+      // (ب) expense_uuid على السحوبات المحلية المنشأ: من expense_id
+      //     **فقط** إذا أشار إلى مصروف محلي نشط لـ **نفس الموظف**
+      //     (أو أحدهما بلا UUID) — حراس تمنع اختراع رابط لموظف آخر.
+      await customStatement(
+        'UPDATE salary_withdrawals SET expense_uuid = ('
+        '  SELECT e.local_uuid FROM expenses e '
+        '  WHERE e.id = salary_withdrawals.expense_id) '
+        'WHERE expense_uuid IS NULL '
+        '  AND expense_id IS NOT NULL AND expense_id > 0 '
+        '  AND EXISTS ('
+        '    SELECT 1 FROM expenses e2 '
+        '    WHERE e2.id = salary_withdrawals.expense_id '
+        '      AND e2.local_uuid IS NOT NULL '
+        '      AND e2.deleted_at IS NULL '
+        '      AND (e2.employee_uuid IS NULL '
+        '        OR salary_withdrawals.employee_uuid IS NULL '
+        '        OR e2.employee_uuid = salary_withdrawals.employee_uuid))',
+      );
+
+      // (ج) الاتجاه العكسي withdrawal_uuid على المصروف: يُملأ فقط إذا كانت
+      //     هناك **مرآة نشطة واحدة** تشير إليه (لا تخمين بين مرايا متعددة).
+      await customStatement(
+        'UPDATE expenses SET withdrawal_uuid = ('
+        '  SELECT w.local_uuid FROM salary_withdrawals w '
+        '  WHERE w.expense_id = expenses.id AND w.deleted_at IS NULL) '
+        'WHERE withdrawal_uuid IS NULL '
+        '  AND (SELECT COUNT(*) FROM salary_withdrawals w2 '
+        '       WHERE w2.expense_id = expenses.id '
+        '         AND w2.deleted_at IS NULL '
+        '         AND w2.local_uuid IS NOT NULL) = 1',
+      );
+
+      final counts = await uuidLinkHealthCounts();
+      final missingEmployee = counts['withdrawalsMissingEmployeeUuid'];
+      final missingExpense = counts['withdrawalsMissingExpenseUuid'];
+      final salaryExpenseGap = counts['salaryExpensesMissingEmployeeUuid'];
+      final duplicateMirrors = counts['duplicateActiveMirrors'];
+      developer.log(
+        'Migration 75 backfill: '
+        'withdrawals(no employeeUuid)=$missingEmployee, '
+        'withdrawals(no expenseUuid)=$missingExpense, '
+        'salaryExpenses(no employeeUuid)=$salaryExpenseGap, '
+        'duplicateActiveMirrors=$duplicateMirrors',
+        name: 'db.link',
+      );
+    } catch (e) {
+      // التعبئة تحسين لا شرط تشغيل — لا نُفشل الترقية بسببها.
+      developer.log(
+        'تعذّرت تعبئة روابط UUID في migration 75: $e',
+        name: 'db.link',
+        level: 900,
+      );
+    }
+  }
+
+  /// للاختبارات فقط: تنفيذ نفس تعبئة migration 75 على قاعدة قائمة
+  /// (onUpgrade لا يعمل على قاعدة أُنشئت للتو في الاختبارات).
+  @visibleForTesting
+  Future<void> backfillUuidLinksForTesting() =>
+      _backfillUuidLinksAfterUpgrade();
+
+  /// عدّادات سلامة الروابط — أساس «تقرير السلامة الدائم» (§11) ورسائل
+  /// التشخيص. قراءة فقط: لا حذف ولا تصحيح تلقائي.
+  Future<Map<String, int>> uuidLinkHealthCounts() async {
+    Future<int> count(String sql) async {
+      final rows = await customSelect(sql).get();
+      if (rows.isEmpty) return 0;
+      final value = rows.first.data.values.first;
+      return value is int ? value : int.tryParse('${value ?? 0}') ?? 0;
+    }
+
+    return <String, int>{
+      'withdrawalsMissingEmployeeUuid': await count(
+        'SELECT COUNT(*) FROM salary_withdrawals '
+        'WHERE employee_uuid IS NULL OR TRIM(employee_uuid) = \'\'',
+      ),
+      'withdrawalsMissingExpenseUuid': await count(
+        'SELECT COUNT(*) FROM salary_withdrawals '
+        'WHERE expense_uuid IS NULL AND expense_id IS NOT NULL',
+      ),
+      'salaryExpensesMissingEmployeeUuid': await count(
+        "SELECT COUNT(*) FROM expenses WHERE employee_uuid IS NULL "
+        "AND expense_kind IN ('salary_withdrawal','salary_deduction',"
+        "'advance','advance_installment','payroll')",
+      ),
+      'orphanMirrors': await count(
+        'SELECT COUNT(*) FROM salary_withdrawals w '
+        'WHERE w.expense_uuid IS NOT NULL AND w.deleted_at IS NULL '
+        'AND NOT EXISTS (SELECT 1 FROM expenses e '
+        '  WHERE e.local_uuid = w.expense_uuid AND e.deleted_at IS NULL)',
+      ),
+      'duplicateActiveMirrors': await count(
+        'SELECT COUNT(*) FROM (SELECT expense_uuid '
+        'FROM salary_withdrawals '
+        'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL '
+        'GROUP BY expense_uuid HAVING COUNT(*) > 1)',
+      ),
+      'pendingLinks': await count('SELECT COUNT(*) FROM pending_links'),
+      'unclassifiedExpenses': await count(
+        'SELECT COUNT(*) FROM expenses WHERE expense_kind IS NULL',
+      ),
     };
   }
 
