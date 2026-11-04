@@ -188,10 +188,9 @@ class AppwriteService {
       final present =
           rawAttributes is List &&
           rawAttributes.any((entry) {
-            final keyValue =
-                entry is Map
-                    ? (entry['key'] ?? entry[r'$id'])
-                    : (entry?.key ?? entry?.id);
+            final keyValue = entry is Map
+                ? (entry['key'] ?? entry[r'$id'])
+                : (entry?.key ?? entry?.id);
             return '${keyValue ?? ''}'.trim() == attribute;
           });
       if (present) {

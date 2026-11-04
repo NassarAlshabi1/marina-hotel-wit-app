@@ -156,10 +156,7 @@ void main() {
 
       final rows = await db.select(db.outbox).get();
       expect(rows, hasLength(1), reason: 'لا حذف بلا تأكيد — يبقى الأثر');
-      expect(
-        rows.single.processingStatus,
-        CloudWinsPolicy.supersededStatus,
-      );
+      expect(rows.single.processingStatus, CloudWinsPolicy.supersededStatus);
       expect(rows.single.lastError, contains('cloud version 5'));
     });
 

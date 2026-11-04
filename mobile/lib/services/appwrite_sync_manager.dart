@@ -3563,9 +3563,7 @@ class AppwriteSyncManager {
     final deleted = data['deleted_at'];
     return (
       version: version is int ? version : int.tryParse('$version') ?? 0,
-      deletedAt: deleted is int
-          ? deleted
-          : int.tryParse('${deleted ?? ''}'),
+      deletedAt: deleted is int ? deleted : int.tryParse('${deleted ?? ''}'),
     );
   }
 
@@ -3580,9 +3578,10 @@ class AppwriteSyncManager {
     if (repository == null) return -1;
     try {
       return await repository.upsertFromJson(
-        Map<String, dynamic>.from(cloud),
-        src: Source.appwrite,
-      ) as int;
+            Map<String, dynamic>.from(cloud),
+            src: Source.appwrite,
+          )
+          as int;
     } catch (e) {
       _logger.warning(
         '⚠️ Cloud Wins: فشل تطبيق نسخة السحابة على $entity: $e',
