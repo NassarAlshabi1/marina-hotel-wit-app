@@ -4119,10 +4119,21 @@ class AppwriteSyncManager {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
-  Future<Expense?> _getExpenseByLocalUuid(String localUuid) {
-    return (database.select(
+  Future<Expense?> _getExpenseByLocalUuid(String localUuid) async {
+    final exact = await (database.select(
       database.expenses,
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    if (exact != null) return exact;
+
+    // بعض المزودين/النسخ القديمة حفظت UUID بشرطات أو بدونها. لا ننشئ
+    // صفًا جديدًا عند اختلاف التنسيق؛ نبحث بالمفتاح المعياري نفسه.
+    final wanted = _compactUuidToken(localUuid);
+    if (wanted.isEmpty) return null;
+    final rows = await database.select(database.expenses).get();
+    for (final row in rows) {
+      if (_compactUuidToken(row.localUuid) == wanted) return row;
+    }
+    return null;
   }
 
   Future<Payment?> _getPaymentByLocalUuid(String localUuid) {
@@ -4453,8 +4464,12 @@ class AppwriteSyncManager {
           continue;
         }
 
-        final insertedId = await _adapterRegistry.salaryWithdrawals
+        final upsertResult = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
+        if (upsertResult == -1) {
+          failed.add('${data['localUuid']}: salary withdrawal upsert skipped');
+          continue;
+        }
 
         // ✅ (migration 68) كتابة expense_id في العمود الخام (Migration 40+)
         // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً.
@@ -4463,7 +4478,7 @@ class AppwriteSyncManager {
         // انكسار رابط سحبة↔مصروف (643/688 زوجاً خاطئاً على السحابة).
         // (الحارس أعلاه أزال الرقمي الخام من data فلا يُكتب أبداً.)
         final mirrorOutcome = await _resolveAndWriteMirrorExpenseId(
-          insertedId,
+          salaryWithdrawalLocalUuid: localUuid,
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
@@ -4538,9 +4553,17 @@ class AppwriteSyncManager {
             mirrorDuplicates++;
             continue;
           }
-          final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
+          final deferredUpsertResult = await _adapterRegistry.salaryWithdrawals
               .upsertFromJson(data, src: Source.appwrite);
-          if (deferredInsertedId == -1) {
+          if (deferredUpsertResult == -1) {
+            // لا نعتبر السجل المستبعد نجاحًا ولا نمرره إلى مسار الربط.
+            failed.add(
+              '${data['localUuid']}: unresolved employee parent (adapter skip)',
+            );
+            continue;
+          }
+          final deferredLocalUuid = _asNullableString(data['localUuid']);
+          if (deferredLocalUuid == null) {
             // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
             // الـ adapter فشل؛ لا نجاحاً صامتاً (كان -1 يُمرَّر للأختام
             // كمعرف صف ويُحسب processed++).
@@ -4552,7 +4575,7 @@ class AppwriteSyncManager {
           // ✅ (migration 68) كتابة expense_id عبر حل uuid المرآة أولاً
           // (نفس منطق الموقع الرئيسي أعلاه — راجع التوثيق هناك).
           final deferredOutcome = await _resolveAndWriteMirrorExpenseId(
-            deferredInsertedId,
+            salaryWithdrawalLocalUuid: deferredLocalUuid,
             expenseUuid: _asNullableString(
               data['expenseUuid'] ?? data['expense_uuid'],
             ),
@@ -4795,11 +4818,16 @@ class AppwriteSyncManager {
           continue;
         }
 
-        final insertedId = await _adapterRegistry.salaryWithdrawals
+        final orphanUpsertResult = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
+        if (orphanUpsertResult == -1) {
+          // يبقى في الطابور ولا يُعتبر مستعادًا قبل تطبيقه فعليًا.
+          stillPending.add(data);
+          continue;
+        }
 
         final orphanOutcome = await _resolveAndWriteMirrorExpenseId(
-          insertedId,
+          salaryWithdrawalLocalUuid: data['localUuid']?.toString() ?? '',
           expenseUuid: _asNullableString(
             data['expenseUuid'] ?? data['expense_uuid'],
           ),
@@ -4958,10 +4986,22 @@ class AppwriteSyncManager {
     return true;
   }
 
-  Future<SalaryWithdrawal?> _getSalaryWithdrawalByLocalUuid(String localUuid) {
-    return (database.select(
+  Future<SalaryWithdrawal?> _getSalaryWithdrawalByLocalUuid(
+    String localUuid,
+  ) async {
+    final exact = await (database.select(
       database.salaryWithdrawals,
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+    if (exact != null) return exact;
+
+    // localUuid هو الهوية العابرة للأجهزة؛ الشرطات اختلاف تمثيل لا هوية.
+    final wanted = _compactUuidToken(localUuid);
+    if (wanted.isEmpty) return null;
+    final rows = await database.select(database.salaryWithdrawals).get();
+    for (final row in rows) {
+      if (_compactUuidToken(row.localUuid) == wanted) return row;
+    }
+    return null;
   }
 
   /// ✅ (migration 68) تحويل قيمة JSON إلى نص nullable بشكل آمن.
@@ -5004,8 +5044,8 @@ class AppwriteSyncManager {
   ///
   /// تعيد نتيجة الحل (_MirrorLinkOutcome) كي تجمعّها مواقع الاستدعاء
   /// الثلاثة في ملخصات الدفعة (نمط 4fbc328a).
-  Future<_MirrorLinkOutcome> _resolveAndWriteMirrorExpenseId(
-    int salaryWithdrawalRowId, {
+  Future<_MirrorLinkOutcome> _resolveAndWriteMirrorExpenseId({
+    required String salaryWithdrawalLocalUuid,
     String? expenseUuid,
   }) async {
     if (expenseUuid == null || expenseUuid.trim().isEmpty) {
@@ -5022,11 +5062,9 @@ class AppwriteSyncManager {
       return _MirrorLinkOutcome.noClaim;
     }
     try {
-      final linkedExpense =
-          await (database.select(database.expenses)
-                ..where((e) => e.localUuid.equals(expenseUuid))
-                ..limit(1))
-              .getSingleOrNull();
+      // استخدم نفس المطابقة المعيارية في المسار الفوري ومسار الشفاء؛
+      // اختلاف الشرطات/حالة الأحرف بين Appwrite وDrive لا ينشئ هوية جديدة.
+      final linkedExpense = await _getExpenseByLocalUuid(expenseUuid);
       if (linkedExpense == null) {
         // UUID is authoritative but the expense may not have arrived yet. Do
         // not fall back to the remote numeric id. _relinkMirrorExpenseIds()
@@ -5040,12 +5078,21 @@ class AppwriteSyncManager {
         // فارغاً والمطالبة كما وصلت، ويجمعها المتصل بملخص الدفعة.
         return _MirrorLinkOutcome.expenseDeleted;
       }
-      final withdrawal =
-          await (database.select(database.salaryWithdrawals)
-                ..where((w) => w.id.equals(salaryWithdrawalRowId))
-                ..limit(1))
-              .getSingleOrNull();
-      final withdrawalEmployeeUuid = withdrawal?.employeeUuid?.trim();
+      // لا تستخدم أبدًا id رقميًا ناتجًا عن upsert أو مصدر بعيد هنا؛
+      // id محلي لكل جهاز وقد يشير إلى سجل مختلف بعد نقل/استعادة البيانات.
+      // localUuid هو مفتاح الهوية الوحيد الثابت بين Appwrite وDrive وأي مزود لاحق.
+      final withdrawal = await _getSalaryWithdrawalByLocalUuid(
+        salaryWithdrawalLocalUuid,
+      );
+      if (withdrawal == null) {
+        _logger.warning(
+          '⏳ تعذر ربط المصروف $expenseUuid: السحبة المحلية غير موجودة '
+          'بعد upsert (localUuid=$salaryWithdrawalLocalUuid) — ستعاد المحاولة',
+          tag: 'SYNC_RELINK',
+        );
+        return _MirrorLinkOutcome.error;
+      }
+      final withdrawalEmployeeUuid = withdrawal.employeeUuid?.trim();
       final expenseEmployeeUuid = linkedExpense.employeeUuid?.trim();
       final withdrawalEmployeeCompact = _compactUuidToken(
         withdrawalEmployeeUuid,
@@ -5055,7 +5102,7 @@ class AppwriteSyncManager {
           expenseEmployeeCompact.isNotEmpty &&
           withdrawalEmployeeCompact != expenseEmployeeCompact) {
         _logger.error(
-          '❌ رفض ربط السحبة #$salaryWithdrawalRowId بالمصروف '
+          '❌ رفض ربط السحبة $salaryWithdrawalLocalUuid بالمصروف '
           '$expenseUuid: employeeUuid mismatch '
           '($withdrawalEmployeeUuid != $expenseEmployeeUuid)',
           tag: 'SYNC_RELINK',
@@ -5066,7 +5113,7 @@ class AppwriteSyncManager {
       if (swAdapter is SalaryWithdrawalsAdapter) {
         await swAdapter.writeExpenseIdRaw(
           database,
-          salaryWithdrawalRowId,
+          withdrawal.id,
           linkedExpense.id,
         );
       }
@@ -5074,7 +5121,7 @@ class AppwriteSyncManager {
     } catch (e) {
       _logger.warning(
         '⚠️ فشل حل expense_uuid=$expenseUuid للسحبة '
-        '#$salaryWithdrawalRowId: $e',
+        '$salaryWithdrawalLocalUuid: $e',
         tag: 'SYNC',
       );
       return _MirrorLinkOutcome.error;
@@ -5269,17 +5316,23 @@ class AppwriteSyncManager {
           .customSelect(
             'SELECT w.id AS wid, w.expense_id AS current_expense_id, '
             'w.expense_uuid AS expense_uuid, '
-            '(SELECT e.id FROM expenses e WHERE e.local_uuid = w.expense_uuid '
+            '(SELECT e.id FROM expenses e WHERE '
+            "  REPLACE(LOWER(TRIM(e.local_uuid)), '-', '') = "
+            "      REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') "
             '  AND e.deleted_at IS NULL '
             '  AND (e.employee_uuid IS NULL OR w.employee_uuid IS NULL '
-            '       OR e.employee_uuid = w.employee_uuid) LIMIT 1) AS resolved_expense_id '
+            "       OR REPLACE(LOWER(TRIM(e.employee_uuid)), '-', '') = "
+            "          REPLACE(LOWER(TRIM(w.employee_uuid)), '-', '')"
+            '  ) LIMIT 1) AS resolved_expense_id '
             'FROM salary_withdrawals w '
             'WHERE w.expense_uuid IS NOT NULL '
-            "AND w.expense_uuid != '' "
+            "AND TRIM(w.expense_uuid) != '' "
             'AND w.deleted_at IS NULL '
             'AND (w.expense_id IS NULL OR w.expense_id NOT IN '
             '  (SELECT e2.id FROM expenses e2 '
-            "   WHERE e2.local_uuid = w.expense_uuid AND e2.deleted_at IS NULL))",
+            "   WHERE REPLACE(LOWER(TRIM(e2.local_uuid)), '-', '') = "
+            "         REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') "
+            '     AND e2.deleted_at IS NULL))',
           )
           .get();
       for (final row in rows) {
@@ -5417,6 +5470,12 @@ class AppwriteSyncManager {
   @visibleForTesting
   Future<int> relinkExpenseWithdrawalUuidsForTesting() =>
       _relinkExpenseWithdrawalUuids();
+
+  /// ✅ (2026-11-04) جسر اختباري لإعادة الربط المؤجلة (سحبة → مصروف)
+  /// عبر expense_uuid — بنفس نمط الجسر العكسي أعلاه: يُثبت أن مطابقة
+  /// UUID الموحدة (شرطات/حالة) تحل الروابط التي وصل مصروفها متأخراً.
+  @visibleForTesting
+  Future<int> relinkMirrorExpenseIdsForTesting() => _relinkMirrorExpenseIds();
 
   Map<String, dynamic> _roomToRemote(Room room) =>
       _payloadMapper.roomToRemote(room);
