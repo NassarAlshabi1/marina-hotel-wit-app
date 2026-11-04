@@ -218,4 +218,33 @@ class AdapterRegistry {
   final BaseRepository<InventoryItem, InventoryItemsCompanion> inventoryItems;
   final BaseRepository<InventoryTransaction, InventoryTransactionsCompanion>
   inventoryTransactions;
+
+  /// خريطة اسم الكيان (كما في Outbox) ← مستودعه.
+  ///
+  /// تُستخدم في سياسة Cloud Wins (§7.5) لتطبيق نسخة Appwrite على السجل
+  /// المحلي عبر **نفس** مسار السحب (`upsertFromJson`) — لا مسار كتابة
+  /// ثانٍ يفقد حلّ الربط أو يكتب أرقاماً بعيدة.
+  late final Map<String, dynamic> byEntity = {
+    'bookings': bookings,
+    'payments': payments,
+    'expenses': expenses,
+    'debts': debts,
+    'rooms': rooms,
+    'employees': employees,
+    'salary_cycles': salaryCycles,
+    'salary_payments': salaryPayments,
+    'salary_withdrawals': salaryWithdrawals,
+    'salary_carry_over_logs': salaryCarryOverLogs,
+    'booking_notes': bookingNotes,
+    'booking_nights': nights,
+    'cash_transactions': cashTransactions,
+    'shift_notes': shiftNotes,
+    'price_adjustments': priceAdjustments,
+    'audit_logs': auditLogs,
+    'payment_voids': paymentVoids,
+    'booking_price_adjustments': bookingPriceAdjustments,
+    'guest_infos': guestInfos,
+    'inventory_items': inventoryItems,
+    'inventory_transactions': inventoryTransactions,
+  };
 }

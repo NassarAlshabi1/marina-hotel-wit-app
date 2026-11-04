@@ -150,6 +150,71 @@ class AppwriteService {
     await initialize();
   }
 
+  /// ═══ فحص وجود Attribute سحابي قبل إرساله (وثيقة الربط §7.1) ═══
+  ///
+  /// القاعدة الملزمة: «قبل إرسال أي حقل جديد يجب إنشاؤه في Appwrite».
+  /// الاعتماد على `filterPayloadForCollection` وحده لا يكفي — فهو يسمح
+  /// بالحقل إن كان في المخطط المحلي، فيفشل الرفع بـ unknown attribute.
+  ///
+  /// النتيجة تُخزَّن مؤقتاً: الإيجابية دائماً (الخاصية لا تُحذف عملياً)،
+  /// والسلبية عشر دقائق فقط — حتى تُلتقط الخاصية فور إنشائها على السحابة
+  /// دون إعادة تشغيل التطبيق.
+  static const Duration _attributeNegativeTtl = Duration(minutes: 10);
+  static final Set<String> _attributesPresent = <String>{};
+  static final Map<String, DateTime> _attributesMissingAt = {};
+
+  /// هل يمتلك [collectionId] في Appwrite خاصية اسمها [attribute]؟
+  ///
+  /// أي فشل (شبكة/صلاحيات) يُرجع false: الأصل ألّا نُرسل ما لا نتحقق من
+  /// وجوده. الحقل يبقى محلياً ويُرسل في دورة تالية بعد التحقق.
+  Future<bool> collectionHasAttribute(
+    String collectionId,
+    String attribute,
+  ) async {
+    final key = '$collectionId.$attribute';
+    if (_attributesPresent.contains(key)) return true;
+    final missingAt = _attributesMissingAt[key];
+    if (missingAt != null &&
+        DateTime.now().difference(missingAt) < _attributeNegativeTtl) {
+      return false;
+    }
+    try {
+      await _ensureInitialized();
+      final collection = await (_databases as dynamic).getCollection(
+        databaseId: AppwriteConfigManager.databaseId,
+        collectionId: collectionId,
+      );
+      final rawAttributes = (collection as dynamic).attributes;
+      final present =
+          rawAttributes is List &&
+          rawAttributes.any((entry) {
+            final keyValue =
+                entry is Map
+                    ? (entry['key'] ?? entry[r'$id'])
+                    : (entry?.key ?? entry?.id);
+            return '${keyValue ?? ''}'.trim() == attribute;
+          });
+      if (present) {
+        _attributesPresent.add(key);
+        _attributesMissingAt.remove(key);
+      } else {
+        _attributesMissingAt[key] = DateTime.now();
+      }
+      return present;
+    } catch (e) {
+      dlog('⚠️ فحص الخاصية $collectionId.$attribute فشل: $e — لن تُرسل');
+      _attributesMissingAt[key] = DateTime.now();
+      return false;
+    }
+  }
+
+  /// للاختبارات: تصفير ذاكرة فحص الخصائص.
+  @visibleForTesting
+  static void resetAttributeProbeCacheForTesting() {
+    _attributesPresent.clear();
+    _attributesMissingAt.clear();
+  }
+
   Future<void> _ensureInitialized() async {
     if (!_initialized) {
       await initialize();

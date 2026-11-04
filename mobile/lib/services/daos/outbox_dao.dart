@@ -10,6 +10,7 @@ import '../appwrite_logger.dart';
 import '../appwrite_sync_manager.dart';
 import '../crashlytics_service.dart';
 import '../local_db.dart';
+import '../sync/cloud_wins_policy.dart';
 import '../vector_clock_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -792,6 +793,29 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         processingStatus: Value('failed'),
         processingStartedAt: Value(null),
         processingWorker: Value(null),
+      ),
+    );
+  }
+
+  /// يُعلّم عناصر Outbox بأنها **متقادمة أمام السحابة** (وثيقة الربط §7.5).
+  ///
+  /// هذا **ليس فشلاً**: السجل السحابي أحدث، وتطبيقه محلياً هو الصحيح.
+  /// لذلك:
+  ///   - لا تُعاد المحاولة أبداً (ليست `pending`/`failed`) — منع الكتابة
+  ///     فوق نسخة Appwrite الأحدث.
+  ///   - لا تُحذف كأنها نجحت بلا تأكيد (ليست `completed`) — يبقى أثر
+  ///     تشخيصي دائماً، كما تنص السياسة.
+  ///   - `last_error` يحمل سبب الإلغاء المختصر للعرض في شاشة الصحة.
+  Future<void> markSupersededByCloud(List<int> ids, {String? note}) async {
+    if (ids.isEmpty) {
+      return;
+    }
+    await (update(outbox)..where((t) => t.id.isIn(ids))).write(
+      OutboxCompanion(
+        processingStatus: const Value(CloudWinsPolicy.supersededStatus),
+        processingStartedAt: const Value(null),
+        processingWorker: const Value(null),
+        lastError: Value(note ?? 'superseded_by_cloud'),
       ),
     );
   }

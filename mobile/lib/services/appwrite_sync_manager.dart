@@ -40,6 +40,7 @@ import 'local_db.dart';
 import 'local_link_resolver.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
+import 'salary_expense_service.dart';
 import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
@@ -48,6 +49,7 @@ import 'sync_pull_scope.dart';
 import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
+import 'sync/cloud_wins_policy.dart';
 import 'sync/outbox_pull_policy.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_checkpoint_store.dart';
@@ -2776,6 +2778,39 @@ class AppwriteSyncManager {
     return processed;
   }
 
+  /// يكتب تصنيف المصروف القادم من السحابة في `expenses.expense_kind`.
+  ///
+  /// يُقبل فقط الكود المعروف في [ExpenseKind] — قيمة مجهولة تُسجَّل تحذيراً
+  /// وتُترك دون كتابة (لا نستبدل تصنيفاً صريحاً صحيحاً بقيمة تالفة)،
+  /// والتصنيف القديم غير المرسل يبقى كما هو في `expense_kind` المحلي.
+  Future<void> _applyRemoteExpenseKind(
+    String localUuid,
+    Map<String, dynamic> data,
+  ) async {
+    final raw = data['expenseKind'] ?? data['expense_kind'];
+    final code = '${raw ?? ''}'.trim();
+    if (code.isEmpty || localUuid.isEmpty) return;
+    if (ExpenseKind.fromCode(code) == null) {
+      _logger.warning(
+        '⚠️ تصنيف مصروف سحابي غير معروف "$code" للسجل $localUuid — '
+        'لم يُكتب محلياً',
+        tag: 'SYNC',
+      );
+      return;
+    }
+    try {
+      await database.customStatement(
+        'UPDATE expenses SET expense_kind = ? WHERE local_uuid = ?',
+        [code, localUuid],
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ تعذّر كتابة expense_kind للسجل $localUuid: $e',
+        tag: 'SYNC',
+      );
+    }
+  }
+
   Future<int> _syncExpenses(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
@@ -2872,6 +2907,12 @@ class AppwriteSyncManager {
         if (upserted == -1) {
           failed.add('${doc.$id}: unresolved parent reference (adapter skip)');
           continue;
+        }
+        // ✅ وثيقة الربط §7.4 — استقبال التصنيف الصريح من السحابة.
+        // يُكتب raw لأن `expense_kind` عمود غير معلن في Drift (PR-1)؛
+        // ويُكتب **بعد** نجاح upsert حتى لا يصف تصنيفاً لسجل لم يُطبَّق.
+        if (upserted >= 0) {
+          await _applyRemoteExpenseKind(localUuid, data);
         }
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
@@ -3413,7 +3454,161 @@ class AppwriteSyncManager {
     return true;
   }
 
+  /// ═══ سياسة Cloud Wins — حسم تعارض الرفع (وثيقة الربط §7.5) ═══
+  ///
+  /// تُستدعى قبل كل رفع (غير الحذف). الشرط: السجل موجود محلياً وبعيداً،
+  /// و`version` السحابي أعلى من المحلي أو أن السحابة تحمل Tombstone.
+  ///
+  /// عند التحقق:
+  ///  1. تُطبَّق النسخة السحابية محلياً عبر **مسار السحب نفسه**
+  ///     (`upsertFromJson`) — نفس حلّ الربط ونفس الحقول.
+  ///  2. يُعلَّم عنصر Outbox `superseded_by_cloud` (لا إعادة إرسال، ولا حذف
+  ///     بلا تأكيد — يبقى أثراً تشخيصياً).
+  ///  3. يُرجع true ⇒ على المستدعي تخطي الرفع.
+  ///
+  /// فشل تطبيق النسخة السحابية (أب غير محلول ⇒ -1) يعني أن **لا شيء**
+  /// أُنجز محلياً؛ في هذه الحالة لا نُعلّم العنصر متقادماً (كي لا نفقد
+  /// التعديل المحلي بلا بديل) ويُعاد في دورة لاحقة.
+  Future<bool> _cloudWinsPreflight(OutboxData entry) async {
+    if (entry.op == 'delete') return false;
+
+    final collectionId = _entityToCollectionId(entry.entity);
+    final table = CloudWinsPolicy.tableForEntity(entry.entity);
+    if (collectionId == null || table == null) return false;
+
+    final local = await _localRowVersion(table, entry.localUuid);
+    if (local == null) return false; // الصف غائب محلياً ⇒ مسار الحذف يتولّاه
+
+    Map<String, dynamic>? cloud;
+    try {
+      final doc = await appwriteService.getDocument(
+        collectionId: collectionId,
+        documentId: entry.localUuid,
+        suppressErrorLog: true,
+      );
+      cloud = Map<String, dynamic>.from(doc.data);
+    } on AppwriteException catch (e) {
+      if (e.code == 404) return false; // جديد سحابياً ⇒ لا تعارض
+      // لا نعرف حالة السحابة: لا نُلغي الرفع (سياسة اليوم)، لكن نسجّل
+      // بوضوح لأن التعارض قد يكون غير مكتشف — وفحص OCC اللاحق يغطي الحالة.
+      _logger.warning(
+        '⚠️ Cloud Wins preflight تعذّر قراءة $collectionId/${entry.localUuid} '
+        '(${e.code}) — يُكمل الرفع مع فحص OCC',
+        tag: 'CLOUD_WINS',
+      );
+      return false;
+    } catch (e) {
+      _logger.warning(
+        '⚠️ Cloud Wins preflight خطأ غير متوقع على '
+        '${entry.entity}/${entry.localUuid}: $e',
+        tag: 'CLOUD_WINS',
+      );
+      return false;
+    }
+
+    final decision = CloudWinsPolicy.decide(
+      localVersion: local.version,
+      localDeletedAt: local.deletedAt,
+      cloud: cloud,
+    );
+    if (!decision.supersededLocal) return false;
+
+    final appliedId = await _applyCloudDocument(
+      entry.entity,
+      decision.cloudData,
+    );
+    if (appliedId == -1) {
+      _logger.warning(
+        '⏳ Cloud Wins: نسخة السحابة لـ ${entry.entity}/${entry.localUuid} '
+        'لم تُطبَّق (مرجع أب غير محلول) — يُبقى العنصر المحلي معلّقاً',
+        tag: 'CLOUD_WINS',
+      );
+      return false;
+    }
+
+    final reason = switch (decision.reason) {
+      CloudWinsReason.cloudTombstone => 'cloud tombstone',
+      CloudWinsReason.cloudNewerVersion =>
+        'cloud version ${CloudWinsPolicy.versionOf(decision.cloudData!)} > '
+            'local ${local.version}',
+      CloudWinsReason.none => 'none',
+    };
+    await outboxDao.markSupersededByCloud([
+      entry.id,
+    ], note: 'superseded_by_cloud: $reason');
+    _cloudWinsSuperseded++;
+    _logger.info(
+      '☁️ Cloud Wins: ${entry.entity}/${entry.localUuid} — $reason '
+      '⇒ طُبّقت نسخة Appwrite وأُلغي الرفع المحلي',
+      tag: 'CLOUD_WINS',
+    );
+    return true;
+  }
+
+  /// يقرأ `version` و`deleted_at` للصف المحلي من الجدول المعطى.
+  Future<({int version, int? deletedAt})?> _localRowVersion(
+    String table,
+    String localUuid,
+  ) async {
+    final rows = await database
+        .customSelect(
+          'SELECT version, deleted_at FROM "$table" '
+          'WHERE local_uuid = ? LIMIT 1',
+          variables: [drift.Variable.withString(localUuid)],
+        )
+        .get();
+    if (rows.isEmpty) return null;
+    final data = rows.first.data;
+    final version = data['version'];
+    final deleted = data['deleted_at'];
+    return (
+      version: version is int ? version : int.tryParse('$version') ?? 0,
+      deletedAt: deleted is int
+          ? deleted
+          : int.tryParse('${deleted ?? ''}'),
+    );
+  }
+
+  /// يطبّق وثيقة سحابية على السجل المحلي عبر مسار السحب الموحّد.
+  /// يُرجع معرّف الصف المحلي، أو -1 إذا تجاوزها المحوّل (أب غير محلول).
+  Future<int> _applyCloudDocument(
+    String entity,
+    Map<String, dynamic>? cloud,
+  ) async {
+    if (cloud == null) return -1;
+    final repository = _adapterRegistry.byEntity[entity];
+    if (repository == null) return -1;
+    try {
+      return await repository.upsertFromJson(
+        Map<String, dynamic>.from(cloud),
+        src: Source.appwrite,
+      ) as int;
+    } catch (e) {
+      _logger.warning(
+        '⚠️ Cloud Wins: فشل تطبيق نسخة السحابة على $entity: $e',
+        tag: 'CLOUD_WINS',
+      );
+      return -1;
+    }
+  }
+
+  /// عدد العناصر التي أُلغيت بـ Cloud Wins في الدورة الحالية (تشخيص).
+  int _cloudWinsSuperseded = 0;
+
+  /// عدد عناصر Outbox الملغاة بـ Cloud Wins منذ تشغيل التطبيق.
+  @visibleForTesting
+  int get cloudWinsSupersededCount => _cloudWinsSuperseded;
+
   Future<bool> _processOutboxEntry(OutboxData entry) async {
+    // ✅ وثيقة الربط §7.5 — Cloud Wins قبل أي كتابة سحابية:
+    // إذا كانت نسخة Appwrite أحدث (أو تحمل Tombstone) فلا نكتب فوقها؛
+    // نطبّق النسخة السحابية محلياً ونُعلّم العنصر `superseded_by_cloud`.
+    if (await _cloudWinsPreflight(entry)) {
+      // ليس نجاحاً ولا فشلاً: العنصر لم يعد قابلاً للإرسال (الحالة
+      // superseded_by_cloud) فلا نُعلّمه delivered ولا نُعيد المحاولة.
+      return false;
+    }
+
     // ✅ إصلاح حرج (2026-06-28): زيادة Vector Clock قبل الرفع
     // بدون هذا، يبقى vectorClock دائماً '{}' على Appwrite Cloud
     // مما يُعطل كشف التعارضات المتزامنة تماماً (يصبح النظام LWW فقط).
@@ -5286,7 +5481,39 @@ class AppwriteSyncManager {
         payload['employeeUuid'] = employee.localUuid;
       }
     }
+
+    // ✅ وثيقة الربط §7.3 — تصنيف صريح يُرسل من الصف المحلي نفسه
+    // (`expenses.expense_kind`)، لا اشتقاقاً من نص `expenseType` الحر.
+    // و§7.1: لا يُرسل الحقل قبل التأكد من إنشاء Attribute سحابي —
+    // الفحص مخزَّن مؤقتاً، وغياب الخاصية يعني «يُبقى محلياً ويُرسل لاحقاً».
+    final expenseKind = await _expenseKindCode(expense.id);
+    if (expenseKind != null &&
+        await appwriteService.collectionHasAttribute(
+          AppwriteConfig.expensesCollectionId,
+          'expenseKind',
+        )) {
+      payload['expenseKind'] = expenseKind;
+    }
     return payload;
+  }
+
+  /// تصنيف المصروف الصريح من `expenses.expense_kind` (عمود raw منذ PR-1).
+  Future<String?> _expenseKindCode(int expenseId) async {
+    try {
+      final rows = await database
+          .customSelect(
+            'SELECT expense_kind FROM expenses WHERE id = ? LIMIT 1',
+            variables: [drift.Variable.withInt(expenseId)],
+          )
+          .get();
+      if (rows.isEmpty) return null;
+      final raw = rows.first.data['expense_kind'];
+      final code = (raw ?? '').toString().trim();
+      return code.isEmpty ? null : code;
+    } catch (_) {
+      // DBs قديمة بلا العمود: لا تصنيف ⇒ لا حقل (لا إرسال تخميني)
+      return null;
+    }
   }
 
   /// ✅ (2026-11-02) جسر اختباري لعقد إثراء employeeUuid — نفس نمط

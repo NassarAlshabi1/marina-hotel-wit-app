@@ -508,6 +508,10 @@ class AppwriteSyncUtils {
       'version',
       // ✅ (migration 68) uuid سحبة المرآة — رابط عكسي دائم عبر الأجهزة
       'withdrawalUuid',
+      // ✅ وثيقة الربط §7.1: تصنيف صريح (كود ثابت بدل النص الحر).
+      // يُرسل فقط بعد نجاح فحص وجود الـ Attribute سحابياً
+      // (AppwriteService.collectionHasAttribute) — انظر §7.1.
+      'expenseKind',
     },
     'guest_infos': {
       'createdAt',
@@ -1195,6 +1199,8 @@ class AppwriteSyncUtils {
       'employeeUuid': 'string',
       // ✅ (migration 68) uuid سحبة المرآة
       'withdrawalUuid': 'string',
+      // ✅ وثيقة الربط §3.2/§7.1 — كود التصنيف الصريح
+      'expenseKind': 'string',
     },
     'debts': {
       'localUuid': 'string',

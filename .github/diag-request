@@ -4,3 +4,5 @@ diag run 3: full suite after deferring unique index
 diag run 4: full suite after aligning with existing unique index
 
 diag run 5 (salary expense service tests)
+
+diag run 6 (cloud wins)
