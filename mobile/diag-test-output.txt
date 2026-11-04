@@ -1,210 +1,436 @@
-══════════ test/services/local_link_resolver_test.dart ══════════
-Resolving dependencies...
-Downloading packages...
-  _discoveryapis_commons 1.0.7 (1.0.8 available)
-  _fe_analyzer_shared 99.0.0 (111.0.0 available)
-  _flutterfire_internals 1.3.73 (1.3.79 available)
-  analyzer 12.1.0 (14.7.0 available)
-  android_alarm_manager_plus 4.0.8 (5.1.2 available)
-  appwrite 21.4.0 (28.2.1 available)
-  archive 3.6.1 (4.6.0 available)
-  asn1lib 1.6.5 (1.6.8 available)
-  battery_plus 6.2.3 (7.1.2 available)
-  build 4.0.7 (5.0.0 available)
-  build_config 1.3.1 (1.4.0 available)
-  build_daemon 4.1.2 (4.1.7 available)
-  build_runner 2.15.1 (2.17.1 available)
-  built_collection 5.1.1 (6.0.0 available)
-  built_value 8.12.6 (8.13.0 available)
-  cli_completion 0.5.1 (0.6.0 available)
-  cli_util 0.4.2 (0.6.0 available)
-  clock 1.1.2 (1.1.3 available)
-  code_assets 1.2.1 (2.1.0 available)
-  code_builder 4.11.1 (4.13.0 available)
-  connectivity_plus 6.1.5 (7.3.2 available)
-  coverage 1.15.1 (1.16.0 available)
-  cross_file 0.3.5+2 (0.4.0 available)
-  crypto 3.0.7 (3.0.8 available)
-  dart_style 3.1.8 (3.1.14 available)
-  dbus 0.7.14 (0.8.0 available)
-  desktop_webview_window 0.3.0 (0.4.0 available)
-  device_info_plus 12.4.0 (13.3.0 available)
-  device_info_plus_platform_interface 7.0.3 (8.1.0 available)
-  dio 5.10.0 (5.11.1 available)
-  dio_web_adapter 2.2.0 (2.2.2 available)
-  drift 2.34.3 (2.35.3 available)
-  drift_dev 2.34.0 (2.35.2 available)
-  equatable 2.1.0 (3.0.0 available)
-  file_picker 8.3.7 (13.3.2 available)
-  firebase_ai 3.13.1 (5.1.0 available)
-  firebase_analytics 12.4.3 (13.0.1 available)
-  firebase_analytics_platform_interface 6.0.3 (6.0.9 available)
-  firebase_analytics_web 0.6.1+9 (0.6.3+15 available)
-  firebase_app_check 0.4.5 (0.5.1 available)
-  firebase_app_check_platform_interface 0.4.1 (0.5.1+3 available)
-  firebase_app_check_web 0.2.5 (0.3.1+3 available)
-  firebase_auth 6.5.4 (7.0.1 available)
-  firebase_auth_platform_interface 9.0.3 (9.1.2 available)
-  firebase_auth_web 6.2.3 (6.3.2 available)
-  firebase_core 4.11.0 (5.1.0 available)
-  firebase_core_platform_interface 7.1.0 (8.1.1 available)
-  firebase_core_web 3.9.0 (4.1.0 available)
-  firebase_crashlytics 5.2.4 (6.0.1 available)
-  firebase_crashlytics_platform_interface 3.8.24 (3.9.2 available)
-  firebase_database 12.4.4 (13.0.1 available)
-  firebase_database_platform_interface 0.4.0+3 (0.4.2+9 available)
-  firebase_database_web 0.2.7+10 (0.2.9+16 available)
-  firebase_messaging 16.4.1 (17.0.1 available)
-  firebase_messaging_platform_interface 4.9.0 (4.11.1 available)
-  firebase_messaging_web 4.2.1 (4.3.1 available)
-  firebase_remote_config 6.5.3 (7.0.1 available)
-  firebase_remote_config_platform_interface 3.0.3 (3.0.9 available)
-  firebase_remote_config_web 1.10.10 (1.10.16 available)
-  fl_chart 0.69.2 (1.3.0 available)
-  flutter_contacts 1.1.9+2 (2.6.0 available)
-  flutter_lints 3.0.2 (6.0.0 available)
-  flutter_local_notifications 17.2.4 (22.3.3 available)
-  flutter_local_notifications_linux 4.0.1 (8.0.2 available)
-  flutter_local_notifications_platform_interface 7.2.0 (12.2.0 available)
-  flutter_plugin_android_lifecycle 2.0.34 (2.0.35 available)
-  flutter_riverpod 2.6.1 (3.4.3 available)
-  flutter_secure_storage 9.2.4 (11.2.0 available)
-  flutter_secure_storage_linux 1.2.3 (3.0.3 available)
-  flutter_secure_storage_macos 3.1.3 (4.0.0 available)
-  flutter_secure_storage_platform_interface 1.1.2 (2.1.1 available)
-  flutter_secure_storage_web 1.2.1 (2.1.1 available)
-  flutter_secure_storage_windows 3.1.2 (4.2.2 available)
-  flutter_shaders 0.1.3 (0.1.5 available)
-  flutter_web_auth_2 5.0.3 (5.1.0 available)
-  freezed 3.2.6-dev.1 (4.0.3 available)
-  frontend_server_client 4.0.0 (4.2.0 available)
-  glob 2.1.3 (2.2.0 available)
-  google_sign_in 6.3.0 (7.2.0 available)
-  google_sign_in_android 6.2.1 (7.2.18 available)
-  google_sign_in_ios 5.9.0 (6.3.8 available)
-  google_sign_in_platform_interface 2.5.0 (3.1.0 available)
-  google_sign_in_web 0.12.4+4 (1.1.3 available)
-  googleapis 13.2.0 (17.0.0 available)
-  hooks 2.0.2 (2.2.0 available)
-  http_multi_server 3.2.2 (3.2.3 available)
-  image 4.3.0 (4.12.0 available)
-  intl 0.20.2 (0.20.3 available)
-  io 1.0.5 (1.1.0 available)
-  jni 1.0.0 (1.1.2 available)
-  jni_flutter 1.0.1 (1.0.4+1 available)
-  js 0.6.7 (0.7.2 available)
-  json_serializable 6.14.0 (6.15.2 available)
-  lints 3.0.0 (6.1.0 available)
-  mason_logger 0.3.5 (0.3.6 available)
-  matcher 0.12.19 (0.12.20 available)
-  material_color_utilities 0.13.0 (0.13.1 available)
-  meta 1.18.0 (1.19.0 available)
-  mime 2.0.0 (2.1.0 available)
-  mockito 5.6.4 (5.8.1 available)
-  native_toolchain_c 0.19.2 (0.19.5 available)
-  nm 0.5.0 (0.6.0 available)
-  package_config 2.2.0 (3.0.0 available)
-  package_info_plus 8.3.1 (10.2.2 available)
-  package_info_plus_platform_interface 3.2.1 (4.1.0 available)
-  path_provider 2.1.5 (2.1.6 available)
-  path_provider_foundation 2.5.1 (2.6.0 available)
-  path_provider_linux 2.2.1 (2.2.2 available)
-  path_provider_platform_interface 2.1.2 (2.1.3 available)
-  patrol 4.7.1 (4.11.0 available)
-  patrol_finders 3.6.0 (3.7.0 available)
-  patrol_log 0.10.0 (0.10.2 available)
-  pdf 3.12.0 (3.13.1 available)
-  permission_handler 11.4.0 (13.0.2 available)
-  permission_handler_android 12.1.0 (14.1.1 available)
-  permission_handler_apple 9.4.10 (9.6.5 available)
-  permission_handler_html 0.1.3+5 (0.1.4+1 available)
-  permission_handler_platform_interface 4.3.0 (4.4.1 available)
-  permission_handler_windows 0.2.1 (0.2.3 available)
-  petitparser 7.0.2 (7.1.0 available)
-  platform 3.1.6 (3.2.0 available)
-  pointycastle 3.9.1 (4.0.0 available)
-  pool 1.5.2 (1.5.3 available)
-  posthog_flutter 4.11.0 (5.58.4 available)
-  preact_signals 6.3.1 (7.0.0 available)
-  printing 5.14.3 (5.15.1 available)
-  process 5.0.5 (5.0.6 available)
-  pub_semver 2.2.0 (2.2.1 available)
-  pubspec_parse 1.5.0 (1.7.0 available)
-  qr 3.0.2 (4.0.1 available)
-  record_use 0.6.0 (1.1.1 available)
-  riverpod 2.6.1 (3.4.3 available)
-  share_plus 10.1.4 (13.3.1 available)
-  share_plus_platform_interface 5.0.2 (7.2.0 available)
-  shared_preferences 2.5.5 (2.5.6 available)
-  shared_preferences_android 2.4.23 (2.5.4 available)
-  shared_preferences_foundation 2.5.6 (2.6.1 available)
-  shelf 1.4.2 (1.4.3 available)
-  shelf_static 1.1.3 (1.2.0 available)
-  shimmer 3.0.0 (4.0.0 available)
-  signals_core 6.3.1 (7.0.0 available)
-  signals_flutter 6.3.1 (7.1.0 available)
-  source_gen 4.2.3 (4.3.1 available)
-  source_helper 1.3.12 (1.4.0 available)
-  source_maps 0.10.13 (0.10.14 available)
-  sqflite 2.4.2 (2.4.5 available)
-  sqflite_android 2.4.2+2 (2.4.5 available)
-  sqflite_common 2.5.6 (2.5.14 available)
-  sqflite_common_ffi 2.4.0+3 (2.4.5 available)
-  sqflite_darwin 2.4.2 (2.4.4+1 available)
-  sqflite_platform_interface 2.4.0 (2.4.3 available)
-  sqlite3 3.5.0 (3.8.0 available)
-  sqlite3_flutter_libs 0.5.42 (0.6.0+eol available)
-  sqlparser 0.44.5 (0.45.1 available)
-  stack_trace 1.12.1 (1.12.2 available)
-  stream_transform 2.1.1 (2.1.2 available)
-  synchronized 3.4.0 (3.5.0 available)
-  test 1.31.0 (1.33.0 available)
-  test_api 0.7.11 (0.7.15 available)
-  test_core 0.6.17 (0.6.21 available)
-  timezone 0.9.4 (0.11.2 available)
-  url_launcher 6.3.2 (6.3.3 available)
-  url_launcher_android 6.3.29 (6.3.33 available)
-  url_launcher_ios 6.3.6 (6.4.2 available)
-  url_launcher_linux 3.2.2 (3.2.3 available)
-  url_launcher_macos 3.2.5 (3.2.6 available)
-  url_launcher_web 2.4.1 (2.4.3 available)
-  url_launcher_windows 3.1.5 (3.1.6 available)
-  uuid 4.5.3 (4.6.0 available)
-  vector_math 2.2.0 (2.4.4 available)
-  very_good_analysis 10.3.0 (11.0.0 available)
-  vm_service 15.2.0 (15.4.0 available)
-  web 1.1.1 (1.1.2 available)
-  webdriver 3.1.0 (3.2.0 available)
-  win32 5.15.0 (6.4.0 available)
-  win32_registry 2.1.0 (3.0.3 available)
-  window_to_front 0.0.4 (1.0.0 available)
-  workmanager 0.9.0+3 (0.10.10 available)
-  workmanager_android 0.9.0+2 (0.10.9 available)
-  workmanager_apple 0.9.1+2 (0.9.11 available)
-  workmanager_platform_interface 0.9.1+1 (0.10.5 available)
-  xml 6.6.1 (7.1.0 available)
-  yaml 3.1.3 (3.1.4 available)
-Got dependencies!
-183 packages have newer versions incompatible with dependency constraints.
-Try `flutter pub outdated` for more information.
-00:00 +0: loading /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/local_link_resolver_test.dart
-00:00 +0: مخطط الربط (migration 75) expenses.expense_kind موجود
-00:00 +1: مخطط الربط (migration 75) جدول pending_links موجود بأعمدته الأساسية
-00:00 +2: مخطط الربط (migration 75) الفهرس الفريد للمرآة النشطة يُنشأ عند خلو القاعدة من التكرار
-00:00 +3: مخطط الربط (migration 75) تعبئة expense_kind من المصنّف النصي مرة واحدة
-00:00 +4: مخطط الربط (migration 75) تعبئة expense_uuid من expense_id المحلي فقط لنفس الموظف
-00:00 +5: مخطط الربط (migration 75) التعبئة لا ترفع version ولا lastModified ولا تمس outbox
-00:00 +6: LocalLinkResolver — حل الهوية employeeUuid ⇒ employees.id بلا اعتماد على أرقام بعيدة
-00:00 +7: LocalLinkResolver — حل الهوية الموظف المحذوف منطقياً لا يُحل
-00:00 +8: LocalLinkResolver — حل الهوية expenseUuid ⇒ expenses.id
-00:00 +9: LocalLinkResolver — حل الهوية حل دفعة UUIDs في استعلام واحد
-00:00 +10: LocalLinkResolver — pending_links السجل غير المحلول يُحفظ ولا يُنسب لأي موظف
-00:00 +11: LocalLinkResolver — pending_links التسجيل المكرر لا يُنشئ صفاً ثانياً ويزيد المحاولات
-00:00 +12: LocalLinkResolver — pending_links بعد وصول الأب: يُحل الرابط ويُحدَّث الرقم المحلي ويُحذف الصف
-00:00 +13: LocalLinkResolver — pending_links الأب الغائб: الصف يبقى وتزيد المحاولات ولا يُحذف أي سجل
-00:00 +14: LocalLinkResolver — pending_links نوع ربط غير معروف لا يكتب شيئاً بدل التخمين
-00:00 +15: LocalLinkResolver — pending_links ربط المصروف بسحبته عبر expense_uuid
-00:00 +16: تقرير سلامة الروابط عدّادات القراءة فقط تُرجع المفاتيح المطلوبة
-00:00 +17: تقرير سلامة الروابط المرآة اليتيمة تُعدّ ولا تُحذف
-00:00 +18: All tests passed!
-EXIT=0
+═══ FAILED TESTS (grep) ═══
+⚠️ [2026-11-04 02:30:55] [WARNING ] [SYNC] Failed to sync expense expense-uuid-corrupt: InvalidDataException: Sorry, ExpensesCompanion(localUuid: Value(expense-uuid-corrupt), serverId: Value.absent(), createdAt: Value(1760000000), updatedAt: Value(1760000000), deletedAt: Value.absent(), lastModified: Value(1760000020), createdAtIso: Value.absent(), updatedAtIso: Value.absent(), deletedAtIso: Value.absent(), createdAtEpoch: Value(1760000000), lastModifiedEpoch: Value(1760000020), version: Value(1), origin: Value(server), vectorClock: Value({}), deviceId: Value(device-A), syncTimestamp: Value.absent(), idempotencyKey: Value.absent(), id: Value.absent(), expenseType: Value(other), relatedId: Value(null), description: Value(مصروف اختبار), amount: Value.absent(), date: Value(2026-11-01), cashTransactionId: Value(null), hotelDayKey: Value.absent(), categoryUuid: Value.absent(), cashFlowUuid: Value.absent(), isAutoGenerated: Value(false), employeeUuid: Value.absent(), withdrawalUuid: Value.absent()) cannot be used for that because: 
+⚠️ [2026-11-04 02:30:58] [WARNING ] [SYNC] Failed to sync deferred booking booking-uuid-bad: SqliteException(787): while executing statement, FOREIGN KEY constraint failed, constraint failed (code 787)
+Error: transient
+Error: chronic
+Error: chronic
+⚠️ 🛨️ DatabaseStartupGuard: قاعدة البيانات تالفة! فشل فتح القاعدة للفحص (يُعامَل كتلف): SqliteException(26): while preparing statement, file is not a database, file is not a database (code 26)
+⚠️ 🛨️ DatabaseStartupGuard: قاعدة البيانات تالفة! فشل فتح القاعدة للفحص (يُعامَل كتلف): SqliteException(26): while preparing statement, file is not a database, file is not a database (code 26)
+⚠️ 🛨️ DatabaseStartupGuard: قاعدة البيانات تالفة! فشل فتح القاعدة للفحص (يُعامَل كتلف): SqliteException(26): while preparing statement, file is not a database, file is not a database (code 26)
+⚠️ [2026-11-04 02:31:30] [WARNING ] [SYNC] app_settings: تعذّر فكّ config_json: FormatException: Unexpected character (at character 2)
+Error: Transient error
+Error: Many failures
+Error: Permanent
+Error: Error
+Error: Error
+Error: Permanent
+Error: Error
+Error: Unknown entity
+Error: Conflict detected
+Error: Conflict
+00:44 +694 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/wave6_debts_fields_test.dart: Migration 58: أعمدة debts الجديدة 3e. أحدث schemaVersion = 74 [E]
+  Expected: <74>
+    Actual: <75>
+2026-11-04T02:31:34.871634 DEBUG [TEST] test with details — Exception: test error
+2026-11-04T02:31:34.877632 ERROR [TEST] test error with details — Exception: boom
+❌ فشل الإصلاح التلقائي: Exception: fail
+01:00 +879 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/operation_identity_semantics_test.dart: سيناريوهات عميقة — مسار الكتابة بالهوية إنشاء مزدوج لنفس الهوية عبر الأجهزة: تُعتمد الأحدث وتُحذف النسخة الأخرى — العملية تُحتسب مرة واحدة [E]
+  SqliteException(2067): while executing statement, UNIQUE constraint failed: salary_withdrawals.expense_uuid, constraint failed (code 2067)
+  package:sqlite3/src/implementation/exception.dart 101:3               throwException
+  package:sqlite3/src/implementation/statement.dart 52:5                StatementImplementation.throwStatementException
+Error: AppwriteException: , too many (429)
+Error: AppwriteException: , server error 500 (500)
+01:15 +1143 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException
+01:15 +1144 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-2: تحديث بـ Companion شبه فارغ (فقط actualCheckout) يعمل
+01:15 +1145 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-3: تحديث بـ Companion فارغ تماماً لا يكسر البيانات
+01:15 +1146 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-4: updateById على ID غير موجود يرجع 0 بدون استثناء
+01:15 +1147 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-5: تحديث guestPhone فقط (سيناريو شائع في booking_payment_screen)
+01:15 +1148 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/bookings_dao_update_test.dart: BookingsDao.updateById — إصلاح InvalidDataException EC-6: تحديث discount و discountType معاً
+Error: Permanent (400): Bad Request
+Error: Test dead
+Error: Transient error
+Error: Permanent
+Error: Max attempts reached
+01:42 +1477 ~1 -2: Some tests failed.
+EXIT=1
+═══ TAIL ═══
+_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1436 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/admin_layout_responsive_test.dart: يعرض تخطيط الكمبيوتر في 1024×768
+01:37 +1436 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — عرض الشاشة الأساسية يعرض خطأ عندما يفشل تحميل الموظفين
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1437 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/admin_layout_responsive_test.dart: يعرض تخطيط الكمبيوتر في 1024×768
+01:37 +1437 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — عرض الشاشة الأساسية يعرض خطأ عند فشل تحميل المصروفات
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1438 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — عرض الشاشة الأساسية يعرض خطأ عند فشل تحميل المصروفات
+01:37 +1439 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — عرض الشاشة الأساسية يعرض خطأ عند فشل تحميل المصروفات
+01:37 +1440 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — التفاعل مع البحث إدخال نص في حقل البحث يحدث الحالة
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1441 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — فلتر النوع يعرض قائمة فلتر الأنواع مع "كل الأنواع"
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1442 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — ملخص المصروفات يعرض كلمة "عملية" في الملخص
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1443 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — ملخص المصروفات يعرض "0" كعدد عندما لا توجد مصروفات
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1444 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — فلتر التاريخ يعرض أزرار التاريخ "من" و "إلى"
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:37 +1445 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart: ExpensesListScreen — زر الإضافة الضغط على زر الإضافة يفتح حوار إضافة مصروف
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/expenses_list_widget_test.dart:99:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+01:39 +1446 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1447 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1448 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1449 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1450 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1451 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1452 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1453 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: لا يحدث overflow في الهاتف وتبقى الأقسام قابلة للوصول
+01:39 +1454 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/widget/settings_screen_responsive_test.dart: يبقى التخطيط مستقراً على اللوحي وWindows
+01:40 +1455 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/adapters_round_trip_test.dart: payments adapter round-trip (drive)
+01:40 +1456 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/adapters_round_trip_test.dart: bookings adapter round-trip (appwrite)
+01:40 +1457 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/auth_login_test.dart: نجاح تسجيل الدخول للمسؤول admin/admin دون انتظار الشبكة
+2026-11-04T02:32:29.505661 INFO [AUTH] 🔄 Migrating plaintext password to PBKDF2 for user: admin
+01:41 +1458 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/auth_login_test.dart: فشل تسجيل الدخول لبيانات خاطئة
+01:41 +1459 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: (setUpAll)
+01:41 +1459 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🔧 اختبار انحدار: بطاقة buildInfoCard داخل MultiPage لا تنتج ارتفاعاً لا نهائياً (كانت ترمي Widget won't fit Infinity)
+01:41 +1460 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🔧 اختبار انحدار: بطاقة buildInfoCard داخل MultiPage مربع الإحصاءات وبطاقة القيم تعملان معاً في نفس المستند
+01:41 +1461 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🧾 تقرير سحبيات الرواتب التصدير بفلتر «الكل» ينجح وينتج PDF صالحاً
+01:41 +1462 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🧾 تقرير سحبيات الرواتب التصدير لموظف واحد (عمود الموظف مخفي) ينجح
+01:41 +1463 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🧾 تقرير سحبيات الرواتب 230 صفاً تنقسم على عدة صفحات دون فقدان (اختبار التقطيع)
+01:41 +1464 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 💰 تقرير مدفوعات النزلاء التصدير ينجح مع بطاقة الإجماليات المضغوطة
+01:41 +1465 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 💸 تقرير المصروفات التصدير ينجح مع بيانات رواتب (عمود الموظف)
+01:41 +1466 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🧮 تقرير الديون التصدير ينجح مع الملخصات والتفاصيل
+01:41 +1467 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 📦 التقرير المخزني التصدير ينجح مع الملخص والأصناف
+01:41 +1468 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🏨 كشف حساب النزيل التصدير ينجح مع سجل المدفوعات
+01:41 +1469 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 📋 تقرير أرصدة النزلاء (كل الحجوزات) التصدير ينجح مع بطاقة لكل نزيل
+01:41 +1470 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 📊 تقرير الدخل والمصروفات التقرير العام (share) ينجح
+01:41 +1471 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 📊 تقرير الدخل والمصروفات التقرير التفصيلي المجمّع يومياً (shareGrouped) ينجح
+01:42 +1472 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🏷️ generateFileName — تنقية الأحرف المحظورة عنوان نظيف يبقى كما هو مع الطابع الزمني
+01:42 +1473 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🏷️ generateFileName — تنقية الأحرف المحظورة اسم موظف يحوي / لا يكسر المسار
+01:42 +1474 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🏷️ generateFileName — تنقية الأحرف المحظورة كل الأحرف المحظورة في أنظمة الملفات تُنقّى
+01:42 +1475 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🏷️ generateFileName — تنقية الأحرف المحظورة اسم بأحرف عدائية فقط يسقط إلى اسم آمن
+01:42 +1476 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: 🏷️ generateFileName — تنقية الأحرف المحظورة اسم الملف المولَّد من القالب يخلو من الأحرف المحظورة
+01:42 +1477 ~1 -2: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/pdf_report_templates_test.dart: (tearDownAll)
+01:42 +1477 ~1 -2: Some tests failed.
+
+Failing tests:
+  /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/operation_identity_semantics_test.dart: سيناريوهات عميقة — مسار الكتابة بالهوية إنشاء مزدوج لنفس الهوية عبر الأجهزة: تُعتمد الأحدث وتُحذف النسخة الأخرى — العملية تُحتسب مرة واحدة
+  /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/wave6_debts_fields_test.dart: Migration 58: أعمدة debts الجديدة 3e. أحدث schemaVersion = 74
+EXIT=1
