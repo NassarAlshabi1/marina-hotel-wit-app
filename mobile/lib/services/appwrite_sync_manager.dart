@@ -47,6 +47,7 @@ import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync/outbox_pull_policy.dart';
+import 'sync_core/outbox_tombstone_guard.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_checkpoint_store.dart';
 import 'sync_core/sync_error_service.dart';
@@ -3275,6 +3276,30 @@ class AppwriteSyncManager {
   }
 
   Future<bool> _processOutboxEntry(OutboxData entry) async {
+    // ✅ (2026-11-04 — وثيقة §7.5/§8.2) حارس Tombstone: منع Outbox القديم
+    // من إحياء سجل حذفته السحابة — التنفيذ في OutboxTombstoneGuard
+    // (قابل للاختبار مستقلاً).
+    if (entry.op != 'delete') {
+      final superseded = await const OutboxTombstoneGuard()
+          .supersedeIfStaleOverCloudTombstone(
+            db: database,
+            entity: entry.entity,
+            localUuid: entry.localUuid,
+            outboxRowId: entry.id,
+            clientTs: entry.clientTs,
+            op: entry.op,
+          );
+      if (superseded) {
+        _logger.info(
+          '🏷️ Outbox stale vs cloud tombstone: ${entry.entity}/${entry.localUuid} '
+          '(clientTs=${entry.clientTs}) — superseded_by_cloud، '
+          'لن يُرفع ولا يُحيي المحذوف',
+          tag: 'SYNC',
+        );
+        return true; // عولج (لا يُعاد) — الحالة لا تُلتقط من takeBatch مجدداً
+      }
+    }
+
     // ✅ إصلاح حرج (2026-06-28): زيادة Vector Clock قبل الرفع
     // بدون هذا، يبقى vectorClock دائماً '{}' على Appwrite Cloud
     // مما يُعطل كشف التعارضات المتزامنة تماماً (يصبح النظام LWW فقط).

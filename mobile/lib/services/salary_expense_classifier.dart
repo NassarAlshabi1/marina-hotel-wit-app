@@ -42,14 +42,37 @@ class SalaryExpenseClassifier {
     'غياب',
   ];
 
+  /// ✅ (2026-11-04) نوع تسديد السلفة — عملية سداد لا سحب ولا خصم:
+  ///
+  /// - **نقدي**: الموظف يعيد المبلغ للصندوق — لا مصروف (لا نقد خارج)،
+  ///   مرآة سالبة في salary_withdrawals بنوع `تسديد سلفة` فقط.
+  /// - **من الراتب**: مصروف بنوع `تسديد سلفة` + مرآة سالبة — يخفّض
+  ///   المتبقي من الراتب ويرصيد السلف بالمبلغ نفسه دون ازدواجية.
+  ///
+  /// ⚠️ الفحص يجب أن يسبق isSalaryCashOut/isAdvanceWithdrawal لأن النص
+  /// يحتوي «سلفة» و.contains('سلفة') سيعتبره سلفة جديدة خطأً.
+  static const String loanRepaymentType = 'تسديد سلفة';
+
+  /// هل النوع تمثل عملية تسديد سلفة (سداد رصيد لا سحباً جديداً)؟
+  static bool isLoanRepayment(String? type) {
+    final normalized = (type ?? '').trim();
+    if (normalized.isEmpty) return false;
+    return normalized.contains('تسديد سلفة') ||
+        normalized.contains('تسديد السلفة');
+  }
+
   /// هل النوع يمثل نقداً خرج للموظف فعلاً (سحب راتب أو سلفة)؟
   ///
   /// هذا هو التعريف الصحيح لـ «مصروفات الرواتب» في كل التقارير النقدية:
   /// تقرير الإيرادات والمصروفات + تقرير المصروفات + مطابقة استحقاقات
   /// الموظفين (السحبيات + السلف).
+  ///
+  /// ✅ تسديد السلفة ليس نقداً خرج للموظف — هو سداد يُحتسب ضمن التسديدات،
+  /// ويجب فحصه قبل فحص 'سلفة' لأن النص يحتويها.
   static bool isSalaryCashOut(String type) {
     final normalized = type.trim();
     if (normalized.isEmpty) return false;
+    if (isLoanRepayment(normalized)) return false;
     if (normalized.contains('سلفة')) return true;
     for (final keyword in _cashOutTypes) {
       if (normalized.contains(keyword)) return true;
@@ -58,23 +81,32 @@ class SalaryExpenseClassifier {
   }
 
   /// هل النوع يمثل تسوية استحقاق بلا تدفق نقدي (خصم / غياب)؟
+  ///
+  /// ✅ تسديد السلفة ليس خصماً — يُحتسب في خانة تسديد السلف المستقلة
+  /// وفق معادلة المالك: المتبقي = الاستحقاق − السحوبات − الخصومات −
+  /// تسديد السلف من الراتب.
   static bool isSalaryDeduction(String type) {
     final normalized = type.trim();
     if (normalized.isEmpty) return false;
+    if (isLoanRepayment(normalized)) return false;
     for (final keyword in _deductionTypes) {
       if (normalized.contains(keyword)) return true;
     }
     return false;
   }
 
-  /// هل النوع مرتبط بالرواتب بأي شكل (نقدي أو تسوية)؟
+  /// هل النوع مرتبط بالرواتب بأي شكل (نقدي أو تسوية أو تسديد)؟
   /// مفيد لعرض عمود الموظف ولمطابقة السجلات اليتيمة — وليس للتجميع النقدي.
   static bool isSalaryRelated(String type) =>
-      isSalaryCashOut(type) || isSalaryDeduction(type);
+      isSalaryCashOut(type) || isSalaryDeduction(type) || isLoanRepayment(type);
 
   /// هل السحب من نوع سلفة (يُحسب ضمن السلف لا ضمن السحبيات)؟
+  ///
+  /// ✅ تسديد السلفة ليس سلفة جديدة — السداد يُحتسب ضمن التسديدات.
   static bool isAdvanceWithdrawal(String? withdrawalType) {
     final normalized = (withdrawalType ?? '').trim();
+    if (normalized.isEmpty) return false;
+    if (isLoanRepayment(normalized)) return false;
     return normalized.contains('سلفة');
   }
 }

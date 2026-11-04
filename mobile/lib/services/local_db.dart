@@ -27,6 +27,11 @@ const String _dbFileName = 'marina_hotel.db';
 ///   SyncFields (Drift يبني فهرساً فريداً ضمنياً) — إعادة إنشائه فهرساً
 ///   صريحاً بنفس الاسم تكرار ضار بلا فائدة.
 ///
+/// ⚠️ فهرس idx_exp_kind_day على expenses(expense_kind) أُزيل بقرار
+/// المالك (2026-11-04): **لا يُضاف عمود expense_kind** — التصنيف يتم من
+/// عمود `expense_type` الموجود عبر SalaryExpenseClassifier. جهاز سبق له
+/// تشغيل الترحيل 75 القديم يُنظَّف عموده وفهرسه في الترحيل 76.
+///
 /// فهرس المرآة الفريد الجزئي (ux_salary_withdrawals_expense_uuid_active)
 /// مستثنى عمداً من هذه القائمة: يُدار في onUpgrade بحارس التكرارات —
 /// «الفهرس الفريد لا يُنشأ قبل معالجة التكرارات وتقريرها، ولا تُحذف
@@ -37,8 +42,6 @@ const String _dbFileName = 'marina_hotel.db';
 const List<String> kUuidLinkIndexStatements = [
   'CREATE INDEX IF NOT EXISTS idx_expenses_employee_uuid '
       'ON expenses (employee_uuid)',
-  'CREATE INDEX IF NOT EXISTS idx_exp_kind_day '
-      'ON expenses (expense_kind, hotel_day_key)',
   'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid '
       'ON salary_withdrawals (employee_uuid)',
   'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee '
@@ -51,48 +54,21 @@ const List<String> kUuidLinkIndexStatements = [
       'ON salary_carry_over_logs (employee_uuid)',
 ];
 
-/// ✅ (migration 75) قواعد backfill تصنيف `expenses.expense_kind` — مصدر
-/// الحقيقة المشترك بين الترحيل والاختبارات (نمط migration 68).
+/// ✅ (migration 76) قرار المالك (2026-11-04): **لا عمود expense_kind**.
 ///
-/// §3.2 enum: `salary_withdrawal | salary_deduction | advance |
-/// advance_installment | payroll | general`. §4.2: «تصنيف expenseKind
-/// يُقترح مرة واحدة من classifier الحالي، ويُنتج تقرير مراجعة؛ لا يعتمد
-/// بعد ذلك على النص».
+/// الترحيل 75 القديم (قبل هذا القرار) كان يضيف `expenses.expense_kind`
+/// ويفهرسه — الجهاز الذي سبق له تشغيله يحمل العمود والفهرس زائدين.
+/// هذه الصيغ تنظّفهما بلا أي مسّ لبيانات مالية: DROP INDEX ثم
+/// DROP COLUMN، وكلاهما مغلّف بفحص وجود لتجاوز الأجهزة التي لا تحملهما
+/// (أجهزة سبق لها تشغيل 75 الجديد أو أجهزة أنشأت القاعدة عند v76).
 ///
-/// - المطابقة التامة (TRIM) أولاً بدلالة SalaryExpenseClassification.
-/// - ثم fallback الـ contains بقائمة PayloadMapper.isSalaryExpenseType
-///   نفسها للأنواع المتغيرة القديمة.
-/// - الترتيب حاسم: كل قاعدة تمس expense_kind IS NULL فقط، فالقاعدة الأدق
-///   تسبق الأعم — وadvance_installment قبل salary_deduction لأن القسط
-///   التلقائي (خصم من الراتب + is_auto_generated) نوع مستقل في الـ enum.
-/// - Backfill بلا outbox وبلا version/lastModified (§4.2/§10.2).
-const List<(String, String)> kExpenseKindBackfillRules = [
-  (
-    'advance_installment',
-    "TRIM(expense_type) = 'خصم من الراتب' AND is_auto_generated = 1",
-  ),
-  ('advance', "TRIM(expense_type) = 'سلفة'"),
-  ('salary_withdrawal', "TRIM(expense_type) IN ('سحب راتب','سحب من الراتب')"),
-  ('payroll', "TRIM(expense_type) = 'رواتب'"),
-  (
-    'salary_deduction',
-    "TRIM(expense_type) IN ('خصم راتب','خصم من الراتب','خصم','غياب')",
-  ),
-  // fallback الـ contains — قائمة PayloadMapper.isSalaryExpenseType نفسها
-  ('salary_withdrawal', "expense_type LIKE '%سحب راتب%'"),
-  ('salary_withdrawal', "expense_type LIKE '%سحب من الراتب%'"),
-  ('salary_deduction', "expense_type LIKE '%خصم راتب%'"),
-  ('salary_deduction', "expense_type LIKE '%خصم من الراتب%'"),
-  ('advance', "expense_type LIKE '%سلفة%'"),
-  ('payroll', "expense_type LIKE '%رواتب%'"),
+/// التصنيف الراتبي يظل يعمل من نص `expense_type` عبر
+/// `SalaryExpenseClassifier` (نفس المصدر الذي بُني عليه backfill 75)،
+/// فلا يُفقد أي تصنيف بحذف العمود المكرر.
+const List<String> kExpenseKindCleanupStatements = [
+  'DROP INDEX IF EXISTS idx_exp_kind_day',
+  "ALTER TABLE expenses DROP COLUMN expense_kind",
 ];
-
-/// ✅ (migration 75) الحدّ الختامي للتصنيف: كل ما لم يطابق classifier
-/// الرواتب = مصروف عام (general) — قيمة من قيم الـ enum (§3.2)، وليست
-/// تخميناً: عدم الانتماء للعائلة الراتبية حتمي بالنص المعروف وقت الترحيل.
-const String kExpenseKindGeneralFallbackSql =
-    "UPDATE expenses SET expense_kind = 'general' "
-    'WHERE expense_kind IS NULL';
 
 /// ✅ (migration 75) فهارس جدولي pending_links / orphan_quarantine.
 ///
@@ -294,13 +270,9 @@ class Expenses extends Table with SyncFields {
   // backfill الترحيل ما أمكن، وما لا يُحسم حتمياً يبقى بلا رابط (أأمن).
   TextColumn get withdrawalUuid => text().nullable()();
 
-  // ✅ (migration 75) التصنيف الصريح من enum — «وثيقة الربط والمزامنة
-  // الموحدة» §3.2: `expense_kind` بدلاً من النص الحر أو `contains`.
-  // القيم: salary_withdrawal | salary_deduction | advance |
-  // advance_installment | payroll | general.
-  // بلا default عمداً: السجلات غير المصنّفة تبقى NULL وتُعرض في تقرير
-  // السلامة (§11) بدل تصنيف تخميني صامت — وexpenseType يبقى نص العرض/التوافق فقط.
-  TextColumn get expenseKind => text().nullable()();
+  // ⚠️ قرار المالك (2026-11-04): **لا عمود expense_kind** — التصنيف
+  // الراتبي يتم من نص `expenseType` الموجود عبر SalaryExpenseClassifier.
+  // العمود الذي أضافه الترحيل 75 القديم يُحذف في الترحيل 76.
 
   List<Index> get indexes => [
     Index(
@@ -335,12 +307,6 @@ class Expenses extends Table with SyncFields {
     Index(
       'idx_expenses_withdrawal_uuid',
       'CREATE INDEX idx_expenses_withdrawal_uuid ON expenses (withdrawal_uuid)',
-    ),
-    // ✅ (migration 75) وثيقة §4.1 idx_exp_kind_day: التصنيف + اليوم
-    // الفندقي — لتقارير المصروفات حسب النوع واليوم (§16.3/§16.7).
-    Index(
-      'idx_exp_kind_day',
-      'CREATE INDEX idx_exp_kind_day ON expenses (expense_kind, hotel_day_key)',
     ),
   ];
 }
@@ -1477,7 +1443,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 75;
+  int get schemaVersion => 76;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1519,93 +1485,57 @@ class AppDatabase extends _$AppDatabase {
     },
     onUpgrade: (m, from, to) async {
       // ✅ (2026-11-04) الإصدار 75: «وثيقة الربط والمزامنة الموحدة» — PR-1
-      // (متطلبات قاعدة البيانات المحلية §4.1/§4.2).
+      // (متطلبات قاعدة البيانات المحلية §4.1).
       //
       // المطلوب ناقصاً بعد الترحيلات 66-74:
-      // - expenses.expense_kind: تصنيف صريح من enum (§3.2) بدل النص الحر.
       // - pending_links: حفظ دائم للسجلات التي وصل رابطها الأبوي متأخراً
       //   (§4.1/§5.2/§8.1) — لا حذف ولا إسقاط من outbox أبداً.
       // - orphan_quarantine: عزل payloads غير القابلة للحل بلا حذف (§4.1).
       // - الفهارس المرجعية §4.1 تُنشأ فعلياً بـ IF NOT EXISTS (هنا +
       //   beforeOpen) ولا يُعتمد على List<Index> get indexes وحدها.
       //
-      // كل العمليات إضافية (ALTER ADD COLUMN على nullable + CREATE TABLE +
-      // UPDATE تعبئة تصنيف) — لا حذف ولا إعادة بناء ولا فقدان بيانات بأي
-      // شكل، والـ backfill بلا outbox وبلا version/lastModified (§4.2/§10.2).
+      // ⚠️ قرار المالك (2026-11-04): عمود `expenses.expense_kind` الذي
+      // كان يُضاف هنا أُزيل من هذا الترحيل — التصنيف يتم من عمود
+      // `expense_type` الموجود عبر SalaryExpenseClassifier، والجهاز الذي
+      // سبق له تشغيل النسخة القديمة من 75 يُنظّف في الترحيل 76.
+      //
+      // كل العمليات إضافية (CREATE TABLE + فهارس) — لا حذف ولا إعادة بناء
+      // ولا فقدان بيانات بأي شكل، وبلا outbox وبلا version/lastModified.
       if (from < 75) {
-        // 1) عمود التصنيف — nullable بلا default: غير المصنّف يبقى NULL
-        //    ويُتقر عنه في تقرير السلامة، لا تصنيف تخميني صامت (§1.3-2).
-        await m.addColumn(expenses, expenses.expenseKind);
-
-        // 2) جدولا الروابط المعلقة والحجر (§4.1) + فهارسهما الفعلية
+        // 1) جدولا الروابط المعلقة والحجر (§4.1) + فهارسهما الفعلية
         await m.createTable(pendingLinks);
         await m.createTable(orphanQuarantine);
         for (final ddl in kPendingLinksIndexStatements) {
           await m.database.customStatement(ddl);
         }
 
-        // 3) backfill التصنيف — لمرة واحدة، حتمي بلا تخمين (§4.2):
-        //    «تصنيف expenseKind يُقترح مرة واحدة من classifier الحالي،
-        //    ويُنتج تقرير مراجعة؛ لا يعتمد بعد ذلك على النص».
-        //    المصدر: kExpenseKindBackfillRules أعلاه (مشترك مع الاختبارات).
-        //    ملاحظة أمان §4.2: السحوبات القادمة من Appwrite لا يُستنتج
-        //    رابطها من أرقام بعيدة — هذه القواعد تملأ التصنيف من نص
-        //    expense_type المعروف وقت الترحيل فقط، ولا تمس أي رابط UUID.
-        for (final (kind, condition) in kExpenseKindBackfillRules) {
-          await m.database.customStatement(
-            'UPDATE expenses SET expense_kind = ? '
-            'WHERE expense_kind IS NULL AND $condition',
-            [kind],
-          );
-        }
-        await m.database.customStatement(kExpenseKindGeneralFallbackSql);
-
-        // تقرير مراجعة التصنيف (§4.2) — أعداد كل قيمة بعد التعبئة.
-        final kindRows =
-            await m.database
-                .customSelect(
-                  'SELECT expense_kind, COUNT(*) AS c FROM expenses '
-                  'GROUP BY expense_kind',
-                )
-                .get();
-        for (final row in kindRows) {
-          developer.log(
-            'Migration 75 expense_kind review report: '
-            '${row.data['expense_kind'] ?? 'NULL(unclassified)'} '
-            '= ${row.data['c']}',
-            name: 'db.migration',
-          );
-        }
-
-        // 4) الفهارس المرجعية (§4.1) — IF NOT EXISTS idempotent
+        // 2) الفهارس المرجعية (§4.1) — IF NOT EXISTS idempotent
         for (final ddl in kUuidLinkIndexStatements) {
           await m.database.customStatement(ddl);
         }
 
-        // 5) فهرس بحث expense_uuid على السحبات: الفريد الجزئي فقط عند
+        // 3) فهرس بحث expense_uuid على السحبات: الفريد الجزئي فقط عند
         //    خلوّ البيانات من التكرارات النشطة — «الفهرس الفريد لا يُنشأ
         //    قبل معالجة التكرارات وتقريرها، ولا تُحذف التكرارات تلقائياً»
         //    (§4.1) — نفس حارس الترحيلات 68-70.
-        final uxRow =
-            await m.database
-                .customSelect(
-                  "SELECT COUNT(*) AS c FROM sqlite_master "
-                  "WHERE type = 'index' "
-                  "AND name = 'ux_salary_withdrawals_expense_uuid_active'",
-                )
-                .getSingle();
+        final uxRow = await m.database
+            .customSelect(
+              "SELECT COUNT(*) AS c FROM sqlite_master "
+              "WHERE type = 'index' "
+              "AND name = 'ux_salary_withdrawals_expense_uuid_active'",
+            )
+            .getSingle();
         final uniqueMirrorIndexExists = (uxRow.data['c'] as int? ?? 0) > 0;
         if (!uniqueMirrorIndexExists) {
-          final activeMirrorDuplicates =
-              await m.database
-                  .customSelect(
-                    'SELECT expense_uuid, COUNT(*) AS c '
-                    'FROM salary_withdrawals '
-                    "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
-                    'AND deleted_at IS NULL '
-                    'GROUP BY expense_uuid HAVING COUNT(*) > 1',
-                  )
-                  .get();
+          final activeMirrorDuplicates = await m.database
+              .customSelect(
+                'SELECT expense_uuid, COUNT(*) AS c '
+                'FROM salary_withdrawals '
+                "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
+                'AND deleted_at IS NULL '
+                'GROUP BY expense_uuid HAVING COUNT(*) > 1',
+              )
+              .get();
           if (activeMirrorDuplicates.isEmpty) {
             await m.database.customStatement(
               'CREATE UNIQUE INDEX IF NOT EXISTS '
@@ -1631,10 +1561,45 @@ class AppDatabase extends _$AppDatabase {
         }
 
         developer.log(
-          'Migration 75: expense_kind + pending_links + orphan_quarantine '
-          '+ UUID link indexes (وثيقة الربط والمزامنة الموحدة PR-1)',
+          'Migration 75: pending_links + orphan_quarantine + UUID link '
+          'indexes (وثيقة الربط والمزامنة الموحدة PR-1)',
           name: 'db.migration',
         );
+      }
+
+      // ✅ (2026-11-04) الإصدار 76: إزالة عمود expense_kind — قرار المالك
+      // «لا تقوم باضافة عامود expenseKind هناك عامود باسم expensetype».
+      //
+      // الجهاز الذي سبق له تشغيل الترحيل 75 القديم يحمل `expense_kind`
+      // وفهرس `idx_exp_kind_day` زائدين؛ تنظيفهما هنا بلا أي مسّ لبيانات
+      // مالية (DROP INDEX/DROP COLUMN فقط). كل صيغة مغلّفة بفحص وجود —
+      // أجهزة لم تشغّل 75 القديم تتجاوز التنظيف بأمان.
+      if (from < 76) {
+        final kindCol = await m.database
+            .customSelect(
+              "SELECT COUNT(*) AS c FROM pragma_table_info('expenses') "
+              "WHERE name = 'expense_kind'",
+            )
+            .getSingle();
+        if ((kindCol.data['c'] as int? ?? 0) > 0) {
+          for (final ddl in kExpenseKindCleanupStatements) {
+            try {
+              await m.database.customStatement(ddl);
+            } catch (e) {
+              // DROP COLUMN قد يفشل على SQLite < 3.35 — الفهرس أُسقط
+              // دائماً والعمود الزائد بلا فهرس غير ضار بالاستعلامات.
+              developer.log(
+                'Migration 76: cleanup step skipped: $e',
+                name: 'db.migration',
+              );
+            }
+          }
+          developer.log(
+            'Migration 76: expense_kind column + idx_exp_kind_day removed '
+            '(التصنيف من expense_type عبر SalaryExpenseClassifier)',
+            name: 'db.migration',
+          );
+        }
       }
       // Migration 74: تاريخ الدخول للسجلات الجديدة فقط. لا تتم تعبئة
       // السجلات الموجودة حتى تبقى مستثناة من التاريخ في تقرير PDF.

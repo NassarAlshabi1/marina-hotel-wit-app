@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../expenses/expenses_list.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
@@ -287,6 +288,16 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                                           e.status,
                                         )
                                     ? () => _reactivateEmployee(context, ref, e)
+                                    : null,
+                                // ✅ (2026-11-04) زر «سحب» — يفتح شاشة
+                                // المصروفات الحالية مباشرة مع تحديد تصنيف
+                                // «رواتب» ونوع العملية «سحب من الراتب»
+                                // تلقائياً وتمرير employeeUuid (متطلب 1).
+                                // لا يظهر للمنتهية خدمتهم (سياسة الفصل).
+                                onWithdraw:
+                                    StatusUtils.isEmployeeActive(e.status) &&
+                                        e.localUuid.trim().isNotEmpty
+                                    ? () => _openWithdrawalScreen(context, e)
                                     : null,
                               ),
                             );
@@ -908,6 +919,24 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     }
   }
 
+  /// ✅ (2026-11-04) زر «سحب» — يفتح شاشة المصروفات الحالية مباشرة
+  /// (لا شاشة سحب مستقلة) مع:
+  /// - تحديد تصنيف «رواتب» ونوع العملية «سحب من الراتب» تلقائياً.
+  /// - تمرير employeeUuid وتحديد الموظف تلقائياً.
+  /// - بطاقة الأرصدة (الاستحقاق/المتبقي/رصيد السلف/الصافي) داخل شاشة
+  ///   المصروفات (متطلب 1 — بدون تغيير تصميم شاشة الموظفين).
+  void _openWithdrawalScreen(BuildContext context, Employee employee) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => ExpensesListScreen(
+          preselectedEmployeeUuid: employee.localUuid.trim(),
+          preselectedSalaryAction: 'سحب من الراتب',
+        ),
+      ),
+    );
+  }
+
   Future<void> _edit(
     BuildContext context,
     WidgetRef ref, {
@@ -1286,12 +1315,16 @@ class _EmployeeCard extends StatelessWidget {
     this.onDelete,
     this.onTerminate,
     this.onReactivate,
+    // ✅ (2026-11-04) زر «سحب» — يفتح شاشة المصروفات مع تحديد الموظف
+    // تلقائياً (متطلب 1: المحافظة على تصميم الشاشة والأزرار الحالية).
+    this.onWithdraw,
   });
   final Employee employee;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onTerminate;
   final VoidCallback? onReactivate;
+  final VoidCallback? onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -1474,6 +1507,23 @@ class _EmployeeCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // ✅ (2026-11-04) زر «سحب» — يفتح شاشة المصروفات الحالية
+                  // مباشرة (لا شاشة سحب مستقلة) — أول زر في الصف.
+                  if (onWithdraw != null)
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: IconButton(
+                        onPressed: onWithdraw,
+                        icon: const Icon(Icons.payments_outlined, size: 12),
+                        color: Colors.indigo,
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.indigo.withValues(alpha: 0.1),
+                        ),
+                        tooltip: 'سحب / سلفة / تسديد سلفة',
+                      ),
+                    ),
                   if (onTerminate != null)
                     SizedBox(
                       width: 24,

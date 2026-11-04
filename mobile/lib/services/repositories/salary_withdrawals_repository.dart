@@ -258,6 +258,115 @@ class SalaryWithdrawalsRepository {
     return id;
   }
 
+  /// ✅ (2026-11-04) إنشاء سجل سحب مباشر بلا مصروف مقابل — §6.2 من وثيقة
+  /// الربط والمزامنة الموحدة:
+  ///
+  /// - `expenseUuid = NULL`: السحب المباشر لا يولّد مصروفاً ولا مرآة.
+  /// - `employeeUuid` مطلوب ويُحل من employeeId محلياً (LocalLinkResolver
+  ///   عقد الهوية: لا ربط بأرقام بعيدة).
+  /// - المستخدم الحالي: **تسديد السلفة نقدياً** — مرآة سالبة بنوع
+  ///   «تسديد سلفة» تخفّض رصيد السلف دون مصروف (لا نقد خارج الصندوق).
+  /// - reason يبقى للعرض/التوافق فقط وليس مفتاح ربط.
+  ///
+  /// العملية كلها في transaction واحدة مع عنصر outbox، والهوية هي
+  /// localUuid المولّد مرة واحدة (idempotent retries بالـ UUID).
+  Future<int> createDirect({
+    required int employeeId,
+    required double amount,
+    required String date,
+    required String reason,
+    String? withdrawalType,
+    String? description,
+    String? hotelDayKey,
+    String? recorderName,
+    bool originIsServer = false,
+  }) async {
+    final now = Time.nowEpoch();
+    final uuid = IdGen.uuid();
+    final deviceId = AppwriteSyncManager.currentDeviceIdStatic ?? '';
+    final employeeUuid = _requireEmployeeUuid(
+      await _employeeUuidFor(employeeId),
+      employeeId,
+    );
+
+    final id = await _db.transaction(() async {
+      final companion = SalaryWithdrawalsCompanion(
+        localUuid: d.Value(uuid),
+        serverId: const d.Value(null),
+        employeeId: d.Value(employeeId),
+        employeeUuid: d.Value(employeeUuid),
+        // السحب المباشر: بلا مصروف مرآة (§6.2) — expenseUuid تبقى NULL
+        amount: d.Value(amount),
+        withdrawDate: d.Value(date),
+        reason: d.Value(reason),
+        hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+        withdrawalType: d.Value(withdrawalType),
+        description: d.Value(description),
+        recorderName: recorderName != null && recorderName.isNotEmpty
+            ? d.Value(recorderName)
+            : const d.Value.absent(),
+        deviceId: d.Value(deviceId),
+        createdAt: d.Value(now),
+        updatedAt: d.Value(now),
+        deletedAt: const d.Value(null),
+        lastModified: d.Value(now),
+        createdAtEpoch: d.Value(now),
+        lastModifiedEpoch: d.Value(now),
+        version: const d.Value(1),
+        origin: d.Value(originIsServer ? 'server' : 'local'),
+        vectorClock: const d.Value('{}'),
+      );
+      final id = await _db.into(_db.salaryWithdrawals).insert(companion);
+
+      if (!originIsServer) {
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'create',
+          localUuid: uuid,
+          payload: {
+            'employeeId': employeeId,
+            'employeeUuid': employeeUuid,
+            'amount': amount,
+            'withdrawDate': date,
+            'reason': reason,
+            'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
+            'withdrawalType': withdrawalType,
+            'description': description,
+            'deviceId': deviceId,
+            if (recorderName != null && recorderName.isNotEmpty)
+              'recorderName': recorderName,
+          },
+          clientTs: now,
+        );
+      }
+
+      return id;
+    });
+
+    // الإشعارات بعد نجاح commit فقط — وبالنوع الفعلي للعملية
+    if (!originIsServer) {
+      final category = (withdrawalType ?? '').trim().isNotEmpty
+          ? withdrawalType!.trim()
+          : 'سحب راتب';
+      unawaited(
+        WhatsAppNotificationService.instance.notifyNewExpense(
+          category: category,
+          amount: amount,
+          description: description ?? reason,
+        ),
+      );
+      unawaited(
+        TelegramNotificationService.instance.notifyNewExpense(
+          category: category,
+          amount: amount,
+          description: description ?? reason,
+        ),
+      );
+    }
+
+    return id;
+  }
+
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف.
   ///
   /// ✅ القاعدة الحاكمة (هجرة 68): **التمييز بهوية العملية نفسها**

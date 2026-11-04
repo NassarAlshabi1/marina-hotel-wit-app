@@ -15,7 +15,6 @@ import '../daos/ancestor_cache_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../vector_clock_service.dart';
-import 'smart_conflict_resolver.dart';
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 ///
@@ -43,8 +42,18 @@ class SyncPullService {
   final AppwriteLogger _logger;
 
   /// ✅ Audit Fix: AncestorCacheDao للوصول إلى الـ ancestor cache.
-  /// يُحقنlazy من AppwriteSyncManager عبر [setAncestorCacheDao].
+  /// يُحقن lazy من AppwriteSyncManager عبر [setAncestorCacheDao].
+  ///
+  /// ⚠️ (2026-11-04 — وثيقة §7.5): الدمج الثلاثي (3-way merge) أُزيل من
+  /// مسار التعارض المتزامن — Cloud Wins يعتمد نسخة السحابة كاملة — فيبقى
+  /// الحقن للتوافق التشخيصي فقط ( ancestor cache يُدار عند الرفع في
+  /// AppwriteSyncManager._occCheckAndMerge).
   AncestorCacheDao? _ancestorCacheDao;
+
+  /// وصول تشخيصي للـ ancestor cache المُحقن (يمنع unused_field مع بقاء
+  /// عقد الحقن [setAncestorCacheDao] كما هو للمستدعين الحاليين).
+  // ignore: unused_field
+  AncestorCacheDao? get ancestorCacheDiagnostics => _ancestorCacheDao;
 
   /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
   String? _currentDeviceId;
@@ -218,80 +227,83 @@ class SyncPullService {
         return const RemoteCheckResult(shouldApplyRemote: false);
 
       case VectorClockComparison.concurrent:
-        // ⚠️ تعارض متزامن!
+        // ⚠️ تعارض متزامن! كلا الجهازين عدّلا نفس السجل بشكل مستقل.
+        //
+        // ✅ (2026-11-04 — وثيقة الربط والمزامنة الموحدة §7.5) **Cloud Wins**:
+        // نسخة Appwrite هي المرجع والفائزة دائماً عند تعارض الأجهزة:
+        // - تُطبَّق النسخة السحابية **كاملة** — لا دمج حقول (3-way merge)
+        //   ولا ترجيح بساعة الجهاز (LWW) — «Cloud Wins يعني اعتماد السجل
+        //   السحابي كاملاً».
+        // - عمليات Outbox المحلية المتعارضة للسجل نفسه تُعلَّم
+        //   `superseded_by_cloud` ولا يُعاد رفعها فوق السحابة.
+        // - `VectorClock` أداة كشف/تشخيص فقط — لا يختار الفائز.
         _logger.warning(
-          '⚠️ CONCURRENT CONFLICT: entity=$entityName, uuid=$localUuid, '
-          'localVc=$localVectorClock, remoteVc=$remoteVcStr.',
+          '⚠️ CONCURRENT CONFLICT (Cloud Wins): entity=$entityName, '
+          'uuid=$localUuid, localVectorClock=$localVectorClock, '
+          'cloudVectorClock=$remoteVcStr, '
+          'localLastModified=$localLastModified, '
+          'cloudLastModified=$effectiveRemoteTs — '
+          'تُطبَّق نسخة Appwrite كاملة وتُعلَّم عمليات Outbox المحلية '
+          'superseded_by_cloud (وثيقة §7.5).',
           tag: 'CONFLICT',
         );
 
-        // محاولة الحل الذكي عبر SmartConflictResolver (3-way merge)
-        if (entityName != null &&
-            localUuid != null &&
-            localData != null &&
-            _ancestorCacheDao != null) {
-          try {
-            final ancestor = await _ancestorCacheDao!.getAncestor(
-              entityName,
-              localUuid,
-            );
-            final remoteDataOriginal = Map<String, dynamic>.from(remoteData);
-            final resolution = SmartConflictResolver.resolve(
-              entity: entityName,
-              localData: localData,
-              remoteData: remoteData,
-              commonAncestor: ancestor,
-            );
+        await _supersedeLocalOutboxOps(entityName, localUuid);
 
-            if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
-              _logger.info(
-                '✅ 3-way merge resolved: entity=$entityName, uuid=$localUuid, '
-                'warnings=${resolution.warnings.length}',
-                tag: 'CONFLICT',
-              );
-              // كتابة البيانات المدمجة في remoteData in-place.
-              // ✅ Sync Safety Fix (2026-08-10): استخدم iterative put بدل
-              // addAll لتفادي type mismatch عند runtime. مشكلة addAll: إذا
-              // كان remoteData من literal `{'k': 'v'}` يصبح runtime type
-              // هو `_Map<String, Object>`، بينما mergedData قد يكون
-              // `Map<String, dynamic>` → addAll يرمي type error ويُحوِّل
-              // المسار لـ LWW fallback (فقدان النتيجة المدمجة).
-              // الـ iterative put يتجاوز variance rules في Dart.
-              remoteData.clear();
-              for (final entry in resolution.mergedData.entries) {
-                remoteData[entry.key] = entry.value;
-              }
-              // حفظ البيانات البعيدة الأصلية كـ ancestor
-              await _ancestorCacheDao!.saveAncestor(
-                entity: entityName,
-                localUuid: localUuid,
-                data: remoteDataOriginal,
-              );
-              return RemoteCheckResult(
-                shouldApplyRemote: true,
-                mergedData: resolution.mergedData,
-                pushedToRemote: resolution.pushedToRemote,
-              );
-            }
-          } catch (e) {
-            _logger.warning(
-              '⚠️ SmartConflictResolver failed, LWW fallback: $e',
-              tag: 'CONFLICT',
-            );
-          }
-        }
+        return const RemoteCheckResult(shouldApplyRemote: true);
+    }
+  }
 
-        // LWW fallback + deviceId tie-break
-        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
-            ? effectiveRemoteTs ~/ 1000
-            : effectiveRemoteTs;
-        final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
-        final localDeviceId = _currentDeviceId ?? '';
-        final shouldApply =
-            normalizedRemoteTs > localLastModified ||
-            (normalizedRemoteTs == localLastModified &&
-                remoteDeviceId.compareTo(localDeviceId) < 0);
-        return RemoteCheckResult(shouldApplyRemote: shouldApply);
+  /// ✅ (وثيقة §7.5) تعليم عمليات Outbox المحلية المعلّقة للسجل المتعارض
+  /// بحالة `superseded_by_cloud` — لا يُعاد رفعها فوق نسخة السحابة الفائزة.
+  ///
+  /// القواعد:
+  /// - تُعلَّم عمليات هذا السجل فقط (entity + localUuid) — لا تُمس عمليات
+  ///   سجلات أخرى أو عمليات غير متعارضة (§7.5).
+  /// - الحالة تُبقي السجل في outbox كأثر تشخيصي (lastError يوضح السبب)
+  ///   وهو غير قابل للإعادة: takeBatch يلتقط pending/failed فقط، وإعادة
+  ///   الاستئناف (retryStale) تعالج processing/failed فقط.
+  Future<void> _supersedeLocalOutboxOps(
+    String? entityName,
+    String? localUuid,
+  ) async {
+    if (entityName == null || entityName.isEmpty) return;
+    if (localUuid == null || localUuid.isEmpty) return;
+    try {
+      final marked =
+          await (database.update(database.outbox)..where(
+                (t) =>
+                    t.entity.equals(entityName) &
+                    t.localUuid.equals(localUuid) &
+                    t.processingStatus.isIn(const [
+                      'pending',
+                      'processing',
+                      'failed',
+                    ]),
+              ))
+              .write(
+                const OutboxCompanion(
+                  processingStatus: drift.Value('superseded_by_cloud'),
+                  lastError: drift.Value(
+                    'superseded_by_cloud: Appwrite Cloud Wins — تعارض متزامن '
+                    'حُسم لصالح نسخة السحابة (وثيقة §7.5)؛ لا يُعاد الرفع',
+                  ),
+                ),
+              );
+      if (marked > 0) {
+        _logger.info(
+          '🏷️ تم تعليم $marked عملية Outbox المحلية للمتعارض '
+          '$entityName/$localUuid بحالة superseded_by_cloud',
+          tag: 'CONFLICT',
+        );
+      }
+    } catch (e) {
+      // فشل التعليم لا يمنع تطبيق نسخة السحابة (الأهم)، ويُسجل للتشخيص.
+      _logger.warning(
+        '⚠️ فشل تعليم عمليات Outbox بحالة superseded_by_cloud '
+        '$entityName/$localUuid: $e',
+        tag: 'CONFLICT',
+      );
     }
   }
 
