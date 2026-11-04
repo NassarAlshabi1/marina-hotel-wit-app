@@ -159,13 +159,10 @@ void main() {
 
     setUp(() {
       builds = <(String, String, String)>[];
-      AppwriteService.clientBuildHookForTesting = (
-        endpoint,
-        projectId,
-        apiKey,
-      ) {
-        builds.add((endpoint, projectId, apiKey));
-      };
+      AppwriteService.clientBuildHookForTesting =
+          (endpoint, projectId, apiKey) {
+            builds.add((endpoint, projectId, apiKey));
+          };
     });
 
     tearDown(() {

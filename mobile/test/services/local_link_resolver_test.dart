@@ -117,16 +117,18 @@ void main() {
       );
     });
 
-    test('الفهرس الفريد للمرآة النشطة يُنشأ عند خلو القاعدة من التكرار',
-        () async {
-      final idx = await db
-          .customSelect(
-            "SELECT name FROM sqlite_master WHERE type = 'index' "
-            "AND name = 'ux_sw_expense_uuid_active'",
-          )
-          .get();
-      expect(idx, isNotEmpty);
-    });
+    test(
+      'الفهرس الفريد للمرآة النشطة يُنشأ عند خلو القاعدة من التكرار',
+      () async {
+        final idx = await db
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'index' "
+              "AND name = 'ux_sw_expense_uuid_active'",
+            )
+            .get();
+        expect(idx, isNotEmpty);
+      },
+    );
 
     test('تعبئة expense_kind من المصنّف النصي مرة واحدة', () async {
       await insertExpense(uuid: 'e-withdraw', expenseType: 'سحب راتب');
@@ -315,34 +317,36 @@ void main() {
       expect((await resolver.pendingLinks()).single.attempts, greaterThan(1));
     });
 
-    test('بعد وصول الأب: يُحل الرابط ويُحدَّث الرقم المحلي ويُحذف الصف',
-        () async {
-      final empId = await insertEmployee('emp-late');
-      await insertWithdrawal(
-        uuid: 'w-waiting',
-        employeeId: empId,
-        employeeUuid: null,
-      );
-      await resolver.recordPendingLink(
-        entity: 'salary_withdrawal',
-        localUuid: 'w-waiting',
-        missingKind: 'employee_uuid',
-        missingUuid: 'emp-late',
-      );
+    test(
+      'بعد وصول الأب: يُحل الرابط ويُحدَّث الرقم المحلي ويُحذف الصف',
+      () async {
+        final empId = await insertEmployee('emp-late');
+        await insertWithdrawal(
+          uuid: 'w-waiting',
+          employeeId: empId,
+          employeeUuid: null,
+        );
+        await resolver.recordPendingLink(
+          entity: 'salary_withdrawal',
+          localUuid: 'w-waiting',
+          missingKind: 'employee_uuid',
+          missingUuid: 'emp-late',
+        );
 
-      // الأب موجود بالفعل ⇒ تُحل في أول محاولة
-      final resolved = await resolver.retryPendingLinks();
-      expect(resolved, 1);
-      expect(await resolver.pendingLinksCount(), 0);
+        // الأب موجود بالفعل ⇒ تُحل في أول محاولة
+        final resolved = await resolver.retryPendingLinks();
+        expect(resolved, 1);
+        expect(await resolver.pendingLinksCount(), 0);
 
-      final rows = await db
-          .customSelect(
-            'SELECT employee_id FROM salary_withdrawals '
-            "WHERE local_uuid = 'w-waiting'",
-          )
-          .get();
-      expect(rows.first.data['employee_id'], empId);
-    });
+        final rows = await db
+            .customSelect(
+              'SELECT employee_id FROM salary_withdrawals '
+              "WHERE local_uuid = 'w-waiting'",
+            )
+            .get();
+        expect(rows.first.data['employee_id'], empId);
+      },
+    );
 
     test('الأب الغائб: الصف يبقى وتزيد المحاولات ولا يُحذف أي سجل', () async {
       final empId = await insertEmployee('emp-present');

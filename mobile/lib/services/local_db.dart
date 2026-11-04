@@ -4076,9 +4076,7 @@ class AppDatabase extends _$AppDatabase {
 
       if (duplicates.isNotEmpty) {
         final details = duplicates
-            .map(
-              (r) => '${r.data['expense_uuid']}x${r.data['active_mirrors']}',
-            )
+            .map((r) => '${r.data['expense_uuid']}x${r.data['active_mirrors']}')
             .join(', ');
         developer.log(
           '⚠️ ux_sw_expense_uuid_active لم يُنشأ: ${duplicates.length} '

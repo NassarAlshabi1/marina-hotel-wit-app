@@ -126,8 +126,7 @@ class LocalLinkResolver {
 
     return <String, int>{
       for (final row in rows)
-        '${row.data['local_uuid']}':
-            row.data['id'] is int
+        '${row.data['local_uuid']}': row.data['id'] is int
             ? row.data['id'] as int
             : int.tryParse('${row.data['id']}') ?? 0,
     };
@@ -232,10 +231,9 @@ class LocalLinkResolver {
       );
 
       if (applied) {
-        await _db.customStatement(
-          'DELETE FROM pending_links WHERE id = ?',
-          [id],
-        );
+        await _db.customStatement('DELETE FROM pending_links WHERE id = ?', [
+          id,
+        ]);
         resolved++;
       } else {
         await _db.customStatement(
