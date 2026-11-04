@@ -151,41 +151,75 @@ void main() {
   });
 
   group('إعادة بناء العميل بعد تغيير الإعدادات', () {
-    test('reinitialize يبني عميلاً جديداً بدل الإبقاء على القديم', () async {
-      final service = AppwriteService();
+    // بناء Client الحقيقي ينشئ ClientIO ويكتب ملف كوكيز على القرص، وهذا
+    // يفشل في CI بـ PathNotFoundException (مؤكَّد من تشخيص CI). لذلك نستخدم
+    // خطاف الاختبار لالتقاط **القيم التي بُني بها العميل** بلا أي I/O —
+    // وهو بالضبط ما نحتاج إثباته: إعادة البناء من الإعدادات الجديدة.
+    late List<(String, String, String)> builds;
 
-      await AppwriteConfigManager.saveConfig(
-        endpoint: 'https://first.appwrite.io/v1',
-        projectId: 'proj_a',
-        databaseId: 'db_a',
-        apiKey: 'standard_a',
-      );
-      await service.initialize();
-      final firstClient = service.client;
-
-      await AppwriteConfigManager.saveConfig(
-        endpoint: 'https://second.appwrite.io/v1',
-        projectId: 'proj_b',
-        databaseId: 'db_b',
-        apiKey: 'standard_b',
-      );
-      await service.reinitialize();
-
-      expect(
-        identical(service.client, firstClient),
-        isFalse,
-        reason:
-            'late final كان يمنع إعادة الإسناد تماماً، فتبقى الطلبات على '
-            'المشروع القديم حتى إعادة تشغيل التطبيق',
-      );
-      expect(service.isInitialized, isTrue);
+    setUp(() {
+      builds = <(String, String, String)>[];
+      AppwriteService.clientBuildHookForTesting = (
+        endpoint,
+        projectId,
+        apiKey,
+      ) {
+        builds.add((endpoint, projectId, apiKey));
+      };
     });
 
-    test('initialize المتكرر آمن (idempotent)', () async {
+    tearDown(() {
+      AppwriteService.clientBuildHookForTesting = null;
+    });
+
+    test(
+      'reinitialize يعيد البناء من الإعدادات الجديدة بدل الإبقاء على القديم',
+      () async {
+        final service = AppwriteService();
+
+        await AppwriteConfigManager.saveConfig(
+          endpoint: 'https://first.appwrite.io/v1',
+          projectId: 'proj_a',
+          databaseId: 'db_a',
+          apiKey: 'standard_a',
+        );
+        await service.reinitialize();
+        expect(builds.length, 1);
+        expect(builds.last.$1, 'https://first.appwrite.io/v1');
+        expect(builds.last.$2, 'proj_a');
+        expect(builds.last.$3, 'standard_a');
+
+        await AppwriteConfigManager.saveConfig(
+          endpoint: 'https://second.appwrite.io/v1',
+          projectId: 'proj_b',
+          databaseId: 'db_b',
+          apiKey: 'standard_b',
+        );
+        await service.reinitialize();
+
+        // العميل أُعيد بناؤه — كان `late final` يمنع الإسناد الثاني تماماً
+        expect(builds.length, 2, reason: 'reinitialize لم يُعد بناء العميل');
+        expect(
+          builds.last.$1,
+          'https://second.appwrite.io/v1',
+          reason: 'العميل بُني على الهدف القديم — الحفظ لا يُطبَّق',
+        );
+        expect(builds.last.$2, 'proj_b');
+        expect(builds.last.$3, 'standard_b');
+        expect(service.isInitialized, isTrue);
+      },
+    );
+
+    test('initialize المتكرر آمن (idempotent — لا بناء زائد)', () async {
       final service = AppwriteService();
+      await service.reinitialize();
+      expect(builds.length, 1);
+
       await service.initialize();
       await service.initialize();
+
       expect(service.isInitialized, isTrue);
+      expect(builds.length, 1, reason: 'initialize أعاد البناء رغم التهيئة');
     });
   });
 

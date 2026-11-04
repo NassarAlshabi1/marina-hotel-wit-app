@@ -82,6 +82,22 @@ class AppwriteService {
   Client get client => _client;
   Databases get databases => _databases;
 
+  /// ⚠️ للاختبارات فقط: بديل بناء عميل Appwrite.
+  ///
+  /// بناء `Client` الحقيقي ينشئ `ClientIO` الذي يكتب ملف كوكيز على القرص
+  /// (`<documents>/cookies`). هذا يفشل في بيئة `flutter test` على CI بـ
+  /// `PathNotFoundException` (مؤكَّد من تشخيص CI)، فلا يمكن اختبار دلالة
+  /// إعادة البناء بعميل حقيقي. عند ضبط هذا الخطاف يُستدعى بدل البناء
+  /// الحقيقي، فتُختبر **قراءة الإعدادات الجديدة وإعادة البناء** بلا أي I/O.
+  /// لا يُضبط أبداً في الإنتاج.
+  @visibleForTesting
+  static void Function(String endpoint, String projectId, String apiKey)?
+  clientBuildHookForTesting;
+
+  /// عدد مرات بناء العميل فعلياً (يُستخدم في الاختبارات لإثبات إعادة البناء).
+  @visibleForTesting
+  static int clientBuildCount = 0;
+
   /// التهيئة الأولية
   Future<void> initialize() async {
     if (_initialized) {
@@ -91,6 +107,17 @@ class AppwriteService {
     final endpoint = AppwriteConfigManager.endpoint;
     final projectId = AppwriteConfigManager.projectId;
     final apiKey = AppwriteConfigManager.apiKey;
+
+    clientBuildCount++;
+
+    final buildHook = clientBuildHookForTesting;
+    if (buildHook != null) {
+      // مسار الاختبار: لا نبني ClientIO ولا نلمس القرص.
+      buildHook(endpoint, projectId, apiKey);
+      _initialized = true;
+      _logger.info('AppwriteService initialized (test hook)', tag: 'INIT');
+      return;
+    }
 
     _client = Client().setEndpoint(endpoint).setProject(projectId);
     if (apiKey.isNotEmpty) {
