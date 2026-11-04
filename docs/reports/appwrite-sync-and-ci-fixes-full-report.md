@@ -698,8 +698,83 @@ UUID إلى أرقام محلية:
 | PR‑6 | `EmployeeFinancialReportRepository` ونموذج الحركة الموحّد + منع ازدواج المصروف/المرآة في التقارير | نطاق تقارير كامل (16.2–16.9) |
 | PR‑7 | إغلاق التوافق القديم (`reason='exp_N'`، `expense_id`، fallback) | مشروط بتحديث جميع الأجهزة وصفر اعتماد قديم |
 
-حتى تُنفَّذ PR‑3/PR‑4: `expense_kind` **مُعبّأ** للسجلات القائمة ولا يُشتق من النص،
-لكن المسارات الجديدة ما زالت تكتب `expense_type` النصي؛ لذلك يُصنَّف عند الحفظ
-بمصنّف موحّد لاحقاً في PR‑3.
+> ✅ **تحديث:** نُفِّذت **PR‑3** و**PR‑4** في الدفعة التالية — انظر §16 أدناه.
+> (بعد §16 لم يبقَ مسار حفظ يكتب `expense_type` وحدها بلا `expense_kind`.)
+
+كانت في هذه الدفعة: `expense_kind` **مُعبّأ** للسجلات القائمة ولا يُشتق من النص،
+بينما بقيت المسارات الجديدة تكتب `expense_type` النصي إلى أن جاء PR‑3.
 
 > **التنسيق:** `131d385` (Auto Format، 80 عموداً) بعد `39c7ebd` — تغييرات تنسيقية فقط في `local_db.dart` و`local_link_resolver.dart` وملفَي الاختبار.
+
+---
+
+## 16) الدفعة الثانية — PR‑3 (`SalaryExpenseService`) وPR‑4 (Cloud Wins + UUID‑first)
+
+المرجع: الوثيقة نفسها (§3.2، §6.1، §6.3، §7.1، §7.3، §7.4، §7.5، §8.2، §12).
+
+### 16.1 PR‑3 — `mobile/lib/services/salary_expense_service.dart`
+
+مسار واحد لعمليات مصروف الرواتب بدل تكرار منطق الإنشاء/الحذف/الإسناد:
+
+| العملية | الضمانة المنفَّذة |
+|---|---|
+| `saveSalaryExpense` | المصروف + مرآته + Outbox للطرفين داخل **معاملة واحدة**؛ التصنيف الصريح يُكتب في `expenses.expense_kind`؛ التعديل يحدّث المرآة نفسها بالهوية (`saveFromExpense`) فلا مرآة نشطة ثانية |
+| `deleteSalaryExpense` | tombstone للمصروف ومرآته معاً (`softDelete` + `deleteByExpenseId` بالهوية أولاً ثم حارس الجهاز/الموظف) — لا حذف صلب لأي صف مالي |
+| `reassignEmployee` | إعادة اشتقاق `related_id`/`employee_id` من `employeeUuid` عبر `LocalLinkResolver`؛ تُحدَّث مرايا هذا المصروف فقط (هوية) أو التراثية (`expense_uuid IS NULL AND expense_id = ?`) |
+| موظف غير محلول | `SalaryExpenseUnresolvedEmployee` — **لا كتابة جزئية**: لا مصروف بلا مرآة ولا مصروف بلا موظف |
+| `ExpenseKind` | أكواد ثابتة (`salary_withdrawal|salary_deduction|advance|advance_installment|payroll|general`) هي ما يُخزَّن ويُرسل؛ `legacyLabel` لنص `expense_type` للتوافق فقط؛ `classifyLegacyLabel` **انتقالي** للتعبئة فقط |
+
+قرار تصميم موثّق: إعادة الإسناد **لا تكتب** `expense_uuid` على مرآة مطابقة بالرقم فقط —
+المطابقة الرقمية قد تكون تصادم autoincrement لجهاز آخر، وتبنّي الهوية عملية تدقيق
+منفصلة (لا تُخلط بإعادة الإسناد).
+
+### 16.2 PR‑4 — سياسة Cloud Wins (§7.5)
+
+`mobile/lib/services/sync/cloud_wins_policy.dart` — قرار **نقي** (بلا شبكة/DB):
+
+- السحابة أحدث (`version` أعلى) ⇒ تُعتمد نسخة Appwrite كاملة، **لا دمج حقول**.
+- Tombstone سحابي (`deletedAt > 0`) على سجل محلي غير محذوف ⇒ الحذف يفوز (لا إحياء).
+- تساوي/أقدمية السحابة أو غياب `version` ⇒ لا إلغاء (يُكمل الرفع بعد فحص OCC).
+- لا اعتماد على `updatedAt` أو ساعة الجهاز في الحسم.
+
+التنفيذ في `AppwriteSyncManager._cloudWinsPreflight` قبل أي كتابة سحابية:
+
+1. قراءة وثيقة السحابة (404 ⇒ إنشاء طبيعي).
+2. عند الفوز السحابي: تطبيق النسخة محلياً عبر **مسار السحب نفسه**
+   (`AdapterRegistry.byEntity` + `upsertFromJson`، `Source.appwrite`) — نفس حلّ
+   الربط ونفس الحقول، لا مسار كتابة ثانٍ.
+3. `OutboxDao.markSupersededByCloud` → الحالة `superseded_by_cloud`:
+   ليست `pending`/`failed` (لا إعادة إرسال فوق السحابة) وليست `completed`
+   (لا حذف بلا تأكيد) — أثر تشخيصي دائم في `last_error`.
+4. إن تعذّر تطبيق النسخة السحابية (أب غير محلول ⇒ `-1`) **لا** يُعلَّم العنصر
+   متقادماً: التعديل المحلي يبقى معلّقاً بدل أن يُفقد بلا بديل.
+
+### 16.3 PR‑4 — `expenseKind` من الصف المحلي، وبعد إثبات وجود الـ Attribute (§7.1/§7.3/§7.4)
+
+- **رفع:** يُقرأ من `expenses.expense_kind` للصف المحلي نفسه (لا من نص `expenseType`).
+- **بوابة §7.1:** لا يُرسل الحقل قبل التحقق من وجود الخاصية سحابياً عبر
+  `AppwriteService.collectionHasAttribute` (كاش إيجابي دائم + سلبي 10 دقائق؛
+  أي فشل ⇒ لا إرسال). غياب الخاصية = يبقى محلياً ويُرسل بعد إنشائها، بلا إسقاط الحقل من المخطط.
+- **استقبال:** بعد نجاح `upsertFromJson` يُكتب `expense_kind` (raw) بكود معروف فقط؛
+  كود مجهول يُسجَّل تحذيراً ولا يستبدل تصنيفاً صحيحاً.
+- الأرقام القديمة (`relatedId`, `employeeId`, `expenseId`) تُرسل كما هي للتوافق (§7.3/§10.3)،
+  لكنها تُشتق من الصف المحلي/Resolver ولا تُستقبل كمرجع عند `Source.appwrite`.
+
+### 16.4 الاختبارات المضافة
+
+| الملف | التغطية |
+|---|---|
+| `mobile/test/services/salary_expense_service_test.dart` | تصنيف، إنشاء/تعديل/حذف/إعادة إسناد ذرية، رفض موظف غير محلول بلا كتابة، مرآة واحدة نشطة، عدم تبنّي هوية مرآة تراثية |
+| `mobile/test/services/cloud_wins_policy_test.dart` | قرارات Cloud Wins (أحدث/متساوٍ/أقدم/Tombstone/كود نصي/غياب version)، خريطة الكيانات، `markSupersededByCloud` يخرج من المعلّق ولا يحذف ولا يؤثر على غيره |
+
+### 16.5 ما تبقّى
+
+| PR | المتبقّي |
+|---|---|
+| PR‑5 | checkpoints بعد commit لكل صفحة داخل محرّك السحب، وإعادة محاولة `pending_links` بعد وصول الآباء |
+| PR‑6 | `EmployeeFinancialMovement` في `EmployeeFinancialReportRepository` + تقارير unresolved/duplicates (§16 من الوثيقة) |
+| PR‑7 | إغلاق التوافق القديم بعد تحديث جميع الأجهزة (`reason='exp_N'`، `expense_id`، fallback الأرقام) |
+
+> حارس `baseRevision` الذري السحابي (Function/Backend) لم يُدَّعَ هنا: العميل يفحص
+> `version` قبل الكتابة (OCC + Cloud Wins)، والمنع الذري للسباق يحتاج كتابة شرطية
+> على الخادم — وهو ما تنص §7.5 صراحةً على عدم ادّعائه بدونه.

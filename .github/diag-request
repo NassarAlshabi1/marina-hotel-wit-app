@@ -6,3 +6,5 @@ diag run 4: full suite after aligning with existing unique index
 diag run 5 (salary expense service tests)
 
 diag run 6 (cloud wins)
+
+diag run 7 (PR-4 compile + tests)
