@@ -375,6 +375,613 @@ class EmployeeFinancialReportRepository {
 
     return reports;
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // تقرير الرواتب حسب الفترة (§16.4-B)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تجميع `salary_cycles` حسب `employeeUuid` وفترة الدورة، وربط
+  /// `salary_payments` بالدورة عبر `cycleUuid` أولاً ثم cycleId المحلي
+  /// (cache محلي بعد حل UUID — §3.4/§16.4-B).
+  ///
+  /// السجلات غير المرتبطة (بلا employeeUuid أو لا يحل لموظف) تُعرض في
+  /// [EmployeeSalaryCyclesReport.unresolved] ولا تُنسب لموظف (§16.1).
+  Future<EmployeeSalaryCyclesReport> buildSalaryCyclesReport({
+    String? employeeUuid,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final uuid = employeeUuid?.trim();
+    final fromIso = fromDate != null
+        ? Time.safeIsoToDateString(fromDate.toIso8601String())
+        : null;
+    final toIso = toDate != null
+        ? Time.safeIsoToDateString(toDate.toIso8601String())
+        : null;
+
+    final cycles =
+        await (_db.select(_db.salaryCycles)..where(
+              (c) => uuid == null || uuid.isEmpty
+                  ? const d.Constant(true)
+                  : c.employeeUuid.equals(uuid),
+            ))
+            .get();
+    final payments =
+        await (_db.select(_db.salaryPayments)..where(
+              (p) => uuid == null || uuid.isEmpty
+                  ? const d.Constant(true)
+                  : p.employeeUuid.equals(uuid),
+            ))
+            .get();
+    final employees = await _db.select(_db.employees).get();
+    final nameByUuid = {for (final e in employees) e.localUuid.trim(): e.name};
+
+    final unresolved = <String>[];
+    final rows = <SalaryCycleReportRow>[];
+
+    // ربط الدفعات بالدورة: cycleUuid أولاً (هوية دائمة §3.4)، ثم
+    // cycleId الرقمي كـ cache محلي بعد حل الدورة بالـ UUID.
+    final paymentsByCycleUuid = <String, List<SalaryPayment>>{};
+    final paymentsByCycleId = <int, List<SalaryPayment>>{};
+    for (final p in payments) {
+      final cu = (p.cycleUuid ?? '').trim();
+      if (cu.isNotEmpty) {
+        paymentsByCycleUuid.putIfAbsent(cu, () => []).add(p);
+      }
+      paymentsByCycleId.putIfAbsent(p.cycleId, () => []).add(p);
+    }
+
+    int totalExpected = 0, totalPaid = 0, totalRemaining = 0;
+    for (final c in cycles) {
+      final cUuid = c.localUuid.trim();
+      // نطاق الدورة نصف مفتوح [from, to) على بداية الدورة الفندقية (§16.8).
+      final day = (c.hotelDayStart ?? '').trim();
+      if (fromIso != null && day.isNotEmpty && day.compareTo(fromIso) < 0) {
+        continue;
+      }
+      if (toIso != null && day.isNotEmpty && day.compareTo(toIso) >= 0) {
+        continue;
+      }
+
+      final empUuid = (c.employeeUuid ?? '').trim();
+      final resolvedName = empUuid.isEmpty ? null : nameByUuid[empUuid];
+      if (empUuid.isEmpty || resolvedName == null) {
+        unresolved.add(
+          'دورة راتب ${c.cycleKey} (uuid=$cUuid) بلا موظف محلول '
+          '— لا تُنسب لموظف (§16.1)',
+        );
+        // §16.4-B/§16.1: السجل غير المرتبط في قسم منفصل — لا يدخل صفوف
+        // التقرير ولا إجمالياته، ولا يُنسب لموظف غير مؤكد.
+        continue;
+      }
+
+      final cyclePayments = <SalaryPayment>[
+        ...?paymentsByCycleUuid[cUuid],
+        ...(paymentsByCycleId[c.id] ?? const <SalaryPayment>[]).where(
+          (p) => (p.cycleUuid ?? '').trim().isEmpty,
+        ),
+      ];
+
+      totalExpected += c.expectedAmount;
+      totalPaid += c.actualPaid;
+      totalRemaining += c.remainingAmount;
+
+      rows.add(
+        SalaryCycleReportRow(
+          cycleUuid: cUuid,
+          cycleKey: c.cycleKey,
+          employeeUuid: empUuid.isEmpty ? null : empUuid,
+          employeeName: resolvedName,
+          hotelDayStart: c.hotelDayStart,
+          hotelDayEnd: c.hotelDayEnd,
+          expectedAmount: c.expectedAmount.toDouble(),
+          actualPaid: c.actualPaid.toDouble(),
+          remainingAmount: c.remainingAmount.toDouble(),
+          status: c.status,
+          payments: cyclePayments
+              .map(
+                (p) => SalaryPaymentReportRow(
+                  paymentUuid: p.localUuid,
+                  amount: p.amount.toDouble(),
+                  paymentDateIso: p.paymentDateIso,
+                  method: p.method,
+                  hotelDayKey: p.hotelDayKey,
+                  linkedViaUuid: (p.cycleUuid ?? '').trim() == cUuid,
+                ),
+              )
+              .toList(),
+        ),
+      );
+    }
+
+    rows.sort((a, b) {
+      final byDay = (a.hotelDayStart ?? '').compareTo(b.hotelDayStart ?? '');
+      if (byDay != 0) return byDay;
+      return a.cycleUuid.compareTo(b.cycleUuid);
+    });
+
+    return EmployeeSalaryCyclesReport(
+      cycles: rows,
+      unresolved: unresolved,
+      totalExpected: totalExpected.toDouble(),
+      totalPaid: totalPaid.toDouble(),
+      totalRemaining: totalRemaining.toDouble(),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // تقرير المصروفات حسب الموظف (§16.4-C)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// المصدر `expenses` فقط — المرايا لا تُجمع (§16.3). التصنيف مشتق من
+  /// `expenseType` عبر [SalaryExpenseClassifier] (قرار المالك 2026-11-04:
+  /// لا عمود expense_kind — §3.2)، و`expenseType` نفسه للعرض/التوافق.
+  /// المصروف بلا employeeUuid لا يظهر تحت موظف — يظهر في غير المرتبط.
+  Future<EmployeeExpensesReport> buildExpensesByEmployeeReport({
+    String? employeeUuid,
+    DateTime? fromDate,
+    DateTime? toDate,
+    String? typeContains,
+    bool salaryFamilyOnly = false,
+  }) async {
+    final uuid = employeeUuid?.trim();
+    final fromIso = fromDate != null
+        ? Time.safeIsoToDateString(fromDate.toIso8601String())
+        : null;
+    final toIso = toDate != null
+        ? Time.safeIsoToDateString(toDate.toIso8601String())
+        : null;
+
+    final rows =
+        await (_db.select(_db.expenses)..where((e) {
+              d.Expression<bool> exp = e.deletedAt.isNull();
+              if (uuid != null && uuid.isNotEmpty) {
+                exp = exp & e.employeeUuid.equals(uuid);
+              }
+              return exp;
+            }))
+            .get();
+
+    final linked = <EmployeeExpenseReportRow>[];
+    final unlinked = <String>[];
+    double total = 0;
+    final byCategory = <String, double>{};
+
+    for (final e in rows) {
+      final type = e.expenseType.trim();
+      if (typeContains != null &&
+          typeContains.isNotEmpty &&
+          !type.contains(typeContains)) {
+        continue;
+      }
+      final isSalary = SalaryExpenseClassifier.isSalaryRelated(type);
+      if (salaryFamilyOnly && !isSalary) continue;
+      if (!_inRange(e.date, fromIso, toIso)) continue;
+
+      final empUuid = (e.employeeUuid ?? '').trim();
+      if (uuid == null || uuid.isEmpty) {
+        // تقرير عام: كل مصروف راتبي بلا موظف محلول → غير مرتبط (§16.4-C).
+        if (isSalary && empUuid.isEmpty) {
+          unlinked.add(
+            'مصروف راتبي بلا employeeUuid: ${e.localUuid} '
+            '(مبلغ ${e.amount} — $type)',
+          );
+          continue;
+        }
+      }
+
+      final category = isSalary
+          ? SalaryExpenseClassifier.isLoanRepayment(type)
+                ? 'تسديد سلفة'
+                : SalaryExpenseClassifier.isSalaryDeduction(type)
+                ? 'خصم'
+                : SalaryExpenseClassifier.isAdvanceWithdrawal(type)
+                ? 'سلفة'
+                : 'سحب راتب'
+          : type;
+
+      total += e.amount;
+      byCategory[category] = (byCategory[category] ?? 0) + e.amount;
+      linked.add(
+        EmployeeExpenseReportRow(
+          expenseUuid: e.localUuid,
+          employeeUuid: empUuid,
+          date: e.date,
+          hotelDayKey: e.hotelDayKey,
+          type: type,
+          category: category,
+          description: e.description,
+          amount: e.amount,
+          isAutoGenerated: e.isAutoGenerated,
+        ),
+      );
+    }
+
+    linked.sort((a, b) {
+      final byDate = a.date.compareTo(b.date);
+      if (byDate != 0) return byDate;
+      return a.expenseUuid.compareTo(b.expenseUuid);
+    });
+
+    return EmployeeExpensesReport(
+      expenses: linked,
+      unlinked: unlinked,
+      total: total,
+      totalsByCategory: byCategory,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // تقرير المسحوبات (§16.4-D)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// المصدر `salary_withdrawals` فقط — مصروف المرآة لا يُجمع مرتين
+  /// (§16.3). تمييز السحب المباشر (`expenseUuid` NULL أو غير محلول) عن
+  /// سحب له مصروف مرآة عبر `expenseUuid` — لا `expenseId` وحده.
+  Future<EmployeeWithdrawalsReport> buildWithdrawalsReport({
+    String? employeeUuid,
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) async {
+    final uuid = employeeUuid?.trim();
+    final fromIso = fromDate != null
+        ? Time.safeIsoToDateString(fromDate.toIso8601String())
+        : null;
+    final toIso = toDate != null
+        ? Time.safeIsoToDateString(toDate.toIso8601String())
+        : null;
+
+    final rows =
+        await (_db.select(_db.salaryWithdrawals)..where((w) {
+              d.Expression<bool> exp = w.deletedAt.isNull();
+              if (uuid != null && uuid.isNotEmpty) {
+                exp = exp & w.employeeUuid.equals(uuid);
+              }
+              return exp;
+            }))
+            .get();
+
+    final expenses = await (_db.select(
+      _db.expenses,
+    )..where((e) => e.deletedAt.isNull())).get();
+    final expenseUuidSet = expenses
+        .map((e) => e.localUuid.trim())
+        .where((u) => u.isNotEmpty)
+        .toSet();
+
+    final direct = <EmployeeWithdrawalReportRow>[];
+    final mirrors = <EmployeeWithdrawalReportRow>[];
+    final unresolved = <String>[];
+    double directTotal = 0, mirrorTotal = 0;
+
+    for (final w in rows) {
+      if (!_inRange(w.withdrawDate, fromIso, toIso)) continue;
+      final empUuid = (w.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty) {
+        unresolved.add(
+          'مسحوب بلا employeeUuid: ${w.localUuid} '
+          '(مبلغ ${w.amount}، ${w.withdrawDate})',
+        );
+        continue;
+      }
+
+      final eu = (w.expenseUuid ?? '').trim();
+      final hasResolvableMirror = eu.isNotEmpty && expenseUuidSet.contains(eu);
+      final row = EmployeeWithdrawalReportRow(
+        withdrawalUuid: w.localUuid,
+        employeeUuid: empUuid,
+        expenseUuid: eu.isEmpty ? null : eu,
+        date: w.withdrawDate,
+        hotelDayKey: w.hotelDayKey,
+        amount: w.amount,
+        withdrawalType: w.withdrawalType ?? '',
+        description: (w.description ?? w.reason ?? '').trim(),
+        isMirrorOfExpense: hasResolvableMirror,
+      );
+      if (hasResolvableMirror) {
+        mirrorTotal += w.amount;
+        mirrors.add(row);
+      } else {
+        directTotal += w.amount;
+        direct.add(row);
+      }
+    }
+
+    direct.sort((a, b) {
+      final byDate = a.date.compareTo(b.date);
+      if (byDate != 0) return byDate;
+      return a.withdrawalUuid.compareTo(b.withdrawalUuid);
+    });
+    mirrors.sort((a, b) {
+      final byDate = a.date.compareTo(b.date);
+      if (byDate != 0) return byDate;
+      return a.withdrawalUuid.compareTo(b.withdrawalUuid);
+    });
+
+    return EmployeeWithdrawalsReport(
+      directWithdrawals: direct,
+      mirrorWithdrawals: mirrors,
+      unresolved: unresolved,
+      directTotal: directTotal,
+      mirrorTotal: mirrorTotal,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // تقرير السجلات غير المرتبطة (§16.4-F)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// يجمع كل السجلات المالية التي لا يحلّ UUID أبها — تُعرض أدلة فقط
+  /// ولا تُنسب لموظف (§16.1/§16.4-F). لا يصلح شيئاً تلقائياً.
+  Future<UnlinkedFinancialRecordsReport> buildUnlinkedRecordsReport() async {
+    final employees = await _db.select(_db.employees).get();
+    final employeeUuids = employees
+        .map((e) => e.localUuid.trim())
+        .where((u) => u.isNotEmpty)
+        .toSet();
+
+    final expenses = await (_db.select(
+      _db.expenses,
+    )..where((e) => e.deletedAt.isNull())).get();
+    final withdrawals = await (_db.select(
+      _db.salaryWithdrawals,
+    )..where((w) => w.deletedAt.isNull())).get();
+    final cycles = await (_db.select(
+      _db.salaryCycles,
+    )..where((c) => c.deletedAt.isNull())).get();
+    final payments = await (_db.select(
+      _db.salaryPayments,
+    )..where((p) => p.deletedAt.isNull())).get();
+    final carryOvers = await (_db.select(
+      _db.salaryCarryOverLogs,
+    )..where((c) => c.deletedAt.isNull())).get();
+
+    final items = <UnlinkedRecordItem>[];
+    final expenseUuidSet = expenses
+        .map((e) => e.localUuid.trim())
+        .where((u) => u.isNotEmpty)
+        .toSet();
+
+    for (final e in expenses) {
+      final type = e.expenseType.trim();
+      if (!SalaryExpenseClassifier.isSalaryRelated(type)) continue;
+      final empUuid = (e.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'expense',
+            recordUuid: e.localUuid,
+            reason: 'مصروف راتبي بلا employeeUuid',
+            amount: e.amount,
+            date: e.date,
+          ),
+        );
+      } else if (!employeeUuids.contains(empUuid)) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'expense',
+            recordUuid: e.localUuid,
+            reason: 'employeeUuid لا يطابق موظفاً محلياً',
+            amount: e.amount,
+            date: e.date,
+          ),
+        );
+      }
+    }
+
+    for (final w in withdrawals) {
+      final empUuid = (w.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'salary_withdrawal',
+            recordUuid: w.localUuid,
+            reason: 'مسحوب بلا employeeUuid',
+            amount: w.amount,
+            date: w.withdrawDate,
+          ),
+        );
+      } else if (!employeeUuids.contains(empUuid)) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'salary_withdrawal',
+            recordUuid: w.localUuid,
+            reason: 'employeeUuid لا يطابق موظفاً محلياً',
+            amount: w.amount,
+            date: w.withdrawDate,
+          ),
+        );
+      }
+      final eu = (w.expenseUuid ?? '').trim();
+      if (eu.isNotEmpty && !expenseUuidSet.contains(eu)) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'salary_withdrawal',
+            recordUuid: w.localUuid,
+            reason: 'expenseUuid غير موجود في المصروفات النشطة (مرآة يتيمة)',
+            amount: w.amount,
+            date: w.withdrawDate,
+          ),
+        );
+      }
+    }
+
+    for (final c in cycles) {
+      final empUuid = (c.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty || !employeeUuids.contains(empUuid)) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'salary_cycle',
+            recordUuid: c.localUuid,
+            reason: empUuid.isEmpty
+                ? 'دورة بلا employeeUuid'
+                : 'employeeUuid لا يطابق موظفاً محلياً',
+            amount: c.expectedAmount.toDouble(),
+            date: c.hotelDayStart ?? c.cycleKey,
+          ),
+        );
+      }
+    }
+    for (final p in payments) {
+      final empUuid = (p.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty || !employeeUuids.contains(empUuid)) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'salary_payment',
+            recordUuid: p.localUuid,
+            reason: empUuid.isEmpty
+                ? 'دفعة بلا employeeUuid'
+                : 'employeeUuid لا يطابق موظفاً محلياً',
+            amount: p.amount.toDouble(),
+            date: p.paymentDateIso,
+          ),
+        );
+      }
+    }
+    for (final c in carryOvers) {
+      final empUuid = (c.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty || !employeeUuids.contains(empUuid)) {
+        items.add(
+          UnlinkedRecordItem(
+            source: 'carry_over',
+            recordUuid: c.localUuid,
+            reason: empUuid.isEmpty
+                ? 'Carry-over بلا employeeUuid'
+                : 'employeeUuid لا يطابق موظفاً محلياً',
+            amount: c.amount,
+            date: c.carryDate ?? c.hotelDayKey ?? '',
+          ),
+        );
+      }
+    }
+
+    // pending_links: السجلات التي وصل أبها متأخراً — عددها وأسبابها (§11).
+    final pendingRows = await (_db.select(
+      _db.pendingLinks,
+    )..where((p) => p.resolvedAt.isNull())).get();
+    final pendingItems = pendingRows
+        .map(
+          (p) => PendingLinkItem(
+            entity: p.entity,
+            recordUuid: p.localUuid,
+            parentEntity: p.parentEntity,
+            parentUuid: p.parentUuid,
+            reason: p.reason,
+            attempts: p.attempts,
+            lastAttemptAt: p.lastAttemptAt,
+          ),
+        )
+        .toList();
+
+    return UnlinkedFinancialRecordsReport(
+      items: items,
+      pendingLinks: pendingItems,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // تقرير إجمالي الموظفين (§16.4-G)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تجميع حسب `employeeUuid` فقط — قواعد منع الازدزام §16.3:
+  /// - كل مصروف راتبي يُحتسب مرة (من `expenses`) — مرآته لا تُجمع.
+  /// - السحوبات المباشرة (بلا مصروف مقابل) من `salary_withdrawals`.
+  /// - السجلات غير المحلولة في مجموعة مستقلة (§16.4-G).
+  /// - مجموع التقرير = مجموع السجلات المصدرية بعد الاستبعاد + فروقات
+  ///   موثقة في [EmployeeTotalsReport.reconciliation].
+  Future<EmployeeTotalsReport> buildEmployeeTotalsReport() async {
+    final employees = await _db.select(_db.employees).get();
+    final nameByUuid = {for (final e in employees) e.localUuid.trim(): e.name};
+
+    final expenses = await (_db.select(
+      _db.expenses,
+    )..where((e) => e.deletedAt.isNull())).get();
+    final withdrawals = await (_db.select(
+      _db.salaryWithdrawals,
+    )..where((w) => w.deletedAt.isNull())).get();
+    final expenseUuidSet = expenses
+        .map((e) => e.localUuid.trim())
+        .where((u) => u.isNotEmpty)
+        .toSet();
+
+    final perEmployee = <String, EmployeeTotalsRow>{};
+    EmployeeTotalsRow rowFor(String uuid) => perEmployee.putIfAbsent(
+      uuid,
+      () =>
+          EmployeeTotalsRow(employeeUuid: uuid, employeeName: nameByUuid[uuid]),
+    );
+
+    int movementsCount = 0;
+    for (final e in expenses) {
+      final type = e.expenseType.trim();
+      if (!SalaryExpenseClassifier.isSalaryRelated(type)) continue;
+      final empUuid = (e.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty || !nameByUuid.containsKey(empUuid)) continue;
+      final row = rowFor(empUuid);
+      row.movementsCount++;
+      movementsCount++;
+      if (SalaryExpenseClassifier.isLoanRepayment(type)) {
+        row.repaymentsTotal += e.amount;
+      } else if (SalaryExpenseClassifier.isSalaryDeduction(type)) {
+        row.deductionsTotal += e.amount;
+      } else if (SalaryExpenseClassifier.isAdvanceWithdrawal(type)) {
+        row.advancesTotal += e.amount;
+      } else {
+        row.withdrawalsTotal += e.amount;
+      }
+    }
+
+    for (final w in withdrawals) {
+      final empUuid = (w.employeeUuid ?? '').trim();
+      if (empUuid.isEmpty || !nameByUuid.containsKey(empUuid)) continue;
+      final eu = (w.expenseUuid ?? '').trim();
+      // مرآة مصروف مقروء → المصروف هو المصدر — لا تُجمع مرتين (§16.3).
+      if (eu.isNotEmpty && expenseUuidSet.contains(eu)) continue;
+      final row = rowFor(empUuid);
+      row.movementsCount++;
+      movementsCount++;
+      if (w.amount < 0 &&
+          SalaryExpenseClassifier.isLoanRepayment(w.withdrawalType)) {
+        row.repaymentsTotal += w.amount.abs();
+      } else if (w.amount > 0 &&
+          SalaryExpenseClassifier.isAdvanceWithdrawal(w.withdrawalType)) {
+        row.advancesTotal += w.amount;
+      } else {
+        row.withdrawalsTotal += w.amount;
+      }
+    }
+
+    // الفروقات: مجموع التقرير مقابل مجموع السجلات المصدرية (تدقيق §16.4-G).
+    final sourceExpensesTotal = expenses
+        .where((e) => SalaryExpenseClassifier.isSalaryRelated(e.expenseType))
+        .fold<double>(0, (s, e) => s + e.amount);
+    final directWithdrawalsTotal = withdrawals
+        .where(
+          (w) =>
+              ((w.expenseUuid ?? '').trim().isEmpty ||
+              !expenseUuidSet.contains((w.expenseUuid ?? '').trim())),
+        )
+        .fold<double>(0, (s, w) => s + w.amount);
+    final reportTotal = perEmployee.values.fold<double>(
+      0,
+      (s, r) => s + r.grandTotal,
+    );
+    final unlinkedTotal = sourceExpensesTotal + directWithdrawalsTotal;
+
+    final rows = perEmployee.values.toList()
+      ..sort((a, b) => a.employeeUuid.compareTo(b.employeeUuid));
+
+    return EmployeeTotalsReport(
+      rows: rows,
+      reportTotal: reportTotal,
+      sourceTotal: sourceExpensesTotal + directWithdrawalsTotal,
+      reconciliation:
+          'مجموع التقرير ($reportTotal) مقابل مجموع المصادر بعد الاستبعاد '
+          '($unlinkedTotal) — الفرق = سجلات غير مرتبطة/بلا موظف محلول '
+          '(§16.4-G: تظهر في تقرير غير مرتبط ولا تُنسب).',
+      totalMovements: movementsCount,
+    );
+  }
 }
 
 /// حركة مالية موحّدة للعرض — DTO فقط وليس مصدر حقيقة (§16.2).
@@ -487,4 +1094,265 @@ class ExpenseMirrorMatchReport {
   final List<double> mirrorAmounts;
   final int activeMirrorCount;
   final MirrorMatchStatus status;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DTOs التقارير B/C/D/F/G (§16.4) — عرض فقط، ليست مصادر حقيقة.
+// ═══════════════════════════════════════════════════════════════════
+
+/// صف دفعة راتب داخل تقرير الدورات (§16.4-B).
+class SalaryPaymentReportRow {
+  const SalaryPaymentReportRow({
+    required this.paymentUuid,
+    required this.amount,
+    required this.linkedViaUuid,
+    this.paymentDateIso,
+    this.method,
+    this.hotelDayKey,
+  });
+
+  final String paymentUuid;
+  final double amount;
+  final String? paymentDateIso;
+  final String? method;
+  final String? hotelDayKey;
+
+  /// true = رُبطت بالدورة عبر cycleUuid (الهوية الدائمة §3.4).
+  final bool linkedViaUuid;
+}
+
+/// صف دورة راتب داخل تقرير الدورات (§16.4-B).
+class SalaryCycleReportRow {
+  const SalaryCycleReportRow({
+    required this.cycleUuid,
+    required this.cycleKey,
+    required this.expectedAmount,
+    required this.actualPaid,
+    required this.remainingAmount,
+    required this.status,
+    required this.payments,
+    this.employeeUuid,
+    this.employeeName,
+    this.hotelDayStart,
+    this.hotelDayEnd,
+  });
+
+  final String cycleUuid;
+  final String cycleKey;
+  final String? employeeUuid;
+
+  /// اسم الموظف المحلي المرتبط بالـ UUID — null إذا لم يُحل (unresolved).
+  final String? employeeName;
+  final String? hotelDayStart;
+  final String? hotelDayEnd;
+  final double expectedAmount;
+  final double actualPaid;
+  final double remainingAmount;
+  final String status;
+  final List<SalaryPaymentReportRow> payments;
+}
+
+/// تقرير الرواتب حسب الفترة (§16.4-B).
+class EmployeeSalaryCyclesReport {
+  const EmployeeSalaryCyclesReport({
+    required this.cycles,
+    required this.unresolved,
+    required this.totalExpected,
+    required this.totalPaid,
+    required this.totalRemaining,
+  });
+
+  final List<SalaryCycleReportRow> cycles;
+
+  /// السجلات غير المرتبطة — منفصلة ولا تدخل إجماليات موظف (§16.1).
+  final List<String> unresolved;
+  final double totalExpected;
+  final double totalPaid;
+  final double totalRemaining;
+}
+
+/// صف مصروف داخل تقرير المصروفات حسب الموظف (§16.4-C).
+class EmployeeExpenseReportRow {
+  const EmployeeExpenseReportRow({
+    required this.expenseUuid,
+    required this.employeeUuid,
+    required this.date,
+    required this.type,
+    required this.category,
+    required this.description,
+    required this.amount,
+    required this.isAutoGenerated,
+    this.hotelDayKey,
+  });
+
+  final String expenseUuid;
+  final String employeeUuid;
+  final String date;
+  final String? hotelDayKey;
+
+  /// نص العرض/التوافق (expenseType) — قرار المالك: التصنيف من classifier.
+  final String type;
+  final String category;
+  final String description;
+  final double amount;
+  final bool isAutoGenerated;
+}
+
+/// تقرير المصروفات حسب الموظف (§16.4-C).
+class EmployeeExpensesReport {
+  const EmployeeExpensesReport({
+    required this.expenses,
+    required this.unlinked,
+    required this.total,
+    required this.totalsByCategory,
+  });
+
+  final List<EmployeeExpenseReportRow> expenses;
+  final List<String> unlinked;
+  final double total;
+  final Map<String, double> totalsByCategory;
+}
+
+/// صف مسحوب داخل تقرير المسحوبات (§16.4-D).
+class EmployeeWithdrawalReportRow {
+  const EmployeeWithdrawalReportRow({
+    required this.withdrawalUuid,
+    required this.employeeUuid,
+    required this.amount,
+    required this.date,
+    required this.isMirrorOfExpense,
+    required this.withdrawalType,
+    required this.description,
+    this.expenseUuid,
+    this.hotelDayKey,
+  });
+
+  final String withdrawalUuid;
+  final String employeeUuid;
+
+  /// رابط المصروف المرآة — null = سحب مباشر (§6.2/§16.4-D).
+  final String? expenseUuid;
+  final String? hotelDayKey;
+  final double amount;
+  final String date;
+  final String withdrawalType;
+  final String description;
+
+  /// true = مرآة مصروف مقروء (المصروف هو المصدر في تقارير المصروفات —
+  /// هنا في تقرير المسحوبات يُحتسب من salary_withdrawals مرة واحدة §16.3).
+  final bool isMirrorOfExpense;
+}
+
+/// تقرير المسحوبات (§16.4-D).
+class EmployeeWithdrawalsReport {
+  const EmployeeWithdrawalsReport({
+    required this.directWithdrawals,
+    required this.mirrorWithdrawals,
+    required this.unresolved,
+    required this.directTotal,
+    required this.mirrorTotal,
+  });
+
+  /// سحب مباشر بلا مصروف مرآة (expenseUuid NULL أو غير محلول).
+  final List<EmployeeWithdrawalReportRow> directWithdrawals;
+
+  /// سحب له مصروف مرآة — يُظهر رابط المصروف عبر expenseUuid.
+  final List<EmployeeWithdrawalReportRow> mirrorWithdrawals;
+  final List<String> unresolved;
+  final double directTotal;
+  final double mirrorTotal;
+}
+
+/// سجل مالي غير مرتبط (§16.4-F) — دليل عرض فقط.
+class UnlinkedRecordItem {
+  const UnlinkedRecordItem({
+    required this.source,
+    required this.recordUuid,
+    required this.reason,
+    required this.amount,
+    required this.date,
+  });
+
+  /// expense | salary_withdrawal | salary_cycle | salary_payment | carry_over
+  final String source;
+  final String recordUuid;
+  final String reason;
+  final double amount;
+  final String date;
+}
+
+/// عنصر pending_links (§11/§16.4-F).
+class PendingLinkItem {
+  const PendingLinkItem({
+    required this.entity,
+    required this.recordUuid,
+    required this.parentEntity,
+    required this.reason,
+    required this.attempts,
+    this.parentUuid,
+    this.lastAttemptAt,
+  });
+
+  final String entity;
+  final String recordUuid;
+  final String parentEntity;
+  final String? parentUuid;
+  final String reason;
+  final int attempts;
+  final int? lastAttemptAt;
+}
+
+/// تقرير السجلات غير المرتبطة (§16.4-F).
+class UnlinkedFinancialRecordsReport {
+  const UnlinkedFinancialRecordsReport({
+    required this.items,
+    required this.pendingLinks,
+  });
+
+  final List<UnlinkedRecordItem> items;
+  final List<PendingLinkItem> pendingLinks;
+}
+
+/// صف إجماليات موظف (§16.4-G) — قواعد 16.3.
+class EmployeeTotalsRow {
+  EmployeeTotalsRow({required this.employeeUuid, this.employeeName})
+    : movementsCount = 0,
+      withdrawalsTotal = 0,
+      advancesTotal = 0,
+      deductionsTotal = 0,
+      repaymentsTotal = 0;
+
+  final String employeeUuid;
+  final String? employeeName;
+  int movementsCount;
+  double withdrawalsTotal;
+  double advancesTotal;
+  double deductionsTotal;
+  double repaymentsTotal;
+
+  double get grandTotal =>
+      withdrawalsTotal + advancesTotal + deductionsTotal + repaymentsTotal;
+}
+
+/// تقرير إجمالي الموظفين (§16.4-G).
+class EmployeeTotalsReport {
+  const EmployeeTotalsReport({
+    required this.rows,
+    required this.reportTotal,
+    required this.sourceTotal,
+    required this.reconciliation,
+    required this.totalMovements,
+  });
+
+  final List<EmployeeTotalsRow> rows;
+
+  /// مجموع التقرير بعد تطبيق قواعد الاستبعاد.
+  final double reportTotal;
+
+  /// مجموع السجلات المصدرية (تشمل غير المرتبط).
+  final double sourceTotal;
+
+  /// شرح الفروقات — الفرق = سجلات غير مرتبطة تظهر منفصلة (§16.4-G).
+  final String reconciliation;
+  final int totalMovements;
 }

@@ -68,6 +68,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ],
         body: Stack(
           children: [
+            // ✅ (وثيقة §3.1.1) حالات مزامنة الموظفين معروضة للمستخدم:
+            // pending_sync («بانتظار المزامنة») وsuperseded_by_cloud
+            // («استُبدلت بالسحابة») — فصل نتيجة الحفظ المحلي عن المزامنة.
+            const _EmployeeSyncStateBanner(),
             StreamBuilder(
               stream: debounceStream(
                 repo.watchAll(),
@@ -1578,6 +1582,106 @@ class _EmployeeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// ✅ (وثيقة الربط §3.1.1 — 2026-11-05) شريط حالات مزامنة الموظفين —
+/// عرض فقط بلا أي كتابة. يفصل نتيجة الحفظ المحلي عن نتيجة المزامنة
+/// («saved_local لا تعني synced») ويترجم حالات outbox للموظفين:
+/// - pending/failed → «بانتظار المزامنة» (سيُرفع تلقائياً عند الاتصال)
+/// - superseded_by_cloud → «استُبدلت بالسحابة» (Cloud Wins §7.5 —
+///   أثر تشخيصي لا يُعاد رفعه)
+/// يتحدث لحظياً عبر drift streams؛ لا يظهر شيئاً عند اكتمال المزامنة.
+class _EmployeeSyncStateBanner extends ConsumerWidget {
+  const _EmployeeSyncStateBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final db = ref.watch(databaseProvider);
+    final outboxDao = ref.watch(outboxDaoProvider);
+    return Positioned(
+      top: 8,
+      left: 16,
+      right: 16,
+      child: StreamBuilder<int>(
+        stream: outboxDao.watchEntityCount('employees'),
+        builder: (context, pendingSnap) {
+          final pending = pendingSnap.data ?? 0;
+          return StreamBuilder<int>(
+            stream: db
+                .customSelect(
+                  "SELECT COUNT(*) AS c FROM outbox WHERE entity = 'employees' "
+                  "AND processing_status = 'superseded_by_cloud'",
+                  readsFrom: {db.outbox},
+                )
+                .watchSingle()
+                .map((row) => row.data['c'] as int? ?? 0),
+            builder: (context, supSnap) {
+              final superseded = supSnap.data ?? 0;
+              if (pending == 0 && superseded == 0) {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (pending > 0)
+                    _SyncBannerCard(
+                      color: Colors.amber.shade700,
+                      icon: Icons.cloud_upload_outlined,
+                      text:
+                          'بانتظار المزامنة: $pending — سيُرفع تلقائياً '
+                          'عند توفر الاتصال (الحفظ المحلي مكتمل)',
+                    ),
+                  if (superseded > 0)
+                    _SyncBannerCard(
+                      color: Colors.blueGrey,
+                      icon: Icons.cloud_done_outlined,
+                      text:
+                          'استُبدلت بالسحابة: $superseded — نسخة Appwrite '
+                          'هي المعتمدة (Cloud Wins)',
+                    ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SyncBannerCard extends StatelessWidget {
+  const _SyncBannerCard({
+    required this.color,
+    required this.icon,
+    required this.text,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: 12.5, color: color)),
+          ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/expenses_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/services/salary_expense_classifier.dart';
+import 'package:marina_hotel_mobile/services/salary_legacy_mirror_audit_tool.dart';
 import 'package:marina_hotel_mobile/services/salary_mirror_matcher.dart';
 
 /// ✅ اختبارات إصلاح تكرار التقرير عند تعديل مبلغ مصروف/مصروف راتب
@@ -169,35 +170,75 @@ void main() {
     return total;
   }
 
-  group('المستوى 4 (قراءة): مرآة برابط أجنبي بعد تعديل المبلغ', () {
-    test('المرآة القديمة (المبلغ القديم) لا تُعَد يتيمة بعد تعديل المصروف', () {
-      // المصروف بعد التعديل: 150 (كان 100) — والمرآة القديمة 100 برابط أجنبي.
-      const candidate = MirrorExpenseCandidate(
-        id: 7,
-        serverId: null,
-        expenseType: 'سحب راتب',
-        amount: 150,
-        date: day,
-        hotelDayKey: day,
-        relatedId: 9,
-      );
-      final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
-        expenseId: 962,
-        reason: 'exp_962',
-        amount: 100,
-        hotelDayKey: day,
-        withdrawDate: day,
-        employeeId: 9,
-        expenses: [candidate],
-      );
-      expect(
-        isMirror,
-        isTrue,
-        reason: 'رابط أجنبي + مصروف نقدي وحيد لنفس اليوم',
-      );
-    });
+  group('المستوى 4 أُزيل (§6.3): مرآة برابط أجنبي بعد تعديل المبلغ', () {
+    test(
+      'المطابق التشغيلي لا يستخدم تجاهل المبلغ — المرآة القديمة غير محسومة',
+      () {
+        // المصروف بعد التعديل: 150 (كان 100) — والمرآة القديمة 100 برابط أجنبي.
+        // ✅ (وثيقة §6.3) المستوى 4 (تجاهل المبلغ) أُزيل من المطابقة
+        // التشغيلية: المستويات 0-2 لا تحل الرابط الأجنبي، والمستوى 3
+        // ينكسر باختلاف المبلغ → isMirror=false (لا نسب تشغيلي بالتخمين).
+        const candidate = MirrorExpenseCandidate(
+          id: 7,
+          serverId: null,
+          expenseType: 'سحب راتب',
+          amount: 150,
+          date: day,
+          hotelDayKey: day,
+          relatedId: 9,
+        );
+        final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+          expenseId: 962,
+          reason: 'exp_962',
+          amount: 100,
+          hotelDayKey: day,
+          withdrawDate: day,
+          employeeId: 9,
+          expenses: [candidate],
+        );
+        expect(
+          isMirror,
+          isFalse,
+          reason: '§6.3: المطابقة الاستدلالية بتجاهل المبلغ ليست تشغيلية',
+        );
+      },
+    );
 
-    test('مصروفان نقديان لنفس الموظف/اليوم → غموض → ليست مرآة', () {
+    test(
+      'أداة التدقيق التاريخي (منفصلة ومدققة) تعرضه كمرشّح مشتبه به — قراءة فقط',
+      () {
+        const candidate = MirrorExpenseCandidate(
+          id: 7,
+          serverId: null,
+          expenseType: 'سحب راتب',
+          amount: 150,
+          date: day,
+          hotelDayKey: day,
+          relatedId: 9,
+        );
+        final suspicions = SalaryLegacyMirrorAuditTool.findSuspectedMatches(
+          withdrawals: const [
+            LegacyAuditWithdrawal(
+              id: 1,
+              localUuid: 'w-1',
+              employeeId: 9,
+              expenseId: 962,
+              reason: 'exp_962',
+              expenseUuid: null,
+              amount: 100,
+              withdrawDate: day,
+              hotelDayKey: day,
+            ),
+          ],
+          expenses: const [candidate],
+        );
+        expect(suspicions, hasLength(1));
+        expect(suspicions.first.suspectedExpenseId, 7);
+        expect(suspicions.first.amountDiffers, isTrue);
+      },
+    );
+
+    test('مصروفان نقديان لنفس الموظف/اليوم → غموض → ليست مرآة ولا مرشّح', () {
       const c1 = MirrorExpenseCandidate(
         id: 7,
         serverId: null,
@@ -226,6 +267,25 @@ void main() {
         expenses: [c1, c2],
       );
       expect(isMirror, isFalse, reason: 'لا نخمّن أي مصروف عند وجود اثنين');
+      // أداة التدقيق أيضاً: مرشحان → لا مرشّح فريد (المرشّح الفريد ليس إثباتاً
+      // والعديد ليس مرشّحاً أصلاً — §14).
+      final suspicions = SalaryLegacyMirrorAuditTool.findSuspectedMatches(
+        withdrawals: const [
+          LegacyAuditWithdrawal(
+            id: 1,
+            localUuid: 'w-1',
+            employeeId: 9,
+            expenseId: 962,
+            reason: 'exp_962',
+            expenseUuid: null,
+            amount: 100,
+            withdrawDate: day,
+            hotelDayKey: day,
+          ),
+        ],
+        expenses: const [c1, c2],
+      );
+      expect(suspicions, isEmpty);
     });
 
     test('سحبة مباشرة (direct_withdrawal_) محمية رغم التفرد', () {
@@ -248,9 +308,26 @@ void main() {
         expenses: [candidate],
       );
       expect(isMirror, isFalse, reason: 'الحارس يسبق كل المستويات');
+      final suspicions = SalaryLegacyMirrorAuditTool.findSuspectedMatches(
+        withdrawals: const [
+          LegacyAuditWithdrawal(
+            id: 1,
+            localUuid: 'w-1',
+            employeeId: 9,
+            expenseId: null,
+            reason: 'direct_withdrawal_emp-uuid-9',
+            expenseUuid: null,
+            amount: 100,
+            withdrawDate: day,
+            hotelDayKey: day,
+          ),
+        ],
+        expenses: const [candidate],
+      );
+      expect(suspicions, isEmpty, reason: 'السحب المباشر ليس مرآة أبداً');
     });
 
-    test('مرآة خصم سالبة برابط أجنبي + مصروف خصم وحيد → مرآة', () {
+    test('مرآة خصم سالبة برابط أجنبي: المطابق يرفضها والتدقيق يعرضها', () {
       const candidate = MirrorExpenseCandidate(
         id: 7,
         serverId: null,
@@ -269,10 +346,28 @@ void main() {
         employeeId: 9,
         expenses: [candidate],
       );
-      expect(isMirror, isTrue, reason: 'عائلة الخصوم للمرايا السالبة');
+      expect(isMirror, isFalse, reason: '§6.3: بلا نسب تشغيلي بتجاهل المبلغ');
+      final suspicions = SalaryLegacyMirrorAuditTool.findSuspectedMatches(
+        withdrawals: const [
+          LegacyAuditWithdrawal(
+            id: 1,
+            localUuid: 'w-1',
+            employeeId: 9,
+            expenseId: 962,
+            reason: 'exp_962',
+            expenseUuid: null,
+            amount: -100,
+            withdrawDate: day,
+            hotelDayKey: day,
+          ),
+        ],
+        expenses: const [candidate],
+      );
+      expect(suspicions, hasLength(1), reason: 'دليل مراجعة يدوية فقط');
+      expect(suspicions.first.suspectedExpenseId, 7);
     });
 
-    test('مرآة بلا علامة رابط (نص حر) تظل خاضعة للمستوى 3 وحده', () {
+    test('مرآة بلا علامة رابط (نص حر) خاضعة للمستوى 3 وحده — بلا تدقيق', () {
       const candidate = MirrorExpenseCandidate(
         id: 7,
         serverId: null,
@@ -291,7 +386,53 @@ void main() {
         employeeId: 9,
         expenses: [candidate],
       );
-      expect(isMirror, isFalse, reason: 'بلا علامة مرآة لا يُفعَّل المستوى 4');
+      expect(isMirror, isFalse, reason: 'بلا علامة مرآة لا استدلال أصلاً');
+      final suspicions = SalaryLegacyMirrorAuditTool.findSuspectedMatches(
+        withdrawals: const [
+          LegacyAuditWithdrawal(
+            id: 1,
+            localUuid: 'w-1',
+            employeeId: 9,
+            expenseId: null,
+            reason: 'سحبة يدوية قديمة',
+            expenseUuid: null,
+            amount: 100,
+            withdrawDate: day,
+            hotelDayKey: day,
+          ),
+        ],
+        expenses: const [candidate],
+      );
+      expect(suspicions, isEmpty, reason: 'بلا علامة رابط → لا مرشّح');
+    });
+
+    test('رابط الهوية (UUID) يحسم المرآة — الإزالة لا تلمس المستوى 0', () {
+      // هوية العملية حاسمة بغض النظر عن المبلغ/اليوم/الموظف (المستوى 0).
+      const candidate = MirrorExpenseCandidate(
+        id: 7,
+        serverId: null,
+        expenseType: 'سحب راتب',
+        amount: 150,
+        date: day,
+        hotelDayKey: day,
+        relatedId: 9,
+        localUuid: 'expense-uuid-A',
+      );
+      final isMirror = SalaryMirrorMatcher.isMirrorOfReadExpense(
+        expenseUuid: 'expense-uuid-A',
+        expenseId: null,
+        reason: null,
+        amount: 100,
+        hotelDayKey: day,
+        withdrawDate: day,
+        employeeId: 9,
+        expenses: [candidate],
+      );
+      expect(
+        isMirror,
+        isTrue,
+        reason: 'الهوية الدائمة هي الحاسمة — لم تتأثر بإزالة المستوى 4',
+      );
     });
   });
 
@@ -493,22 +634,67 @@ void main() {
       expect(await reportCashTotal(db, empId), 150);
     });
 
-    test(
-      'شبكة الأمان للقراءة: حتى بلا تبنّي (تحديث مباشر للDB) لا يتكرر',
-      () async {
-        final empId = await createEmployee(db);
-        final expenseId = await createPulledSalaryExpense(db, empId, 100);
-        await createForeignMirrorWithdrawal(db, empId, 100);
+    test('شبكة الأمان (§6.3): بلا تبنّي (تحديث مباشر للDB) تظهر الحالة '
+        'غير المحلولة — لا مطابقة استدلالية بتجاهل المبلغ', () async {
+      final empId = await createEmployee(db);
+      final expenseId = await createPulledSalaryExpense(db, empId, 100);
+      await createForeignMirrorWithdrawal(db, empId, 100);
 
-        // تعديل مباشر في قاعدة البيانات بلا تمرير saveFromExpense
-        // (يحاكي تحديثاً وصل من المزامنة فقط بلا إعادة ربط).
-        await (db.update(db.expenses)..where((t) => t.id.equals(expenseId)))
-            .write(const ExpensesCompanion(amount: d.Value(150)));
+      // تعديل مباشر في قاعدة البيانات بلا تمرير saveFromExpense
+      // (يحاكي تحديثاً وصل من المزامنة فقط بلا إعادة ربط).
+      await (db.update(db.expenses)..where((t) => t.id.equals(expenseId)))
+          .write(const ExpensesCompanion(amount: d.Value(150)));
 
-        // المستوى 4 يخفي المرآة القديمة → 150 مرة واحدة.
-        expect(await reportCashTotal(db, empId), 150);
-      },
-    );
+      // ✅ (وثيقة §6.3) المستوى 4 أُزيل من المطابقة التشغيلية: المرآة
+      // القديمة (100 برابط أجنبي) لا تُخمَّن — تُحتسب 150 (مصروف) +
+      // 100 (سحبة غير محلولة) = 250، والحالة تُعرض كمرشّح مشتبه به في
+      // تقرير السلامة (أداة التدقيق التاريخي) للمراجعة اليدوية —
+      // «لا bulk repair تاريخي بالمبلغ/التاريخ» (§14).
+      expect(
+        await reportCashTotal(db, empId),
+        250,
+        reason: 'لا مطابقة استدلالية بتجاهل المبلغ في التشغيل (§6.3)',
+      );
+
+      // أداة التدقيق التاريخي (قراءة فقط) تلتقط الحالة للمراجعة.
+      final expenses = await db.select(db.expenses).get();
+      final withdrawals = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.deletedAt.isNull())).get();
+      final suspicions = SalaryLegacyMirrorAuditTool.findSuspectedMatches(
+        withdrawals: withdrawals
+            .map(
+              (w) => LegacyAuditWithdrawal(
+                id: w.id,
+                localUuid: w.localUuid,
+                employeeId: w.employeeId,
+                expenseId: w.expenseId,
+                reason: w.reason,
+                expenseUuid: w.expenseUuid,
+                amount: w.amount,
+                withdrawDate: w.withdrawDate,
+                hotelDayKey: w.hotelDayKey,
+              ),
+            )
+            .toList(),
+        expenses: expenses
+            .map(
+              (e) => MirrorExpenseCandidate(
+                id: e.id,
+                serverId: e.serverId,
+                expenseType: e.expenseType,
+                amount: e.amount,
+                date: e.date,
+                hotelDayKey: e.hotelDayKey,
+                relatedId: e.relatedId,
+                localUuid: e.localUuid,
+              ),
+            )
+            .toList(),
+      );
+      expect(suspicions, hasLength(1), reason: 'دليل المراجعة اليدوية');
+      expect(suspicions.first.amountDiffers, isTrue);
+    });
   });
 
   group('ختم الرابط العكسي migration 68 (مراجعة kilo PR#610)', () {

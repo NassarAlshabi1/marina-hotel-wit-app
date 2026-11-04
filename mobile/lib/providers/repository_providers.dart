@@ -34,6 +34,7 @@ import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
 import '../services/repositories/simple_notes_repository.dart';
 import '../services/salary_advance_installments_service.dart';
+import '../services/salary_expense_service.dart';
 import '../services/shift_receipts_cloud_service.dart';
 import '../services/sync_guardian.dart';
 import '../services/whatsapp_service.dart';
@@ -145,6 +146,17 @@ final notesRepoProvider = Provider<NotesRepository>(
 );
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
   (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
+);
+
+/// ✅ (وثيقة §6.1) SalaryExpenseService — المسار الوحيد الذري لعمليات
+/// مصروفات عائلة الرواتب (حفظ/تعديل/حذف/إعادة إسناد: مصروف + مرآة
+/// في transaction واحدة).
+final salaryExpenseServiceProvider = Provider<SalaryExpenseService>(
+  (ref) => SalaryExpenseService(
+    ref.read(databaseProvider),
+    expensesRepo: ref.read(expensesRepoProvider),
+    salaryRepo: ref.read(salaryWithdrawalsRepoProvider),
+  ),
 );
 final salaryAdvanceInstallmentsServiceProvider =
     Provider<SalaryAdvanceInstallmentsService>(
