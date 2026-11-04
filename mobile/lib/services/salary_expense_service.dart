@@ -201,23 +201,24 @@ class SalaryExpenseService {
       final previousAmount = existing.amount;
       final previousEmployeeId = existing.relatedId;
 
-      await (_db.update(_db.expenses)..where((e) => e.id.equals(existing.id)))
-          .write(
-            ExpensesCompanion(
-              expenseType: Value(kind.legacyLabel),
-              amount: Value(amount),
-              date: Value(date),
-              description: Value(text.isEmpty ? existing.description : text),
-              relatedId: Value(employeeId),
-              employeeUuid: Value(normalizedEmployeeUuid),
-              hotelDayKey: Value(hotelDayKey ?? existing.hotelDayKey),
-              categoryUuid: Value(categoryUuid ?? existing.categoryUuid),
-              cashFlowUuid: Value(cashFlowUuid ?? existing.cashFlowUuid),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-              version: Value(existing.version + 1),
-            ),
-          );
+      await (_db.update(
+        _db.expenses,
+      )..where((e) => e.id.equals(existing.id))).write(
+        ExpensesCompanion(
+          expenseType: Value(kind.legacyLabel),
+          amount: Value(amount),
+          date: Value(date),
+          description: Value(text.isEmpty ? existing.description : text),
+          relatedId: Value(employeeId),
+          employeeUuid: Value(normalizedEmployeeUuid),
+          hotelDayKey: Value(hotelDayKey ?? existing.hotelDayKey),
+          categoryUuid: Value(categoryUuid ?? existing.categoryUuid),
+          cashFlowUuid: Value(cashFlowUuid ?? existing.cashFlowUuid),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+          version: Value(existing.version + 1),
+        ),
+      );
 
       await _writeExpenseKind(existing.id, kind);
 
@@ -310,16 +311,17 @@ class SalaryExpenseService {
       final existing = await _expenseByUuid(uuid);
       if (existing == null) return false;
 
-      await (_db.update(_db.expenses)..where((e) => e.id.equals(existing.id)))
-          .write(
-            ExpensesCompanion(
-              employeeUuid: Value(newEmployeeUuid),
-              relatedId: Value(newEmployeeId),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-              version: Value(existing.version + 1),
-            ),
-          );
+      await (_db.update(
+        _db.expenses,
+      )..where((e) => e.id.equals(existing.id))).write(
+        ExpensesCompanion(
+          employeeUuid: Value(newEmployeeUuid),
+          relatedId: Value(newEmployeeId),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+          version: Value(existing.version + 1),
+        ),
+      );
 
       await _outbox.merge(
         entity: 'expenses',

@@ -48,10 +48,7 @@ void main() {
     List<Object?> args = const [],
   ]) async {
     final result = await db
-        .customSelect(
-          sql,
-          variables: args.map(Variable.new).toList(),
-        )
+        .customSelect(sql, variables: args.map(Variable.new).toList())
         .get();
     return result.map((r) => r.data).toList();
   }
@@ -299,10 +296,7 @@ void main() {
       );
 
       await expectLater(
-        service.reassignEmployee(
-          expenseUuid: uuid,
-          employeeUuid: 'emp-ghost',
-        ),
+        service.reassignEmployee(expenseUuid: uuid, employeeUuid: 'emp-ghost'),
         throwsA(isA<SalaryExpenseUnresolvedEmployee>()),
       );
 
