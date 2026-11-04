@@ -1845,9 +1845,7 @@ class GoogleDriveBackupService {
           // إعادة اشتقاق employeeId/relatedId/expenseId/cycleId من UUID
           // بلا outbox/version bump (§10.2).
           try {
-            final relink = await FinancialLinkRelinkService(
-              db,
-            ).relinkAll();
+            final relink = await FinancialLinkRelinkService(db).relinkAll();
             _log('🔗 relink مالي بعد الاستعادة: $relink');
           } catch (e) {
             _log('⚠️ فشل relink مالي بعد الاستعادة: $e');

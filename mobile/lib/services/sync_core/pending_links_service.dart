@@ -51,11 +51,12 @@ class PendingLinksService {
         ? null
         : parentUuid?.trim();
 
-    final existing = await (db.select(db.pendingLinks)
-          ..where((r) => r.entity.equals(entity))
-          ..where((r) => r.localUuid.equals(cleanUuid))
-          ..limit(1))
-        .getSingleOrNull();
+    final existing =
+        await (db.select(db.pendingLinks)
+              ..where((r) => r.entity.equals(entity))
+              ..where((r) => r.localUuid.equals(cleanUuid))
+              ..limit(1))
+            .getSingleOrNull();
 
     if (existing == null) {
       await db
@@ -80,8 +81,9 @@ class PendingLinksService {
     }
 
     // صف موجود: يُحدَّث (ويُعاد فتحه إن كان محلولاً) — لا صف ثانٍ أبداً.
-    await (db.update(db.pendingLinks)..where((r) => r.id.equals(existing.id)))
-        .write(
+    await (db.update(
+      db.pendingLinks,
+    )..where((r) => r.id.equals(existing.id))).write(
       PendingLinksCompanion(
         parentEntity: d.Value(parentEntity),
         parentUuid: d.Value(cleanParentUuid),
@@ -110,12 +112,12 @@ class PendingLinksService {
           ..where((r) => r.entity.equals(entity))
           ..where((r) => r.localUuid.equals(localUuid.trim())))
         .write(
-      PendingLinksCompanion(
-        resolvedAt: d.Value(now),
-        resolvedHow: d.Value(how),
-        updatedAt: d.Value(now),
-      ),
-    );
+          PendingLinksCompanion(
+            resolvedAt: d.Value(now),
+            resolvedHow: d.Value(how),
+            updatedAt: d.Value(now),
+          ),
+        );
   }
 
   /// الصفوف غير المحلولة — للاستعلام من مسار إعادة المحاولة والتقرير (§11).
@@ -124,9 +126,9 @@ class PendingLinksService {
       ..where((r) => r.resolvedAt.isNull())
       ..orderBy([
         (r) => d.OrderingTerm(
-              expression: r.lastAttemptAt,
-              mode: d.OrderingMode.asc,
-            ),
+          expression: r.lastAttemptAt,
+          mode: d.OrderingMode.asc,
+        ),
       ])
       ..limit(limit);
     if (entity != null) {

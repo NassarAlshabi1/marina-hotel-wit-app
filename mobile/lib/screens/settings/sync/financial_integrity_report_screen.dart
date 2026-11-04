@@ -152,7 +152,7 @@ class _FinancialIntegrityReportScreenState
                 clean
                     ? 'لا توجد مشاكل ربط مكتشفة في البيانات المحلية.'
                     : 'توجد مشاكل ربط تحتاج مراجعة — اعرض الأقسام أدناه. '
-                        'هذا التقرير قراءة فقط ولا يُصلح شيئاً تلقائياً (وثيقة §11).',
+                          'هذا التقرير قراءة فقط ولا يُصلح شيئاً تلقائياً (وثيقة §11).',
                 style: const TextStyle(fontSize: 14),
               ),
             ),
@@ -208,9 +208,9 @@ class _FinancialIntegrityReportScreenState
 
   Widget _totalsCard(FinancialIntegrityReport report) {
     final entries = report.localTotalsByEmployee.entries.toList()
-      ..sort((a, b) => b.value.withdrawalAmount.compareTo(
-            a.value.withdrawalAmount,
-          ));
+      ..sort(
+        (a, b) => b.value.withdrawalAmount.compareTo(a.value.withdrawalAmount),
+      );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -229,8 +229,7 @@ class _FinancialIntegrityReportScreenState
               style: TextStyle(fontSize: 11, color: Colors.black54),
             ),
             const SizedBox(height: 10),
-            if (entries.isEmpty)
-              const Text('لا توجد إجماليات مرتبطة بموظفين.'),
+            if (entries.isEmpty) const Text('لا توجد إجماليات مرتبطة بموظفين.'),
             ...entries.map((e) {
               final t = e.value;
               return Padding(

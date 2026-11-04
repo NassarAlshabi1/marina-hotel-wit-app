@@ -30,7 +30,9 @@ Future<Employee> _insertEmployee(
   required String localUuid,
   String name = 'موظف',
 }) async {
-  await db.into(db.employees).insert(
+  await db
+      .into(db.employees)
+      .insert(
         EmployeesCompanion.insert(
           localUuid: localUuid,
           createdAt: _now,
@@ -41,9 +43,9 @@ Future<Employee> _insertEmployee(
           status: 'active',
         ),
       );
-  return (db.select(db.employees)
-        ..where((e) => e.localUuid.equals(localUuid)))
-      .getSingle();
+  return (db.select(
+    db.employees,
+  )..where((e) => e.localUuid.equals(localUuid))).getSingle();
 }
 
 Future<int> _insertExpense(
@@ -55,7 +57,9 @@ Future<int> _insertExpense(
   double amount = 100,
   String date = '2026-11-01',
 }) {
-  return db.into(db.expenses).insert(
+  return db
+      .into(db.expenses)
+      .insert(
         ExpensesCompanion.insert(
           localUuid: localUuid,
           createdAt: _now,
@@ -82,7 +86,9 @@ Future<int> _insertWithdrawal(
   String date = '2026-11-01',
   String? withdrawalType = 'سحب من الراتب',
 }) {
-  return db.into(db.salaryWithdrawals).insert(
+  return db
+      .into(db.salaryWithdrawals)
+      .insert(
         SalaryWithdrawalsCompanion.insert(
           localUuid: localUuid,
           createdAt: _now,
@@ -108,7 +114,9 @@ Future<int> _insertCycle(
   String? employeeUuid,
   String cycleKey = '2026-10',
 }) {
-  return db.into(db.salaryCycles).insert(
+  return db
+      .into(db.salaryCycles)
+      .insert(
         SalaryCyclesCompanion.insert(
           localUuid: localUuid,
           createdAt: _now,
@@ -129,7 +137,9 @@ Future<int> _insertPayment(
   String? employeeUuid,
   int amount = 200,
 }) {
-  return db.into(db.salaryPayments).insert(
+  return db
+      .into(db.salaryPayments)
+      .insert(
         SalaryPaymentsCompanion.insert(
           localUuid: localUuid,
           createdAt: _now,
@@ -150,7 +160,9 @@ Future<int> _insertCarryOver(
   required int employeeId,
   String? employeeUuid,
 }) {
-  return db.into(db.salaryCarryOverLogs).insert(
+  return db
+      .into(db.salaryCarryOverLogs)
+      .insert(
         SalaryCarryOverLogsCompanion.insert(
           localUuid: localUuid,
           createdAt: _now,
@@ -173,95 +185,107 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PendingLinksService (§4.1/§5.2/§8.1)', () {
-    test('1. recordUnresolved يُنشئ صفاً ويزيد المحاولات دون تكرار الصفوف',
-        () async {
-      final db = _db();
-      addTearDown(db.close);
-      final svc = PendingLinksService(db);
+    test(
+      '1. recordUnresolved يُنشئ صفاً ويزيد المحاولات دون تكرار الصفوف',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
+        final svc = PendingLinksService(db);
 
-      await svc.recordUnresolved(
-        entity: 'salary_cycles',
-        localUuid: 'cyc-1',
-        parentEntity: 'employees',
-        parentUuid: 'emp-1',
-        payload: {'localUuid': 'cyc-1', 'amount': 500},
-        reason: 'employee unresolved',
-      );
-      await svc.recordUnresolved(
-        entity: 'salary_cycles',
-        localUuid: 'cyc-1',
-        parentEntity: 'employees',
-        parentUuid: 'emp-1',
-        payload: {'localUuid': 'cyc-1', 'amount': 600},
-        reason: 'employee unresolved (retry)',
-      );
+        await svc.recordUnresolved(
+          entity: 'salary_cycles',
+          localUuid: 'cyc-1',
+          parentEntity: 'employees',
+          parentUuid: 'emp-1',
+          payload: {'localUuid': 'cyc-1', 'amount': 500},
+          reason: 'employee unresolved',
+        );
+        await svc.recordUnresolved(
+          entity: 'salary_cycles',
+          localUuid: 'cyc-1',
+          parentEntity: 'employees',
+          parentUuid: 'emp-1',
+          payload: {'localUuid': 'cyc-1', 'amount': 600},
+          reason: 'employee unresolved (retry)',
+        );
 
-      final rows = await db.select(db.pendingLinks).get();
-      expect(rows.length, 1, reason: 'القيد الفريد (entity, localUuid)');
-      expect(rows.first.attempts, 2);
-      expect(rows.first.resolvedAt, isNull);
-      final payload = rows.first.payloadJson;
-      expect(payload.contains('600'), isTrue,
-          reason: 'آخر payload هو المحفوظ');
-    });
+        final rows = await db.select(db.pendingLinks).get();
+        expect(rows.length, 1, reason: 'القيد الفريد (entity, localUuid)');
+        expect(rows.first.attempts, 2);
+        expect(rows.first.resolvedAt, isNull);
+        final payload = rows.first.payloadJson;
+        expect(
+          payload.contains('600'),
+          isTrue,
+          reason: 'آخر payload هو المحفوظ',
+        );
+      },
+    );
 
-    test('2. unresolved يُرجع المعلق فقط وmarkResolved يُبقي الأثر بلا حذف',
-        () async {
-      final db = _db();
-      addTearDown(db.close);
-      final svc = PendingLinksService(db);
+    test(
+      '2. unresolved يُرجع المعلق فقط وmarkResolved يُبقي الأثر بلا حذف',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
+        final svc = PendingLinksService(db);
 
-      await svc.recordUnresolved(
-        entity: 'salary_payments',
-        localUuid: 'pay-1',
-        parentEntity: 'salary_cycles',
-        parentUuid: 'cyc-1',
-        payload: {'localUuid': 'pay-1'},
-        reason: 'cycle unresolved',
-      );
-      expect(await svc.unresolvedCount(), 1);
+        await svc.recordUnresolved(
+          entity: 'salary_payments',
+          localUuid: 'pay-1',
+          parentEntity: 'salary_cycles',
+          parentUuid: 'cyc-1',
+          payload: {'localUuid': 'pay-1'},
+          reason: 'cycle unresolved',
+        );
+        expect(await svc.unresolvedCount(), 1);
 
-      await svc.markResolved('salary_payments', 'pay-1');
-      expect(await svc.unresolvedCount(), 0,
-          reason: 'المحلول يخرج من قائمة المعلق');
-      final all = await db.select(db.pendingLinks).get();
-      expect(all.length, 1, reason: 'الأثر يبقى — لا حذف (§1.3-1)');
-      expect(all.first.resolvedAt, isNotNull);
-      expect(all.first.resolvedHow, 'parent_arrived');
-    });
+        await svc.markResolved('salary_payments', 'pay-1');
+        expect(
+          await svc.unresolvedCount(),
+          0,
+          reason: 'المحلول يخرج من قائمة المعلق',
+        );
+        final all = await db.select(db.pendingLinks).get();
+        expect(all.length, 1, reason: 'الأثر يبقى — لا حذف (§1.3-1)');
+        expect(all.first.resolvedAt, isNotNull);
+        expect(all.first.resolvedHow, 'parent_arrived');
+      },
+    );
 
-    test('3. unresolvedForParent يفلتر بالأب وcountsByEntity تجمع بالكيان',
-        () async {
-      final db = _db();
-      addTearDown(db.close);
-      final svc = PendingLinksService(db);
+    test(
+      '3. unresolvedForParent يفلتر بالأب وcountsByEntity تجمع بالكيان',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
+        final svc = PendingLinksService(db);
 
-      await svc.recordUnresolved(
-        entity: 'salary_cycles',
-        localUuid: 'cyc-1',
-        parentEntity: 'employees',
-        parentUuid: 'emp-A',
-        payload: {},
-        reason: 'r',
-      );
-      await svc.recordUnresolved(
-        entity: 'salary_payments',
-        localUuid: 'pay-1',
-        parentEntity: 'salary_cycles',
-        parentUuid: 'cyc-1',
-        payload: {},
-        reason: 'r',
-      );
+        await svc.recordUnresolved(
+          entity: 'salary_cycles',
+          localUuid: 'cyc-1',
+          parentEntity: 'employees',
+          parentUuid: 'emp-A',
+          payload: {},
+          reason: 'r',
+        );
+        await svc.recordUnresolved(
+          entity: 'salary_payments',
+          localUuid: 'pay-1',
+          parentEntity: 'salary_cycles',
+          parentUuid: 'cyc-1',
+          payload: {},
+          reason: 'r',
+        );
 
-      final waitingEmployee = await svc.unresolvedForParent(
-        parentEntity: 'employees',
-        parentUuid: 'emp-A',
-      );
-      expect(waitingEmployee.map((r) => r.localUuid), ['cyc-1']);
-      final counts = await svc.unresolvedCountsByEntity();
-      expect(counts['salary_cycles'], 1);
-      expect(counts['salary_payments'], 1);
-    });
+        final waitingEmployee = await svc.unresolvedForParent(
+          parentEntity: 'employees',
+          parentUuid: 'emp-A',
+        );
+        expect(waitingEmployee.map((r) => r.localUuid), ['cyc-1']);
+        final counts = await svc.unresolvedCountsByEntity();
+        expect(counts['salary_cycles'], 1);
+        expect(counts['salary_payments'], 1);
+      },
+    );
   });
 
   group('FinancialLinkRelinkService (§5.1/§9.1/§9.2/§10.2)', () {
@@ -338,22 +362,22 @@ void main() {
       expect(report.hasRepairs, isTrue);
 
       // التحقق الفعلي من القيم بعد التصحيح
-      final exp = await (db.select(db.expenses)
-            ..where((e) => e.id.equals(expId)))
-          .getSingle();
+      final exp = await (db.select(
+        db.expenses,
+      )..where((e) => e.id.equals(expId))).getSingle();
       expect(exp.relatedId, emp.id);
-      final cyc = await (db.select(db.salaryCycles)
-            ..where((c) => c.id.equals(cycId)))
-          .getSingle();
+      final cyc = await (db.select(
+        db.salaryCycles,
+      )..where((c) => c.id.equals(cycId))).getSingle();
       expect(cyc.employeeId, emp.id);
-      final w = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.localUuid.equals('w-1')))
-          .getSingle();
+      final w = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.localUuid.equals('w-1'))).getSingle();
       expect(w.employeeId, emp.id);
       expect(w.expenseId, expId);
-      final p = await (db.select(db.salaryPayments)
-            ..where((t) => t.localUuid.equals('p-1')))
-          .getSingle();
+      final p = await (db.select(
+        db.salaryPayments,
+      )..where((t) => t.localUuid.equals('p-1'))).getSingle();
       expect(p.cycleId, cycId);
     });
 
@@ -374,9 +398,9 @@ void main() {
 
       final report = await FinancialLinkRelinkService(db).relinkAll();
       expect(report.expensesRelatedIdFixed, 1);
-      final exp = await (db.select(db.expenses)
-            ..where((e) => e.localUuid.equals('exp-stripped')))
-          .getSingle();
+      final exp = await (db.select(
+        db.expenses,
+      )..where((e) => e.localUuid.equals('exp-stripped'))).getSingle();
       expect(exp.relatedId, emp.id);
     });
 
@@ -401,28 +425,34 @@ void main() {
         employeeUuid: 'no-such-employee-uuid',
       );
 
-      final beforeW = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.localUuid.equals('w-unknown')))
-          .getSingle();
+      final beforeW = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.localUuid.equals('w-unknown'))).getSingle();
 
       final outboxBefore = await db.select(db.outbox).get();
       await FinancialLinkRelinkService(db).relinkAll();
       final outboxAfter = await db.select(db.outbox).get();
-      expect(outboxAfter.length, outboxBefore.length,
-          reason: 'relink لا يكتب إلى outbox (§10.2)');
+      expect(
+        outboxAfter.length,
+        outboxBefore.length,
+        reason: 'relink لا يكتب إلى outbox (§10.2)',
+      );
 
-      final afterW = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.localUuid.equals('w-unknown')))
-          .getSingle();
-      expect(afterW.employeeId, beforeW.employeeId,
-          reason: 'لا تخمين — الرقم يبقى والمرجع يُعرض في التقرير');
+      final afterW = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.localUuid.equals('w-unknown'))).getSingle();
+      expect(
+        afterW.employeeId,
+        beforeW.employeeId,
+        reason: 'لا تخمين — الرقم يبقى والمرجع يُعرض في التقرير',
+      );
       expect(afterW.lastModified, beforeW.lastModified);
       expect(afterW.version, beforeW.version);
 
       // مصروف صحيح لم يُمس (لا false positive)
-      final exp = await (db.select(db.expenses)
-            ..where((e) => e.id.equals(expId)))
-          .getSingle();
+      final exp = await (db.select(
+        db.expenses,
+      )..where((e) => e.id.equals(expId))).getSingle();
       expect(exp.relatedId, emp.id);
     });
 
@@ -556,37 +586,33 @@ void main() {
       expect(report.isClean, isFalse);
     });
 
-    test('10. يكشف اختلاف الأرقام المشتقة عمّا يحله UUID (§11-5/6/7)',
-        () async {
-      final db = _db();
-      addTearDown(db.close);
+    test(
+      '10. يكشف اختلاف الأرقام المشتقة عمّا يحله UUID (§11-5/6/7)',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
 
-      final emp = await _insertEmployee(db, localUuid: 'emp-m');
-      final emp2 = await _insertEmployee(db, localUuid: 'emp-m2');
-      // relatedId يشير لموظف آخر بينما UUID يشير لـ emp — تقرير يكشف
-      await _insertExpense(
-        db,
-        localUuid: 'exp-mismatch',
-        relatedId: emp2.id,
-        employeeUuid: emp.localUuid,
-      );
-      await _insertWithdrawal(
-        db,
-        localUuid: 'w-mismatch',
-        employeeId: emp2.id,
-        employeeUuid: emp.localUuid,
-      );
+        final emp = await _insertEmployee(db, localUuid: 'emp-m');
+        final emp2 = await _insertEmployee(db, localUuid: 'emp-m2');
+        // relatedId يشير لموظف آخر بينما UUID يشير لـ emp — تقرير يكشف
+        await _insertExpense(
+          db,
+          localUuid: 'exp-mismatch',
+          relatedId: emp2.id,
+          employeeUuid: emp.localUuid,
+        );
+        await _insertWithdrawal(
+          db,
+          localUuid: 'w-mismatch',
+          employeeId: emp2.id,
+          employeeUuid: emp.localUuid,
+        );
 
-      final report = await FinancialIntegrityRepository(db).build();
-      expect(
-        report.relatedIdMismatches.join(' '),
-        contains('exp-mismatch'),
-      );
-      expect(
-        report.employeeIdMismatches.join(' '),
-        contains('w-mismatch'),
-      );
-    });
+        final report = await FinancialIntegrityRepository(db).build();
+        expect(report.relatedIdMismatches.join(' '), contains('exp-mismatch'));
+        expect(report.employeeIdMismatches.join(' '), contains('w-mismatch'));
+      },
+    );
 
     test('11. يعرض pending links وoutbox المتعثر (§11-9/10)', () async {
       final db = _db();
@@ -601,7 +627,9 @@ void main() {
         payload: {'localUuid': 'cyc-pending'},
         reason: 'employee unresolved',
       );
-      await db.into(db.outbox).insert(
+      await db
+          .into(db.outbox)
+          .insert(
             OutboxCompanion.insert(
               entity: 'salary_payments',
               op: 'update',

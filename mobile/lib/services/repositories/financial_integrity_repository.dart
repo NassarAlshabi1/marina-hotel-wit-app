@@ -269,18 +269,19 @@ class FinancialIntegrityRepository {
 
     // ── 10) outbox المتعثر ──
     final stuckOutbox = <String>[];
-    final stuckRows = await (_db.select(_db.outbox)
-          ..where(
-            (t) => t.processingStatus.isIn(const ['failed', 'processing']),
-          )
-          ..orderBy([
-            (t) => d.OrderingTerm(
+    final stuckRows =
+        await (_db.select(_db.outbox)
+              ..where(
+                (t) => t.processingStatus.isIn(const ['failed', 'processing']),
+              )
+              ..orderBy([
+                (t) => d.OrderingTerm(
                   expression: t.attempts,
                   mode: d.OrderingMode.desc,
                 ),
-          ])
-          ..limit(rowLimit))
-        .get();
+              ])
+              ..limit(rowLimit))
+            .get();
     for (final r in stuckRows) {
       stuckOutbox.add(
         '${r.entity}/${r.localUuid} op=${r.op} — محاولات=${r.attempts} '

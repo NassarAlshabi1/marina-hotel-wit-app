@@ -297,13 +297,17 @@ void main() {
       isNull,
       reason: 'لم تُدرَج في salary_cycles بعد — الأب غير موجود',
     );
-    final pendingRow = await (db.select(db.pendingLinks)
-          ..where((r) => r.entity.equals('salary_cycles'))
-          ..where((r) => r.localUuid.equals('cycle-uuid-1'))
-          ..limit(1))
-        .getSingleOrNull();
-    expect(pendingRow, isNotNull,
-        reason: 'الـ payload محفوظ دائماً — لا فقدان صامت (§1.3-1/§8.1)');
+    final pendingRow =
+        await (db.select(db.pendingLinks)
+              ..where((r) => r.entity.equals('salary_cycles'))
+              ..where((r) => r.localUuid.equals('cycle-uuid-1'))
+              ..limit(1))
+            .getSingleOrNull();
+    expect(
+      pendingRow,
+      isNotNull,
+      reason: 'الـ payload محفوظ دائماً — لا فقدان صامت (§1.3-1/§8.1)',
+    );
     expect(pendingRow!.parentEntity, 'employees');
     expect(pendingRow.parentUuid, 'emp-uuid-missing');
     expect(pendingRow.resolvedAt, isNull);
@@ -317,7 +321,9 @@ void main() {
     expect(rows.first.attempts, 2);
 
     // ═══ الشفاء الذاتي: وصول الموظف ثم إعادة محاولة pending links ═══
-    await db.into(db.employees).insert(
+    await db
+        .into(db.employees)
+        .insert(
           EmployeesCompanion.insert(
             localUuid: 'emp-uuid-missing',
             createdAt: _kBaseEpochSec,
@@ -330,27 +336,41 @@ void main() {
         );
 
     final healed = await manager.retryPendingFinancialLinksForTesting();
-    expect(healed, greaterThanOrEqualTo(1),
-        reason: 'بعد وصول الموظف يُطبَّق الـ payload المحفوظ (§8.1)');
+    expect(
+      healed,
+      greaterThanOrEqualTo(1),
+      reason: 'بعد وصول الموظف يُطبَّق الـ payload المحفوظ (§8.1)',
+    );
 
     final cycleAfterHeal = await _cycleByUuid(db, 'cycle-uuid-1');
-    expect(cycleAfterHeal, isNotNull,
-        reason: 'الدورة تطبَّقت من pending_links عند وصول الموظف');
-    final emp = await (db.select(db.employees)
-          ..where((e) => e.localUuid.equals('emp-uuid-missing'))
-          ..limit(1))
-        .getSingle();
-    expect(cycleAfterHeal!.employeeId, emp.id,
-        reason: 'employeeId اشتُق من employeeUuid (UUID-first — §5.1)');
+    expect(
+      cycleAfterHeal,
+      isNotNull,
+      reason: 'الدورة تطبَّقت من pending_links عند وصول الموظف',
+    );
+    final emp =
+        await (db.select(db.employees)
+              ..where((e) => e.localUuid.equals('emp-uuid-missing'))
+              ..limit(1))
+            .getSingle();
+    expect(
+      cycleAfterHeal!.employeeId,
+      emp.id,
+      reason: 'employeeId اشتُق من employeeUuid (UUID-first — §5.1)',
+    );
 
-    final resolvedRow = await (db.select(db.pendingLinks)
-          ..where((r) => r.entity.equals('salary_cycles'))
-          ..where((r) => r.localUuid.equals('cycle-uuid-1'))
-          ..limit(1))
-        .getSingleOrNull();
+    final resolvedRow =
+        await (db.select(db.pendingLinks)
+              ..where((r) => r.entity.equals('salary_cycles'))
+              ..where((r) => r.localUuid.equals('cycle-uuid-1'))
+              ..limit(1))
+            .getSingleOrNull();
     expect(resolvedRow, isNotNull);
-    expect(resolvedRow!.resolvedAt, isNotNull,
-        reason: 'الصف يُعلَّم محلولاً — الأثر يبقى بلا حذف (§1.3-1)');
+    expect(
+      resolvedRow!.resolvedAt,
+      isNotNull,
+      reason: 'الصف يُعلَّم محلولاً — الأثر يبقى بلا حذف (§1.3-1)',
+    );
   });
 }
 

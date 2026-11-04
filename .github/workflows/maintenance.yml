@@ -35,6 +35,10 @@ jobs:
 
       - name: 🧹 Delete artifacts older than 30 days
         uses: actions/github-script@v8
+        env:
+          # `gh` invoked via execSync needs the token — github-script does
+          # not export GH_TOKEN to the shell automatically.
+          GH_TOKEN: ${{ github.token }}
         with:
           script: |
             const { execSync } = require('child_process');
@@ -76,6 +80,8 @@ jobs:
 
       - name: 🧹 Delete failed runs (keep last 100)
         uses: actions/github-script@v8
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
           script: |
             const { execSync } = require('child_process');
@@ -115,6 +121,8 @@ jobs:
 
       - name: 🧹 Delete old cache entries
         uses: actions/github-script@v8
+        env:
+          GH_TOKEN: ${{ github.token }}
         with:
           script: |
             const { execSync } = require('child_process');

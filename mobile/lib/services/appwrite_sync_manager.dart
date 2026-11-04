@@ -2218,11 +2218,13 @@ class AppwriteSyncManager {
     final table = tableByEntity[entity];
     if (table == null) return false;
     try {
-      final row = await database.customSelect(
-        'SELECT 1 FROM $table WHERE local_uuid = ? LIMIT 1',
-        variables: [drift.Variable.withString(localUuid)],
-        readsFrom: Set.unmodifiable({}),
-      ).getSingleOrNull();
+      final row = await database
+          .customSelect(
+            'SELECT 1 FROM $table WHERE local_uuid = ? LIMIT 1',
+            variables: [drift.Variable.withString(localUuid)],
+            readsFrom: Set.unmodifiable({}),
+          )
+          .getSingleOrNull();
       return row != null;
     } catch (_) {
       return false;
@@ -3716,10 +3718,8 @@ class AppwriteSyncManager {
               (remoteData['vectorClock'] as String?) ??
               (remoteData['vector_clock'] as String?) ??
               '{}',
-          localLastModified:
-              (localPayload['lastModified'] as int?) ?? 0,
-          remoteLastModified:
-              (remoteData['lastModified'] as int?) ?? 0,
+          localLastModified: (localPayload['lastModified'] as int?) ?? 0,
+          remoteLastModified: (remoteData['lastModified'] as int?) ?? 0,
           localData: localPayload,
           remoteData: remoteData,
         );

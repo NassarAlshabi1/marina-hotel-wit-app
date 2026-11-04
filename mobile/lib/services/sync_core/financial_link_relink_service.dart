@@ -178,8 +178,7 @@ class FinancialLinkRelinkService {
           report.unresolvedEmployeeRefs++;
         }
       } else if (w.employeeId != empId) {
-        await (db.update(db.salaryWithdrawals)
-              ..where((t) => t.id.equals(w.id)))
+        await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(w.id)))
             .write(SalaryWithdrawalsCompanion(employeeId: d.Value(empId)));
         report.withdrawalsEmployeeIdFixed++;
         changed = true;
