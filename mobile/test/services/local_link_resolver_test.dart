@@ -118,15 +118,39 @@ void main() {
     });
 
     test(
-      'الفهرس الفريد للمرآة النشطة يُنشأ عند خلو القاعدة من التكرار',
+      'لا قيد فريد على expense_uuid الآن (مؤجّل إلى PR-3) — تقرير لا حظر',
       () async {
+        // §4.1: لا يُنشأ الفهرس الفريد قبل معالجة التكرارات وتقريرها، و§6.1
+        // يجعل منع المرآة الثانية مسؤولية SalaryExpenseService الذرية (PR-3).
+        // إنشاء القيد الآن يمنع كتابة/سحب مرايا مشروعة قبل وجود ذلك المسار
+        // (أثبته تشغيل CI: UNIQUE constraint failed في اختبارات الهوية).
         final idx = await db
             .customSelect(
               "SELECT name FROM sqlite_master WHERE type = 'index' "
               "AND name = 'ux_sw_expense_uuid_active'",
             )
             .get();
-        expect(idx, isNotEmpty);
+        expect(idx, isEmpty, reason: 'القيد مؤجّل عمداً إلى PR-3');
+
+        // ومع ذلك: المرايا المكررة تُكتب بلا فشل، وتُكشف في التقرير.
+        final empId = await insertEmployee('emp-dup');
+        await insertWithdrawal(
+          uuid: 'w-dup-1',
+          employeeId: empId,
+          employeeUuid: 'emp-dup',
+        );
+        await insertWithdrawal(
+          uuid: 'w-dup-2',
+          employeeId: empId,
+          employeeUuid: 'emp-dup',
+        );
+        await db.customStatement(
+          "UPDATE salary_withdrawals SET expense_uuid = 'exp-shared' "
+          "WHERE local_uuid IN ('w-dup-1','w-dup-2')",
+        );
+
+        final counts = await db.uuidLinkHealthCounts();
+        expect(counts['duplicateActiveMirrors'], 1);
       },
     );
 

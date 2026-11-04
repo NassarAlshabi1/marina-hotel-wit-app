@@ -618,9 +618,13 @@ _apiKeyValue = normalizedApiKey.isEmpty
 - الفهارس: `idx_exp_employee_uuid`, `idx_exp_kind_day`, `idx_sw_expense_uuid`,
   `idx_sw_employee_id`, `idx_sc_employee_uuid`, `idx_emp_local_uuid` — كلها
   `IF NOT EXISTS`.
-- `ux_sw_expense_uuid_active` (فريد جزئي: `expense_uuid IS NOT NULL AND deleted_at IS NULL`):
-  **لا يُنشأ إن وُجد تكرار** — يُسجَّل التكرار في السجل ويُعرض في التقرير،
-  ولا يُحذف أي صف (نصّ §4.1: لا تُحذف التكرارات تلقائياً).
+- `ux_sw_expense_uuid_active` (فريد جزئي) — **مؤجَّل عمداً** إلى PR‑3:
+  §4.1 يمنع إنشاءه قبل معالجة التكرارات وتقريرها، و§6.1 يجعل منع المرآة الثانية
+  مسؤولية `SalaryExpenseService` الذرية. تشغيل الاختبارات أثبت أن فرض القيد
+  الآن يكسر مسارات مشروعة (`UNIQUE constraint failed:
+  salary_withdrawals.expense_uuid` في `operation_identity_semantics_test`)،
+  لذا نكتفي الآن بـ **كشف وعدّ** المرايا المكررة (`duplicateActiveMirrors`)
+  وتسجيلها، بلا حذف وبلا حظر كتابة. يُفعَّل القيد في PR‑3 بعد تنظيفها.
 
 لماذا raw SQL لا تعريف Drift للأعمدة الجديدة؟ إعلانها في Drift يوجب إعادة توليد
 `local_db.g.dart` (codegen غير متاح في بيئة التنفيذ)، والـ raw SQL هو النمط
@@ -672,7 +676,8 @@ UUID إلى أرقام محلية:
 
 `mobile/test/services/local_link_resolver_test.dart` — 16 حالة:
 
-- المخطط: وجود `expense_kind`، أعمد `pending_links`، والفهرس الفريد.
+- المخطط: وجود `expense_kind`، أعمد `pending_links`، وغياب القيد الفريد المؤجَّل
+  مع كشف المرايا المكررة وعدم حظر كتابتها.
 - التعبئة: تصنيف كل نوع مصروف (سحب/خصم/سلفة/رواتب/عام)، `expense_uuid` للموظف
   الصحيح و**رفض** الربط عبر الموظف الخاطئ، وثبات `version`/`last_modified`/outbox.
 - الحل: موظف/مصروف/دفعة، تجاهل المحذوف منطقياً، وقيم فارغة ⇒ `null`.

@@ -297,7 +297,7 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 74', () {
+    test('3e. أحدث schemaVersion = 75', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
@@ -313,7 +313,9 @@ void main() {
       // ✅ (2026-10-15) bump إلى 73 — تتبّع حاذف المدفوعات:
       // deletedByDevice/deletedByName على payments (Migration 73).
       // ✅ (2026-10-21) bump إلى 74 — entry_date nullable لبيانات النزلاء.
-      expect(db.schemaVersion, 74);
+      // ✅ (2026-11-06) bump إلى 75 — PR-1 من وثيقة الربط:
+      // expenses.expense_kind + جدول pending_links + فهارس UUID.
+      expect(db.schemaVersion, 75);
     });
   });
 

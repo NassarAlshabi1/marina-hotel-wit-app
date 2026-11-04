@@ -4051,10 +4051,18 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS idx_emp_local_uuid ON employees(local_uuid)',
     );
 
-    // (4) الفهرس الفريد للمرآة النشطة — §4.1 يمنع إنشاءه قبل معالجة
-    //     التكرارات وتقريرها: نتحقق أولاً، وإن وُجد تكرار **لا نُنشئ الفهرس
-    //     ولا نحذف شيئاً** — نُسجّل التكرار للمراجعة اليدوية.
-    await _ensureUniqueActiveMirrorIndex();
+    // (4) المرايا المكررة: **كشف وتقرير فقط** في هذه الدفعة.
+    //
+    //     §4.1 يطلب `ux_sw_expense_uuid_active` لكنه يمنع إنشاءه قبل معالجة
+    //     التكرارات وتقريرها، و§6.1 يجعل منع المرآة الثانية مسؤولية
+    //     `SalaryExpenseService` الذرية (PR-3). إنشاء الفهرس الفريد الآن
+    //     يفرض قيداً قبل وجود المسار الذري الذي يمنع التكرار ⇒ يفشل أي مسار
+    //     كتابة/سحب يصل فيه مصروفان لمرآة واحدة (أثبته تشغيل الاختبارات:
+    //     `UNIQUE constraint failed: salary_withdrawals.expense_uuid` في
+    //     operation_identity_semantics_test) — وهو إسقاط لبيانات مشروعة
+    //     بغلاف "قيد". لذلك: الكشف والعدّ في `uuidLinkHealthCounts`،
+    //     والفهرس الفريد يُفعَّل في PR-3 بعد تنظيف التكرارات وتقريرها.
+    await _reportDuplicateActiveMirrors();
   }
 
   /// هل العمود موجود في الجدول؟ (SQLite لا يوفر ADD COLUMN IF NOT EXISTS)
@@ -4063,9 +4071,10 @@ class AppDatabase extends _$AppDatabase {
     return info.any((row) => row.data['name'] == column);
   }
 
-  /// الفهرس الفريد `ux_sw_expense_uuid_active`: قيمة `expense_uuid` واحدة
-  /// نشطة لكل مصروف (لا مرآة ثانية). يُنشأ فقط عند خلو القاعدة من التكرار.
-  Future<void> _ensureUniqueActiveMirrorIndex() async {
+  /// يكشف المرايا النشطة المكررة لكل `expense_uuid` ويُسجّلها للمراجعة —
+  /// **بلا حذف وبلا إنشاء قيد فريد** (انظر التعليق في `_ensureUuidLinkSchema`
+  /// و§4.1/§6.1 من وثيقة الربط: القيد يأتي في PR-3 بعد التنظيف والتقرير).
+  Future<void> _reportDuplicateActiveMirrors() async {
     try {
       final duplicates = await customSelect(
         'SELECT expense_uuid, COUNT(*) AS active_mirrors '
@@ -4074,32 +4083,19 @@ class AppDatabase extends _$AppDatabase {
         'GROUP BY expense_uuid HAVING COUNT(*) > 1',
       ).get();
 
-      if (duplicates.isNotEmpty) {
-        final details = duplicates
-            .map((r) => '${r.data['expense_uuid']}x${r.data['active_mirrors']}')
-            .join(', ');
-        developer.log(
-          '⚠️ ux_sw_expense_uuid_active لم يُنشأ: ${duplicates.length} '
-          'expense_uuid لها أكثر من مرآة نشطة (تُعرض في تقرير السلامة '
-          'ولا تُحذف تلقائياً): $details',
-          name: 'db.link',
-          level: 900,
-        );
-        return;
-      }
+      if (duplicates.isEmpty) return;
 
-      await customStatement(
-        'CREATE UNIQUE INDEX IF NOT EXISTS ux_sw_expense_uuid_active '
-        'ON salary_withdrawals(expense_uuid) '
-        'WHERE expense_uuid IS NOT NULL AND deleted_at IS NULL',
-      );
-    } catch (e) {
-      // الفهرس تحسين سلامة لا شرط تشغيل — لا نُفشل فتح القاعدة بسببه.
+      final details = duplicates
+          .map((r) => '${r.data['expense_uuid']}x${r.data['active_mirrors']}')
+          .join(', ');
       developer.log(
-        'تعذّر إنشاء ux_sw_expense_uuid_active: $e',
+        '⚠️ ${duplicates.length} expense_uuid لها أكثر من مرآة نشطة '
+        '(تُعرض في تقرير السلامة ولا تُحذف تلقائياً): $details',
         name: 'db.link',
         level: 900,
       );
+    } catch (e) {
+      developer.log('تعذّر فحص المرايا المكررة: $e', name: 'db.link', level: 900);
     }
   }
 
