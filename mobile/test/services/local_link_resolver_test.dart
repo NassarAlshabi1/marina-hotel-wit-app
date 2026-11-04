@@ -124,14 +124,15 @@ void main() {
         // باسم `ux_salary_withdrawals_expense_uuid_active` (تعريف
         // @TableIndex.sql + migration 69/70). إضافة قيد ثانٍ بشرط مختلف تكسر
         // البيانات المشروعة (السلسلة الفارغة ليست رابطاً) — أثبته CI.
-        final names = (await db
-                .customSelect(
-                  "SELECT name FROM sqlite_master WHERE type = 'index' "
-                  'AND tbl_name = \'salary_withdrawals\'',
-                )
-                .get())
-            .map((r) => '${r.data['name']}')
-            .toSet();
+        final names =
+            (await db
+                    .customSelect(
+                      "SELECT name FROM sqlite_master WHERE type = 'index' "
+                      'AND tbl_name = \'salary_withdrawals\'',
+                    )
+                    .get())
+                .map((r) => '${r.data['name']}')
+                .toSet();
 
         expect(names, contains('ux_salary_withdrawals_expense_uuid_active'));
         expect(

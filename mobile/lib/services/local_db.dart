@@ -4095,7 +4095,11 @@ class AppDatabase extends _$AppDatabase {
         level: 900,
       );
     } catch (e) {
-      developer.log('تعذّر فحص المرايا المكررة: $e', name: 'db.link', level: 900);
+      developer.log(
+        'تعذّر فحص المرايا المكررة: $e',
+        name: 'db.link',
+        level: 900,
+      );
     }
   }
 
