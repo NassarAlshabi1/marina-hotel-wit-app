@@ -9,6 +9,12 @@ name: Maintenance
 #  2. تنظيف workflow runs الفاشلة (أحدث 100 فقط)
 #  3. تنظيف cache القديم
 #
+#  ملاحظة (2026-11-04): استبدلنا استدعاءات `gh api` عبر execSync
+#  بواجهة Octokit المدمجة في github-script:
+#   - execSync مع --paginate كان يفيض على maxBuffer (ENOBUFS)
+#     لأن المستودع فيه آلاف الـ runs
+#   - Octokit يتعامل مع الترقيم والحذف مباشرة بلا مخازن وسيطة
+#
 #  يعمل يومياً عند منتصف الليل UTC + يدوياً.
 
 concurrency:
@@ -30,83 +36,79 @@ jobs:
     name: 🧹 Clean Old Artifacts
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v5
-
       - name: 🧹 Delete artifacts older than 30 days
         uses: actions/github-script@v8
-        env:
-          # `gh` invoked via execSync needs the token — github-script does
-          # not export GH_TOKEN to the shell automatically.
-          GH_TOKEN: ${{ github.token }}
         with:
           script: |
-            const { execSync } = require('child_process');
-
             // احسب تاريخ ما قبل 30 يوم
             const cutoffDate = new Date();
             cutoffDate.setDate(cutoffDate.getDate() - 30);
 
             console.log(`🧹 Cleaning artifacts older than ${cutoffDate.toISOString()}`);
 
-            // اجلب كل الـ artifacts
-            const artifacts = execSync('gh api repos/${{ github.repository }}/actions/artifacts --paginate --jq ".artifacts[]"').toString().trim().split('\n').filter(line => line);
+            // اجلب كل الـ artifacts عبر Octokit (ترقيم تلقائي)
+            const artifacts = await github.paginate(github.rest.actions.listArtifactsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
 
             let deleted = 0;
-            for (const artifactJson of artifacts) {
-              if (!artifactJson) continue;
-              try {
-                const artifact = JSON.parse(artifactJson);
-                const createdAt = new Date(artifact.created_at);
-
-                if (createdAt < cutoffDate) {
-                  console.log(`🗑️  Deleting: ${artifact.name} (ID: ${artifact.id}, created: ${artifact.created_at})`);
-                  execSync(`gh api repos/${{ github.repository }}/actions/artifacts/${artifact.id} -X DELETE`);
+            for (const artifact of artifacts) {
+              const createdAt = new Date(artifact.created_at);
+              if (createdAt < cutoffDate) {
+                console.log(`🗑️  Deleting: ${artifact.name} (ID: ${artifact.id}, created: ${artifact.created_at})`);
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: artifact.id,
+                  });
                   deleted++;
+                } catch (error) {
+                  core.warning(`⚠️  Could not delete artifact ${artifact.id}: ${error.message}`);
                 }
-              } catch (error) {
-                console.error(`⚠️  Error: ${error.message}`);
               }
             }
 
-            console.log(`✅ Artifact cleanup completed — ${deleted} deleted`);
+            console.log(`✅ Artifact cleanup completed — ${deleted} deleted (of ${artifacts.length})`);
 
   clean-failed-runs:
     name: 🧹 Clean Failed Workflow Runs
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v5
-
       - name: 🧹 Delete failed runs (keep last 100)
         uses: actions/github-script@v8
-        env:
-          GH_TOKEN: ${{ github.token }}
         with:
           script: |
-            const { execSync } = require('child_process');
+            // احصل على كل الـ runs الفاشلة عبر Octokit (الترتيب: الأحدث أولاً)
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              status: 'failure',
+              per_page: 100,
+            });
 
-            console.log('🧹 Cleaning failed workflow runs (keeping last 100)...');
+            const KEEP = 100;
+            // سقف أمان: 200 حذف كحد أقصى لكل تشغيل (يومي) لتجنب
+            // استهلاك rate limit عند وجود آلاف الـ runs القديمة
+            const MAX_DELETIONS = 200;
+            const toDelete = runs.slice(KEEP, KEEP + MAX_DELETIONS);
 
-            // احصل على كل الـ runs الفاشلة
-            const runs = execSync('gh api repos/${{ github.repository }}/actions/runs --paginate -X GET -f status=failure -f per_page=100 --jq ".workflow_runs[]"').toString().trim().split('\n').filter(line => line);
+            console.log(`📊 Total failed runs: ${runs.length}, keeping newest ${KEEP}, deleting now: ${toDelete.length}`);
 
-            let totalFailed = runs.length;
-            let toDelete = Math.max(0, totalFailed - 100); // احتفظ بآخر 100
             let deleted = 0;
-
-            console.log(`📊 Total failed runs: ${totalFailed}, will delete: ${toDelete}`);
-
-            for (const runJson of runs) {
-              if (deleted >= toDelete) break;
-              if (!runJson) continue;
+            for (const run of toDelete) {
+              console.log(`🗑️  Deleting failed run: ${run.name} #${run.run_number} (ID: ${run.id})`);
               try {
-                const run = JSON.parse(runJson);
-                console.log(`🗑️  Deleting failed run: ${run.name} #${run.run_number} (ID: ${run.id})`);
-                execSync(`gh api repos/${{ github.repository }}/actions/runs/${run.id} -X DELETE`);
+                await github.rest.actions.deleteWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: run.id,
+                });
                 deleted++;
               } catch (error) {
-                console.error(`⚠️  Error: ${error.message}`);
+                core.warning(`⚠️  Could not delete run ${run.id}: ${error.message}`);
               }
             }
 
@@ -116,35 +118,35 @@ jobs:
     name: 🧹 Clean Old Cache
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v5
-
       - name: 🧹 Delete old cache entries
         uses: actions/github-script@v8
-        env:
-          GH_TOKEN: ${{ github.token }}
         with:
           script: |
-            const { execSync } = require('child_process');
-
             console.log('🧹 Cleaning old cache entries...');
 
             try {
-              // احصل على كل الـ caches
-              const caches = execSync('gh cache list --repo ${{ github.repository }} --json id,key,lastAccessedAt --limit 100').toString().trim();
-              const cacheList = JSON.parse(caches || '[]');
+              // احصل على كل الـ caches عبر Octokit
+              const caches = await github.paginate(github.rest.cache.getActionsCacheList, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+              });
 
               // احذف caches لم تُستخدم منذ أكثر من 7 أيام
               const cutoffDate = new Date();
               cutoffDate.setDate(cutoffDate.getDate() - 7);
 
               let deleted = 0;
-              for (const cache of cacheList) {
-                const lastAccess = new Date(cache.lastAccessedAt);
+              for (const cache of caches) {
+                const lastAccess = new Date(cache.last_accessed_at);
                 if (lastAccess < cutoffDate) {
                   console.log(`🗑️  Deleting cache: ${cache.key} (ID: ${cache.id})`);
                   try {
-                    execSync(`gh cache delete ${cache.id} --repo ${{ github.repository }}`);
+                    await github.rest.cache.deleteActionsCacheById({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      cache_id: cache.id,
+                    });
                     deleted++;
                   } catch (e) {
                     // تجاهل — بعض caches لا يمكن حذفها
