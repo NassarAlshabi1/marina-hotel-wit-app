@@ -31,12 +31,16 @@ jobs:
         run: |
           set +e
           : > /tmp/diag.txt
-          for f in test/services/local_link_resolver_test.dart; do
-            echo "══════════ $f ══════════" >> /tmp/diag.txt
-            flutter test "$f" -r expanded >> /tmp/diag.txt 2>&1
-            echo "EXIT=$?" >> /tmp/diag.txt
-          done
-          tail -c 60000 /tmp/diag.txt > diag-test-output.txt
+          flutter test --concurrency=2 --timeout=180s \
+            --exclude-tags integration,performance,slow \
+            -r expanded >> /tmp/diag.txt 2>&1
+          echo "EXIT=$?" >> /tmp/diag.txt
+          {
+            echo "═══ FAILED TESTS (grep) ═══"
+            grep -E "\[E\]|EXIT=|Some tests failed|Expected:|Actual:|Which:|Exception|Error:" /tmp/diag.txt | head -n 400
+            echo "═══ TAIL ═══"
+            tail -c 40000 /tmp/diag.txt
+          } > diag-test-output.txt
       - name: Publish
         run: |
           git config user.name "diag-bot"

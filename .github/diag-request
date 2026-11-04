@@ -1,1 +1,2 @@
 diag: local_link_resolver_test
+diag run 2: full suite
