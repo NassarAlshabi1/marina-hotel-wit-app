@@ -29,6 +29,7 @@ import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_enums.dart';
+import 'package:marina_hotel_mobile/utils/weak_device_optimizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Map<String, dynamic> _syncFields(
@@ -581,7 +582,9 @@ void main() {
       expect(capturedLimits, isNotEmpty);
       expect(capturedLimits, contains('500'));
 
-      // 2) جهاز أتم full sync → دلتا → 250 (أسرع من 100 القديمة).
+      // 2) جهاز أتم full sync → دلتا بحجم الصفحة التكيفي للمُحسّن
+      //    (✅ 2026-09-30: 100/200/300 حسب الجهاز — كانت 250 ثابتة قبل
+      //    التكيف). العقد الثابت الوحيد: لا صفحة تتجاوز سقف الخادم 500.
       capturedLimits.clear();
       manager.configureForTesting(
         database: db,
@@ -593,8 +596,17 @@ void main() {
       );
       await manager.sync();
       expect(capturedLimits, isNotEmpty);
-      expect(capturedLimits, contains('250'));
-      expect(capturedLimits, isNot(contains('100')));
+      // حجم الدلتا تكيّفي حسب مستوى الجهاز — العقد هو إرسال نفس القيمة
+      // المضبوطة للمُحسّن (وليس رقماً ثابتاً) ضمن سقف الخادم 500.
+      final expectedDelta = WeakDeviceOptimizer.instance.syncDeltaPullPageSize;
+      expect(capturedLimits, contains('$expectedDelta'));
+      expect(
+        capturedLimits
+            .where((l) => int.tryParse(l) != null)
+            .every((l) => int.parse(l) <= 500),
+        isTrue,
+        reason: 'سقف الخادم MAX_PULL_BATCH_SIZE=500 — أي طلب أكبر يُرفض',
+      );
     },
   );
 

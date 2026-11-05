@@ -23,6 +23,7 @@ class FkRule {
     this.uuidCacheColumn,
     this.legacyServerBookingId = false,
     this.nullWhenUnresolvable = false,
+    this.healFromCache = false,
   });
 
   /// كيان الابن (اسم جدول D1).
@@ -55,6 +56,15 @@ class FkRule {
   /// مؤشر ثانوي غير جوهري (cash_transaction_local_id): تعذّرت الترجمة
   /// → NULL بدل تعطيل دورة السحب كلها. لا يُستخدم إلا مع nullable.
   final bool nullWhenUnresolvable;
+
+  /// ✅ (وثيقة §5.1 — 2026-11-05) شفاء المفتاح الطبيعي من العمود
+  /// العالمي [uuidCacheColumn]: عندما تكون قيمة المفتاح الطبيعي على
+  /// الابن (مثل booking_local_uuid) قديمة/مائلة ولا تطابق local_uuid
+  /// لأي صف أب محلي، يُعاد اشتقاقها من العمود العالمي على نفس الصف
+  /// (booking_uuid) مع المؤشرات الرقمية الشقيقة لنفس الأب — بلا
+  /// تخمين من مبلغ/تاريخ، وفق عقد الربط الموحد (UUID أولاً).
+  /// يُستخدم فقط مع kind = naturalKey.
+  final bool healFromCache;
 }
 
 /// خريطة علاقات FK المحلية التي تحمل هوية خادمية — مستخرجة آلياً من
@@ -130,12 +140,19 @@ const List<FkRule> fkRules = [
     uuidCacheColumn: 'booking_uuid',
     legacyServerBookingId: true,
   ),
+  // ✅ (2026-11-05) المفتاح الطبيعي booking_local_uuid قد يصل قديماً
+  // (نسخة أقدم من الحجز قبل استعادة نسخة احتياطية أعادت بناء local_uuid
+  // الأب) بينما العمود العالمي booking_uuid على نفس الصف سليم —
+  // الشفاء من العمود العالمي بدل تأجيل الصف للأبد (سجل مؤجل
+  // booking_price_adjustments/5d874384 في تقرير 2026-11-05).
   FkRule(
     entity: 'booking_price_adjustments',
     column: 'booking_local_uuid',
     kind: FkKind.naturalKey,
     parentTable: 'bookings',
     parentKeyColumn: 'local_uuid',
+    uuidCacheColumn: 'booking_uuid',
+    healFromCache: true,
   ),
   // دورات الرواتب → الموظف.
   FkRule(
@@ -165,12 +182,20 @@ const List<FkRule> fkRules = [
     uuidCacheColumn: 'employee_uuid',
   ),
   // سجلات ترحيل الراتب → الموظف.
+  // ✅ (2026-11-05 — وثيقة §3.4/§5.1 بالصيغة snake_case) الموظف يُحل
+  // أولاً من المفتاح العالمي employee_uuid (عمود D1 والمخطط المحلي
+  // معاً — worker/schema.sql:713) قبل ظلّ server_id: موظف أُنشئ
+  // محلياً ولم يُرفع بعد (server_id = NULL) أو اختلفت سايته كان يجعل
+  // سجل الترحيل مؤجلاً للأبد رغم وجود الموظف محلياً (سجلا
+  // salary_carry_over_logs مؤجلان في تقرير 2026-11-05). نفس نمط
+  // salary_cycles وsalary_withdrawals أعلاه.
   FkRule(
     entity: 'salary_carry_over_logs',
     column: 'employee_id',
     kind: FkKind.numericPointer,
     parentTable: 'employees',
     parentKeyColumn: 'id',
+    uuidCacheColumn: 'employee_uuid',
   ),
   // حركات المخزون → صنف المخزون (item_local_uuid مفتاح عالمي).
   FkRule(

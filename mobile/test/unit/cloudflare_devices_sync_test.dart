@@ -27,11 +27,13 @@ void main() {
   });
 
   group('devices ككيان متزامن (v67)', () {
-    test('schemaVersion = 74', () {
+    test('schemaVersion ≥ 75', () {
       // Migration 73: blacklist_entries table; Migration 74: custom_list_items
       // sync fields. Migration 72 reasserts the active expense_uuid uniqueness
       // invariant for upgraded databases; beforeOpen creates it for fresh ones.
-      expect(db.schemaVersion, 74);
+      // ✅ (2026-11-05) 74 → ≥ 75: المخطط تقدّم إلى 75 والاختبار كان
+      // عالقاً على القيمة القديمة (فشل حتمي في بوابة الجودة).
+      expect(db.schemaVersion, greaterThanOrEqualTo(75));
     });
 
     test('جدول devices موجود في قاعدة جديدة', () async {

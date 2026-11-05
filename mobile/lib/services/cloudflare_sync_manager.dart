@@ -1355,6 +1355,15 @@ class CloudflareSyncManager {
     // تكرار ناجح واحد (تقدم صفّ واحد يكفي لاستمرار الحلقة) — نفس
     // بطلان الـ backoff على المستوى الدقيق.
     final failedThisCall = <int>{};
+    // ✅ (2026-11-05) حاجز دفاعي حتمي: سقف الخادم MAX_BATCH_SIZE=100
+    // (worker/src/sync.ts:23 — أي دفعة أكبر تُرفض 400 فيتوقف الدفع
+    // كله). المُحسِّن يعيد 10..100 حسب الجهاز، والسقف هنا يمنع أي
+    // قيمة مستقبلية من كسر عقد الخادم (درس دفعة 150).
+    const serverPushBatchCap = 100;
+    final optimizerBatch = WeakDeviceOptimizer.instance.syncBatchSize;
+    final pushBatchLimit = optimizerBatch > serverPushBatchCap
+        ? serverPushBatchCap
+        : optimizerBatch;
     while (true) {
       final query = outboxDao.select(outboxDao.outbox)
         ..where(
@@ -1368,7 +1377,7 @@ class CloudflareSyncManager {
         ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
         // ✅ (2026-09-30) دفعات أصغر على الأجهزة الضعيفة (10/20/50 بدل
         // 100): ترميز JSON أخف على الـ main isolate وذروة ذاكرة أدنى.
-        ..limit(WeakDeviceOptimizer.instance.syncBatchSize);
+        ..limit(pushBatchLimit);
       if (failedThisCall.isNotEmpty) {
         query.where((t) => t.id.isNotIn(failedThisCall));
       }
@@ -2717,12 +2726,25 @@ class CloudflareSyncManager {
     final cached = _fkParentIdCache[cacheKey];
     if (cached != null) return cached;
     try {
-      final row = await _db!
+      var row = await _db!
           .customSelect(
             'SELECT id FROM $parentTable WHERE $keyColumn = ? LIMIT 1',
             variables: [Variable(keyValue)],
           )
           .getSingleOrNull();
+      // ✅ (وثيقة §5.1 — 2026-11-05) شفاء اختلاف صيغة UUID (أحرف
+      // كبيرة/صغيرة أو صيغة بلا شرطات) بين الأجهزة: SQLite `=` حساسة
+      // للحالة، ففشل التطابق التام لا يعني غياب الأب. المحاولة
+      // الثانية lower() تُجرى فقط على القيم الشبيهة بـ UUID.
+      if (row == null && keyValue is String && _looksLikeUuid(keyValue)) {
+        row = await _db!
+            .customSelect(
+              'SELECT id FROM $parentTable '
+              'WHERE lower($keyColumn) = lower(?) LIMIT 1',
+              variables: [Variable(keyValue)],
+            )
+            .getSingleOrNull();
+      }
       final id = row?.data['id'] as Object?;
       // نتيجة موجبة فقط تُحفظ — راجع تعليق [_fkParentIdCache] أعلاه.
       if (id != null) {
@@ -2735,6 +2757,105 @@ class CloudflareSyncManager {
     }
   }
 
+  /// هل النص شبيه بـ UUID (٨-٤-٤-٤-١٢)؟ يُستخدم لتقييد الاستعلامات
+  /// الحساسة للحالة (lower) بقيم UUID فقط دون لمس مفاتيح طبيعية نصية
+  /// أخرى (room_number وأشباهها).
+  /// ملاحظة: الطول يُفحص في الكود بدل `$` في النمط — تجنّباً لتضارب
+  /// قاعدتي use_raw_strings/unnecessary_raw_strings في dart analyze.
+  static final RegExp _uuidShape = RegExp(
+    '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+    '[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+  );
+  static bool _looksLikeUuid(String value) =>
+      value.length == 36 && _uuidShape.hasMatch(value);
+
+  /// ✅ (وثيقة §5.1 — 2026-11-05) يجلب local_uuid الأب الفعلي من قيمة
+  /// مفتاح عالمي وارد (تطابق تام ثم lower لقيم UUID) — تُستخدم في شفاء
+  /// المفتاح الطبيعي القديم على الابن ([FkRule.healFromCache]) بدل
+  /// تأجيل الصف للأبد.
+  Future<String?> _lookupParentLocalUuid(
+    String parentTable,
+    String uuidValue,
+  ) async {
+    try {
+      var row = await _db!
+          .customSelect(
+            'SELECT local_uuid FROM $parentTable '
+            'WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable(uuidValue)],
+          )
+          .getSingleOrNull();
+      if (row == null && _looksLikeUuid(uuidValue)) {
+        row = await _db!
+            .customSelect(
+              'SELECT local_uuid FROM $parentTable '
+              'WHERE lower(local_uuid) = lower(?) LIMIT 1',
+              variables: [Variable(uuidValue)],
+            )
+            .getSingleOrNull();
+      }
+      return row?.data['local_uuid']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// ✅ (وثيقة §5.1 — 2026-11-05) شفاء استباقي قبل الحل: لكل قاعدة
+  /// naturalKey مفعّل فيها [FkRule.healFromCache]، إن كان المفتاح
+  /// الطبيعي على الابن لا يطابق أي أب محلي بينما العمود العالمي على
+  /// نفس الصف ([FkRule.uuidCacheColumn]) يحلّ إلى أب موجود، يُعاد
+  /// اشتقاق المفتاح الطبيعي + المؤشرات الرقمية الشقيقة لنفس الأب
+  /// من UUID الأب فعلياً (بلا أي تخمين من مبلغ/تاريخ/أرقام بعيدة).
+  /// يمنع تأجيل الصف إلى سجل الانتظار بسبب مفتاح طبيعي متقادم.
+  Future<void> _healNaturalKeysFromUuidCache(
+    String entity,
+    List<FkRule> rules,
+    Map<String, dynamic> record,
+  ) async {
+    for (final rule in rules) {
+      if (rule.kind != FkKind.naturalKey ||
+          !rule.healFromCache ||
+          rule.uuidCacheColumn == null) {
+        continue;
+      }
+      final naturalValue = record[rule.column]?.toString();
+      if (naturalValue == null || naturalValue.isEmpty) continue;
+      if (await _parentKeyExists(
+        rule.parentTable,
+        rule.parentKeyColumn,
+        naturalValue,
+      )) {
+        continue; // المفتاح الطبيعي سليم — لا شيء يُشفى
+      }
+      final cacheValue = record[rule.uuidCacheColumn]?.toString();
+      if (cacheValue == null || cacheValue.isEmpty) continue;
+      final parentUuid = await _lookupParentLocalUuid(
+        rule.parentTable,
+        cacheValue,
+      );
+      if (parentUuid == null) continue; // الأب غائب فعلاً — تأجيل عادي
+      _logFkOnce(
+        'healed $entity.${rule.column} from ${rule.uuidCacheColumn}: '
+        '$naturalValue → $parentUuid',
+      );
+      record[rule.column] = parentUuid;
+      final parentId = await _lookupLocalParentId(
+        rule.parentTable,
+        'local_uuid',
+        parentUuid,
+      );
+      if (parentId != null) {
+        for (final numeric in rules) {
+          if (numeric.kind == FkKind.numericPointer &&
+              numeric.parentTable == rule.parentTable &&
+              record.containsKey(numeric.column)) {
+            record[numeric.column] = parentId;
+          }
+        }
+      }
+    }
+  }
+
   /// هل يوجد صف في [parentTable] بمفتاح طبيعي معطى؟
   Future<bool> _parentKeyExists(
     String parentTable,
@@ -2742,12 +2863,26 @@ class CloudflareSyncManager {
     Object? keyValue,
   ) async {
     try {
-      final row = await _db!
+      var row = await _db!
           .customSelect(
             'SELECT 1 AS hit FROM $parentTable WHERE $keyColumn = ? LIMIT 1',
             variables: [Variable(keyValue)],
           )
           .getSingleOrNull();
+      // ✅ (وثيقة §5.1) محاولة lower() الإضافية لقيم UUID — اختلاف
+      // الصيغة بين الأجهزة لا يعني اختلاف الهوية (انظر [_lookupLocalParentId]).
+      if (row == null &&
+          keyValue is String &&
+          _looksLikeUuid(keyValue) &&
+          keyColumn != 'room_number') {
+        row = await _db!
+            .customSelect(
+              'SELECT 1 AS hit FROM $parentTable '
+              'WHERE lower($keyColumn) = lower(?) LIMIT 1',
+              variables: [Variable(keyValue)],
+            )
+            .getSingleOrNull();
+      }
       return row != null;
     } catch (_) {
       return false;
@@ -2792,6 +2927,11 @@ class CloudflareSyncManager {
 
     final rules = fkRulesByEntity[entity];
     if (rules == null || rules.isEmpty) return true;
+
+    // ✅ (وثيقة §5.1 — 2026-11-05) شفاء المفاتيح الطبيعية المتقادمة من
+    // الأعمدة العالمية قبل الحل — يمنع تأجيل صفوف سليمة العالمية
+    // (booking_price_adjustments) إلى سجل الانتظار بسبب مفتاح محلي قديم.
+    await _healNaturalKeysFromUuidCache(entity, rules, record);
 
     for (final rule in rules) {
       final wireValue = record[rule.column];

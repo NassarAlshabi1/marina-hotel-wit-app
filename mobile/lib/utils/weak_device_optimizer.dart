@@ -122,6 +122,10 @@ class WeakDeviceOptimizer {
   bool get shouldDeferHeavyOps => _optimizationLevel >= 1;
 
   /// حجم دفعة المزامنة؛ يجب أن يستهلكه منسق المزامنة عند تنفيذ I/O.
+  /// ✅ (2026-11-05) السقف المطلق 100 = MAX_BATCH_SIZE الخادمي
+  /// (worker/src/sync.ts:23 — أي دفعة أكبر تُرفض 400 فيتوقف الدفع
+  /// كله). كان المستوى 0 يعيد 150 فيكسر الدفع على الأجهزة القوية
+  /// (أثبتَه اختبار outbox_500_push_drain).
   int get syncBatchSize {
     switch (_optimizationLevel) {
       case 3:
@@ -131,7 +135,7 @@ class WeakDeviceOptimizer {
       case 1:
         return 75;
       default:
-        return 150;
+        return 100;
     }
   }
 

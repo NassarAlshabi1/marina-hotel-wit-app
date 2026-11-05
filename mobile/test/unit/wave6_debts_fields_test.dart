@@ -297,13 +297,15 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 74', () {
-      // القيمة مقصودة صريحة: كل bump جديد يجب أن يحدّث هذا التأكيد عمداً.
-      // Migration 72 يثبت فهرس علاقة expense_uuid في القواعد القديمة؛
-      // beforeOpen ينشئ الفهرس نفسه في القواعد الجديدة.
+    test('3e. أحدث schemaVersion ≥ 75', () {
+      // القيمة الدنيا مقصودة صريحة: كل bump جديد يجب أن يراجع هذا
+      // التأكيد عمداً. Migration 72 يثبت فهرس علاقة expense_uuid في
+      // القواعد القديمة؛ beforeOpen ينشئ الفهرس نفسه في القواعد الجديدة.
       // Migration 73: جدول blacklist_entries مستقل؛ Migration 74: حقول
-      // المزامنة لـ custom_list_items.
-      expect(db.schemaVersion, 74);
+      // المزامنة لـ custom_list_items؛ Migration 75: دفعة ملاحظة الفندق.
+      // ✅ (2026-11-05) 74 → ≥ 75: المخطط تقدّم إلى 75 والاختبار كان
+      // عالقاً على القيمة القديمة (فشل حتمي في بوابة الجودة).
+      expect(db.schemaVersion, greaterThanOrEqualTo(75));
     });
   });
 
