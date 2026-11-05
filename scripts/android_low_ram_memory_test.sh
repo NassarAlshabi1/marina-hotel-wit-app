@@ -22,6 +22,16 @@ ACTION_SCRIPT="${LOW_RAM_ACTION_SCRIPT:-}"
 PERF_REPORT_REMOTE_PATH="${LOW_RAM_PERF_REPORT_REMOTE_PATH:-files/marina_performance_report.json}"
 START_TIMEOUT_SEC="${LOW_RAM_START_TIMEOUT_SEC:-45}"
 RELAUNCH_RETRIES="${LOW_RAM_RELAUNCH_RETRIES:-1}"
+# ✅ v3 (2026-11-05): حاجز مهلة لأوامر adb — عند موت المحاكي في منتصف
+# القياس كانت أوامر adb (shell/pidof/wait-for-device) تعلق على
+# "- waiting for device -" بلا مهلة حتى ضرب timeout الـ job (90 دقيقة)
+# وإلغاء التشغيل كله. كل أوامر adb داخل السكربت تمر الآن عبر timeout
+# محدود؛ فشل مهلة يعني جهازاً ميتاً → خروج سريع والخطوات اللاحقة
+# (if: always) تحلل ما جمع وأصدر تقريراً جزئياً بدل 64 دقيقة تعليق.
+DEVICE_CMD_TIMEOUT_SEC="${LOW_RAM_DEVICE_CMD_TIMEOUT_SEC:-120}"
+adb_cmd() {
+  timeout "$DEVICE_CMD_TIMEOUT_SEC" "$ADB_BIN" "$@"
+}
 # ✅ v2: نوع كل إطلاق (initial/cycle_N/lifecycle) لملف cold_start.csv
 LAUNCH_KIND="initial"
 RUNTIME_PERMISSIONS="${LOW_RAM_RUNTIME_PERMISSIONS:-android.permission.CAMERA android.permission.POST_NOTIFICATIONS android.permission.READ_MEDIA_IMAGES android.permission.READ_MEDIA_AUDIO android.permission.READ_MEDIA_VIDEO}"
@@ -43,6 +53,7 @@ Options:
 Environment:
   LOW_RAM_START_TIMEOUT_SEC  seconds to wait for the app process (default: 45)
   LOW_RAM_RELAUNCH_RETRIES   clean relaunch retries after a failed start (default: 1)
+  LOW_RAM_DEVICE_CMD_TIMEOUT_SEC  per-command adb timeout in seconds (default: 120)
   LOW_RAM_RUNTIME_PERMISSIONS space-separated runtime permissions to grant before launch
 USAGE
 }
@@ -71,10 +82,10 @@ done
 
 mkdir -p "$OUTPUT_DIR"
 
-"$ADB_BIN" wait-for-device
+adb_cmd wait-for-device
 booted=""
 for _ in $(seq 1 60); do
-  booted=$("$ADB_BIN" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+  booted=$(adb_cmd shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
   [[ "$booted" == "1" ]] && break
   sleep 2
 done
@@ -83,38 +94,38 @@ if [[ "${booted:-}" != "1" ]]; then
   exit 1
 fi
 
-"$ADB_BIN" shell settings put global window_animation_scale 0 || true
-"$ADB_BIN" shell settings put global transition_animation_scale 0 || true
-"$ADB_BIN" shell settings put global animator_duration_scale 0 || true
+adb_cmd shell settings put global window_animation_scale 0 || true
+adb_cmd shell settings put global transition_animation_scale 0 || true
+adb_cmd shell settings put global animator_duration_scale 0 || true
 
 # ✅ v2 (دعم Release): صور google_apis تسمح بـ adb root — دونه
 # يستحيل قراءة files/marina_performance_report.json من بناء Release
 # (غير debuggable، وrun-as يرفض العمل عليه).
-"$ADB_BIN" root >/dev/null 2>&1 || true
-"$ADB_BIN" wait-for-device >/dev/null 2>&1 || true
+adb_cmd root >/dev/null 2>&1 || true
+adb_cmd wait-for-device >/dev/null 2>&1 || true
 for _ in $(seq 1 30); do
-  booted=$("$ADB_BIN" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+  booted=$(adb_cmd shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
   [[ "$booted" == "1" ]] && break
   sleep 2
 done
 
 # ✅ v2: توثيق مواصفات المحاكي (إثبات أن القياس على 1GB فعلاً).
 {
-  printf 'api_level=%s\n' "$("$ADB_BIN" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
-  printf 'abis=%s\n' "$("$ADB_BIN" shell getprop ro.product.cpu.abilist 2>/dev/null | tr -d '\r')"
-  printf 'dalvik_heapsize=%s\n' "$("$ADB_BIN" shell getprop dalvik.vm.heapsize 2>/dev/null | tr -d '\r')"
-  printf 'dalvik_heapgrowthlimit=%s\n' "$("$ADB_BIN" shell getprop dalvik.vm.heapgrowthlimit 2>/dev/null | tr -d '\r')"
-  printf 'screen=%s\n' "$("$ADB_BIN" shell wm size 2>/dev/null | tr -d '\r\n')"
-  printf 'density=%s\n' "$("$ADB_BIN" shell wm density 2>/dev/null | tr -d '\r\n')"
-  printf 'memtotal=%s\n' "$("$ADB_BIN" shell cat /proc/meminfo 2>/dev/null | head -1 | tr -d '\r')"
+  printf 'api_level=%s\n' "$(adb_cmd shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+  printf 'abis=%s\n' "$(adb_cmd shell getprop ro.product.cpu.abilist 2>/dev/null | tr -d '\r')"
+  printf 'dalvik_heapsize=%s\n' "$(adb_cmd shell getprop dalvik.vm.heapsize 2>/dev/null | tr -d '\r')"
+  printf 'dalvik_heapgrowthlimit=%s\n' "$(adb_cmd shell getprop dalvik.vm.heapgrowthlimit 2>/dev/null | tr -d '\r')"
+  printf 'screen=%s\n' "$(adb_cmd shell wm size 2>/dev/null | tr -d '\r\n')"
+  printf 'density=%s\n' "$(adb_cmd shell wm density 2>/dev/null | tr -d '\r\n')"
+  printf 'memtotal=%s\n' "$(adb_cmd shell cat /proc/meminfo 2>/dev/null | head -1 | tr -d '\r')"
 } > "$OUTPUT_DIR/emulator_profile.txt"
 
 # Keep startup diagnostics scoped to this run; failure artifacts are uploaded by CI.
-"$ADB_BIN" logcat -c >/dev/null 2>&1 || true
+adb_cmd logcat -c >/dev/null 2>&1 || true
 
 if [[ -n "$APK_PATH" ]]; then
   [[ -f "$APK_PATH" ]] || { echo "APK not found: $APK_PATH" >&2; exit 1; }
-  "$ADB_BIN" install -r "$APK_PATH"
+  adb_cmd install -r "$APK_PATH"
 fi
 
 # The production manifest requests runtime permissions. On a fresh emulator,
@@ -137,7 +148,7 @@ fi
 #   3. grant_all_requested_runtime_permissions covers every dangerous
 #      permission the APK declares, plus appops for the special-access ones
 #      that `pm grant` cannot handle.
-if ! "$ADB_BIN" shell pm path "$PACKAGE" >/dev/null 2>&1; then
+if ! adb_cmd shell pm path "$PACKAGE" >/dev/null 2>&1; then
   echo "Package is not installed: $PACKAGE" >&2
   exit 1
 fi
@@ -157,7 +168,7 @@ now_ms() {
 }
 
 process_state() {
-  if "$ADB_BIN" shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' | grep -q '[0-9]'; then
+  if adb_cmd shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' | grep -q '[0-9]'; then
     printf 'running'
   else
     printf 'absent'
@@ -175,14 +186,14 @@ wait_for_process() {
 }
 
 stop_app() {
-  "$ADB_BIN" shell am force-stop "$PACKAGE" >/dev/null 2>&1 || true
+  adb_cmd shell am force-stop "$PACKAGE" >/dev/null 2>&1 || true
   for _ in $(seq 1 15); do
     [[ "$(process_state)" == "absent" ]] && return 0
     sleep 1
   done
   # am force-stop is asynchronous on some emulator images. Ask ActivityManager
   # to kill the package before the next explicit launch instead of racing it.
-  "$ADB_BIN" shell am kill "$PACKAGE" >/dev/null 2>&1 || true
+  adb_cmd shell am kill "$PACKAGE" >/dev/null 2>&1 || true
   sleep 2
   [[ "$(process_state)" == "absent" ]]
 }
@@ -190,7 +201,7 @@ stop_app() {
 grant_runtime_permissions() {
   local permission result
   for permission in $RUNTIME_PERMISSIONS; do
-    result=$("$ADB_BIN" shell pm grant "$PACKAGE" "$permission" 2>&1 || true)
+    result=$(adb_cmd shell pm grant "$PACKAGE" "$permission" 2>&1 || true)
     printf 'permission_grant timestamp_ms=%s permission=%s result=%s\n' \
       "$(now_ms)" "$permission" "${result//$'\\n'/ | }" >> "$lifecycle_log"
   done
@@ -206,24 +217,24 @@ grant_runtime_permissions() {
 # exemption. Every result is logged; nothing here is ever fatal.
 grant_all_requested_runtime_permissions() {
   local requested dangerous perm result op
-  requested=$("$ADB_BIN" shell dumpsys package "$PACKAGE" 2>/dev/null \
+  requested=$(adb_cmd shell dumpsys package "$PACKAGE" 2>/dev/null \
     | tr -d '\r' | grep -oE 'android\.permission\.[A-Z_]+' | sort -u)
-  dangerous=$("$ADB_BIN" shell pm list permissions -g -d 2>/dev/null \
+  dangerous=$(adb_cmd shell pm list permissions -g -d 2>/dev/null \
     | tr -d '\r' | grep -oE 'android\.permission\.[A-Z_]+' | sort -u)
   [[ -n "$requested" && -n "$dangerous" ]] || return 0
   for perm in $dangerous; do
     if printf '%s\n' "$requested" | grep -qx "$perm"; then
-      result=$("$ADB_BIN" shell pm grant "$PACKAGE" "$perm" 2>&1 || true)
+      result=$(adb_cmd shell pm grant "$PACKAGE" "$perm" 2>&1 || true)
       printf 'permission_grant_all timestamp_ms=%s permission=%s result=%s\n' \
         "$(now_ms)" "$perm" "${result//$'\n'/ | }" >> "$lifecycle_log"
     fi
   done
   for op in MANAGE_EXTERNAL_STORAGE SCHEDULE_EXACT_ALARM REQUEST_INSTALL_PACKAGES; do
-    result=$("$ADB_BIN" shell appops set "$PACKAGE" "$op" allow 2>&1 || true)
+    result=$(adb_cmd shell appops set "$PACKAGE" "$op" allow 2>&1 || true)
     printf 'appop_grant timestamp_ms=%s op=%s result=%s\n' \
       "$(now_ms)" "$op" "${result//$'\n'/ | }" >> "$lifecycle_log"
   done
-  result=$("$ADB_BIN" shell dumpsys deviceidle whitelist "+$PACKAGE" 2>&1 || true)
+  result=$(adb_cmd shell dumpsys deviceidle whitelist "+$PACKAGE" 2>&1 || true)
   printf 'doze_whitelist timestamp_ms=%s result=%s\n' \
     "$(now_ms)" "${result//$'\n'/ | }" >> "$lifecycle_log"
 }
@@ -234,7 +245,7 @@ grant_all_requested_runtime_permissions() {
 # after our app is stopped and hijack the next `am start`. BACK dismisses
 # dialog-hosted prompts; force-stop guarantees the rest. All best-effort.
 dismiss_system_ui() {
-  "$ADB_BIN" shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
+  adb_cmd shell input keyevent KEYCODE_BACK >/dev/null 2>&1 || true
   local pkg
   for pkg in \
     com.android.settings \
@@ -243,7 +254,7 @@ dismiss_system_ui() {
     com.google.android.permissioncontroller \
     com.android.packageinstaller \
     com.google.android.packageinstaller; do
-    "$ADB_BIN" shell am force-stop "$pkg" >/dev/null 2>&1 || true
+    adb_cmd shell am force-stop "$pkg" >/dev/null 2>&1 || true
   done
   sleep 1
 }
@@ -253,7 +264,7 @@ dismiss_system_ui() {
 # post-mortem artifact analysis.
 log_foreground() {
   local cycle="$1" focus
-  focus=$("$ADB_BIN" shell dumpsys window 2>/dev/null \
+  focus=$(adb_cmd shell dumpsys window 2>/dev/null \
     | grep -m1 -E 'mCurrentFocus|mFocusedApp' | tr -d '\r' || true)
   printf 'foreground timestamp_ms=%s cycle=%s focus=%s\n' \
     "$(now_ms)" "$cycle" "${focus:-unknown}" >> "$lifecycle_log"
@@ -261,14 +272,14 @@ log_foreground() {
 
 collect_startup_diagnostics() {
   local prefix="$raw_dir/startup_failure_$(now_ms)"
-  "$ADB_BIN" shell dumpsys activity activities > "${prefix}_activity.txt" 2>&1 || true
-  "$ADB_BIN" shell dumpsys package "$PACKAGE" > "${prefix}_package.txt" 2>&1 || true
+  adb_cmd shell dumpsys activity activities > "${prefix}_activity.txt" 2>&1 || true
+  adb_cmd shell dumpsys package "$PACKAGE" > "${prefix}_package.txt" 2>&1 || true
   # Window focus pinpoints the UI on top at the failure moment — this is what
   # exposed the Settings permission-page hijack in the 35543654200 post-mortem.
-  "$ADB_BIN" shell dumpsys window > "${prefix}_window.txt" 2>&1 || true
+  adb_cmd shell dumpsys window > "${prefix}_window.txt" 2>&1 || true
   # Broadened beyond the old Java-only filter: native crashes ("Fatal
   # signal"), process lifecycle (am_proc_*) and LMKD kills are captured too.
-  "$ADB_BIN" logcat -d -b all -v threadtime -t 3000 \
+  adb_cmd logcat -d -b all -v threadtime -t 3000 \
     | grep -E "${PACKAGE//./\\.}|AndroidRuntime|ActivityTaskManager|FATAL EXCEPTION|Fatal signal|Process: |am_proc|am_kill|lowmemorykiller|lmkd|tombstoned" \
     > "${prefix}_logcat.txt" || true
 }
@@ -277,11 +288,11 @@ collect_startup_diagnostics() {
 # Release نقرأ مباشرة عبر جذر adbd (صور google_apis تسمح به).
 read_perf_json() {
   local remote_path="$1" out_file="$2"
-  if "$ADB_BIN" shell run-as "$PACKAGE" cat "$remote_path" > "$out_file" 2>/dev/null && [[ -s "$out_file" ]]; then
+  if adb_cmd shell run-as "$PACKAGE" cat "$remote_path" > "$out_file" 2>/dev/null && [[ -s "$out_file" ]]; then
     return 0
   fi
   rm -f "$out_file"
-  if "$ADB_BIN" shell cat "/data/data/$PACKAGE/$remote_path" > "$out_file" 2>/dev/null && [[ -s "$out_file" ]]; then
+  if adb_cmd shell cat "/data/data/$PACKAGE/$remote_path" > "$out_file" 2>/dev/null && [[ -s "$out_file" ]]; then
     return 0
   fi
   rm -f "$out_file"
@@ -295,14 +306,14 @@ measure() {
   timestamp="$(now_ms)"
   raw="$raw_dir/${timestamp}_${label}.txt"
   perf_raw="$raw_dir/${timestamp}_${label}_performance.json"
-  "$ADB_BIN" shell dumpsys meminfo -d "$PACKAGE" > "$raw"
+  adb_cmd shell dumpsys meminfo -d "$PACKAGE" > "$raw"
   # ✅ best-effort عمداً: فشل قراءة تقرير الأداء (إعادة كتابة لحظية
   # للملف مثلاً) لا يجوز أن يقتل القياس — كان يفعلها return 1 تحت
   # set -e فقتل السكربت في منتصف الدورات.
   read_perf_json "$PERF_REPORT_REMOTE_PATH" "$perf_raw" || true
   # ✅ v2: تشخيص الرسم والمعالج لكل نقطة قياس
-  "$ADB_BIN" shell dumpsys gfxinfo "$PACKAGE" > "${raw_dir}/${timestamp}_${label}_gfxinfo.txt" 2>&1 || true
-  "$ADB_BIN" shell dumpsys cpuinfo > "${raw_dir}/${timestamp}_${label}_cpuinfo.txt" 2>&1 || true
+  adb_cmd shell dumpsys gfxinfo "$PACKAGE" > "${raw_dir}/${timestamp}_${label}_gfxinfo.txt" 2>&1 || true
+  adb_cmd shell dumpsys cpuinfo > "${raw_dir}/${timestamp}_${label}_cpuinfo.txt" 2>&1 || true
 
   total_pss=$(awk '/TOTAL PSS:/ {gsub(",", "", $3); print $3; exit}' "$raw")
   private_other=$(awk '/^[[:space:]]*Private Other:/ {gsub(",", "", $3); print $3; exit}' "$raw")
@@ -345,7 +356,7 @@ launch_app_once() {
   # task is wiped and rebuilt, so a stale activity record from the previous
   # cycle can never satisfy the launch intent without spawning the process
   # (the "delivered to currently running top-most instance" pathology).
-  output=$("$ADB_BIN" shell am start -W \
+  output=$(adb_cmd shell am start -W \
     -n "$PACKAGE/.MainActivity" \
     -a android.intent.action.MAIN \
     -c android.intent.category.LAUNCHER \
@@ -399,7 +410,7 @@ run_actions() {
   if [[ -n "$ACTION_SCRIPT" ]]; then
     # ✅ v2: فشل سكربت الإجراءات لا يقتل دورة القياس — تُستكمل
     # القياسات ويقرر الفشلَ البوابةُ النهائية من الأحداث المفقودة.
-    if ! "$ACTION_SCRIPT" "$ADB_BIN" "$PACKAGE" "$cycle"; then
+    if ! "$ACTION_SCRIPT" adb_cmd "$PACKAGE" "$cycle"; then
       printf 'action_script_failure cycle=%s\n' "$cycle" >> "$lifecycle_log"
     fi
     return 0
@@ -408,7 +419,7 @@ run_actions() {
   # Fallback is intentionally limited to gestures. A real navigation action
   # script can be supplied when the emulator has an authenticated test state.
   for i in $(seq 1 "$SWIPES"); do
-    "$ADB_BIN" shell input swipe 540 1750 540 350 500 >/dev/null || true
+    adb_cmd shell input swipe 540 1750 540 350 500 >/dev/null || true
     sleep 1
   done
 }
@@ -451,7 +462,7 @@ lifecycle_note() {
   printf 'lifecycle_%s,%s,%s,%s\n' "$1" "$(now_ms)" "$2" "$(process_state)" >> "$lifecycle_log"
 }
 
-"$ADB_BIN" shell input keyevent KEYCODE_HOME >/dev/null 2>&1 || true
+adb_cmd shell input keyevent KEYCODE_HOME >/dev/null 2>&1 || true
 sleep 3
 lifecycle_note "backgrounded" 6
 LAUNCH_KIND="lifecycle_home_return"
@@ -459,7 +470,7 @@ launch_app
 measure "lifecycle_home_return" 6
 lifecycle_note "warm_foreground_return" 6
 
-"$ADB_BIN" shell cmd uimode night yes >/dev/null 2>&1 || true
+adb_cmd shell cmd uimode night yes >/dev/null 2>&1 || true
 sleep 4
 lifecycle_note "dark_mode_config_change" 7
 if [[ "$(process_state)" == "running" ]]; then
@@ -469,21 +480,21 @@ else
   launch_app
   measure "lifecycle_dark_mode" 7
 fi
-"$ADB_BIN" shell cmd uimode night no >/dev/null 2>&1 || true
+adb_cmd shell cmd uimode night no >/dev/null 2>&1 || true
 sleep 3
 lifecycle_note "light_mode_restored" 7
 
-"$ADB_BIN" shell settings put system accelerometer_rotation 0 >/dev/null 2>&1 || true
-"$ADB_BIN" shell settings put system user_rotation 1 >/dev/null 2>&1 || true
+adb_cmd shell settings put system accelerometer_rotation 0 >/dev/null 2>&1 || true
+adb_cmd shell settings put system user_rotation 1 >/dev/null 2>&1 || true
 sleep 3
 lifecycle_note "rotate_attempt" 8
-"$ADB_BIN" shell settings put system user_rotation 0 >/dev/null 2>&1 || true
+adb_cmd shell settings put system user_rotation 0 >/dev/null 2>&1 || true
 sleep 2
 
 # ═══ ✅ v2 (12/19): فحص الاستقرار — Crash / ANR / OOM من logcat ═══
 # logcat مُسح في بداية التشغيل فكل ما هنا من هذه الجلسة تحديداً.
 full_log="$raw_dir/logcat_final.txt"
-"$ADB_BIN" logcat -d -v threadtime -t 20000 > "$full_log" 2>/dev/null || true
+adb_cmd logcat -d -v threadtime -t 20000 > "$full_log" 2>/dev/null || true
 PACKAGE_RE="${PACKAGE//./\\.}"
 fatal_count=$(awk '/FATAL EXCEPTION/{inblock=1} inblock && /Process: /{inblock=0; if ($0 ~ Pkg) ours++} END{print ours+0}' Pkg="$PACKAGE_RE" "$full_log" 2>/dev/null || true)
 anr_count=$(grep -cE "ANR in $PACKAGE|am_anr.*$PACKAGE_RE" "$full_log" 2>/dev/null || true)
