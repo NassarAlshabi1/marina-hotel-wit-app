@@ -410,7 +410,10 @@ run_actions() {
   if [[ -n "$ACTION_SCRIPT" ]]; then
     # ✅ v2: فشل سكربت الإجراءات لا يقتل دورة القياس — تُستكمل
     # القياسات ويقرر الفشلَ البوابةُ النهائية من الأحداث المفقودة.
-    if ! "$ACTION_SCRIPT" adb_cmd "$PACKAGE" "$cycle"; then
+    # ملاحظة: نمرر للسكربت الابن مسار adb الحقيقي ($ADB_BIN) وليس دالة
+    # adb_cmd — الدوال لا تنتقل لعملية ابن، وتمريرها حرفياً كسبب
+    # "adb_cmd: command not found" في كل نقرات سكربت التنقل.
+    if ! "$ACTION_SCRIPT" "$ADB_BIN" "$PACKAGE" "$cycle"; then
       printf 'action_script_failure cycle=%s\n' "$cycle" >> "$lifecycle_log"
     fi
     return 0
