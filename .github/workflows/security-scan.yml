@@ -174,10 +174,15 @@ jobs:
           # Install Trivy binary directly (avoids aquasecurity/trivy-action
           # setup issues — the action's container-based setup fails on
           # public repos without GHCR auth).
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          # NOTE: `apt-key` was removed from ubuntu-26.04 runners, which
+          # made this step fail with "'apt-key': command not found".
+          # Use a signed keyring instead — works on 22.04/24.04/26.04.
+          sudo install -m 0755 -d /usr/share/keyrings
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" \
+            | sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
           sudo apt-get update -qq
           sudo apt-get install -y -qq trivy
           trivy --version
