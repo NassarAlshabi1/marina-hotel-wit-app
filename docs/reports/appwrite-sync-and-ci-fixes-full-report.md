@@ -767,11 +767,22 @@ UUID إلى أرقام محلية:
 | `mobile/test/services/salary_expense_service_test.dart` | تصنيف، إنشاء/تعديل/حذف/إعادة إسناد ذرية، رفض موظف غير محلول بلا كتابة، مرآة واحدة نشطة، عدم تبنّي هوية مرآة تراثية |
 | `mobile/test/services/cloud_wins_policy_test.dart` | قرارات Cloud Wins (أحدث/متساوٍ/أقدم/Tombstone/كود نصي/غياب version)، خريطة الكيانات، `markSupersededByCloud` يخرج من المعلّق ولا يحذف ولا يؤثر على غيره |
 
-### 16.5 ما تبقّى
+### 16.5 PR‑5 — السجل غير المحلول لا يُفقد (منفّذ)
+
+| البند | التنفيذ |
+|---|---|
+| حفظ الحمولة دائماً (§8.1) | `BaseRepository` عند `ResolveResult.shouldSkip` (مع `missingKind`/`missingUuid`) يحفظ السجل كاملاً في `pending_links` ويعيد **`-2` = `deferredPersisted`** بدل `-1` |
+| تقدّم المؤشر بلا فقدان | `_sync*` المالية (expenses / salary_withdrawals / salary_cycles / salary_carry_over_logs) تعتبر `-2` تخطياً محفوظاً لا فشلاً ⇒ checkpoint المجموعة يتقدّم؛ `-1` (تخطٍّ بلا حفظ) يبقى يحجب المؤشر |
+| إعادة الإدخال لا التحديث فقط | `retryPendingLinks(reapply:)`: السجل المتخطّى **لم يُدرج**، فبعد وصول الأب تُعاد الحمولة عبر `upsertFromJson` (نفس مسار السحب) ويُحذف صف المعلّق فقط عند نجاحها |
+| إعادة المحاولة بعد الآباء | `_retryPendingLinksAfterPull()` بعد كل دورة سحب (بعد employees/expenses) |
+| checkpoints بعد commit | مؤكّد أصلاً في `UnifiedPullEngine` (apply ثم commit، وللصفحة التدفقية بعد نجاحها) |
+| الاستعادة تُصفّر المؤشرات (§8.3) | `resetSyncCheckpointsAfterRestore()` + استدعاؤه في `google_drive_backup_service` قبل تطبيق النسخة — **بلا مساس** بالـ outbox غير المرفوع |
+| منع ختم رقم سالب | حارس `insertedId < 0` قبل `_resolveAndWriteMirrorExpenseId` (كان يمكن أن يُكتب `-1`/`-2` في `expense_id`) |
+
+### 16.6 ما تبقّى
 
 | PR | المتبقّي |
 |---|---|
-| PR‑5 | checkpoints بعد commit لكل صفحة داخل محرّك السحب، وإعادة محاولة `pending_links` بعد وصول الآباء |
 | PR‑6 | `EmployeeFinancialMovement` في `EmployeeFinancialReportRepository` + تقارير unresolved/duplicates (§16 من الوثيقة) |
 | PR‑7 | إغلاق التوافق القديم بعد تحديث جميع الأجهزة (`reason='exp_N'`، `expense_id`، fallback الأرقام) |
 
