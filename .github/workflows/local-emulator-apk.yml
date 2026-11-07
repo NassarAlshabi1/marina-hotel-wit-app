@@ -1,0 +1,70 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Marina Hotel — x86_64 debug APK for LOCAL emulator smoke tests
+# ════════════════════════════════════════════════════════════════════════════
+#  الغرض: توفير APK يعمل على محاكي x86_64 المحلي (محاكيات التطوير كلها
+#  x86_64) دون الحاجة لبناء التطبيق محلياً — يُطلق يدوياً فقط:
+#    gh workflow run local-emulator-apk.yml --ref <branch>
+#  ثم يُنزَّل الـ artifact من صفحة الـ run ويُثبَّت:
+#    adb install -r app-debug.apk
+#
+#  ملاحظة: flutter-apk-release.yml يبني arm64 للهواتف الحقيقية — هذا
+#  الـ workflow مخصص للمحاكيات ولا يلمس مسار الإطلاق إطلاقاً.
+# ════════════════════════════════════════════════════════════════════════════
+
+name: Local Emulator APK (x86_64 debug)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-x64-debug-apk:
+    name: Build x86_64 debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code (build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # NDK: إضافة jni-1.0.0 تفرض NDK — الـ runner يوفر مساحة كافية له،
+      # وخيار keepDebugSymbols المحلي في build.gradle يمنع استخدامه فعلياً
+      # إلا إن وُجدت مصادر أصلية.
+      - name: Build debug APK (x86_64)
+        run: >
+          flutter build apk --debug
+          --target-platform android-x64
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: marina-x64-debug-apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
