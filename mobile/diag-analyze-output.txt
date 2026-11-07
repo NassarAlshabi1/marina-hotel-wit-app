@@ -1,4 +1,4 @@
-EXIT=1
+EXIT=0
 Resolving dependencies...
 Downloading packages...
   _discoveryapis_commons 1.0.7 (1.0.8 available)
@@ -188,8 +188,5 @@ Got dependencies!
 183 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 Analyzing mobile...                                             
-
-warning • Unnecessary cast. Try removing the cast • test/services/pending_links_persistence_test.dart:112:13 • unnecessary_cast
-
-1 issue found. (ran in 23.2s)
-EXIT=1
+No issues found! (ran in 18.2s)
+EXIT=0
