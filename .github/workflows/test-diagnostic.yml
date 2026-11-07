@@ -26,10 +26,8 @@ jobs:
       - name: Run diagnostic tests
         run: |
           set +e
-          flutter test test/services/pending_links_persistence_test.dart \
-            test/services/cloud_wins_policy_test.dart \
-            test/services/local_link_resolver_test.dart \
-            test/services/salary_expense_service_test.dart \
+          flutter test --concurrency=2 --timeout=180s \
+            --exclude-tags integration,performance,slow \
             -r expanded > /tmp/diag.txt 2>&1
           echo "EXIT=$?" >> /tmp/diag.txt
           { grep -E "\[E\]|EXIT=|Expected:|Actual:|Which:|Error:|failed" /tmp/diag.txt | head -n 200; echo "=== TAIL ==="; tail -c 12000 /tmp/diag.txt; } > diag-test-output.txt
