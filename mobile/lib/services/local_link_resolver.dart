@@ -316,9 +316,10 @@ class LocalLinkResolver {
 
     // عدد الصفوف المحدَّثة هو الفرق الحقيقي بين «رُبط صفٌّ موجود» و«الصف
     // لم يُدرج أصلاً لأن السحب تخطّاه» (انظر reapply في retryPendingLinks).
-    return _db.customStatement(
+    // customUpdate (لا customStatement) لأن عدد الصفوف المتأثرة هو الإشارة.
+    return _db.customUpdate(
       'UPDATE $table SET $column = ? WHERE local_uuid = ?',
-      [parentId, localUuid],
+      variables: [parentId, localUuid],
     );
   }
 
