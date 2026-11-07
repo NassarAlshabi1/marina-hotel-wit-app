@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:drift/drift.dart';
 
 import '../adapters/entity_adapter.dart';
+import '../adapters/resolve_result.dart';
 import '../adapters/source.dart';
 import '../local_db.dart';
 import '../local_link_resolver.dart';
