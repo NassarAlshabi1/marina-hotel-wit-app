@@ -108,12 +108,10 @@ void main() {
     final resolved = await resolver.retryPendingLinks(
       reapply: (entity, payload) async {
         expect(entity, 'salary_withdrawal');
-        final id =
-            await registry.salaryWithdrawals.upsertFromJson(
-                  Map<String, dynamic>.from(payload),
-                  src: Source.appwrite,
-                )
-                as int;
+        final id = await registry.salaryWithdrawals.upsertFromJson(
+          Map<String, dynamic>.from(payload),
+          src: Source.appwrite,
+        );
         return id >= 0;
       },
     );
