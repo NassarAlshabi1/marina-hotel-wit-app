@@ -60,8 +60,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     final entity = _pendingEntityByTable[table.actualTableName];
     final missingKind = (refs.missingKind ?? '').trim();
     final missingUuid = (refs.missingUuid ?? '').trim();
-    final localUuid =
-        (json['localUuid'] ?? json['local_uuid'] ?? '').toString().trim();
+    final localUuid = (json['localUuid'] ?? json['local_uuid'] ?? '')
+        .toString()
+        .trim();
     if (entity == null ||
         missingKind.isEmpty ||
         missingUuid.isEmpty ||

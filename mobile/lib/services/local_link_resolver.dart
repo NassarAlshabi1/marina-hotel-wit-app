@@ -242,8 +242,7 @@ class LocalLinkResolver {
         final payloadJson = row.data['payload_json'];
         if (payloadJson is String && payloadJson.trim().isNotEmpty) {
           try {
-            final payload =
-                jsonDecode(payloadJson) as Map<String, dynamic>;
+            final payload = jsonDecode(payloadJson) as Map<String, dynamic>;
             applied = await reapply(entity, payload);
           } catch (e) {
             await _db.customStatement(
