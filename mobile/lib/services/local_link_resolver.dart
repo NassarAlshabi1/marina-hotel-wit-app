@@ -319,10 +319,7 @@ class LocalLinkResolver {
     // customUpdate (لا customStatement) لأن عدد الصفوف المتأثرة هو الإشارة.
     return _db.customUpdate(
       'UPDATE $table SET $column = ? WHERE local_uuid = ?',
-      variables: [
-        Variable.withInt(parentId),
-        Variable.withString(localUuid),
-      ],
+      variables: [Variable.withInt(parentId), Variable.withString(localUuid)],
     );
   }
 
