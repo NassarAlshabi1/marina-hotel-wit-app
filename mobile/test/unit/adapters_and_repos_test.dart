@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/repositories/base_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 
 void main() {
@@ -670,7 +671,10 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('BaseRepository — upsertFromJson مع shouldSkip', () {
     test(
-      'upsertFromJson يرجع -1 عند shouldSkip=true (موظف غير موجود)',
+      // ✅ PR-5 (§8.1): التخطي صار **بحفظ دائم** — الحمولة تُخزَّن في
+      // pending_links وتُعاد -2 (deferredPersisted) لا -1، كي يتقدّم
+      // checkpoint المجموعة بلا فقدان السجل.
+      'upsertFromJson يحفظ السجل في pending_links ويعيد -2 عند غياب الموظف',
       () async {
         final json = {
           'localUuid': 'sc-orphan',
@@ -689,7 +693,19 @@ void main() {
           src: Source.appwrite,
         );
 
-        expect(result, -1); // تم التخطي
+        expect(result, BaseRepository.deferredPersisted);
+        final pending = await db
+            .customSelect(
+              'SELECT entity, local_uuid, missing_kind, missing_uuid '
+              'FROM pending_links',
+              readsFrom: const {},
+            )
+            .get();
+        expect(pending, hasLength(1));
+        expect(pending.single.data['entity'], 'salary_cycle');
+        expect(pending.single.data['local_uuid'], 'sc-orphan');
+        expect(pending.single.data['missing_kind'], 'employee_uuid');
+        expect(pending.single.data['missing_uuid'], 'non-existent-uuid');
       },
     );
 
