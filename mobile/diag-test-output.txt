@@ -1,6 +1,52 @@
-EXIT=0
+❌ [2026-11-07 01:57:51] [ERROR   ] [sync] failed
+Error: Permanent (400): Bad Request
+Error: Test dead
+Error: Transient error
+Error: Permanent
+00:23 +194: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/outbox_dao_dead_state_test.dart: OutboxDao — Dead State (smoke test مع DB حقيقي) P0-1: السجلات الـ failed مع attempts >= maxAttempts لا تُلتقط
+Error: Max attempts reached
+Error: AppwriteException: , too many (429)
+Error: AppwriteException: , server error 500 (500)
+00:39 +433: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/auto_outbox_sync_watcher_lock_test.dart: pushNow releases SyncGuard after a failed push and can retry
+01:09 +769 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/backup_restore_test.dart: Atomicity & rollback failed restore does not corrupt existing data (atomic transaction)
+Error: Transient error
+Error: Many failures
+Error: Permanent
+Error: Error
+Error: Error
+Error: Permanent
+01:23 +990 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — counting methods countUndeliveredToPrimary يشمل pending + processing + failed
+Error: Error
+Error: Unknown entity
+01:23 +998 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_dao_comprehensive_test.dart: OutboxDao — cleanup methods ✅ Wave4: cleanupForMissingEntities يحذف فقط سجلات completed (لا pending/failed)
+Error: Conflict detected
+Error: Conflict
+01:26 +1034 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_safety_wave4_cleanup_tombstone_test.dart: cleanupForMissingEntities — Hard Delete Safety 1. تحذف فقط عناصر completed (لا pending/failed) للكيانات المفقودة
+01:26 +1036 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_safety_wave4_cleanup_tombstone_test.dart: cleanupForMissingEntities — Hard Delete Safety 3. لا تحذف عنصر failed للكيان المفقود
+⚠️ [2026-11-07 01:59:15] [WARNING ] [SYNC] Failed to sync deferred booking booking-uuid-bad: SqliteException(787): while executing statement, FOREIGN KEY constraint failed, constraint failed (code 787)
+[DeltaSync] pull failed: Bad state: offline
+Error: transient
+Error: chronic
+01:45 +1341 ~1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/outbox_manual_push_test.dart: OutboxDao.prepareForManualPush لا يخترق مهلة التراجع: السجل الفاشل حديثاً يبقى failed
+Error: chronic
+01:48 +1378 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/adapters_and_repos_test.dart: BaseRepository — upsertFromJson مع shouldSkip upsertFromJson يرجع -1 عند shouldSkip=true (موظف غير موجود) [E]
+  Expected: <-1>
+    Actual: <-2>
+01:50 +1415 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/sync_safety_wave5_final_test.dart: 5. Cleanup Safety after Tombstones 5b. cleanupForMissingEntities لا يحذف failed للكيانات المفقودة
+01:59 +1510 ~1 -1: Some tests failed.
+EXIT=1
 === TAIL ===
-50:17)
+re> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
 #27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
 #28     _rootRun (dart:async/zone_root.dart:35:13)
 #29     _CustomZone.run (dart:async/zone.dart:726:19)
@@ -10,10 +56,8 @@ EXIT=0
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
-⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ
-⚠️ Telegram: Chat ID غير مضبوط
-00:07 +47: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart: reassignEmployee هوية الإسناد لا تُكتب على مرآة تراثية بلا هوية
+🔄 تغيير في rooms (INSERT) - تغييرات معلقة: 15
+01:58 +1502 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/utils/booking_nights_display_test.dart: L5 — حدّ اليوم الفندقي بالثانية عبر مسار القائمة actualCheckout عند 14:00:59 → 3 ليالٍ للقيمتين
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
 Here is the stacktrace from when the database was opened a second time:
@@ -23,7 +67,7 @@ Here is the stacktrace from when the database was opened a second time:
 #3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
 #4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
 #5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart:22:22)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/utils/booking_nights_display_test.dart:60:22)
 #7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
 #8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
 #9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
@@ -53,10 +97,13 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
+🔄 تغيير في rooms (INSERT) - تغييرات معلقة: 16
 ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
+⚠️ ⚠️ حجز مكتمل 5b1dedd0-ed25-4011-a42d-60676de41384 بلا ليالٍ محلية: تقدير المستحق مؤقتاً بسعر الغرفة الحالي
+🔄 تغيير في bookings (INSERT) - تغييرات معلقة: 17
 ⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ
 ⚠️ Telegram: Chat ID غير مضبوط
-00:07 +48: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart: سلامة التصنيف kindOf يعيد null للمصروف غير الموجود
+01:58 +1503 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/utils/booking_nights_display_test.dart: L5 — حدّ اليوم الفندقي بالثانية عبر مسار القائمة actualCheckout عند 14:01:00 → 4 ليالٍ للقيمتين
 WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
 Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
 Here is the stacktrace from when the database was opened a second time:
@@ -66,7 +113,7 @@ Here is the stacktrace from when the database was opened a second time:
 #3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
 #4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
 #5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart:22:22)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/utils/booking_nights_display_test.dart:60:22)
 #7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
 #8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
 #9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
@@ -96,48 +143,48 @@ Here is the stacktrace from when the database was opened a second time:
 #33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
 <asynchronous suspension>
 This warning will only appear on debug builds.
-00:07 +49: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart: سلامة التصنيف التصنيف المكتوب صريح ويختلف عن النص الحر
-WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
-Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
-Here is the stacktrace from when the database was opened a second time:
-#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
-#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
-#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
-#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
-#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
-#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
-#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart:22:22)
-#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
-#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
-#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
-#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
-#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
-#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
-#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
-#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
-#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
-#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
-#17     Future.doWhile (dart:async/future.dart:749:18)
-#18     Future.forEach (dart:async/future.dart:672:12)
-#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
-#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
-#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
-#22     _rootRun (dart:async/zone_root.dart:35:13)
-#23     _CustomZone.run (dart:async/zone.dart:726:19)
-#24     _runZoned (dart:async/zone_api.dart:166:6)
-#25     runZoned (dart:async/zone_api.dart:92:10)
-#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
-#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
-#28     _rootRun (dart:async/zone_root.dart:35:13)
-#29     _CustomZone.run (dart:async/zone.dart:726:19)
-#30     _runZoned (dart:async/zone_api.dart:166:6)
-#31     runZoned (dart:async/zone_api.dart:92:10)
-#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
-#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
-<asynchronous suspension>
-This warning will only appear on debug builds.
+🔄 تغيير في rooms (INSERT) - تغييرات معلقة: 18
 ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
+⚠️ ⚠️ حجز مكتمل 178bd150-10ac-44a6-9f43-da7714a82184 بلا ليالٍ محلية: تقدير المستحق مؤقتاً بسعر الغرفة الحالي
+🔄 تغيير في bookings (INSERT) - تغييرات معلقة: 19
 ⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ
 ⚠️ Telegram: Chat ID غير مضبوط
-00:07 +50: All tests passed!
-EXIT=0
+01:58 +1504 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/status_utils_test.dart: room availability detection is case/whitespace insensitive
+01:58 +1505 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/status_utils_test.dart: active booking detection covers arabic/english variants
+01:58 +1506 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/status_utils_test.dart: roomStatusForOccupancy returns proper fallback
+01:58 +1507 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/status_utils_test.dart: isBookingActive reads from booking model
+01:59 +1508 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every adapter.collectionId must exist in validFieldsPerCollection
+
+======================================================================
+  Sync Fields Audit Report
+======================================================================
+
+Registered adapters: 19
+Schema collections: 27
+
+✅ All adapter.collectionId values are present in validFieldsPerCollection.
+
+Total adapters checked: 19
+Total collections in schema: 27
+Missing: 0
+
+01:59 +1509 ~1 -1: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/sync_fields_audit_test.dart: sync fields audit — every schema collection has required sync fields
+
+======================================================================
+  Required Sync Fields Audit
+======================================================================
+
+❌ Collections missing required sync fields:
+  ⚠️  app_settings missing: vectorClock
+  ⚠️  app_users missing: origin, deletedAt
+  ⚠️  sync_state missing: vectorClock, deviceId
+
+Total collections checked: 27
+Collections with missing fields: 3
+
+⚠️  Warning: Some collections are missing required sync fields. This may be intentional for non-synced tables (e.g., audit_logs).
+01:59 +1510 ~1 -1: Some tests failed.
+
+Failing tests:
+  /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/unit/adapters_and_repos_test.dart: BaseRepository — upsertFromJson مع shouldSkip upsertFromJson يرجع -1 عند shouldSkip=true (موظف غير موجود)
+EXIT=1
