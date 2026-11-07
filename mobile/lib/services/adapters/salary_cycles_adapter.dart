@@ -73,6 +73,9 @@ class SalaryCyclesAdapter
       lastModifiedEpoch: lastModified,
       shouldSkip: shouldSkip,
       skipReason: skipReason,
+      // ✅ PR-5 (§8.1): حفظ دائم للسجل غير المحلول في pending_links.
+      missingKind: shouldSkip ? 'employee_uuid' : null,
+      missingUuid: shouldSkip ? (remoteEmployeeUuid ?? '') : null,
     );
   }
 

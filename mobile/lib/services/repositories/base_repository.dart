@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../adapters/entity_adapter.dart';
 import '../adapters/source.dart';
 import '../local_db.dart';
+import '../local_link_resolver.dart';
 
 class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   BaseRepository({
@@ -29,6 +30,61 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
   void clearBatchUuidCache() {
     _batchUuidCache = null;
+  }
+
+  /// نتيجة [upsertFromJson] عند تخطي سجل لأن أباه غير موجود **وسُجّل
+  /// في `pending_links`**: الحمولة محفوظة محلياً بشكل دائم (§8.1)، لذلك
+  /// يجوز تقدّم checkpoint المجموعة — بخلاف `-1` (تخطٍّ بلا حفظ).
+  static const int deferredPersisted = -2;
+
+  /// جدول ← اسم الكيان المفرد المستخدم في `pending_links`.
+  ///
+  /// الأنواع المدعومة فقط هي التي يعرف `LocalLinkResolver._applyResolvedParent`
+  /// حلها لاحقاً؛ غيرها يُترك `-1` بدل تسجيل صف لا يمكن حله أبداً.
+  static const Map<String, String> _pendingEntityByTable = {
+    'expenses': 'expense',
+    'salary_withdrawals': 'salary_withdrawal',
+    'salary_cycles': 'salary_cycle',
+    'salary_carry_over_logs': 'salary_carry_over_log',
+  };
+
+  /// يحفظ السجل غير المحلول كاملاً في `pending_links`.
+  ///
+  /// لا يكتب شيئاً (ويُرجع false) إن لم يعرف المحوّل الأب المفقود بالضبط —
+  /// فلا نسبة تخمينية ولا صف بلا مفتاح حلّ.
+  Future<bool> _persistPendingLink(
+    Map<String, dynamic> json,
+    ResolveResult refs,
+  ) async {
+    final entity = _pendingEntityByTable[table.actualTableName];
+    final missingKind = (refs.missingKind ?? '').trim();
+    final missingUuid = (refs.missingUuid ?? '').trim();
+    final localUuid =
+        (json['localUuid'] ?? json['local_uuid'] ?? '').toString().trim();
+    if (entity == null ||
+        missingKind.isEmpty ||
+        missingUuid.isEmpty ||
+        localUuid.isEmpty) {
+      return false;
+    }
+    try {
+      await LocalLinkResolver(db).recordPendingLink(
+        entity: entity,
+        localUuid: localUuid,
+        missingKind: missingKind,
+        missingUuid: missingUuid,
+        payload: json,
+        lastError: refs.skipReason,
+      );
+      return true;
+    } catch (e) {
+      developer.log(
+        'Failed to persist pending link for ${table.actualTableName} $localUuid',
+        error: e,
+        name: 'BaseRepository',
+      );
+      return false;
+    }
   }
 
   Future<int> upsertFromJson(
@@ -94,6 +150,10 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         'Skipping upsert for ${table.actualTableName}: ${refs.skipReason ?? "unresolved FK reference"}',
         name: 'BaseRepository',
       );
+      // ✅ PR-5 (§8.1): تخطٍّ **بحفظ دائم** للحمولة ⇒ -2، وإلا تخطٍّ بلا حفظ ⇒ -1.
+      if (await _persistPendingLink(json, refs)) {
+        return deferredPersisted;
+      }
       return -1; // إشارة إلى أن السجل تم تخطيه
     }
 
@@ -491,6 +551,8 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
             '${refs.skipReason ?? "unresolved FK reference"}',
             name: 'BaseRepository.batch',
           );
+          // ✅ PR-5: حفظ الحمولة غير المحلولة دائماً (لا تُفقد مع تقدم المؤشر).
+          await _persistPendingLink(jsonCopy, refs);
           skipped++;
           continue;
         }

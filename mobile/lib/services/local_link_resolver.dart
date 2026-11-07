@@ -180,7 +180,11 @@ class LocalLinkResolver {
   ///
   /// لا يلمس صفاً لم يُحلّ: يُحدّث `attempts`/`last_error` فقط — فلا فقدان
   /// ولا نسبة تخمينية، ويستمر ظهوره في تقرير الصيانة (§11).
-  Future<int> retryPendingLinks({String? missingKind, int limit = 500}) async {
+  Future<int> retryPendingLinks({
+    String? missingKind,
+    int limit = 500,
+    Future<bool> Function(String entity, Map<String, dynamic> payload)? reapply,
+  }) async {
     final where = missingKind == null ? '' : 'WHERE missing_kind = ?';
     final rows = await _db
         .customSelect(
@@ -223,12 +227,39 @@ class LocalLinkResolver {
         continue;
       }
 
-      final applied = await _applyResolvedParent(
+      final appliedRows = await _applyResolvedParent(
         entity: entity,
         localUuid: localUuid,
         missingKind: kind,
         parentId: parentId,
       );
+
+      // ✅ PR-5 (§8.1): السجل الذي لم يُدرج أصلاً (تخطّي عند السحب) لا صف
+      // له ليُحدَّث — نُعيد إدخاله من الحمولة المحفوظة بعد أن صار الأب
+      // موجوداً. بلا هذا يبقى «مربوطاً» على الورق ومفقوداً فعلياً.
+      var applied = appliedRows > 0;
+      if (appliedRows == 0 && reapply != null) {
+        final payloadJson = row.data['payload_json'];
+        if (payloadJson is String && payloadJson.trim().isNotEmpty) {
+          try {
+            final payload =
+                jsonDecode(payloadJson) as Map<String, dynamic>;
+            applied = await reapply(entity, payload);
+          } catch (e) {
+            await _db.customStatement(
+              'UPDATE pending_links '
+              'SET attempts = attempts + 1, last_error = ?, updated_at = ? '
+              'WHERE id = ?',
+              [
+                'تعذّر إعادة تطبيق الحمولة المحفوظة: $e',
+                DateTime.now().toUtc().toIso8601String(),
+                id,
+              ],
+            );
+            continue;
+          }
+        }
+      }
 
       if (applied) {
         await _db.customStatement('DELETE FROM pending_links WHERE id = ?', [
@@ -257,7 +288,7 @@ class LocalLinkResolver {
   ///
   /// يعيد `true` فقط إذا كان (entity, missingKind) معروفاً — وإلا لا يكتب
   /// شيئاً بدل تخمين عمود قد يُنسب لموظف آخر.
-  Future<bool> _applyResolvedParent({
+  Future<int> _applyResolvedParent({
     required String entity,
     required String localUuid,
     required String missingKind,
@@ -282,13 +313,14 @@ class LocalLinkResolver {
       _ => (null, null),
     };
 
-    if (table == null || column == null) return false;
+    if (table == null || column == null) return -1;
 
-    await _db.customStatement(
+    // عدد الصفوف المحدَّثة هو الفرق الحقيقي بين «رُبط صفٌّ موجود» و«الصف
+    // لم يُدرج أصلاً لأن السحب تخطّاه» (انظر reapply في retryPendingLinks).
+    return _db.customStatement(
       'UPDATE $table SET $column = ? WHERE local_uuid = ?',
       [parentId, localUuid],
     );
-    return true;
   }
 
   /// الروابط المعلّقة (للتقرير / شاشة الصيانة).

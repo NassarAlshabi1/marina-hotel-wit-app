@@ -11,6 +11,8 @@ class ResolveResult {
     this.lastModifiedEpoch,
     this.shouldSkip = false,
     this.skipReason,
+    this.missingKind,
+    this.missingUuid,
   });
 
   final int? bookingLocalId;
@@ -45,6 +47,17 @@ class ResolveResult {
   /// سبب التخطي (للتسجيل في السجلات)
   final String? skipReason;
 
+  /// ✅ (PR-5 / وثيقة الربط §8.1): نوع الأب المفقود عند التخطي.
+  ///
+  /// القيم المدعومة في `LocalLinkResolver._applyResolvedParent`:
+  /// `employee_uuid` و`expense_uuid`. عند توفّرها مع [missingUuid] يُحفظ
+  /// السجل كاملاً في `pending_links` (لا يُفقد ولا يُنسب تخمينياً)،
+  /// ويُسمح بتقدّم checkpoint المجموعة لأن الحمولة محفوظة محلياً بشكل دائم.
+  final String? missingKind;
+
+  /// معرّف الأب المفقود (UUID) — يُحل لاحقاً عند وصول الأب.
+  final String? missingUuid;
+
   static const empty = ResolveResult();
 
   ResolveResult copyWith({
@@ -59,6 +72,8 @@ class ResolveResult {
     int? lastModifiedEpoch,
     bool? shouldSkip,
     String? skipReason,
+    String? missingKind,
+    String? missingUuid,
   }) {
     return ResolveResult(
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
@@ -73,6 +88,8 @@ class ResolveResult {
       lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
       shouldSkip: shouldSkip ?? this.shouldSkip,
       skipReason: skipReason ?? this.skipReason,
+      missingKind: missingKind ?? this.missingKind,
+      missingUuid: missingUuid ?? this.missingUuid,
     );
   }
 }

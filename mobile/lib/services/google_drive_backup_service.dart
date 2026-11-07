@@ -1212,6 +1212,11 @@ class GoogleDriveBackupService {
       final db = DatabaseManager.instance;
       final adapterRegistry = AdapterRegistry.instance;
 
+      // ✅ PR-5 / وثيقة الربط §8.3: الاستعادة تغيّر المعرّفات المحلية،
+      // فمؤشرات السحب القديمة تُصفَّر لإجبار سحب كامل لاحقاً — بلا مساس
+      // بأي عنصر Outbox غير مرفوع.
+      await AppwriteSyncManager.instance?.resetSyncCheckpointsAfterRestore();
+
       if (!backupData.containsKey('metadata')) {
         _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية، سيتم تجاوزها');
         _logger.warning(

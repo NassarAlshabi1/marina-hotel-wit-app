@@ -38,6 +38,7 @@ import 'daos/ancestor_cache_dao.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'local_link_resolver.dart';
+import 'repositories/base_repository.dart';
 import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'salary_expense_service.dart';
@@ -2902,6 +2903,11 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ PR-5 (§8.1): تخطٍّ **بحفظ دائم** — الحمولة في `pending_links`
+        // فالمؤشر يستطيع التقدّم بلا فقدان؛ تُحلّ تلقائياً عند وصول الأب.
+        if (upserted == BaseRepository.deferredPersisted) {
+          continue;
+        }
         // ✅ (2026-11-05) المسار B (BaseRepository.shouldSkip → -1): مرجع أب
         // غير محلول (موظف/حركة نقد) — تخطٍّ لا نجاح؛ المؤشر لا يتقدّم فوقه.
         if (upserted == -1) {
@@ -3452,6 +3458,90 @@ class AppwriteSyncManager {
       return false;
     }
     return true;
+  }
+
+  /// ✅ PR-5 (§8.1): إعادة محاولة `pending_links` بعد سحب الآباء.
+  ///
+  /// السجل غير المحلول محفوظ كاملاً (حمولته في `pending_links`) فيُعاد ربطه
+  /// هنا بمجرد وصول الموظف/المصروف الأب — لا نسبة تخمينية ولا حذف.
+  Future<int> _retryPendingLinksAfterPull() async {
+    try {
+      final resolved = await LocalLinkResolver(database).retryPendingLinks(
+        reapply: (entity, payload) async {
+          // السجل المُتخطّى لم يُدرج أصلاً: نُعيد إدخاله من الحمولة المحفوظة
+          // عبر نفس مسار السحب (adapter + upsertFromJson) بعد وصول الأب.
+          const tableByEntity = {
+            'expense': 'expenses',
+            'salary_withdrawal': 'salary_withdrawals',
+            'salary_cycle': 'salary_cycles',
+            'salary_carry_over_log': 'salary_carry_over_logs',
+          };
+          final table = tableByEntity[entity];
+          if (table == null) return false;
+          final repository = _adapterRegistry.byEntity[table];
+          if (repository == null) return false;
+          try {
+            final id =
+                await repository.upsertFromJson(
+                      Map<String, dynamic>.from(payload),
+                      src: Source.appwrite,
+                    )
+                    as int;
+            return id >= 0;
+          } catch (e) {
+            _logger.warning(
+              '⚠️ تعذّرت إعادة إدخال $entity من pending_links: $e',
+              tag: 'SYNC',
+            );
+            return false;
+          }
+        },
+      );
+      if (resolved > 0) {
+        _logger.info(
+          '🔗 رُبط $resolved سجلاً كان معلّقاً بعد وصول آبائه (pending_links)',
+          tag: 'SYNC',
+        );
+      }
+      return resolved;
+    } catch (e) {
+      _logger.warning(
+        '⚠️ تعذّرت إعادة محاولة pending_links بعد السحب: $e',
+        tag: 'SYNC',
+      );
+      return 0;
+    }
+  }
+
+  /// ✅ PR-5 (§8.3): بعد استعادة قاعدة محلية، المعرّفات المحلية تغيّرت،
+  /// فمؤشرات السحب القديمة لا تصلح للحكم على السحابة.
+  ///
+  /// يُصفَّر المؤشر (سحب كامل في الدورة القادمة) **ولا يُمسّ** أي عنصر
+  /// Outbox غير مرفوع — التعديلات المحلية تبقى قابلة للإرسال.
+  Future<void> resetSyncCheckpointsAfterRestore() async {
+    try {
+      _maxUpdatedAtInPull = null;
+      await _checkpointStore.resetAll();
+      await database
+          .into(database.syncState)
+          .insertOnConflictUpdate(
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              lastPullTs: drift.Value(0),
+              fullSyncComplete: drift.Value(0),
+            ),
+          );
+      _logger.warning(
+        '🔄 استعادة محلية: صُفّرت مؤشرات السحب (outbox غير المرفوع لم يُمس) '
+        '— الدورة القادمة سحب كامل.',
+        tag: 'SYNC',
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ تعذّر تصفير مؤشرات السحب بعد الاستعادة: $e',
+        tag: 'SYNC',
+      );
+    }
   }
 
   /// ═══ سياسة Cloud Wins — حسم تعارض الرفع (وثيقة الربط §7.5) ═══
@@ -4765,6 +4855,16 @@ class AppwriteSyncManager {
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
 
+        // ✅ PR-5 (§8.1): السجل محفوظ في `pending_links` — لا معرّف صف بعد،
+        // فلا يُختم `expense_id` على معرّف سالب.
+        if (insertedId == BaseRepository.deferredPersisted) {
+          continue;
+        }
+        if (insertedId < 0) {
+          failed.add('${doc.$id}: unresolved employee parent (adapter skip)');
+          continue;
+        }
+
         // ✅ (migration 68) كتابة expense_id في العمود الخام (Migration 40+)
         // العمود ليس في الـ data class المُولّد لذلك نكتبه يدوياً.
         // ✅ الآن بحل uuid المرآة أولاً: expense_id الخام من جهاز المصدر
@@ -4833,6 +4933,10 @@ class AppwriteSyncManager {
         try {
           final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
               .upsertFromJson(data, src: Source.appwrite);
+          if (deferredInsertedId == BaseRepository.deferredPersisted) {
+            // الحمولة محفوظة في pending_links — ليست فشلاً
+            continue;
+          }
           if (deferredInsertedId == -1) {
             // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
             // الـ adapter فشل؛ لا نجاحاً صامتاً (كان -1 يُمرَّر للأختام
@@ -6745,6 +6849,10 @@ class AppwriteSyncManager {
         );
         recordsPulled = result.recordsPulled;
         failedCollections.addAll(result.failedCollections);
+
+        // ✅ PR-5 (§8.1): الآباء (employees/expenses) وصلوا في هذه الدورة —
+        // نُعيد محاولة الروابط المعلّقة المحفوظة من دورات سابقة.
+        await _retryPendingLinksAfterPull();
 
         // ✅ تسجيل نتيجة الدورة للعرض في شاشة الإعدادات (زر «سحب الآن»).
         // يُسجَّل حتى مع فشل جزئي (failedCollections) لأن السجلات المطبَّقة
@@ -9572,6 +9680,10 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
+          if (result == BaseRepository.deferredPersisted) {
+            // ✅ PR-5 (§8.1): الحمولة في pending_links ⇒ تقدّم بلا فقدان
+            continue;
+          }
           if (result == -1) {
             // ✅ (2026-11-03) المسار B: بيانات مؤجلة بلا ختم موظف — حل
             // الـ adapter فشل؛ لا نجاحاً صامتاً.
@@ -10480,6 +10592,10 @@ class AppwriteSyncManager {
 
         final result = await _adapterRegistry.salaryCarryOverLogs
             .upsertFromJson(data, src: Source.appwrite);
+        if (result == BaseRepository.deferredPersisted) {
+          // ✅ PR-5 (§8.1): محفوظ في pending_links — لا تأجيل ولا فشل
+          continue;
+        }
         if (result == -1) {
           // ✅ المسار B: الموظف الأب غير محلول — تأجيل لا نجاح.
           _logger.debug(
