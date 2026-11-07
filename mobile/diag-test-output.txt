@@ -1,0 +1,143 @@
+EXIT=0
+=== TAIL ===
+50:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
+⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ
+⚠️ Telegram: Chat ID غير مضبوط
+00:07 +47: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart: reassignEmployee هوية الإسناد لا تُكتب على مرآة تراثية بلا هوية
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart:22:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
+⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ
+⚠️ Telegram: Chat ID غير مضبوط
+00:07 +48: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart: سلامة التصنيف kindOf يعيد null للمصروف غير الموجود
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart:22:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+00:07 +49: /home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart: سلامة التصنيف التصنيف المكتوب صريح ويختلف عن النص الحر
+WARNING (drift): It looks like you've created the database class AppDatabase multiple times. When these two databases use the same QueryExecutor, race conditions will occur and might corrupt the database. 
+Try to follow the advice at https://drift.simonbinder.eu/faq/#using-the-database or, if you know what you're doing, set driftRuntimeOptions.dontWarnAboutMultipleDatabases = true
+Here is the stacktrace from when the database was opened a second time:
+#0      GeneratedDatabase._handleInstantiated (package:drift/src/runtime/api/db_base.dart:96:30)
+#1      GeneratedDatabase._whenConstructed (package:drift/src/runtime/api/db_base.dart:73:12)
+#2      new GeneratedDatabase (package:drift/src/runtime/api/db_base.dart:64:5)
+#3      new _$AppDatabase (package:marina_hotel_mobile/services/local_db.g.dart:45452:36)
+#4      new AppDatabase._internal (package:marina_hotel_mobile/services/local_db.dart)
+#5      new AppDatabase.forTesting (package:marina_hotel_mobile/services/local_db.dart:1259:57)
+#6      main.<anonymous closure> (file:///home/runner/work/marina-hotel-wit-app/marina-hotel-wit-app/mobile/test/services/salary_expense_service_test.dart:22:22)
+#7      Declarer._runSetUps.<anonymous closure> (package:test_api/src/backend/declarer.dart:439:61)
+#8      Future.forEach.<anonymous closure> (dart:async/future.dart:674:26)
+#9      Future.doWhile.<anonymous closure> (dart:async/future.dart:732:26)
+#10     StackZoneSpecification._registerUnaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:36)
+#11     StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+#12     StackZoneSpecification._registerUnaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:127:24)
+#13     _rootRunUnary (dart:async/zone_root.dart:48:47)
+#14     _CustomZone.runUnary (dart:async/zone.dart:733:19)
+#15     _CustomZone.runUnaryGuarded (dart:async/zone.dart:633:7)
+#16     _CustomZone.bindUnaryCallbackGuarded.<anonymous closure> (dart:async/zone.dart:671:26)
+#17     Future.doWhile (dart:async/future.dart:749:18)
+#18     Future.forEach (dart:async/future.dart:672:12)
+#19     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:439:18)
+#20     Declarer._runSetUps (package:test_api/src/backend/declarer.dart:437:40)
+#21     Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:252:21)
+#22     _rootRun (dart:async/zone_root.dart:35:13)
+#23     _CustomZone.run (dart:async/zone.dart:726:19)
+#24     _runZoned (dart:async/zone_api.dart:166:6)
+#25     runZoned (dart:async/zone_api.dart:92:10)
+#26     Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:17)
+#27     Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:17)
+#28     _rootRun (dart:async/zone_root.dart:35:13)
+#29     _CustomZone.run (dart:async/zone.dart:726:19)
+#30     _runZoned (dart:async/zone_api.dart:166:6)
+#31     runZoned (dart:async/zone_api.dart:92:10)
+#32     Invoker._waitForOutstandingCallbacks (package:test_api/src/backend/invoker.dart:314:5)
+#33     Invoker._onRun.<anonymous closure>.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/invoker.dart:457:21)
+<asynchronous suspension>
+This warning will only appear on debug builds.
+ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)
+⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ
+⚠️ Telegram: Chat ID غير مضبوط
+00:07 +50: All tests passed!
+EXIT=0
