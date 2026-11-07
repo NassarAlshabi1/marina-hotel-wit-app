@@ -126,21 +126,36 @@ run_scenario() {
   # ملاحظة: أول استدعاء يبني androidTest APK (~4-5 د) ثم incrementals.
   if patrol test --verbose --target "$FILE" > "$MET/test_${NAME}.log" 2>&1; then
     echo "$NAME=PASS" >> "$MET/results.txt"
-  else
-    echo "$NAME=FAIL" >> "$MET/results.txt"
-    echo "::warning::integration scenario $NAME failed — see artifact test_${NAME}.log"
-    # ── تشخيص عميق ──
-    # 1) إعادة تشغيل أمر gradle نفسه (المستخرج من اللوج) مع --stacktrace
-    #    لكشف مصدر IOException: No such file or directory
-    GRADLE_CMD=$(grep -m1 -o "\./gradlew :app:connectedDebugAndroidTest.*" \
-      "$MET/test_${NAME}.log" | tail -1)
-    if [ -n "$GRADLE_CMD" ]; then
-      (cd android && eval "$GRADLE_CMD --stacktrace") \
-        > "$MET/test_${NAME}_stacktrace.log" 2>&1 || true
-    fi
-    # 4) تشخيص من داخل JVM الـ daemon نفسه: أين يرى user.home؟ وهل
-    #    createTempFile ينجح تحت نفس ظروف AGP تماماً؟
-    cat > "$MET/utp_diag.init.gradle" <<'EOF'
+    return 0
+  fi
+  # ── محاولة ثانية وحيدة (bounded retry — 2026-11-07) ──────────────────
+  # انهيار عملية الـ instrumentation العابر لا يعني انحداراً حقيقياً:
+  # شاهد run 42321145952 (Payments): «Test run failed to complete.
+  # Expected 6 tests, received 5» مع 0 اختبارات فاشلة (كل المكتملة نجحت)،
+  # وضغط ذاكرة واضح على محاكي 1GB (PSS 418MB قبل الانهيار ثم هبوط إلى
+  # 117MB مع نشاط lmkd في نفس النافذة الزمنية) — بينما إعادة التشغيل
+  # التشخيصية لنفس أمر gradle نجحت 6/6 مباشرة بعدها. قرار الحكم يُبنى
+  # على المحاولتين: الاختبار المكسور فعلاً يفشل مرتين ويبقى FAIL.
+  echo "  retry #1 for $NAME (transient instrumentation crash?)"
+  if patrol test --verbose --target "$FILE" >> "$MET/test_${NAME}.log" 2>&1; then
+    echo "$NAME=PASS" >> "$MET/results.txt"
+    echo "::warning::scenario $NAME passed on retry #1 — first attempt was a transient instrumentation crash (see test_${NAME}.log for both attempts)"
+    return 0
+  fi
+  echo "$NAME=FAIL" >> "$MET/results.txt"
+  echo "::warning::integration scenario $NAME failed twice — see artifact test_${NAME}.log"
+  # ── تشخيص عميق ──
+  # 1) إعادة تشغيل أمر gradle نفسه (المستخرج من اللوج) مع --stacktrace
+  #    لكشف مصدر IOException: No such file or directory
+  GRADLE_CMD=$(grep -m1 -o "\./gradlew :app:connectedDebugAndroidTest.*" \
+    "$MET/test_${NAME}.log" | tail -1)
+  if [ -n "$GRADLE_CMD" ]; then
+    (cd android && eval "$GRADLE_CMD --stacktrace") \
+      > "$MET/test_${NAME}_stacktrace.log" 2>&1 || true
+  fi
+  # 4) تشخيص من داخل JVM الـ daemon نفسه: أين يرى user.home؟ وهل
+  #    createTempFile ينجح تحت نفس ظروف AGP تماماً؟
+  cat > "$MET/utp_diag.init.gradle" <<'EOF'
 gradle.settingsEvaluated {
     def uh = System.getProperty("user.home")
     def tmp = System.getProperty("java.io.tmpdir")
@@ -158,19 +173,18 @@ gradle.settingsEvaluated {
     }
 }
 EOF
-    (cd android && ./gradlew -q -I "$MET/utp_diag.init.gradle" :app:help) \
-      > "$MET/test_${NAME}_daemon_diag.log" 2>&1 || true
-    # 2) ذيل logcat كامل (بدون grep — الـ grep أفرغ الملف سابقاً)
-    adb logcat -d -t 3000 > "$MET/test_${NAME}_device.logcat.txt" 2>&1 || true
-    # 5) تقارير الأعطال على الجهاز (orchestrator يكتب تفاصيل انهيار
-    #    كل اختبار في additional_test_output)
-    adb pull /sdcard/Android/media/"$PKG"/additional_test_output \
-      "$MET/test_${NAME}_device_output" >/dev/null 2>&1 || true
-    # 3) حالة الجهاز وملفات الـ APK
-    adb devices -l > "$MET/test_${NAME}_adb_devices.txt" 2>&1 || true
-    ls -la build/app/outputs/apk/debug/ build/app/outputs/apk/androidTest/debug/ \
-      >> "$MET/test_${NAME}_adb_devices.txt" 2>&1 || true
-  fi
+  (cd android && ./gradlew -q -I "$MET/utp_diag.init.gradle" :app:help) \
+    > "$MET/test_${NAME}_daemon_diag.log" 2>&1 || true
+  # 2) ذيل logcat كامل (بدون grep — الـ grep أفرغ الملف سابقاً)
+  adb logcat -d -t 3000 > "$MET/test_${NAME}_device.logcat.txt" 2>&1 || true
+  # 5) تقارير الأعطال على الجهاز (orchestrator يكتب تفاصيل انهيار
+  #    كل اختبار في additional_test_output)
+  adb pull /sdcard/Android/media/"$PKG"/additional_test_output \
+    "$MET/test_${NAME}_device_output" >/dev/null 2>&1 || true
+  # 3) حالة الجهاز وملفات الـ APK
+  adb devices -l > "$MET/test_${NAME}_adb_devices.txt" 2>&1 || true
+  ls -la build/app/outputs/apk/debug/ build/app/outputs/apk/androidTest/debug/ \
+    >> "$MET/test_${NAME}_adb_devices.txt" 2>&1 || true
 }
 
 cd mobile || exit 1
