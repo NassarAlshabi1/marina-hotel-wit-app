@@ -50,8 +50,7 @@ class ScenarioSettingsController extends StateNotifier<List<ScenarioParams>> {
           ScenarioParams(
             key: m['key'] as String? ?? '',
             name: m['name'] as String? ?? '',
-            revenueFactor:
-                (m['revenueFactor'] as num?)?.toDouble() ?? 1.0,
+            revenueFactor: (m['revenueFactor'] as num?)?.toDouble() ?? 1.0,
             collectionFactor:
                 (m['collectionFactor'] as num?)?.toDouble() ?? 1.0,
           ),
@@ -106,8 +105,8 @@ class ScenarioSettingsController extends StateNotifier<List<ScenarioParams>> {
 
 final scenarioSettingsProvider =
     StateNotifierProvider<ScenarioSettingsController, List<ScenarioParams>>(
-  (ref) => ScenarioSettingsController(),
-);
+      (ref) => ScenarioSettingsController(),
+    );
 
 // ── عميل التمويل السحابي ────────────────────────────────────────────
 
@@ -143,23 +142,25 @@ class FinanceDataBundle {
   final DateTime loadedAt;
 }
 
-final financeDataBundleProvider = FutureProvider<FinanceDataBundle>((ref) async {
+final financeDataBundleProvider = FutureProvider<FinanceDataBundle>((
+  ref,
+) async {
   final database = ref.watch(databaseProvider);
 
   final rooms = await database.select(database.rooms).get();
-  final bookings = await (database.select(database.bookings)
-        ..where((b) => b.deletedAt.isNull()))
-      .get();
-  final payments = await (database.select(database.payments)
-        ..where((p) => p.deletedAt.isNull() & p.isVoided.equals(false)))
-      .get();
-  final expenses = await (database.select(database.expenses)
-        ..where((e) => e.deletedAt.isNull()))
-      .get();
+  final bookings = await (database.select(
+    database.bookings,
+  )..where((b) => b.deletedAt.isNull())).get();
+  final payments = await (database.select(
+    database.payments,
+  )..where((p) => p.deletedAt.isNull() & p.isVoided.equals(false))).get();
+  final expenses = await (database.select(
+    database.expenses,
+  )..where((e) => e.deletedAt.isNull())).get();
   final employees = await database.select(database.employees).get();
-  final cash = await (database.select(database.cashTransactions)
-        ..where((t) => t.deletedAt.isNull()))
-      .get();
+  final cash = await (database.select(
+    database.cashTransactions,
+  )..where((t) => t.deletedAt.isNull())).get();
 
   return FinanceDataBundle(
     bookings: bookings,
@@ -186,8 +187,10 @@ final paymentProfileProvider = FutureProvider<PaymentProfile>((ref) async {
 // ── مصدر الحساب (للعرض الشفاف في الواجهة) ───────────────────────────
 
 /// مصدر آخر حساب للنموذج لكل سيناريو: d1 (خادمي) أو local (احتياطي).
-final forecastSourceProvider =
-    Provider.family<FinanceComputeSource?, String>((ref, scenarioKey) {
+final forecastSourceProvider = Provider.family<FinanceComputeSource?, String>((
+  ref,
+  scenarioKey,
+) {
   // يعاد تقييمه عند كل تغير لحالة مزود النموذج (تحميل/نجاح/فشل)
   ref.watch(forecastResultProvider(scenarioKey));
   return _forecastSources[scenarioKey];
@@ -201,12 +204,13 @@ final _forecastSources = <String, FinanceComputeSource>{};
 ///
 /// يُحسب على الـWorker من D1 الحية أولاً؛ وعند الفشل يعاد الحساب
 /// محلياً بنفس المنطق من بيانات drift المتزامنة.
-final forecastResultProvider =
-    FutureProvider.family<ForecastResult, String>((ref, scenarioKey) async {
+final forecastResultProvider = FutureProvider.family<ForecastResult, String>((
+  ref,
+  scenarioKey,
+) async {
   final scenarios = ref.watch(scenarioSettingsProvider);
-  final scenario = scenarios
-          .where((s) => s.key == scenarioKey)
-          .firstOrNull ??
+  final scenario =
+      scenarios.where((s) => s.key == scenarioKey).firstOrNull ??
       ScenarioParams.defaults.first;
 
   // 1) الخادم أولاً — مصدر الحقيقة الموحد عبر الأجهزة
@@ -251,8 +255,9 @@ final kpiSnapshotProvider = FutureProvider<KpiSnapshot>((ref) async {
   if (ref.read(cloudflareSyncManagerProvider).token != null) {
     try {
       final service = ref.read(cloudflareFinanceServiceProvider);
-      final snapshot =
-          await service.fetchKpi().timeout(const Duration(seconds: 25));
+      final snapshot = await service.fetchKpi().timeout(
+        const Duration(seconds: 25),
+      );
       return snapshot;
     } catch (_) {
       // سقوط مقصود إلى الحساب المحلي
@@ -286,19 +291,18 @@ final kpiSnapshotProvider = FutureProvider<KpiSnapshot>((ref) async {
 // ── اللقطات الأسبوعية المعتمدة + الفعلي مقابل المتوقع ────────────────
 
 /// قائمة النسخ الأسبوعية المعتمدة (تحتاج manager/admin على الخادم).
-final financeSnapshotsProvider =
-    FutureProvider<List<FinanceSnapshotMeta>>((ref) async {
+final financeSnapshotsProvider = FutureProvider<List<FinanceSnapshotMeta>>((
+  ref,
+) async {
   final service = ref.read(cloudflareFinanceServiceProvider);
-  return service
-      .fetchSnapshots()
-      .timeout(const Duration(seconds: 25));
+  return service.fetchSnapshots().timeout(const Duration(seconds: 25));
 });
 
 /// تقرير الانحراف لنسخة معتمدة بمعرّفها (عتبات 5% / 10%).
 final financeVarianceProvider =
     FutureProvider.family<FinanceVarianceReport, int>((ref, snapshotId) async {
-  final service = ref.read(cloudflareFinanceServiceProvider);
-  return service
-      .fetchVariance(snapshotId)
-      .timeout(const Duration(seconds: 25));
-});
+      final service = ref.read(cloudflareFinanceServiceProvider);
+      return service
+          .fetchVariance(snapshotId)
+          .timeout(const Duration(seconds: 25));
+    });

@@ -177,8 +177,8 @@ class KpiEngine {
         status: cur.netFlow > 0
             ? AlertLevel.good
             : cur.netFlow == 0
-                ? AlertLevel.warning
-                : AlertLevel.danger,
+            ? AlertLevel.warning
+            : AlertLevel.danger,
       ),
       _row(
         label: 'الرصيد آخر الأسبوع',
@@ -189,8 +189,8 @@ class KpiEngine {
         status: cashBalance >= minLiquidity
             ? AlertLevel.good
             : cashBalance >= 0
-                ? AlertLevel.warning
-                : AlertLevel.danger,
+            ? AlertLevel.warning
+            : AlertLevel.danger,
       ),
       _row(
         label: 'أسابيع التغطية',
@@ -477,6 +477,5 @@ class _PeriodStats {
 
   double get dieselRatio => collected <= 0 ? 0 : diesel / collected;
 
-  double get otherRatio =>
-      expensesTotal <= 0 ? 0 : other / expensesTotal;
+  double get otherRatio => expensesTotal <= 0 ? 0 : other / expensesTotal;
 }

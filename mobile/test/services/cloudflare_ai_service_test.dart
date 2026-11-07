@@ -67,9 +67,7 @@ void main() {
 
     test('كلا المصدرين غائب → null', () {
       expect(
-        CloudflareAiService.resolveWorkerToken(
-          
-        ),
+        CloudflareAiService.resolveWorkerToken(),
         isNull,
       );
     });

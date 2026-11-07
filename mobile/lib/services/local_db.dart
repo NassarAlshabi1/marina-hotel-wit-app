@@ -697,6 +697,7 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
   TextColumn get notes => text().nullable()();
+
   /// تاريخ دخول النزيل؛ يبقى فارغاً للسجلات القديمة.
   TextColumn get entryDate => text().nullable()();
   TextColumn get guestPhone => text().nullable()();

@@ -668,8 +668,9 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     // (مثل 'active' الإنجليزية أو '' من مزامنة قديمة) لا تطابق أي عنصر
     // من عناصر القائمة المنسدلة فتصبح فارغة. employeeStatusLabel تعيد
     // دائماً تسمية عربية ضمن عناصر القائمة — نفس نمط employees_list.dart:786.
-    String status =
-        employee != null ? StatusUtils.employeeStatusLabel(employee.status) : 'نشط';
+    String status = employee != null
+        ? StatusUtils.employeeStatusLabel(employee.status)
+        : 'نشط';
 
     unawaited(
       showDialog<void>(

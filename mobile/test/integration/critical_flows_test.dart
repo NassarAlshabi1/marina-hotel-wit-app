@@ -93,7 +93,6 @@ Future<AppDatabase> _seedFullDatabase() async {
   return db;
 }
 
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

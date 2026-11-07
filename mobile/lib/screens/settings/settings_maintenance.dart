@@ -664,10 +664,7 @@ class _SettingsMaintenanceScreenState
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-        onTap:
-            _isWorking || !_canManageMaintenance
-                ? null
-                : onTap,
+        onTap: _isWorking || !_canManageMaintenance ? null : onTap,
       ),
     );
   }
@@ -820,16 +817,16 @@ class _SettingsMaintenanceScreenState
                 _showLoading('جاري فحص قاعدة البيانات...');
                 try {
                   final db = ref.read(databaseProvider);
-                  final sqliteResult =
-                      await DatabaseHealthChecker.instance.checkIntegrity();
+                  final sqliteResult = await DatabaseHealthChecker.instance
+                      .checkIntegrity();
                   if (sqliteResult == null) {
                     throw StateError('تعذر تنفيذ PRAGMA integrity_check');
                   }
                   final foreignKeyViolations = await db
                       .customSelect('PRAGMA foreign_key_check')
                       .get();
-                  final logicalReport =
-                      await SyncIntegrityChecker.instance.verify(db);
+                  final logicalReport = await SyncIntegrityChecker.instance
+                      .verify(db);
                   final tableChecks = await ref
                       .read(syncOrchestratorProvider)
                       .verifyDataIntegrity();
@@ -1580,7 +1577,10 @@ class _SettingsMaintenanceScreenState
     } catch (e) {
       dlog(() => '❌ Database reset recovery failed: $e');
       if (mounted) {
-        _showSnack('تعذر استعادة قاعدة البيانات بعد الفشل: $e', color: Colors.red);
+        _showSnack(
+          'تعذر استعادة قاعدة البيانات بعد الفشل: $e',
+          color: Colors.red,
+        );
       }
     }
   }

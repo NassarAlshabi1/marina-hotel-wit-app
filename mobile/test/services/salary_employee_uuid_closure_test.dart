@@ -91,7 +91,8 @@ void main() {
     final empB = await seedEmployee('uuid-bbbb');
 
     // صفوف ما قبل الترقية: موظف صالح + يتيم مقصود (employee_id=999)
-    await db.into(db.salaryWithdrawals)
+    await db
+        .into(db.salaryWithdrawals)
         .insert(
           SalaryWithdrawalsCompanion.insert(
             employeeId: empA,

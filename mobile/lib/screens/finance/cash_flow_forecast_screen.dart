@@ -28,7 +28,9 @@ class _CashFlowForecastScreenState
   @override
   Widget build(BuildContext context) {
     final scenarios = ref.watch(scenarioSettingsProvider);
-    final forecastAsync = ref.watch(forecastResultProvider(_selectedScenarioKey));
+    final forecastAsync = ref.watch(
+      forecastResultProvider(_selectedScenarioKey),
+    );
 
     return AppScaffold(
       title: 'التدفقات النقدية — 13 أسبوعاً',
@@ -49,10 +51,13 @@ class _CashFlowForecastScreenState
         },
         child: forecastAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(message: '$e', onRetry: () {
-            ref.invalidate(financeDataBundleProvider);
-            ref.invalidate(forecastResultProvider);
-          }),
+          error: (e, _) => _ErrorView(
+            message: '$e',
+            onRetry: () {
+              ref.invalidate(financeDataBundleProvider);
+              ref.invalidate(forecastResultProvider);
+            },
+          ),
           data: (result) => _buildBody(context, result, scenarios),
         ),
       ),
@@ -79,7 +84,8 @@ class _CashFlowForecastScreenState
                 for (final s in scenarios)
                   ChoiceChip(
                     label: Text(
-                        '${s.name} (${_pctText(s.revenueFactor)}٪ / ${_pctText(s.collectionFactor)}٪)'),
+                      '${s.name} (${_pctText(s.revenueFactor)}٪ / ${_pctText(s.collectionFactor)}٪)',
+                    ),
                     selected: s.key == _selectedScenarioKey,
                     onSelected: (_) =>
                         setState(() => _selectedScenarioKey = s.key),
@@ -224,9 +230,7 @@ class _SummaryGrid extends StatelessWidget {
               title: 'رصيد البداية',
               value: _money(result.openingBalance),
               icon: Icons.account_balance_wallet,
-              color: result.openingBalance >= 0
-                  ? Colors.green
-                  : Colors.red,
+              color: result.openingBalance >= 0 ? Colors.green : Colors.red,
             ),
             const SizedBox(width: 8),
             _SummaryCard(
@@ -301,7 +305,9 @@ class _SummaryCard extends StatelessWidget {
                     child: Text(
                       title,
                       style: const TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w600),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -343,12 +349,16 @@ class _BalanceChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final spots = <FlSpot>[
       FlSpot(0, result.openingBalance),
-      for (final w in result.weeks) FlSpot(w.index.toDouble(), w.closingBalance),
+      for (final w in result.weeks)
+        FlSpot(w.index.toDouble(), w.closingBalance),
     ];
     final allClosing = [result.openingBalance, ...spots.map((s) => s.y)];
     final maxY = allClosing.reduce((a, b) => a > b ? a : b) * 1.05;
-    final minY = [result.liquidityThreshold, ...allClosing]
-        .reduce((a, b) => a < b ? a : b) *
+    final minY =
+        [
+          result.liquidityThreshold,
+          ...allClosing,
+        ].reduce((a, b) => a < b ? a : b) *
         0.95;
 
     return LineChart(
@@ -412,15 +422,14 @@ class _WeekCard extends StatelessWidget {
           ),
           subtitle: Text(
             'صافي: ${_money(week.netFlow)}  •  الرصيد: ${_money(week.closingBalance)}  •  تغطية: ${week.coverageWeeks.toStringAsFixed(1)} أسبوع',
-            style: TextStyle(
-                fontSize: 11, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
           ),
           trailing: Icon(
             week.status == AlertLevel.danger
                 ? Icons.error
                 : week.status == AlertLevel.warning
-                    ? Icons.warning_amber_rounded
-                    : Icons.check_circle,
+                ? Icons.warning_amber_rounded
+                : Icons.check_circle,
             color: statusColor,
             size: 20,
           ),
@@ -441,14 +450,42 @@ class _WeekCard extends StatelessWidget {
               color: Colors.blueGrey,
             ),
             const Divider(height: 12),
-            _FlowRow(label: 'إجمالي الداخل', value: week.inflow.total, color: Colors.indigo),
+            _FlowRow(
+              label: 'إجمالي الداخل',
+              value: week.inflow.total,
+              color: Colors.indigo,
+            ),
             const SizedBox(height: 4),
-            _FlowRow(label: 'خارج — رواتب', value: week.outflow.salaries, color: Colors.red.shade300),
-            _FlowRow(label: 'خارج — ديزل', value: week.outflow.diesel, color: Colors.red.shade300),
-            _FlowRow(label: 'خارج — كهرباء ومياه', value: week.outflow.utilities, color: Colors.red.shade300),
-            _FlowRow(label: 'خارج — صيانة', value: week.outflow.maintenance, color: Colors.red.shade300),
-            _FlowRow(label: 'خارج — أخرى', value: week.outflow.other, color: Colors.red.shade300),
-            _FlowRow(label: 'إجمالي الخارج', value: week.outflow.total, color: Colors.red),
+            _FlowRow(
+              label: 'خارج — رواتب',
+              value: week.outflow.salaries,
+              color: Colors.red.shade300,
+            ),
+            _FlowRow(
+              label: 'خارج — ديزل',
+              value: week.outflow.diesel,
+              color: Colors.red.shade300,
+            ),
+            _FlowRow(
+              label: 'خارج — كهرباء ومياه',
+              value: week.outflow.utilities,
+              color: Colors.red.shade300,
+            ),
+            _FlowRow(
+              label: 'خارج — صيانة',
+              value: week.outflow.maintenance,
+              color: Colors.red.shade300,
+            ),
+            _FlowRow(
+              label: 'خارج — أخرى',
+              value: week.outflow.other,
+              color: Colors.red.shade300,
+            ),
+            _FlowRow(
+              label: 'إجمالي الخارج',
+              value: week.outflow.total,
+              color: Colors.red,
+            ),
             const Divider(height: 12),
             _TwoColRow(
               leftLabel: 'رصيد بداية',
@@ -485,7 +522,11 @@ class _WeekCard extends StatelessWidget {
 }
 
 class _FlowRow extends StatelessWidget {
-  const _FlowRow({required this.label, required this.value, required this.color});
+  const _FlowRow({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final double value;
@@ -625,10 +666,12 @@ class _ScenarioEditorTile extends StatefulWidget {
 }
 
 class _ScenarioEditorTileState extends State<_ScenarioEditorTile> {
-  late final TextEditingController _revenue =
-      TextEditingController(text: (widget.initial.revenueFactor * 100).toStringAsFixed(0));
-  late final TextEditingController _collection =
-      TextEditingController(text: (widget.initial.collectionFactor * 100).toStringAsFixed(0));
+  late final TextEditingController _revenue = TextEditingController(
+    text: (widget.initial.revenueFactor * 100).toStringAsFixed(0),
+  );
+  late final TextEditingController _collection = TextEditingController(
+    text: (widget.initial.collectionFactor * 100).toStringAsFixed(0),
+  );
 
   @override
   void dispose() {
@@ -685,7 +728,9 @@ class _ScenarioEditorTileState extends State<_ScenarioEditorTile> {
               ),
             );
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('تم حفظ معاملات «${widget.initial.name}»')),
+              SnackBar(
+                content: Text('تم حفظ معاملات «${widget.initial.name}»'),
+              ),
             );
           },
         ),
@@ -725,7 +770,10 @@ class _ErrorView extends StatelessWidget {
               style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
             const SizedBox(height: 12),
-            FilledButton.tonal(onPressed: onRetry, child: const Text('إعادة المحاولة')),
+            FilledButton.tonal(
+              onPressed: onRetry,
+              child: const Text('إعادة المحاولة'),
+            ),
           ],
         ),
       ),

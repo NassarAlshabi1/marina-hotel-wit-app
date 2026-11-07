@@ -601,10 +601,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   _probeRow(
                     _probeResult!.dmlAllowed,
                     'صلاحية الكتابة (DML) متاحة على التوكن الإداري '
-                    '(تشخيصي فقط — الرفع الفعلي يمر عبر /push ولا يعتمد '
-                    'على هذا التوكن)',
+                        '(تشخيصي فقط — الرفع الفعلي يمر عبر /push ولا يعتمد '
+                        'على هذا التوكن)',
                     'صلاحية الكتابة (DML) محجوبة على التوكن الإداري '
-                    '(لا يمنع الرفع الفعلي)',
+                        '(لا يمنع الرفع الفعلي)',
                     detail: _probeResult!.dmlError,
                   ),
                   _probeRow(

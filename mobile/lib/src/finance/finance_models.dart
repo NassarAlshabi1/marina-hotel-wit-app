@@ -272,7 +272,9 @@ class WeeklyForecast {
       surplusOverThreshold < 0 ? -surplusOverThreshold : 0;
 
   AlertLevel get status {
-    if (closingBalance < 0 || surplusOverThreshold < 0) return AlertLevel.danger;
+    if (closingBalance < 0 || surplusOverThreshold < 0) {
+      return AlertLevel.danger;
+    }
     if (coverageWeeks < 4) return AlertLevel.warning;
     return AlertLevel.good;
   }

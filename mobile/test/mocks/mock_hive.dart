@@ -6,7 +6,6 @@ import 'dart:typed_data';
 
 /// Mock لـ Hive Box
 class MockHiveBox<T> {
-
   MockHiveBox(this.name);
   final Map<String, T> _data = {};
   final String name;
@@ -131,7 +130,6 @@ class MockHiveCipher {
 
 /// Mock للـ Hive AES Cipher
 class MockHiveAesCipher implements MockHiveCipher {
-
   MockHiveAesCipher(this.key);
   final List<int> key;
 
@@ -150,7 +148,6 @@ class MockHiveAesCipher implements MockHiveCipher {
 
 /// Mock للـ Hive Reader
 class MockHiveReader {
-
   MockHiveReader(this._data);
   final Map<String, dynamic> _data;
 

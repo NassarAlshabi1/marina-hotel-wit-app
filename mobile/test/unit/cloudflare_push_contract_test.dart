@@ -487,19 +487,22 @@ void main() {
       expect(data.containsKey('employeeId'), isFalse);
     });
 
-    test('blacklist — من blacklist_entries عبر outbox entity=blacklist', () async {
-      await BlacklistRepository(
-        db,
-      ).addEntry(name: 'محظور العقد', nationality: 'يمني', reason: 'تجربة');
-      final ops = await pushedOperations();
-      final data =
-          ops.where((o) => o['entity'] == 'blacklist').single['data']
-              as Map<String, dynamic>;
-      expect(data['name'], 'محظور العقد');
-      expect(data['reported_by'], 'police');
-      expect(data['active'], anyOf(0, 1));
-      expect(data.containsKey('nationalId'), isFalse);
-    });
+    test(
+      'blacklist — من blacklist_entries عبر outbox entity=blacklist',
+      () async {
+        await BlacklistRepository(
+          db,
+        ).addEntry(name: 'محظور العقد', nationality: 'يمني', reason: 'تجربة');
+        final ops = await pushedOperations();
+        final data =
+            ops.where((o) => o['entity'] == 'blacklist').single['data']
+                as Map<String, dynamic>;
+        expect(data['name'], 'محظور العقد');
+        expect(data['reported_by'], 'police');
+        expect(data['active'], anyOf(0, 1));
+        expect(data.containsKey('nationalId'), isFalse);
+      },
+    );
 
     test('price_adjustments + audit_logs — خدمة تعديل الأسعار', () async {
       await roomsDao.insertOne(
