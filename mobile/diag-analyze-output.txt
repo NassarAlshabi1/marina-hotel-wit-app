@@ -1,5 +1,3 @@
-  error • The element type 'int' can't be assigned to the list type 'Variable<Object>' • lib/services/local_link_resolver.dart:322:19 • list_element_type_not_assignable
-  error • The element type 'String' can't be assigned to the list type 'Variable<Object>' • lib/services/local_link_resolver.dart:322:29 • list_element_type_not_assignable
 EXIT=1
 Resolving dependencies...
 Downloading packages...
@@ -191,9 +189,7 @@ Got dependencies!
 Try `flutter pub outdated` for more information.
 Analyzing mobile...                                             
 
-  error • The element type 'int' can't be assigned to the list type 'Variable<Object>' • lib/services/local_link_resolver.dart:322:19 • list_element_type_not_assignable
-  error • The element type 'String' can't be assigned to the list type 'Variable<Object>' • lib/services/local_link_resolver.dart:322:29 • list_element_type_not_assignable
 warning • Unnecessary cast. Try removing the cast • test/services/pending_links_persistence_test.dart:112:13 • unnecessary_cast
 
-3 issues found. (ran in 25.3s)
+1 issue found. (ran in 23.2s)
 EXIT=1
