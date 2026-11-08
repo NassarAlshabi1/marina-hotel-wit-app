@@ -1338,7 +1338,7 @@ class _EmployeeCard extends StatelessWidget {
     final statusColor = Color(StatusUtils.employeeStatusColor(employee.status));
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 1),
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
         side: BorderSide(color: statusColor.withValues(alpha: 0.15)),
@@ -1347,13 +1347,13 @@ class _EmployeeCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
           child: Row(
             children: [
               // صورة رمزية للموظف
               Container(
-                width: 26,
-                height: 26,
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(5),
@@ -1362,10 +1362,10 @@ class _EmployeeCard extends StatelessWidget {
                 child: Icon(
                   isTerminated ? Icons.person_off : Icons.person,
                   color: statusColor,
-                  size: 14,
+                  size: 12,
                 ),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
 
               // بيانات الموظف
               Expanded(
@@ -1379,7 +1379,7 @@ class _EmployeeCard extends StatelessWidget {
                             employee.name,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 11,
+                              fontSize: 10,
                               decoration: isTerminated
                                   ? TextDecoration.lineThrough
                                   : null,
