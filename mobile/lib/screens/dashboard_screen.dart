@@ -1030,8 +1030,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'استلامات المستخدمين الآخرين في النوبات',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  'استلام الموظفين',
+                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
