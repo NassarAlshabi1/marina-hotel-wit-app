@@ -18,6 +18,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 import 'package:marina_hotel_mobile/services/appwrite_config_manager.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,6 +74,17 @@ void main() {
     // في نفس الـ isolate (نفس singleton AppwriteService وConfigManager).
     await AppwriteConfigManager.resetToDefaults();
     await AppwriteService().reconfigure();
+  });
+
+  test('init loads the configured Appwrite Cloud defaults', () async {
+    SharedPreferences.setMockInitialValues({});
+
+    await AppwriteConfigManager.init();
+
+    expect(AppwriteConfigManager.endpoint, AppwriteConfig.endpoint);
+    expect(AppwriteConfigManager.projectId, '6a4408f300217885fd7b');
+    expect(AppwriteConfigManager.databaseId, '6a4409b50019dd39dde5');
+    expect(AppwriteConfigManager.apiKey, AppwriteConfig.defaultApiKey);
   });
 
   test('reconfigure يعيد بناء العميل بالإعدادات الجديدة فوراً', () async {

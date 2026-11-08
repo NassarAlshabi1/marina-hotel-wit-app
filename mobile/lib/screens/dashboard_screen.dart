@@ -1031,12 +1031,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Expanded(
                 child: Text(
                   'استلامات المستخدمين الآخرين في النوبات',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
                 'اليوم الفندقي الحالي',
-                style: TextStyle(fontSize: 9, color: Colors.grey),
+                style: TextStyle(fontSize: 8, color: Colors.grey),
               ),
               const SizedBox(width: 4),
               // ✅ تحديث فوري من السحابة عند الطلب.
@@ -1108,24 +1108,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           '${summary.paymentCount} دفعة',
                           style: const TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             color: Colors.grey,
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 6),
                         Text(
                           currencyFmt.format(summary.totalAmount),
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.blue.shade700,
                           ),

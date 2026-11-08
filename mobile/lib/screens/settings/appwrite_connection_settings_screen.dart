@@ -258,7 +258,7 @@ class _AppwriteConnectionSettingsScreenState
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'يمكنك تغيير إعدادات الاتصال بـ Appwrite Cloud هنا. تأكد من إدخال البيانات الصحيحة من لوحة تحكم Appwrite.',
+                'تُملأ بيانات Endpoint وProject ID وDatabase ID تلقائياً، ويمكنك تعديلها وحفظها يدوياً هنا. اترك API Key فارغاً في تطبيق الهاتف؛ مفاتيح Appwrite API مخصصة للخادم ويمكن استخراجها من التطبيق. استخدم مصادقة Appwrite وصلاحيات المجموعات بدلاً منها.',
                 style: TextStyle(color: Colors.blue.shade700),
               ),
             ),
@@ -336,10 +336,9 @@ class _AppwriteConnectionSettingsScreenState
             TextFormField(
               controller: _apiKeyController,
               decoration: InputDecoration(
-                labelText: 'API Key',
-                hintText: 'مفتاح API من Appwrite (افتراضي مُدمج)',
-                helperText:
-                    'يُستخدم المفتاح الافتراضي تلقائياً. يمكنك استبداله بأي وقت.',
+                labelText: 'API Key (اختياري)',
+                hintText: 'اتركه فارغاً لتطبيق الهاتف',
+                helperText: 'لا تُضمّن مفتاح API سرياً في تطبيق الهاتف.',
                 prefixIcon: const Icon(Icons.key),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
