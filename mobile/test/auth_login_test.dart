@@ -28,20 +28,17 @@ void main() {
     await SecondaryAppwriteConfig.ensureInitialized();
   });
 
-  test(
-    'نجاح تسجيل الدخول للمسؤول admin/admin دون انتظار الشبكة',
-    () async {
-      final notifier = AuthNotifier();
-      await notifier.login('admin', 'admin');
-      expect(notifier.state.isAuthenticated, true);
-      expect(notifier.state.currentUser?.username, 'admin');
-      expect(notifier.state.currentUser?.permissions.contains('all'), true);
-    },
-    timeout: const Timeout(Duration(seconds: 5)),
-  );
+  test('رفض كلمة المرور الافتراضية القديمة للحساب المحلي admin', () async {
+    final notifier = AuthNotifier(restoreSessionOnCreate: false);
+    addTearDown(notifier.dispose);
+    await notifier.login('admin', 'admin');
+    expect(notifier.state.isAuthenticated, false);
+    expect(notifier.state.error, isNotNull);
+  });
 
   test('فشل تسجيل الدخول لبيانات خاطئة', () async {
-    final notifier = AuthNotifier();
+    final notifier = AuthNotifier(restoreSessionOnCreate: false);
+    addTearDown(notifier.dispose);
     await notifier.login('admin', 'wrong');
     expect(notifier.state.isAuthenticated, false);
     expect(notifier.state.error, isNotNull);
