@@ -189,13 +189,17 @@ class BackupDataService {
       );
 
       // إعدادات الواتساب من SharedPreferences
+      // ✅ إصلاح أمني: 'wa_api_token' أُزيل عمداً من هذه القائمة — التوكن
+      // الآن في FlutterSecureStorage (whatsapp_token_storage.dart)، ولا
+      // يُستعاد من النسخ الاحتياطي أصلاً، فإدراجه هنا كان يُسرّب التوكن
+      // بنص صريح في ملف backup على القرص/Google Drive. نفس مبدأ استثناء
+      // Telegram Bot Token من النسخ الاحتياطي (telegram_config.dart).
       final prefs = await SharedPreferences.getInstance();
       final whatsappSettings = <String, dynamic>{};
       const waKeys = [
         'wa_api_type',
         'wa_api_base_url',
         'wa_api_instance_id',
-        'wa_api_token',
         'wa_custom_url_template',
       ];
       for (final key in waKeys) {

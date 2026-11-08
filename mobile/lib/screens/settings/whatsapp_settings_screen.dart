@@ -8,6 +8,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/whatsapp_service.dart';
 import '../../utils/snackbar_helper.dart';
+import '../../utils/whatsapp_token_storage.dart';
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
   const WhatsAppSettingsScreen({super.key});
@@ -56,6 +57,9 @@ class _WhatsAppSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    // ✅ إصلاح أمني: التوكن يُقرأ من SecureStorage (مع ترحيل تلقائي من
+    // SharedPreferences إن وُجدت نسخة قديمة بنص صريح).
+    final secureToken = await WhatsAppTokenStorage.read();
     if (!mounted) {
       return;
     }
@@ -64,7 +68,7 @@ class _WhatsAppSettingsScreenState
           prefs.getString('wa_api_base_url') ?? _defaultBaseUrl;
       _instanceIdController.text =
           prefs.getString('wa_api_instance_id') ?? _defaultInstanceId;
-      _tokenController.text = prefs.getString('wa_api_token') ?? _defaultToken;
+      _tokenController.text = secureToken ?? _defaultToken;
       _customUrlController.text =
           prefs.getString('wa_custom_url_template') ?? '';
       final typeStr = prefs.getString('wa_api_type');
@@ -87,7 +91,9 @@ class _WhatsAppSettingsScreenState
       'wa_api_instance_id',
       _instanceIdController.text.trim(),
     );
-    await prefs.setString('wa_api_token', _tokenController.text.trim());
+    // ✅ إصلاح أمني: التوكن يُكتب في SecureStorage فقط، لا في
+    // SharedPreferences بنص صريح.
+    await WhatsAppTokenStorage.write(_tokenController.text.trim());
     await prefs.setString(
       'wa_custom_url_template',
       _customUrlController.text.trim(),
@@ -118,10 +124,16 @@ class _WhatsAppSettingsScreenState
       prefs.remove('wa_api_type'),
       prefs.remove('wa_api_base_url'),
       prefs.remove('wa_api_instance_id'),
-      prefs.remove('wa_api_token'),
       prefs.remove('wa_custom_url_template'),
     ]);
-    final allRemoved = results.every((r) => r);
+    // ✅ التوكن الآن في SecureStorage — يُحذف منفصلاً (API مختلف عن prefs).
+    bool tokenRemoved = true;
+    try {
+      await WhatsAppTokenStorage.delete();
+    } catch (_) {
+      tokenRemoved = false;
+    }
+    final allRemoved = results.every((r) => r) && tokenRemoved;
 
     ref.invalidate(whatsappSettingsProvider);
     if (!mounted) {
