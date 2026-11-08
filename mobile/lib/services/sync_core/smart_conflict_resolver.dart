@@ -70,6 +70,7 @@ class ResolutionResult {
     required this.strategy,
     this.warnings = const [],
     this.pushedToRemote = false,
+    this.discardLocalOutbox = false,
   });
 
   final Map<String, dynamic> mergedData;
@@ -78,6 +79,12 @@ class ResolutionResult {
 
   /// هل يجب رفع النتيجة المدمجة للسحابة؟
   final bool pushedToRemote;
+
+  /// ✅ عند حسم تعارض حقيقي لصالح السحابة: يجب على المستدعي حذف أي
+  /// تعديل محلي معلّق في outbox لهذا السجل. بدون هذا، سيُعاد رفع
+  /// التعديل المحلي القديم في الدورة القادمة فيُعيد التعارض نفسه
+  /// إلى الأبد (ping-pong).
+  final bool discardLocalOutbox;
 }
 
 /// محلّل التعارضات الذكي — يحل جميع التعارضات تلقائياً على مستوى السجل
@@ -390,12 +397,17 @@ class SmartConflictResolver {
       );
     }
 
-    // جميع التعارضات المتزامنة تُحل تلقائياً على مستوى الحقل
-    return _autoMerge(
-      entity: entity,
-      localData: localData!,
-      remoteData: remoteData,
-      detection: detection,
+    // ✅ (تحديث سياسة): التعارض المتزامن الحقيقي (نفس السجل عُدّل على جهازين
+    // بلا علاقة سببية) يُحسم لصالح السحابة دائماً، بدل الدمج المعقّد على
+    // مستوى الحقل الذي كان مصدراً لأخطاء ping-pong وفقدان بيانات صامت.
+    // التعديل المحلي المتعارض يُستبدَل بنسخة السحابة، ويجب على المستدعي
+    // حذف أي تعديل محلي معلّق في outbox لهذا السجل (discardLocalOutbox)
+    // لمنع رفعه مرة أخرى وإعادة فتح التعارض نفسه.
+    return ResolutionResult(
+      mergedData: remoteData,
+      strategy: ResolutionStrategy.remoteWins,
+      warnings: const ['تعارض حقيقي — حُسم لصالح نسخة السحابة'],
+      discardLocalOutbox: true,
     );
   }
 

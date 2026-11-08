@@ -251,7 +251,17 @@ class ConflictDetector {
           key == 'vector_clock' ||
           key == 'last_modified' ||
           key == 'last_modified_epoch' ||
-          key == 'updated_at') {
+          key == 'updated_at' ||
+          // ✅ حقول البيانات الوصفية لمحرّك المزامنة نفسه — تتغيّر في كل
+          // دفعة (push) بلا أي تغيير فعلي في محتوى السجل. عدم استثنائها
+          // يُفشل حارس "لا تغييرات فعلية" على كل البيانات الحقيقية تقريباً
+          // (كل الكيانات تكتبها عبر payload_mapper.dart) ويسبب ping-pong
+          // تعارضات مستمراً بين الأجهزة.
+          key == 'lastModifiedEpoch' ||
+          key == 'syncTimestamp' ||
+          key == 'sync_origin' ||
+          key == 'deviceId' ||
+          key == 'origin') {
         continue;
       }
       if (ancestor != null) {
