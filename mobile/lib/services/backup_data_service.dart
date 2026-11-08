@@ -21,6 +21,8 @@ import 'package:drift/drift.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
+import '../utils/secure_storage.dart';
+import '../utils/whatsapp_token_storage.dart';
 import 'backup_serializers.dart';
 import 'local_db.dart';
 
@@ -195,7 +197,6 @@ class BackupDataService {
         'wa_api_type',
         'wa_api_base_url',
         'wa_api_instance_id',
-        'wa_api_token',
         'wa_custom_url_template',
       ];
       for (final key in waKeys) {
@@ -203,6 +204,19 @@ class BackupDataService {
         if (value != null && value.isNotEmpty) {
           whatsappSettings[key] = value;
         }
+      }
+      // ✅ إصلاح أمني: التوكن أصبح مصدره SecureStorage (انظر
+      // whatsapp_token_storage.dart) لا SharedPreferences، ويُدرج هنا
+      // مشفّراً بـ AES-256 (SecureStorage.encryptValue) بدل نص صريح —
+      // الحقل يبقى موجوداً في النسخة الاحتياطية كما كان، لكن محتواه الآن
+      // سلسلة مشفّرة (`ENC:AES:...`) بدل التوكن الخام.
+      final waToken = await WhatsAppTokenStorage.read();
+      if (waToken != null && waToken.isNotEmpty) {
+        final encKey = SecureStorage.getEncryptionKey(null);
+        whatsappSettings['wa_api_token'] = SecureStorage.encryptValue(
+          waToken,
+          encKey,
+        );
       }
 
       // JSON serialization + FK enrichment + SHA-256 hash داخل isolate واحد

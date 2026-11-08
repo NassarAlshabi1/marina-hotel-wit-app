@@ -3253,6 +3253,29 @@ class CloudflareSyncManager {
           }
         }
 
+        // ✅ (حسم التعارض الحقيقي لصالح السحابة): إذا قرر المحلّل أن نسخة
+        // السحابة تفوز، يجب حذف أي تعديل محلي معلّق في outbox لهذا السجل.
+        // بدون هذا، ذلك التعديل القديم سيُرفع في دورة الدفع القادمة
+        // ويُعيد كتابة نسخة السحابة التي طبّقناها للتو — تعارض ping-pong
+        // لا ينتهي أبداً.
+        if (resolution.discardLocalOutbox) {
+          try {
+            final outboxDao = OutboxDao(_db!);
+            final removed = await outboxDao.removePulledEntities(
+              [localUuid],
+              entity: entity,
+            );
+            if (removed > 0) {
+              debugPrint(
+                '  ☁️ $entity/$localUuid: التعارض حُسم لصالح السحابة — '
+                'أُلغي التعديل المحلي المعلّق ($removed) من outbox',
+              );
+            }
+          } catch (e) {
+            debugPrint('  ⚠️ Failed to discard stale local outbox entry: $e');
+          }
+        }
+
         // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح (merged conflict)
         unawaited(
           RemoteChangeNotifier.instance.onRemoteChangeApplied(

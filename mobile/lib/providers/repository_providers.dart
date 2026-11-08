@@ -35,6 +35,7 @@ import '../utils/env.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import '../utils/stream_helpers.dart';
+import '../utils/whatsapp_token_storage.dart';
 // ✅ P2 Performance Fix (2026-08-10): استيراد WeakDeviceOptimizer
 // لاستخدام maxListItemsBeforePagination في تقييد القوائم على الأجهزة الضعيفة.
 import '../utils/weak_device_optimizer.dart';
@@ -167,13 +168,17 @@ final whatsappSettingsProvider = FutureProvider<Map<String, String>>((
   ref,
 ) async {
   final prefs = await SharedPreferences.getInstance();
+  // ✅ إصلاح أمني: التوكن يُقرأ من SecureStorage (مع ترحيل تلقائي من
+  // SharedPreferences إن وُجدت نسخة قديمة بنص صريح). انظر
+  // utils/whatsapp_token_storage.dart.
+  final secureToken = await WhatsAppTokenStorage.read();
   return {
     'apiType': prefs.getString('wa_api_type') ?? 'custom',
     'baseUrl':
         prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',
     'instanceId':
         prefs.getString('wa_api_instance_id') ?? Env.whatsappInstanceId,
-    'token': prefs.getString('wa_api_token') ?? Env.whatsappApiToken,
+    'token': secureToken ?? Env.whatsappApiToken,
     'customUrlTemplate': prefs.getString('wa_custom_url_template') ?? '',
   };
 });
