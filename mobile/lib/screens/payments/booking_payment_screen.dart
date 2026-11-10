@@ -760,8 +760,22 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   /// بطاقة «آخر مبلغ مدفوع» — تعرض آخر دفعة غير ملغاة لهذا الحجز فقط.
+  ///
+  /// ✅ (2026-11-11) إضافة تاريخ الدفعة تحت المبلغ بخط صغير — يعرض فقط
+  /// عند وجود دفعة فعلية؛ التنسيق dd/MM/yyyy HH:mm (تاريخ + وقت الاستلام).
   Widget _buildLastPaidAmountCard(db.Payment? lastPaidPayment) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    // تحليل تاريخ الدفعة (ISO String) لعرضه بخط صغير — لا يُعرض عند الفشل.
+    String? paymentDateLabel;
+    if (lastPaidPayment != null) {
+      final parsedDate = DateTime.tryParse(lastPaidPayment.paymentDate);
+      paymentDateLabel = parsedDate != null
+          ? DateFormat('dd/MM/yyyy  HH:mm').format(parsedDate)
+          : lastPaidPayment.paymentDate.trim();
+      if (paymentDateLabel.isEmpty) paymentDateLabel = null;
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -780,15 +794,29 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           ),
           const Spacer(),
-          Text(
-            lastPaidPayment == null
-                ? 'لا يوجد'
-                : _currencyFmt.format(lastPaidPayment.amount),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.primary,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                lastPaidPayment == null
+                    ? 'لا يوجد'
+                    : _currencyFmt.format(lastPaidPayment.amount),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
+              // تاريخ الدفعة بخط صغير — يظهر فقط عند وجود دفعة صالحة
+              if (paymentDateLabel != null)
+                Text(
+                  paymentDateLabel,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
