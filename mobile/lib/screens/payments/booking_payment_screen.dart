@@ -226,7 +226,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);
 
   bool _isAlreadyCheckedOut(db.Booking b) =>
-      b.actualCheckout != null && b.actualCheckout!.isNotEmpty;
+      b.actualCheckout?.trim().isNotEmpty == true;
 
   int _countNightsWithDiscount(
     DateTime checkin,
@@ -264,10 +264,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     required double discount,
     required String discountType,
     required DateTime? discountStartDate,
+    DateTime? asOf,
   }) {
     // التاريخ المخطط لا يوقف تراكم الليالي. نستخدم actualCheckout إذا
     // سُجّل وكان في الماضي، وإلا نواصل الحساب حتى اللحظة الحالية.
-    final now = DateTime.now();
+    final now = asOf ?? DateTime.now();
     final DateTime effectiveCheckout =
         actualCheckout != null && !actualCheckout.isAfter(now)
         ? actualCheckout
@@ -748,6 +749,22 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               // ✅ بطاقة صغيرة: آخر مبلغ مدفوع — المبلغ فقط بدون زيادات
               if (lastPayment != null)
                 RepaintBoundary(child: _buildLastPaymentCard(lastPayment)),
+              if (booking.actualCheckout?.trim().isNotEmpty != true &&
+                  StatusUtils.isBookingActive(booking))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showRoomRateNegotiationDialog(
+                        booking: booking,
+                        baseRoomRate: roomRate,
+                      ),
+                      icon: const Icon(Icons.price_change),
+                      label: const Text('تعديل سعر الغرفة (زيادة أو تخفيض)'),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 8),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -1714,15 +1731,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     required DateTime now,
   }) => Time.effectiveStayEnd(actualCheckout: actualCheckout, now: now);
 
-  Future<_PaymentTotals> _calculateCurrentTotals() async {
+  Future<_PaymentTotals> _calculateCurrentTotals({DateTime? asOf}) async {
     final roomsRepo = ref.read(roomsRepoProvider);
     final paymentsRepo = ref.read(paymentsRepoProvider);
     final dbInstance = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(dbInstance);
+    final calculationMoment = asOf ?? DateTime.now();
 
     // الحساب التمهيدي للعرض/التحقق لا يمثل عملية حفظ؛ لا تنشئ Outbox هنا.
     await derivedService.refreshForBookingId(
       widget.booking.id,
+      now: calculationMoment,
       enqueueOutbox: false,
     );
 
@@ -1730,13 +1749,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final double roomRate = room?.price ?? 0;
 
     final checkin =
-        DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+        DateTime.tryParse(widget.booking.checkinDate) ?? calculationMoment;
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
     final effectiveCheckout = _effectiveCheckoutDate(
       actualCheckout: actualCheckout,
-      now: DateTime.now(),
+      now: calculationMoment,
     );
     final actualNights = Time.nightsWithCutoff(
       checkin,
@@ -1834,7 +1853,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final bookingsRepo = ref.read(bookingsRepoProvider);
 
     try {
-      final totals = await _calculateCurrentTotals();
+      final paymentMoment = DateTime.now();
+      final totals = await _calculateCurrentTotals(asOf: paymentMoment);
 
       // ════════════════════════════════════════════════════════════════
       // معالجة الفائض (قراءة + حوار تأكيد) — قبل الـ transaction
@@ -1868,6 +1888,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             surplus: surplus,
             totals: totals,
             amount: amount,
+            asOf: paymentMoment,
           );
           if (preview == null) {
             return; // ألغى أو رُفض المدخل — لا يُكتب شيء
@@ -2020,18 +2041,24 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // ═══════════════════════════════════════════════════════
       final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
       final database = ref.read(databaseProvider);
+      var duplicateNegotiation = false;
       await database.transaction(() async {
         // 1) اعتماد السعر المتفاوض عليه (إن اختير) — قبل تسجيل الدفعة حتى
         //    تُحسب الإجماليات على السعر الجديد. التعديل مالي فقط: لا يمسّ
         //    تاريخ المغادرة ولا عدد الليالي ولا ينشئ دفعة وهمية.
         if (needsNegotiatedRate) {
-          await BookingPriceAdjustmentService(
-            database,
-          ).applyNegotiatedRateIncrease(
-            bookingLocalUuid: widget.booking.localUuid,
-            amount: negotiatedPreview!.increase,
-            appliedBy: PaymentSessionContext.userName ?? 'admin',
-          );
+          final result = await BookingPriceAdjustmentService(database)
+              .applyNegotiatedRateAdjustment(
+                bookingLocalUuid: widget.booking.localUuid,
+                amount: negotiatedPreview!.increase,
+                type: AdjustmentType.surcharge,
+                appliedBy: PaymentSessionContext.userName ?? 'admin',
+                now: paymentMoment,
+              );
+          if (result.isDuplicate) {
+            duplicateNegotiation = true;
+            return;
+          }
         }
 
         // 2) تمديد الحجز (إذا لزم)
@@ -2084,6 +2111,19 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // ═══════════════════════════════════════════════════════
       // نهاية الـ Transaction — كل العمليات ناجحة أو لا شيء
       // ═══════════════════════════════════════════════════════
+      if (duplicateNegotiation) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'هذا التفاوض سُجل مسبقًا؛ لم تُسجل دفعة مكررة. حدّث المبلغ وحاول مجددًا.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
 
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
@@ -2227,6 +2267,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     required double surplus,
     required _PaymentTotals totals,
     required double amount,
+    required DateTime asOf,
   }) async {
     // ✅ حرس الصلاحية/الحالة: التفاوض للحجوزات النشطة غير المسجَّل
     // مغادرتها فقط — بعد المغادرة يبقى مسار شاشة إدارة الضيوف كما هو.
@@ -2256,8 +2297,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final double baseRoomRate = room?.price ?? 0;
 
-    final checkin =
-        DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+    final checkin = DateTime.tryParse(widget.booking.checkinDate) ?? asOf;
     final actualCheckout = widget.booking.actualCheckout != null
         ? DateTime.tryParse(widget.booking.actualCheckout!)
         : null;
@@ -2276,6 +2316,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       discount: widget.booking.discount,
       discountType: widget.booking.discountType,
       discountStartDate: _parseDateTime(widget.booking.discountStartDate),
+      asOf: asOf,
     );
 
     final int nightsCount = stayCalc.nightsCount;
@@ -2291,8 +2332,44 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       return null;
     }
 
+    final activeAdjustments = await BookingPriceAdjustmentService(
+      dbInstance,
+    ).getActiveAdjustments(widget.booking.localUuid);
+    final existingSurcharges = activeAdjustments
+        .where(
+          (adjustment) =>
+              adjustment.adjustmentType == AdjustmentType.surcharge.value &&
+              adjustment.adjustmentMode == AdjustmentMode.perNight.value,
+        )
+        .fold<int>(0, (sum, adjustment) => sum + adjustment.amount.round());
+    final existingDiscounts = activeAdjustments
+        .where(
+          (adjustment) =>
+              adjustment.adjustmentType == AdjustmentType.discount.value &&
+              adjustment.adjustmentMode == AdjustmentMode.perNight.value,
+        )
+        .fold<int>(0, (sum, adjustment) => sum + adjustment.amount.round());
     const maxIncrease =
         BookingPriceAdjustmentService.maxNegotiatedPerNightIncrease;
+    final availableIncrease = (maxIncrease - existingSurcharges).clamp(
+      0,
+      maxIncrease,
+    );
+    if (availableIncrease == 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'وصل سعر الليلة إلى سقف الزيادة التفاوضية 5,000 ريال',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return null;
+    }
+    final currentNegotiatedNightlyRate =
+        baseRoomRate + existingSurcharges - existingDiscounts;
     final controller = TextEditingController();
     try {
       return await showDialog<_NegotiatedRatePreview>(
@@ -2310,10 +2387,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             if (value != null) {
               if (value < 1) {
                 errorText = 'أدخل زيادة أكبر من صفر';
-              } else if (value > maxIncrease) {
+              } else if (value > availableIncrease) {
                 errorText =
-                    'الحد الأقصى للزيادة ${_currencyFmt.format(maxIncrease)} '
-                    'ريال لليلة';
+                    'المتاح حتى سقف التفاوض '
+                    '${_currencyFmt.format(availableIncrease)} ريال لليلة';
               }
             }
           }
@@ -2323,16 +2400,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           return StatefulBuilder(
             builder: (ctx, setDialogState) {
               final increase = parsed;
-              final valid = increase != null && errorText == null;
-              final newNightlyRate = valid
-                  ? baseRoomRate + increase
-                  : baseRoomRate;
-              final newStayTotal = valid
+              final inputValid = increase != null && errorText == null;
+              final newNightlyRate = inputValid
+                  ? currentNegotiatedNightlyRate + increase
+                  : currentNegotiatedNightlyRate;
+              final newStayTotal = inputValid
                   ? totals.total + increase * nightsCount
                   : totals.total;
-              final rawRemainingAfter = valid
+              final rawRemainingAfter = inputValid
                   ? totals.remaining + increase * nightsCount - amount
                   : totals.remaining - amount;
+              final canConfirm = inputValid && rawRemainingAfter >= 0;
               final remainingAfter = rawRemainingAfter < 0
                   ? 0.0
                   : rawRemainingAfter;
@@ -2366,11 +2444,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                       onChanged: (_) => setDialogState(validate),
                     ),
-                    if (valid) ...[
+                    if (inputValid) ...[
                       const SizedBox(height: 12),
                       Text(
                         'سعر الليلة الأصلي: ${_currencyFmt.format(baseRoomRate)}',
                       ),
+                      if (existingSurcharges - existingDiscounts != 0)
+                        Text(
+                          'صافي التعديلات النشطة: '
+                          '${_currencyFmt.format(existingSurcharges - existingDiscounts)}',
+                        ),
                       Text('الزيادة: ${_currencyFmt.format(increase)}'),
                       Text(
                         'السعر الجديد لليلة: ${_currencyFmt.format(newNightlyRate)}',
@@ -2389,6 +2472,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         'المتبقي بعد هذه الدفعة: '
                         '${_currencyFmt.format(remainingAfter)}',
                       ),
+                      if (rawRemainingAfter < 0)
+                        Text(
+                          'فائض غير مغطى بعد: '
+                          '${_currencyFmt.format(-rawRemainingAfter)}. '
+                          'خفّض مبلغ الدفعة أو اختر تمديد الإقامة.',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       const SizedBox(height: 8),
                       const Text(
                         'التعديل مالي فقط — لا يتغير تاريخ المغادرة '
@@ -2404,7 +2497,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     child: const Text('إلغاء'),
                   ),
                   ElevatedButton.icon(
-                    onPressed: valid
+                    onPressed: canConfirm
                         ? () => Navigator.pop(
                             ctx,
                             _NegotiatedRatePreview(
@@ -2429,6 +2522,279 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
     } finally {
       controller.dispose();
+    }
+  }
+
+  Future<void> _showRoomRateNegotiationDialog({
+    required db.Booking booking,
+    required double baseRoomRate,
+  }) async {
+    final current = await ref
+        .read(bookingsRepoProvider)
+        .watchOne(booking.id)
+        .first;
+    if (current == null ||
+        current.actualCheckout?.trim().isNotEmpty == true ||
+        !StatusUtils.isBookingActive(current)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا يمكن تعديل سعر حجز غير نشط أو مسجل المغادرة'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    final now = DateTime.now();
+    final totals = await _calculateCurrentTotals(asOf: now);
+    final database = ref.read(databaseProvider);
+    final service = BookingPriceAdjustmentService(database);
+    final activeAdjustments = await service.getActiveAdjustments(
+      current.localUuid,
+    );
+    final existingSurcharges = activeAdjustments
+        .where(
+          (adjustment) =>
+              adjustment.adjustmentType == AdjustmentType.surcharge.value &&
+              adjustment.adjustmentMode == AdjustmentMode.perNight.value,
+        )
+        .fold<int>(0, (sum, adjustment) => sum + adjustment.amount.round());
+    final existingDiscounts = activeAdjustments
+        .where(
+          (adjustment) =>
+              adjustment.adjustmentType == AdjustmentType.discount.value &&
+              adjustment.adjustmentMode == AdjustmentMode.perNight.value,
+        )
+        .fold<int>(0, (sum, adjustment) => sum + adjustment.amount.round());
+    final nights =
+        await (database.select(database.bookingNights)
+              ..where((night) => night.bookingLocalId.equals(current.id))
+              ..where((night) => night.deletedAt.isNull()))
+            .get();
+    if (nights.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا توجد ليالٍ محسوبة لتعديل سعرها')),
+        );
+      }
+      return;
+    }
+
+    final payments = await ref
+        .read(paymentsRepoProvider)
+        .paymentsByBooking(current.id)
+        .first;
+    final paidAmount = payments.fold<double>(
+      0,
+      (sum, payment) => sum + payment.amount,
+    );
+    final currentAverageRate = totals.total / nights.length;
+    final controller = TextEditingController();
+    _NegotiatedRateInput? input;
+    try {
+      input = await showDialog<_NegotiatedRateInput>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          var selectedType = AdjustmentType.surcharge;
+          int? parsedAmount;
+          String? errorText;
+
+          void validate() {
+            final text = controller.text.trim();
+            parsedAmount = text.isEmpty ? null : int.tryParse(text);
+            errorText = null;
+            final value = parsedAmount;
+            if (value == null) return;
+
+            final isIncrease = selectedType == AdjustmentType.surcharge;
+            final cap = isIncrease
+                ? BookingPriceAdjustmentService.maxNegotiatedPerNightIncrease
+                : BookingPriceAdjustmentService.maxNegotiatedPerNightDecrease;
+            final activeAmount = isIncrease
+                ? existingSurcharges
+                : existingDiscounts;
+            final available = (cap - activeAmount).clamp(0, cap);
+            if (value <= 0) {
+              errorText = 'أدخل قيمة أكبر من صفر';
+            } else if (value > available) {
+              errorText =
+                  'المتاح لهذا النوع من التعديل ${_currencyFmt.format(available)} ريال لليلة';
+            } else if (!isIncrease &&
+                totals.total - value * nights.length < paidAmount) {
+              errorText =
+                  'سيصبح إجمالي السعر أقل من المدفوع؛ عالج الاسترداد أولًا';
+            }
+          }
+
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) {
+              final value = parsedAmount;
+              final valid = value != null && errorText == null;
+              final isIncrease = selectedType == AdjustmentType.surcharge;
+              final sign = isIncrease ? 1 : -1;
+              final newAverageRate =
+                  currentAverageRate + (valid ? sign * value : 0);
+              final adjustedTotal =
+                  totals.total + (valid ? sign * value * nights.length : 0);
+              final adjustedRemaining = adjustedTotal - paidAmount;
+
+              return AlertDialog(
+                title: const Text('تعديل سعر الغرفة'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<AdjustmentType>(
+                        initialValue: selectedType,
+                        decoration: const InputDecoration(
+                          labelText: 'نوع التفاوض',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: AdjustmentType.surcharge,
+                            child: Text('زيادة على سعر الليلة (حد 5,000)'),
+                          ),
+                          DropdownMenuItem(
+                            value: AdjustmentType.discount,
+                            child: Text('تخفيض من سعر الليلة (حد 3,000)'),
+                          ),
+                        ],
+                        onChanged: (type) {
+                          if (type == null) return;
+                          setDialogState(() {
+                            selectedType = type;
+                            validate();
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: controller,
+                        autofocus: true,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          const EnglishDigitsInputFormatter(),
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: InputDecoration(
+                          labelText: isIncrease
+                              ? 'الزيادة لكل ليلة (ريال)'
+                              : 'التخفيض لكل ليلة (ريال)',
+                          errorText: errorText,
+                          border: const OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setDialogState(validate),
+                      ),
+                      if (valid) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'سعر الغرفة الأساسي: ${_currencyFmt.format(baseRoomRate)}',
+                        ),
+                        Text(
+                          'متوسط السعر الحالي لليلة: '
+                          '${_currencyFmt.format(currentAverageRate)}',
+                        ),
+                        Text(
+                          '${isIncrease ? 'الزيادة' : 'التخفيض'}: '
+                          '${_currencyFmt.format(value)} لكل ليلة',
+                        ),
+                        Text(
+                          'متوسط السعر بعد التعديل: '
+                          '${_currencyFmt.format(newAverageRate)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text('الليالي المتأثرة: ${nights.length}'),
+                        Text(
+                          'إجمالي الإقامة بعد التعديل: '
+                          '${_currencyFmt.format(adjustedTotal)}',
+                        ),
+                        Text(
+                          'المتبقي بعد الدفعات المسجلة: '
+                          '${_currencyFmt.format(adjustedRemaining)}',
+                        ),
+                        if (!isIncrease)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8),
+                            child: Text(
+                              'لا يُنشئ هذا الإجراء دفعة أو استردادًا؛ '
+                              'لا يُسمح بتخفيض يجعل المدفوع أعلى من إجمالي الإقامة.',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton(
+                    onPressed: valid
+                        ? () => Navigator.pop(
+                            dialogContext,
+                            _NegotiatedRateInput(
+                              type: selectedType,
+                              amount: value,
+                            ),
+                          )
+                        : null,
+                    child: const Text('تأكيد تعديل السعر'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+
+    if (input == null) return;
+
+    var wasDuplicate = false;
+    await database.transaction(() async {
+      final result = await service.applyNegotiatedRateAdjustment(
+        bookingLocalUuid: current.localUuid,
+        amount: input!.amount,
+        type: input.type,
+        appliedBy: PaymentSessionContext.userName ?? 'admin',
+        now: now,
+      );
+      wasDuplicate = result.isDuplicate;
+    });
+    if (wasDuplicate) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('هذا التعديل سُجل مسبقًا')),
+        );
+      }
+      return;
+    }
+
+    unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+    final updatedTotals = await _calculateCurrentTotals(asOf: now);
+    if (mounted) {
+      setState(() => _remainingAmount = updatedTotals.remaining);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'تم اعتماد ${input.type == AdjustmentType.surcharge ? 'الزيادة' : 'التخفيض'} '
+            'التفاوضي وتحديث مستحقات الحجز',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 
@@ -4837,6 +5203,13 @@ class _NegotiatedRatePreview {
 
   /// المتبقي بعد الدفعة وفق الإجمالي المعدّل (لا يقل عن صفر).
   final double remainingAfter;
+}
+
+class _NegotiatedRateInput {
+  const _NegotiatedRateInput({required this.type, required this.amount});
+
+  final AdjustmentType type;
+  final int amount;
 }
 
 /// خيارات معالجة فائض الدفعة في شاشة الدفع.

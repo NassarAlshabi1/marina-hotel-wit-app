@@ -89,6 +89,7 @@ void main() {
       bookingLocalUuid: booking.localUuid,
       amount: increase,
       appliedBy: 'اختبار',
+      now: fourNightsLater,
     );
     await paymentsRepo.create(
       bookingLocalId: booking.id,
@@ -484,11 +485,13 @@ void main() {
           bookingLocalUuid: booking.localUuid,
           amount: 3000,
           appliedBy: 'اختبار',
+          now: fourNightsLater,
         ),
         adjustmentService.applyNegotiatedRateIncrease(
           bookingLocalUuid: booking.localUuid,
           amount: 3000,
           appliedBy: 'اختبار',
+          now: fourNightsLater,
         ),
       ]);
       expect(results[0].localUuid, results[1].localUuid);
@@ -498,6 +501,7 @@ void main() {
         bookingLocalUuid: booking.localUuid,
         amount: 3000,
         appliedBy: 'اختبار',
+        now: fourNightsLater,
       );
       expect(again.localUuid, results[0].localUuid);
 
@@ -568,6 +572,109 @@ void main() {
           isEmpty,
           reason: 'الحجز القديم لا يُعاد اعتباره حجزاً متفاوضاً عليه',
         );
+      },
+    );
+
+    test(
+      '11 — تخفيض 3,000 لكل ليلة مقبول ويعيد تسعير الليالي الأربع',
+      () async {
+        final booking = await seedBooking();
+        await derivedService.refreshForBookingId(
+          booking.id,
+          now: fourNightsLater,
+        );
+
+        final result = await adjustmentService.applyNegotiatedRateAdjustment(
+          bookingLocalUuid: booking.localUuid,
+          amount: 3000,
+          type: AdjustmentType.discount,
+          appliedBy: 'اختبار',
+          now: fourNightsLater,
+        );
+
+        expect(result.isDuplicate, isFalse);
+        expect(result.adjustment.adjustmentType, AdjustmentType.discount.value);
+        final nights = await fetchNights(booking.id);
+        expect(nights, hasLength(4));
+        expect(nights.every((night) => night.finalRate == 17000), isTrue);
+        expect((await fetchBooking(booking.id)).totalDueCached, 68000);
+      },
+    );
+
+    test('12 — تخفيض 3,001 مرفوض ولا ينشئ سجلًا', () async {
+      final booking = await seedBooking();
+      await derivedService.refreshForBookingId(
+        booking.id,
+        now: fourNightsLater,
+      );
+
+      await expectLater(
+        adjustmentService.applyNegotiatedRateAdjustment(
+          bookingLocalUuid: booking.localUuid,
+          amount: 3001,
+          type: AdjustmentType.discount,
+          appliedBy: 'اختبار',
+          now: fourNightsLater,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        await adjustmentService.getActiveAdjustments(booking.localUuid),
+        isEmpty,
+      );
+    });
+
+    test('13 — لا يقبل التفاوض بعد تسجيل المغادرة الفعلية', () async {
+      final booking = await seedBooking();
+      await derivedService.refreshForBookingId(
+        booking.id,
+        now: fourNightsLater,
+      );
+      await bookingsRepo.update(
+        booking.id,
+        actualCheckout: fourNightsLater.toIso8601String(),
+      );
+
+      await expectLater(
+        adjustmentService.applyNegotiatedRateAdjustment(
+          bookingLocalUuid: booking.localUuid,
+          amount: 1000,
+          type: AdjustmentType.surcharge,
+          appliedBy: 'اختبار',
+          now: fourNightsLater,
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        await adjustmentService.getActiveAdjustments(booking.localUuid),
+        isEmpty,
+      );
+    });
+
+    test(
+      '14 — الحجز المعاد فتحه مع actualCheckout فارغ يبقى قابلًا للتفاوض',
+      () async {
+        final booking = await seedBooking();
+        await (db.update(db.bookings)
+              ..where((row) => row.id.equals(booking.id)))
+            .write(const BookingsCompanion(actualCheckout: Value('')));
+        await derivedService.refreshForBookingId(
+          booking.id,
+          now: fourNightsLater,
+          forceRebuild: true,
+        );
+
+        final result = await adjustmentService.applyNegotiatedRateAdjustment(
+          bookingLocalUuid: booking.localUuid,
+          amount: 1000,
+          type: AdjustmentType.surcharge,
+          appliedBy: 'اختبار',
+          now: fourNightsLater,
+        );
+
+        expect(result.isDuplicate, isFalse);
+        expect(result.adjustment.amount, 1000);
+        expect(await fetchNights(booking.id), hasLength(4));
       },
     );
   });

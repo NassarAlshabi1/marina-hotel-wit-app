@@ -351,7 +351,13 @@ class EnhancedBookingCalculationService {
                 'entity': 'booking_nights',
                 'op': 'update',
                 'localUuid': night.localUuid,
-                'payload': <String, dynamic>{'localUuid': night.localUuid},
+                'payload': <String, dynamic>{
+                  'localUuid': night.localUuid,
+                  'deletedAt': cutStamp,
+                  'deletedAtIso': cutStampIso,
+                  'lastModified': cutStamp,
+                  'lastModifiedEpoch': cutStamp,
+                },
                 'clientTs': cutStamp,
               },
           ]);
@@ -669,9 +675,7 @@ class EnhancedBookingCalculationService {
                   (n) =>
                       n.bookingLocalId.equals(booking.id) |
                       n.bookingUuidCache.isIn(
-                        BookingPaymentMatcher.uuidCandidates(
-                          booking.localUuid,
-                        ),
+                        BookingPaymentMatcher.uuidCandidates(booking.localUuid),
                       ),
                 )
                 ..where((n) => n.deletedAt.isNull()))
@@ -715,9 +719,7 @@ class EnhancedBookingCalculationService {
     Future<void> doWrite() async {
       if (!shouldRebuild) return;
 
-      await (db.delete(
-            db.bookingNights,
-          )..where(
+      await (db.delete(db.bookingNights)..where(
             (n) =>
                 n.bookingLocalId.equals(booking.id) |
                 n.bookingUuidCache.isIn(
