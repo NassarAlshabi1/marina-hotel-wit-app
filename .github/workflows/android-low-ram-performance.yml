@@ -56,7 +56,7 @@ jobs:
     steps:
       # ─── 1) جلب الكود ──────────────────────────────────────
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7.0.1
 
       # ─── 2) تمكين KVM (تسريع المحاكي) ──────────────────────
       - name: Enable KVM
@@ -370,7 +370,7 @@ jobs:
       # ─── 21) رفع كل شيء كـ artifact ────────────────────────
       - name: Upload performance artifacts
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: android-1gb-low-ram-performance
           path: mobile/build/low-ram-performance/
