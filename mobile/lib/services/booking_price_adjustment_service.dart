@@ -532,17 +532,19 @@ class BookingPriceAdjustmentService {
     if (amount <= 0) {
       throw ArgumentError('يجب أن تكون قيمة التعديل أكبر من صفر');
     }
-    final adjustment = await (db.select(db.bookingPriceAdjustments)
-      ..where((a) => a.localUuid.equals(adjustmentUuid))
-      ..where((a) => a.deletedAt.isNull())).getSingleOrNull();
+    final adjustment =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.localUuid.equals(adjustmentUuid))
+              ..where((a) => a.deletedAt.isNull()))
+            .getSingleOrNull();
     if (adjustment == null) {
       throw StateError('Adjustment not found: $adjustmentUuid');
     }
     final today = HotelTimeEngine.getHotelDayKey();
     if (!adjustment.isActive ||
         (adjustment.endHotelDay != null &&
-         adjustment.endHotelDay!.isNotEmpty &&
-         adjustment.endHotelDay!.compareTo(today) < 0)) {
+            adjustment.endHotelDay!.isNotEmpty &&
+            adjustment.endHotelDay!.compareTo(today) < 0)) {
       throw StateError('لا يمكن تعديل تعديل سعري منتهي');
     }
     if (effectiveHotelDay.trim().isEmpty) {
@@ -559,8 +561,9 @@ class BookingPriceAdjustmentService {
       appliedBy: updatedBy == null ? const Value.absent() : Value(updatedBy),
     );
     await db.transaction(() async {
-      await (db.update(db.bookingPriceAdjustments)
-        ..where((a) => a.localUuid.equals(adjustmentUuid))).write(update);
+      await (db.update(
+        db.bookingPriceAdjustments,
+      )..where((a) => a.localUuid.equals(adjustmentUuid))).write(update);
       await OutboxDao(db).merge(
         entity: 'booking_price_adjustments',
         op: 'update',
@@ -578,7 +581,9 @@ class BookingPriceAdjustmentService {
       }
     });
     await AutoBackupManager.instance.onDataChange(
-      'booking_price_adjustments', 'UPDATE', recordData: update.toColumns(false),
+      'booking_price_adjustments',
+      'UPDATE',
+      recordData: update.toColumns(false),
     );
   }
 

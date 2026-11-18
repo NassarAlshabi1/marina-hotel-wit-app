@@ -1592,11 +1592,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ? null
         : DateTime.tryParse(widget.booking.actualCheckout!);
     final database = ref.read(databaseProvider);
-    final storedNights = await (database.select(database.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(widget.booking.id))
-          ..where((n) => n.deletedAt.isNull())
-          ..orderBy([(n) => OrderingTerm.asc(n.hotelDayKey)]))
-        .get();
+    final storedNights =
+        await (database.select(database.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([(n) => OrderingTerm.asc(n.hotelDayKey)]))
+            .get();
     final stayCalculation = _calculateStay(
       checkin: checkin,
       actualCheckout: actualCheckout,

@@ -172,11 +172,12 @@ class GuestPaymentCalculationService {
     // تكلفة الليالي المستهلكة: الأفضلية لسجلات الليالي الفعلية التي تحمل
     // finalRate (وتتضمن الخصومات/الزيادات لكل ليلة). لا نستخدم سعر الغرفة
     // الحالي لإعادة تسعير ليالٍ تاريخية إذا كانت السجلات متوفرة.
-    final storedNights = await (db.select(db.bookingNights)
-          ..where((n) => n.bookingLocalId.equals(booking.id))
-          ..where((n) => n.deletedAt.isNull())
-          ..orderBy([(n) => d.OrderingTerm.asc(n.hotelDayKey)]))
-        .get();
+    final storedNights =
+        await (db.select(db.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([(n) => d.OrderingTerm.asc(n.hotelDayKey)]))
+            .get();
 
     double costSoFar;
     if (storedNights.length >= actualDaysSpent && actualDaysSpent > 0) {
@@ -189,8 +190,11 @@ class GuestPaymentCalculationService {
       });
       // الخصم الإجمالي لا يُخزّن على مستوى الليلة؛ نوزعه نسبياً على
       // الفترة المستهلكة حتى لا يظهر في هذا التقرير رصيد أعلى من المحرك.
-      if (booking.discountType == 'total' && booking.discount > 0 && totalPlannedDays > 0) {
-        final allocatedDiscount = booking.discount *
+      if (booking.discountType == 'total' &&
+          booking.discount > 0 &&
+          totalPlannedDays > 0) {
+        final allocatedDiscount =
+            booking.discount *
             (actualDaysSpent / totalPlannedDays).clamp(0.0, 1.0);
         costSoFar = (costSoFar - allocatedDiscount).clamp(0.0, costSoFar);
       }
@@ -198,10 +202,15 @@ class GuestPaymentCalculationService {
       // توافق مع الحجوزات القديمة التي لا تحتوي على سجلات ليالي.
       costSoFar = actualDaysSpent * nightlyRate;
       if (booking.discountType == 'per_night' && booking.discount > 0) {
-        costSoFar = (costSoFar - booking.discount * actualDaysSpent)
-            .clamp(0.0, costSoFar);
-      } else if (booking.discountType == 'total' && booking.discount > 0 && totalPlannedDays > 0) {
-        final allocatedDiscount = booking.discount *
+        costSoFar = (costSoFar - booking.discount * actualDaysSpent).clamp(
+          0.0,
+          costSoFar,
+        );
+      } else if (booking.discountType == 'total' &&
+          booking.discount > 0 &&
+          totalPlannedDays > 0) {
+        final allocatedDiscount =
+            booking.discount *
             (actualDaysSpent / totalPlannedDays).clamp(0.0, 1.0);
         costSoFar = (costSoFar - allocatedDiscount).clamp(0.0, costSoFar);
       }

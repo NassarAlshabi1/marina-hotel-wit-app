@@ -162,8 +162,8 @@ void main() {
         expect(booking.totalPaidCached, rate * 5);
         expect(
           booking.remainingBalanceCached,
-          0.0,
-          reason: 'مدفوع 5×rate مقابل مستحق 3×rate → لا متبقٍ',
+          rate * 3 - rate * 5,
+          reason: 'دفع 5×rate مقابل مستحق 3×rate → رصيد دائن لليلتين',
         );
         expect(booking.isFullyPaid, true);
         expect(booking.calculatedNights, 3);
