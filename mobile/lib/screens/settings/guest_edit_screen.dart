@@ -1432,7 +1432,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<AdjustmentMode>(
-                  value: mode,
+                  initialValue: mode,
                   decoration: const InputDecoration(labelText: 'طريقة التطبيق'),
                   items: const [
                     DropdownMenuItem(value: AdjustmentMode.perNight, child: Text('لكل ليلة')),
