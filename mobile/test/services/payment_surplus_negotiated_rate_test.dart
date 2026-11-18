@@ -271,7 +271,7 @@ void main() {
     );
 
     test(
-      '5 — مغادرة مبكرة بعد ليلتين: 2 × 23,000 = 46,000 والمسترد وفق النظام',
+      '5 — مغادرة مبكرة بعد ليلتين: 2 × 23,000 = 46,000 والفائض رصيد دائن',
       () async {
         final booking = await seedBooking(checkout: fourNightsLater);
         await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
@@ -298,9 +298,12 @@ void main() {
         );
         expect(after.totalDueCached, 46000, reason: '2 × 23,000 = 46,000');
         expect(after.totalPaidCached, 92000);
-        // نظام المحاسبة الحالي: المتبقي يُقيد عند صفر والفارق (46,000)
-        // رصيد دائن للنزيل يُعالَج بمسار الاسترداد القائم
-        expect(after.remainingBalanceCached, 0);
+        // يحتفظ النظام بالفائض كرصيد دائن سالب للنزيل حتى يُعالج الاسترداد.
+        expect(
+          after.remainingBalanceCached,
+          -46000,
+          reason: '92,000 مدفوع − 46,000 مستحق = 46,000 رصيد دائن',
+        );
       },
     );
 
