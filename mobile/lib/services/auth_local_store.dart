@@ -87,14 +87,14 @@ class AuthLocalStore {
   }
 
   /// حسابات افتراضية للوصول المحلي (fallback عند عدم توفر Appwrite Cloud).
-  ///
-  /// admin/admin — مدير النظام
+  /// كلمة مرور المدير المحلي محفوظة كتحقق PBKDF2 مملّح، لا كنص صريح.
   ///
   /// ⚠️ مهم: هذه الحسابات تعمل فقط على الأجهزة التي لم تُهاجر لـ Appwrite Cloud.
   /// الأجهزة المُهاجرة تستخدم `app_users` collection في Cloud.
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
     'admin': {
-      'password': 'admin',
+      'password':
+          r'pbkdf2_sha256$100000$b1M/nOTsNvDaYSDcqvXqbg==$ToNC4MMLGeMcuEbJZKgB/xib/U1eOOmJm/nrxLw1MJo=',
       'user_type': 'admin',
       'full_name': 'مدير النظام',
       'id': 1,

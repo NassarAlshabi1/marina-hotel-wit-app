@@ -165,6 +165,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.description.like(s) | t.expenseType.like(s));
     }
     // ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم
+    // ملاحظة (2026-11-04): «تسديد سلفة» يبقى ظاهراً في القائمة مثل الخصوم —
+    // التقارير النقدية تستثنيه عبر SalaryExpenseClassifier (ليس خرجاً نقدياً).
     if (excludeAdvance) {
       q.where((t) => t.expenseType.equals('سلفة').not());
     }

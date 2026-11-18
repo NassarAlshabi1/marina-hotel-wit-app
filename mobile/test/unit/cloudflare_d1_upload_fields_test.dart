@@ -193,6 +193,125 @@ void main() {
     },
   );
 
+  test(
+    'D1 قديم المخطط بلا entry_date: المصالحة تضيف العمود والكتابة فوق التعارض تحدّثه',
+    () async {
+      // صف محلي حقيقي بتاريخ دخول (بعد migration 74).
+      await db
+          .into(db.guestInfos)
+          .insert(
+            GuestInfosCompanion.insert(
+              localUuid: 'guest-entry-date-overwrite-1',
+              createdAt: 1792627200000,
+              updatedAt: 1792627200000,
+              lastModified: 1792627200000,
+              roomNumber: '102',
+              guestName: 'ضيف الكتابة فوق',
+              nationality: 'يمني',
+              idNumber: 'TEST-102',
+              entryDate: const Value('2026-10-25'),
+            ),
+          );
+
+      final ddlRows = await db
+          .customSelect(
+            "SELECT sql FROM sqlite_master WHERE tbl_name='guest_infos' "
+            "AND sql IS NOT NULL ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END",
+          )
+          .get();
+
+      // محاكاة D1 واقعي: مخطط أقدم من migration 74 (كل الأعمدة المحلية
+      // ما عدا entry_date) — نفس حالة قاعدة الإنتاج التي أُنشئت قبل إضافة
+      // تاريخ الدخول. الرد على pragma_table_info يحدد أعمدة D1 الظاهرة.
+      final localCols = await tableColumns('guest_infos');
+      final oldD1Cols = localCols.where((c) => c != 'entry_date').toList()
+        ..sort();
+      final captured = <String>[];
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final sql = body['sql'] as String;
+        captured.add(sql);
+        if (sql.startsWith('SELECT name FROM pragma_table_info')) {
+          return http.Response(
+            jsonEncode(<String, dynamic>{
+              'success': true,
+              'result': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'results': oldD1Cols
+                      .map((c) => <String, dynamic>{'name': c})
+                      .toList(),
+                },
+              ],
+            }),
+            200,
+          );
+        }
+        return http.Response('{"success":true,"result":[]}', 200);
+      });
+      final service = CloudflareD1Service(
+        const CloudflareD1Config(
+          accountId: 'a',
+          databaseId: 'b',
+          apiToken: 't',
+        ),
+        client: client,
+      );
+
+      final result = await service.uploadData(
+        tables: [
+          CloudflareD1SourceTable(
+            name: 'guest_infos',
+            rowCount: 1,
+            createSqlList: ddlRows
+                .map((row) => row.data['sql'] as String)
+                .toList(),
+            readChunk: (limit, offset) async {
+              final rows = await db
+                  .customSelect(
+                    'SELECT * FROM "guest_infos" LIMIT ? OFFSET ?',
+                    variables: [
+                      Variable.withInt(limit),
+                      Variable.withInt(offset),
+                    ],
+                  )
+                  .get();
+              return rows.map((row) => row.data).toList();
+            },
+          ),
+        ],
+        overwrite: true,
+      );
+
+      expect(result.ok, isTrue, reason: result.errors.join('؛ '));
+      final statements = captured
+          .expand((sql) => sql.split(';\n'))
+          .map((sql) => sql.trim())
+          .toList();
+
+      // 1) مصالحة المخطط: العمود الغائب يُضاف بـ ALTER من DDL الجهاز نفسه.
+      final alter = statements.singleWhere(
+        (sql) => sql.startsWith('ALTER TABLE "guest_infos"'),
+      );
+      expect(
+        alter,
+        'ALTER TABLE "guest_infos" ADD COLUMN "entry_date" TEXT NULL',
+      );
+
+      // 2) INSERT يتضمن entry_date بقيمته.
+      final insert = statements.singleWhere(
+        (sql) => sql.startsWith('INSERT INTO "guest_infos"'),
+      );
+      expect(insert, contains('"entry_date"'));
+      expect(insert, contains("'2026-10-25'"));
+
+      // 3) وضع الكتابة فوق التعارض: DO UPDATE SET يشمل entry_date —
+      //    هذا ما يجعل إعادة الرفع تحدّث الصفوف الموجودة مسبقاً في D1
+      //    (الوضع الافتراضي DO NOTHING يتخطاها فتبقى قيمها القديمة).
+      expect(insert, contains('ON CONFLICT DO UPDATE SET'));
+      expect(insert, contains('"entry_date"=excluded."entry_date"'));
+    },
+  );
+
   test('يحافظ رفع D1 على id ذي المعنى ويتجاهل تصادمه', () async {
     final requests = <String>[];
     final client = MockClient((request) async {

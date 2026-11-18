@@ -25,6 +25,27 @@ import 'salary_expense_classifier.dart';
 /// المستوى 3 نفسه المستخدم في تقرير المصروفات منذ إصلاح المرايا — هنا
 /// يُوحَّد ليعمل في الاستحقاق وتقرير الإيرادات أيضاً، فتضمن المعادلة
 /// بالبناء في الأجهزة الثلاثة.
+///
+/// ✅ (2026-11-05 — وثيقة الربط §6.3) **أُزيل المستوى الرابع** من هذا
+/// المطابِق التشغيلي. كان «علامة مرآة برابط أجنبي + مصروف وحيد لنفس
+/// الموظف/اليوم → مرآة بغض النظر عن المبلغ» — مطابقة استدلالية تتجاهل
+/// المبلغ، والوثيقة تحظرها في الربط/التشغيل:
+/// «لا ربط بالـ amount/date/description أو exp_N في المزامنة الجديدة؛
+/// المطابقة الاستدلالية لا تُستخدم في الربط التشغيلي، وأي معالجة تاريخية
+/// تكون منفصلة ومدقّقة» (§1.3-2)، و«إزالة المستوى الرابع من
+/// SalaryMirrorMatcher الذي يتجاهل المبلغ. تبقى المطابقة القديمة فقط
+/// في أداة معالجة تاريخية منفصلة ومدقّقة» (§6.3).
+///
+/// الخوارزمية المحذوفة انتقلت كما هي — قراءة فقط بلا أي كتابة في
+/// قاعدة البيانات — إلى أداة التدقيق التاريخي المنفصلة
+/// [SalaryLegacyMirrorAuditTool] (salary_legacy_mirror_audit_tool.dart)
+/// التي تستخدمها تقارير السلامة/المطابقة (§11/§16.4-E) لعرض
+/// «مرشّح مشتبه به» كدليل للمراجعة اليدوية، دون نسبه تشغيلياً.
+///
+/// إصلاح تكرار التقرير عند تعديل المبلغ (2026-09-25) يبقى قائماً عبر
+/// مسار الهوية لا الاستدلال: [SalaryWithdrawalsRepository.saveFromExpense]
+/// يتبنّى المرآة اليتيمة بتمرير previousAmount/previousEmployeeId
+/// ويختم رابطها الدائم (expenseUuid) وقت الكتابة — هوية عملية لا تخمين.
 class SalaryMirrorMatcher {
   SalaryMirrorMatcher._();
 
@@ -113,34 +134,10 @@ class SalaryMirrorMatcher {
       return true;
     }
 
-    // ── المستوى 4: علامة مرآة برابط أجنبي + مصروف وحيد لنفس الموظف/اليوم ──
-    // ✅ إصلاح تكرار التقرير عند تعديل المبلغ (2026-09-25):
-    // المرآة تحمل علامة رابط (expenseId أو exp_N) لكن الرقم هو معرّف
-    // جهاز المصدر — لا يقابل أي مصروف محلي (المستوى 1/2 فشلا) — وبعد
-    // تعديل مبلغ المصروف لم يعد المبلغ متطابقاً فينكسر المستوى 3
-    // → السحبة تُعَد «يتيمة» فتُضاف مكررة في التقارير.
-    // هنا: إن وُجد مصروف واحد فقط لنفس الموظف في نفس اليوم من نفس
-    // العائلة (نقدي لمرآة موجبة / خصم لمرآة سالبة) → مرآة بغض النظر
-    // عن المبلغ. السحوبات المباشرة محمية بحارس direct_withdrawal_ أعلاه،
-    // والسحوبات بلا علامة رابط إطلاقاً تظل خاضعة للمستوى 3 وحده.
-    final markerInReason = RegExp(r'exp_\d+').hasMatch(rawReason);
-    final rawExpId = expenseId ?? 0;
-    final hasMirrorMarker = rawExpId > 0 || markerInReason;
-    if (hasMirrorMarker) {
-      final positive = amount > 0;
-      var familyMatches = 0;
-      for (final e in expenses) {
-        if (e.relatedId != employeeId) continue;
-        final familyOk = positive
-            ? SalaryExpenseClassifier.isSalaryCashOut(e.expenseType)
-            : SalaryExpenseClassifier.isSalaryDeduction(e.expenseType);
-        if (!familyOk) continue;
-        if (!_sameDay(e, hotelDayKey, withdrawDate)) continue;
-        familyMatches++;
-        if (familyMatches > 1) break;
-      }
-      if (familyMatches == 1) return true;
-    }
+    // ✅ (وثيقة §6.3) المستوى 4 (تجاهل المبلغ) أُزيل من المطابقة التشغيلية.
+    // المرآة ذات الرابط الأجنبي/المبلغ المعدّل التي لا تحسمها المستويات
+    // 0-3 تُعَد غير محلولة هنا، وتظهر كـ«مرشّح مشتبه به» في تقرير
+    // السلامة عبر SalaryLegacyMirrorAuditTool — دون نسب تشغيلي.
     return false;
   }
 

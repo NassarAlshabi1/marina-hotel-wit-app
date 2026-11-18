@@ -115,7 +115,7 @@ void main() {
         expect(result.mergedData['price'], equals(150.0));
         // VC should be merged
         final mergedVc = VectorClock.fromString(
-          result.mergedData['vectorClock'],
+          result.mergedData['vectorClock'] as String,
         );
         expect(mergedVc.get('d1'), equals(1));
         expect(mergedVc.get('d2'), equals(1));
@@ -493,7 +493,7 @@ void main() {
           },
         );
         final mergedVc = VectorClock.fromString(
-          result.mergedData['vectorClock'],
+          result.mergedData['vectorClock'] as String,
         );
         expect(mergedVc.get('d1'), equals(5)); // max(5, 2)
         expect(mergedVc.get('d2'), equals(7)); // max(3, 7)

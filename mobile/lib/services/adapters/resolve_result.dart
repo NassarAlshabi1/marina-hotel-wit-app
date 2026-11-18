@@ -6,6 +6,7 @@ class ResolveResult {
     this.employeeRelatedId,
     this.salaryCycleLocalId,
     this.inventoryItemLocalId,
+    this.cashTransactionLocalId,
     this.createdAtEpoch,
     this.lastModifiedEpoch,
     this.shouldSkip = false,
@@ -28,6 +29,11 @@ class ResolveResult {
   /// معرّف الصنف المحلي بعد حل حركة المخزون عبر itemLocalUuid.
   final int? inventoryItemLocalId;
 
+  /// ✅ (2026-11-02) معرّف حركة النقد المحلي بعد حلها عبر cashFlowUuid
+  /// (expenses.cashTransactionId) — نفس نمط employeeRelatedId: الرقم الخام
+  /// الوارد من جهاز آخر autoincrement محلي لا يقابل أي صف هنا.
+  final int? cashTransactionLocalId;
+
   final int? createdAtEpoch;
   final int? lastModifiedEpoch;
 
@@ -48,6 +54,7 @@ class ResolveResult {
     int? employeeRelatedId,
     int? salaryCycleLocalId,
     int? inventoryItemLocalId,
+    int? cashTransactionLocalId,
     int? createdAtEpoch,
     int? lastModifiedEpoch,
     bool? shouldSkip,
@@ -60,6 +67,8 @@ class ResolveResult {
       employeeRelatedId: employeeRelatedId ?? this.employeeRelatedId,
       salaryCycleLocalId: salaryCycleLocalId ?? this.salaryCycleLocalId,
       inventoryItemLocalId: inventoryItemLocalId ?? this.inventoryItemLocalId,
+      cashTransactionLocalId:
+          cashTransactionLocalId ?? this.cashTransactionLocalId,
       createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
       lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
       shouldSkip: shouldSkip ?? this.shouldSkip,

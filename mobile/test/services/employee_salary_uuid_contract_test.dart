@@ -211,15 +211,32 @@ void main() {
   );
 
   test('سجلات الترحيل تُقرأ وتُمنع ازدواجيتها عبر employee_uuid', () async {
+    // حدود الدورة تُشتق من تاريخ التشغيل الفعلي (توظيف في أول الشهر يجعل
+    // الدورات أشهراً تقويمية مطابقة لمنطق الخدمة)، حتى لا يفشل الاختبار
+    // بعد تغيّر الشهر الحالي.
+    final today = DateTime.now();
+    final currentCycleStart = DateTime(today.year, today.month, 1);
+    final currentCycleEnd = DateTime(
+      today.year,
+      today.month + 1,
+      1,
+    ).subtract(const Duration(days: 1));
+    final previousCycleStart = DateTime(today.year, today.month - 1, 1);
+    final previousCycleEnd = currentCycleStart.subtract(
+      const Duration(days: 1),
+    );
+    String fmt(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
     final employeeA = await seedEmployee(
       uuid: 'employee-carry-A',
       name: 'أ',
-      hireDate: '2026-09-01',
+      hireDate: fmt(previousCycleStart),
     );
     final employeeB = await seedEmployee(
       uuid: 'employee-carry-B',
       name: 'ب',
-      hireDate: '2026-09-01',
+      hireDate: fmt(previousCycleStart),
     );
     await seedExpense(
       uuid: 'over-limit-expense-A',
@@ -227,7 +244,9 @@ void main() {
       employeeUuid: employeeA.localUuid,
       type: 'سحب راتب',
       amount: 1500,
-      date: '2026-09-10',
+      date: fmt(
+        DateTime(previousCycleStart.year, previousCycleStart.month, 10),
+      ),
     );
     await db
         .into(db.salaryCarryOverLogs)
@@ -236,10 +255,10 @@ void main() {
             employeeId: employeeB.id,
             employeeUuid: d.Value(employeeA.localUuid),
             amount: 500,
-            previousCycleStart: '2026-09-01',
-            previousCycleEnd: '2026-09-30',
-            newCycleStart: '2026-10-01',
-            newCycleEnd: '2026-10-31',
+            previousCycleStart: fmt(previousCycleStart),
+            previousCycleEnd: fmt(previousCycleEnd),
+            newCycleStart: fmt(currentCycleStart),
+            newCycleEnd: fmt(currentCycleEnd),
             reason: 'ترحيل اختبار UUID',
             carriedAt: now,
             localUuid: 'carry-over-A',
@@ -251,6 +270,8 @@ void main() {
 
     final cycleA = await entitlementService.calculateCurrentCycle(employeeA);
     final cycleB = await entitlementService.calculateCurrentCycle(employeeB);
+    // السحب الزائد (1500 فوق راتب 1000) يُقرأ عبر UUID فيولّد ترحيلاً 500.
+    expect(cycleA.carriedOverFromPrevious, 500);
     expect(cycleA.carryOverLogs.map((e) => e.localUuid), ['carry-over-A']);
     expect(cycleB.carryOverLogs, isEmpty);
     expect(
@@ -260,6 +281,7 @@ void main() {
     expect(await entitlementService.getAllCarryOverLogs(employeeB.id), isEmpty);
 
     final logs = await db.select(db.salaryCarryOverLogs).get();
+    // الترحيل التلقائي يجد سجل الدورة نفسه عبر UUID فلا يكرره.
     expect(logs.where((e) => e.deletedAt == null), hasLength(1));
   });
 

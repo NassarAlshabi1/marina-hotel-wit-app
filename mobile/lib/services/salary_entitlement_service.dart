@@ -24,6 +24,9 @@ class SalaryEntitlement {
     required this.totalDeductions,
     required this.netEntitlement,
     required this.transactions,
+    this.totalRepayments = 0,
+    this.repaymentsFromSalary = 0,
+    this.repaymentsCash = 0,
   });
   final Employee employee;
   final DateTime hireDate;
@@ -46,8 +49,39 @@ class SalaryEntitlement {
   final double netEntitlement;
   final List<SalaryTransaction> transactions;
 
-  /// رصيد السلف المتبقي = إجمالي السلف - الأقساط المسددة
-  double get advanceBalance => totalAdvances - installmentsPaid;
+  /// ✅ (2026-11-04 معادلة المالك) إجمالي تسديد السلف — نقدي + من الراتب +
+  /// الأقساط التلقائية. يخفّض رصيد السلف فقط، ولا يدخل في المتبقي من
+  /// الراتب إلا بجزئه المسدد من الراتب.
+  final double totalRepayments;
+
+  /// تسديد السلف من الراتب (أقساط تلقائية + تسديد يدوي من استحقاق الراتب)
+  /// — يدخل في معادلة المتبقي من الراتب.
+  final double repaymentsFromSalary;
+
+  /// تسديد السلف نقدياً — يخفّض رصيد السلف فقط، ولا يمس المتبقي من الراتب
+  /// (نقد دخل الصندوق، لا نقد خرج).
+  final double repaymentsCash;
+
+  /// رصيد السلف المتبقي = إجمالي السلف - إجمالي تسديد السلف
+  /// (معادلة المالك: رصيد السلف = إجمالي السلف − إجمالي تسديد السلف)
+  double get advanceBalance => totalAdvances - totalRepayments;
+
+  /// ✅ (2026-11-04 معادلة المالك) المتبقي من الراتب =
+  /// إجمالي الاستحقاق − سحوبات الراتب − الخصومات − تسديد السلف من الراتب.
+  ///
+  /// السلفة لا تُخصم مباشرة من الراتب — يُخصم فقط ما سُدد منها من الراتب.
+  double get remainingSalary =>
+      totalEntitlement -
+      totalWithdrawals -
+      totalDeductions -
+      repaymentsFromSalary;
+
+  /// ✅ (2026-11-04 معادلة المالك) صافي الوضع المالي =
+  /// المتبقي من الراتب − رصيد السلف.
+  ///
+  /// التسديد من الراتب يخفّض الرصيدين بالمبلغ نفسه دون ازدواجية؛ والتسديد
+  /// النقدي يرفع الصافي لأنه نقد عاد للصندوق.
+  double get netFinancialPosition => remainingSalary - advanceBalance;
 }
 
 class SalaryTransaction {
@@ -119,6 +153,9 @@ class SalaryEntitlementService {
     double totalAdvances = 0; // سلفة فقط
     double installmentsPaid = 0; // أقساط سلفة مسددة
     double totalDeductions = 0; // خصوم حقيقية
+    // ✅ (2026-11-04 معادلة المالك) خانات تسديد السلفة
+    double repaymentsFromSalary = 0; // أقساط + تسديد من استحقاق الراتب
+    double repaymentsCash = 0; // تسديد نقدي (مرآة سالبة بلا مصروف)
     final transactions = <SalaryTransaction>[];
 
     // ✅ كل معرفات مصروفات الموظف تُعتبر "مقروءة" — أي سحب مرتبط بأحدِها
@@ -128,7 +165,22 @@ class SalaryEntitlementService {
     for (final expense in expenses) {
       final type = expense.expenseType.trim();
 
-      if (SalaryExpenseClassifier.isSalaryDeduction(type)) {
+      // ✅ تسديد السلفة أولاً — قبل فحص الخصم/النقدي (النص يحتوي «سلفة»)
+      if (SalaryExpenseClassifier.isLoanRepayment(type)) {
+        // تسديد من استحقاق الراتب: يخفّض المتبقي من الراتب ورصيد السلف
+        // بالمبلغ نفسه (كلٌّ في خانته — دون ازدواجية).
+        repaymentsFromSalary += expense.amount;
+        installmentsPaid += expense.amount;
+        transactions.add(
+          SalaryTransaction(
+            type: 'تسديد سلفة',
+            amount: expense.amount,
+            date: expense.date,
+            note: expense.description,
+            category: 'تسديد سلفة من الراتب',
+          ),
+        );
+      } else if (SalaryExpenseClassifier.isSalaryDeduction(type)) {
         if (type.contains('خصم من الراتب')) {
           // ✅ إصلاح حرج: أقساط السلفة لا تُحسب كخصم — السلفة محسوبة كـ سحب
           // قسط السلفة = سداد للسلفة وليس خصماً جديداً
@@ -138,6 +190,7 @@ class SalaryEntitlementService {
           if (isInstallment) {
             // قسط سلفة — يُسجل كمسدد من رصيد السلفة
             installmentsPaid += expense.amount;
+            repaymentsFromSalary += expense.amount;
             // لا نضيفه للمعاملات لأن السلفة نفسها معروضة كـ سحب
           } else {
             // خصم يدوي من الراتب — خصم حقيقي
@@ -207,6 +260,23 @@ class SalaryEntitlementService {
       employeeExpenses: expenses,
     );
     for (final w in directWithdrawals) {
+      // ✅ تسديد السلفة النقدي: مرآة سالبة بنوع تسديد سلفة — تخفّض رصيد
+      // السلف فقط، ولا تمس المتبقي من الراتب ولا خرج الصندوق.
+      if (w.amount < 0 &&
+          SalaryExpenseClassifier.isLoanRepayment(w.withdrawalType)) {
+        final paid = -w.amount;
+        repaymentsCash += paid;
+        transactions.add(
+          SalaryTransaction(
+            type: 'تسديد سلفة',
+            amount: paid,
+            date: w.date,
+            note: w.description,
+            category: 'تسديد سلفة نقدي',
+          ),
+        );
+        continue;
+      }
       if (SalaryExpenseClassifier.isAdvanceWithdrawal(w.withdrawalType)) {
         totalAdvances += w.amount;
         transactions.add(
@@ -250,6 +320,11 @@ class SalaryEntitlementService {
       totalDeductions: totalDeductions,
       netEntitlement: netEntitlement,
       transactions: transactions,
+      // ✅ (معادلة المالك) خانات تسديد السلفة — الأقساط التلقائية وتسديد
+      // «خصم من الراتب» التلقائي كلاهما تسديد من الراتب.
+      totalRepayments: repaymentsFromSalary + repaymentsCash,
+      repaymentsFromSalary: repaymentsFromSalary,
+      repaymentsCash: repaymentsCash,
     );
   }
 
@@ -268,7 +343,11 @@ class SalaryEntitlementService {
         totalAdvances = 0,
         totalInstallmentsPaid = 0,
         totalDeductions = 0,
-        totalNet = 0;
+        totalNet = 0,
+        totalRepayments = 0,
+        totalRemainingSalary = 0,
+        totalAdvanceBalance = 0,
+        totalNetPosition = 0;
     for (final e in entitlements) {
       totalEntitlements += e.totalEntitlement;
       totalWithdrawals += e.totalWithdrawals;
@@ -278,6 +357,11 @@ class SalaryEntitlementService {
       totalInstallmentsPaid += e.installmentsPaid;
       totalDeductions += e.totalDeductions;
       totalNet += e.netEntitlement;
+      // ✅ (معادلة المالك) أرصدة الوضع المالي الجديدة
+      totalRepayments += e.totalRepayments;
+      totalRemainingSalary += e.remainingSalary;
+      totalAdvanceBalance += e.advanceBalance;
+      totalNetPosition += e.netFinancialPosition;
     }
     return {
       'count': entitlements.length,
@@ -287,6 +371,11 @@ class SalaryEntitlementService {
       'totalInstallmentsPaid': totalInstallmentsPaid,
       'totalDeductions': totalDeductions,
       'totalNet': totalNet,
+      // ✅ (معادلة المالك) إجماليات التسديد والأرصدة
+      'totalRepayments': totalRepayments,
+      'totalRemainingSalary': totalRemainingSalary,
+      'totalAdvanceBalance': totalAdvanceBalance,
+      'totalNetFinancialPosition': totalNetPosition,
       'entitlements': entitlements,
     };
   }
@@ -573,7 +662,21 @@ class SalaryEntitlementService {
 
       final type = expense.expenseType.trim();
 
-      if (SalaryExpenseClassifier.isSalaryDeduction(type)) {
+      // ✅ تسديد السلفة من الراتب — يُحسب في خانة الأقساط المسددة (تخفيف
+      // رصيد السلف داخل الدورة) وليس خصماً جديداً ولا سحباً (النص يحتوي
+      // «سلفة» فيجب فحصه أولاً).
+      if (SalaryExpenseClassifier.isLoanRepayment(type)) {
+        installmentsPaid += expense.amount;
+        transactions.add(
+          SalaryCycleTransaction(
+            type: 'تسديد سلفة',
+            amount: expense.amount,
+            date: expense.date,
+            note: expense.description,
+            category: 'تسديد سلفة من الراتب',
+          ),
+        );
+      } else if (SalaryExpenseClassifier.isSalaryDeduction(type)) {
         if (type.contains('خصم من الراتب')) {
           final isInstallment =
               expense.isAutoGenerated &&
@@ -641,6 +744,22 @@ class SalaryEntitlementService {
       employeeExpenses: expenses,
     );
     for (final w in directWithdrawals) {
+      // ✅ تسديد السلفة النقدي (مرآة سالبة بلا مصروف) — يُحسب في خانة
+      // الأقساط المسددة داخل الدورة (تخفيف رصيد السلف لا سحب جديد).
+      if (w.amount < 0 &&
+          SalaryExpenseClassifier.isLoanRepayment(w.withdrawalType)) {
+        installmentsPaid += -w.amount;
+        transactions.add(
+          SalaryCycleTransaction(
+            type: 'تسديد سلفة',
+            amount: -w.amount,
+            date: w.date,
+            note: w.description,
+            category: 'تسديد سلفة نقدي',
+          ),
+        );
+        continue;
+      }
       if (SalaryExpenseClassifier.isAdvanceWithdrawal(w.withdrawalType)) {
         advances += w.amount;
         transactions.add(
@@ -736,6 +855,41 @@ class SalaryEntitlementService {
 
     final result = <_DirectWithdrawalData>[];
     for (final sw in rows) {
+      // ✅ تسديد السلفة: مرآة سالبة بنوع تسديد سلفة.
+      // التمييز بهوية العملية فقط (§1.3-2: لا مطابقة استدلالية):
+      // - مرتبطة بمصروف مقروء (expenseUuid يطابق أحد مصروفات الموظف أو
+      //   المصروف مختوم بها) → المصروف نفسه حسبها خانة «من الراتب» → تُتجاهل
+      //   هنا لمنع الازدواجية.
+      // - بلا مصروف مقابل (expenseUuid = NULL) → تسديد نقدي → تخفّض رصيد
+      //   السلف فقط.
+      if (sw.amount < 0 &&
+          SalaryExpenseClassifier.isLoanRepayment(sw.withdrawalType)) {
+        final linkedToReadExpense =
+            ((sw.expenseUuid ?? '').trim().isNotEmpty &&
+                employeeExpenseUuids.contains((sw.expenseUuid ?? '').trim())) ||
+            (employeeExpenses ?? const <Expense>[]).any(
+              (e) => (e.withdrawalUuid ?? '').trim() == sw.localUuid.trim(),
+            );
+        if (linkedToReadExpense) continue;
+
+        // فلترة نطاق الدورة الزمني عند الطلب
+        if (cycleStart != null && cycleEnd != null) {
+          final dt = _parseDate(sw.withdrawDate);
+          if (dt == null) continue;
+          if (dt.isBefore(cycleStart) || dt.isAfter(cycleEnd)) continue;
+        }
+
+        result.add(
+          _DirectWithdrawalData(
+            amount: sw.amount,
+            date: sw.withdrawDate,
+            withdrawalType: sw.withdrawalType,
+            description: sw.description,
+          ),
+        );
+        continue;
+      }
+
       // المرايا السالبة للخصوم — تُقرأ من المصروفات (ليست نقداً)
       if (sw.amount <= 0) continue;
 
