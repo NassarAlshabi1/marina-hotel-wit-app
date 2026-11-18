@@ -9,6 +9,7 @@ import '../../../services/appwrite_realtime_sync.dart';
 import '../../../services/appwrite_sync_manager.dart';
 import '../../../services/sync_pull_scope.dart';
 import '../../../core/core.dart';
+import 'financial_integrity_report_screen.dart';
 
 /// Unified Sync Settings Screen
 ///
@@ -578,6 +579,24 @@ class _UnifiedSyncSettingsScreenState
                   )
                 : const Icon(Icons.cloud_download),
             onTap: (_isPullingNow || _isSaving) ? null : _pullNow,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('تقرير سلامة الروابط المالية'),
+            subtitle: const Text(
+              'عرض فقط — مصروف بلا مرآة، مرايا يتيمة، روابط معلّقة، '
+              'outbox متعثر (وثيقة §11)',
+            ),
+            leading: const Icon(Icons.health_and_safety),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const FinancialIntegrityReportScreen(),
+                ),
+              );
+            },
           ),
           const Divider(height: 1),
           const Padding(

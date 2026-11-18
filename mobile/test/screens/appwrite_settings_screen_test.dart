@@ -106,6 +106,38 @@ void main() {
     );
   });
 
+  testWidgets('يعرض اختيار الجدول عند بدء تصدير CSV', (tester) async {
+    await tester.pumpWidget(_buildSettingsScreen());
+    await tester.pump();
+    final scrollable = find
+        .descendant(
+          of: find.byType(ListView).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.text('اختيار الجدول والتصدير'),
+      400,
+      scrollable: scrollable,
+    );
+    // ✅ مثل اختبار «لا ينفذ إجراءات البيانات قبل تأكيد المستخدم»:
+    // بطاقات قسم إدارة البيانات طويلة، وقد يبقى زر الإجراء أسفل حافة
+    // الشاشة بعد scrollUntilVisible فتفوت الضربة (hit-test خارج 800x600).
+    // ensureVisible تجلب الزر فعلياً إلى نطاق اللمس قبل الضغط.
+    await tester.ensureVisible(find.text('اختيار الجدول والتصدير'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('اختيار الجدول والتصدير'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('اختر الجدول للتصدير'), findsOneWidget);
+    expect(find.text('الحجوزات'), findsOneWidget);
+    expect(find.text('bookings'), findsOneWidget);
+
+    await tester.tap(find.text('إلغاء'));
+    await tester.pumpAndSettle();
+    expect(find.text('اختر الجدول للتصدير'), findsNothing);
+  });
+
   testWidgets('لا ينفذ إجراءات البيانات قبل تأكيد المستخدم', (tester) async {
     await tester.pumpWidget(_buildSettingsScreen());
     await tester.pump();

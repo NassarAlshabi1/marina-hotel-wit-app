@@ -65,9 +65,12 @@ class AppwriteMessagingService {
   static final AppwriteMessagingService _instance =
       AppwriteMessagingService._internal();
 
-  late final Account _account;
-  late final Client _client;
-  late final Databases _databases;
+  // ✅ إصلاح شاشة إعدادات Appwrite Cloud: ليست final — تُعاد تهيئتها
+  // في reconfigure() عند تغيير إعدادات الاتصال وقت التشغيل حتى لا تبقى
+  // خدمة الإشعارات مرتبطة بعميل المشروع القديم.
+  late Account _account;
+  late Client _client;
+  late Databases _databases;
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -471,6 +474,21 @@ class AppwriteMessagingService {
     _currentUserId = null;
     _isInitialized = false;
     dlog('🛑 Appwrite Messaging Service disposed');
+  }
+
+  /// ✅ إعادة ربط الخدمة بعميل Appwrite الحالي — يُستدعى بعد تغيير
+  /// إعدادات الاتصال وحفظها (Endpoint/Project/Key) من شاشة الإعدادات،
+  /// لأن [_client] كان late final يُخزّن مرجع العميل القديم للأبد.
+  /// ملاحظة: إعادة تسجيل جهاز FCM على المشروع الجديد تتم تلقائياً
+  /// في أول تشغيل لاحق عبر registerDevice.
+  void reconfigure() {
+    if (!_isInitialized) {
+      return; // لم تُهيأ بعد — ستلتقط العميل الصحيح في initialize()
+    }
+    _client = AppwriteService().client;
+    _account = Account(_client);
+    _databases = Databases(_client);
+    dlog('🔄 Appwrite Messaging Service rebound to current client');
   }
 
   /// تنظيف الموارد الثابتة (يُستدعى عند إغلاق التطبيق)

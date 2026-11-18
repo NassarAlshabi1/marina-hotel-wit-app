@@ -10,23 +10,19 @@ class AppwriteConfig {
     defaultValue: 'https://fra.cloud.appwrite.io/v1',
   );
 
-  // Project ID - من لوحة تحكم Appwrite
-  // ✅ تم التغيير (2026-07-22): المشروع القديم (6a2b01d0) تجاوز حد Database Reads.
-  // المشروع الجديد (6a4408f3) هو نفسه الذي كان secondary — يعمل بدون مشاكل.
+  // القيم الافتراضية للمشروع الذي حدده مالك التطبيق؛ يمكن تغييرها
+  // يدوياً من شاشة إعدادات اتصال Appwrite.
   static const String projectId = '6a4408f300217885fd7b';
 
   // Database ID - من لوحة تحكم Appwrite
   static const String databaseId = '6a4409b50019dd39dde5';
 
   // ═══════════════════════════════════════════════════════════════
-  //  API Key — مفتاح افتراضي مُدمج في التطبيق
+  //  API Key اختياري — لا تضع مفتاحاً سرياً في تطبيق الهاتف
   // ═══════════════════════════════════════════════════════════════
-  // مفتاح API الافتراضي المُدمج. يُمكن للمستخدم تغييره في أي وقت من
-  // شاشة إعدادات اتصال Appwrite. عند الاستبدال، يُحفظ المفتاح الجديد في
-  // SharedPreferences ويُحمَّل عند بدء التطبيق بدلاً من هذا الافتراضي.
-  // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
-  // ✅ SECURITY: API key via --dart-define, NOT hardcoded.
-  // Pass at build time: --dart-define=APPWRITE_API_KEY=standard_xxx
+  // مفاتيح --dart-define تُضمّن في APK ويمكن استخراجها؛ القيمة الافتراضية
+  // فارغة. استخدم صلاحيات Appwrite ومصادقة المستخدم، أو احتفظ بالمفتاح
+  // في خدمة خلفية موثوقة. يدعم AppwriteConfigManager إعداداً يدوياً للتوافق.
   static const String defaultApiKey = String.fromEnvironment(
     'APPWRITE_API_KEY',
   );

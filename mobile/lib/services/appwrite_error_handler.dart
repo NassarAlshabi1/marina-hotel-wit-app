@@ -135,6 +135,25 @@ class AppwriteErrorHandler {
     final code = e.code;
     final type = e.type ?? '';
 
+    // ✅ (2026-11-11) اكتشاف project_paused قبل الفحص العام لـ 403:
+    // Appwrite Cloud (الخطة المجانية) يوقف المشاريع غير النشطة (~7 أيام)
+    // ويرجع الخطأ كـ 403/project_paused. عرضه كـ PERMISSION_ERROR العادية
+    // كان يُضلّل المستخدم (يظن أن المفتاح أو الصلاحيات خاطئة)، بينما
+    // الحل الوحيد هو استعادة المشروع من لوحة Appwrite Console — لا يُصلحه
+    // إعادة المحاولة ولا تغيير الإعدادات.
+    if (type.toLowerCase() == 'project_paused' ||
+        (e.message ?? '').toLowerCase().contains('project is paused')) {
+      return AppwriteError(
+        code: 'PROJECT_PAUSED',
+        message: 'مشروع Appwrite موقوف مؤقتاً بسبب عدم النشاط',
+        details:
+            'استعده من Appwrite Console: cloud.appwrite.io ← اختر المشروع '
+            '← زر Restore، ثم أعد المحاولة. (لن يُصلح الأمر تغيير المفتاح '
+            'أو الصلاحيات)',
+        isRecoverable: false,
+      );
+    }
+
     if (code == 401 || type.contains('unauthorized')) {
       return AppwriteError(
         code: 'AUTH_ERROR',

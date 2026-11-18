@@ -310,7 +310,7 @@ void main() {
           );
         }
 
-        final makeTask = () => CollectionPullTask(
+        CollectionPullTask makeTask() => CollectionPullTask(
           name: 'booking_nights',
           streamFullSync: true,
           fetchPage: fetchPage,
@@ -420,7 +420,7 @@ void main() {
     test('حل normalized (بحث بالشرطات لسجل مخزّن بدون شرطات)', () async {
       // b-uuid-2 مخزّن بـ UUID 32 حرفاً بدون شرطات (legacy)؛ البحث بالصيغة
       // القياسية بالشرطات يجب أن يُحل عبر الفهرس المقيس.
-      final withDashes = '11111111-2222-3333-4444-555555555555';
+      const withDashes = '11111111-2222-3333-4444-555555555555';
       final id = await resolver.resolveBooking(
         uuid: withDashes,
         fromRemote: true,

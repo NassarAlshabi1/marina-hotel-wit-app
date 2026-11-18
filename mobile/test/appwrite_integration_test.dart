@@ -30,6 +30,9 @@ void main() {
 
       final db = Databases(client);
 
+      // نفس مسار الإنتاج (appwrite_service.listDocuments)؛ هجرة الاختبار
+      // إلى TablesDB.listRows تفصلها عن الكود الذي يغطيه.
+      // ignore: deprecated_member_use
       final res = await db.listDocuments(
         databaseId: AppwriteConfig.databaseId,
         collectionId: AppwriteConfig.roomsCollectionId,

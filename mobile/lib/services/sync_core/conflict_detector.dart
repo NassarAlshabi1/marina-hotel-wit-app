@@ -248,6 +248,17 @@ class ConflictDetector {
           key == 'updated_at') {
         continue;
       }
+      // ✅ (2026-11-02) إصلاح «تعارضات المصروفات ومصروفات الرواتب»:
+      // معرفات FK الرقمية محلية لكل جهاز (autoincrement يُعاد ترقيمه على
+      // كل جهاز — نفس مبررات migration 68 و P0.2/R2). روابط الهوية عبر
+      // الأجهزة هي حقول *Uuid (employeeUuid / withdrawalUuid / cashFlowUuid
+      // / bookingUuidCache…). لو تركنا هذه الحقول تدخل حساب الحقول
+      // المتغيّرة لكانت «مختلفة» بين كل جهازين حتماً → كل دمج 3-way
+      // يراها تغيّراً بعيداً → version+1 ورفع النتيجة → الجهاز الآخر يدمج
+      // بدوره ويرفع معرفاته → ping-pong تعارضات لا ينتهي على المصروفات
+      // ومصروفات الرواتب تحديداً (relatedId/cashTransactionId/employeeId/
+      // expenseId لا تتطابق أبداً عبر الأجهزة).
+      if (_isDeviceLocalIdField(key)) continue;
       if (ancestor != null) {
         // ✅ 3-way: الحقل تغيّر فقط إذا اختلف عن السلف المشترك.
         if (!const DeepCollectionEquality().equals(
@@ -269,6 +280,35 @@ class ConflictDetector {
     }
     return changed;
   }
+
+  /// ✅ (2026-11-02) أسماء أعمدة FK الرقمية المحلية لكل جهاز — لا تُقارن
+  /// ولا تُدمج ولا تُنسخ من البعيد أبداً (قيمها على الجهاز الآخر بلا معنى
+  /// هنا). القائمة مطابقة لأعمدة المخطط الفعلية:
+  ///   id (كل الجداول)، relatedId/cashTransactionId (expenses)،
+  ///   employeeId (salary_withdrawals/salary_payments/salary_carry_over_logs)،
+  ///   expenseId (salary_withdrawals)، bookingId (booking_notes)،
+  ///   cycleId (salary_payments).
+  /// ملاحظة: serverBookingId/serverId ليست هنا — فهي معرفات سحابية
+  /// ذات معنى عبر الأجهزة.
+  static const Set<String> _deviceLocalIdFields = {
+    'id',
+    'relatedId',
+    'related_id',
+    'cashTransactionId',
+    'cash_transaction_id',
+    'employeeId',
+    'employee_id',
+    'expenseId',
+    'expense_id',
+    'bookingId',
+    'booking_id',
+    'cycleId',
+    'cycle_id',
+  };
+
+  /// هل الحقل معرّف رقمي محلي لجهاز بعينه؟
+  static bool _isDeviceLocalIdField(String key) =>
+      _deviceLocalIdFields.contains(key);
 
   static int _extractTs(Map<String, dynamic> data) {
     return (data['lastModified'] as int?) ??

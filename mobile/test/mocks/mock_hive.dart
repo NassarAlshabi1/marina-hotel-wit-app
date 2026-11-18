@@ -82,8 +82,8 @@ class MockHive {
   factory MockHive() => _instance;
   MockHive._internal();
 
-  final Map<String, MockHiveBox> _boxes = {};
-  final Map<String, MockHiveLazyBox> _lazyBoxes = {};
+  final Map<String, MockHiveBox<dynamic>> _boxes = {};
+  final Map<String, MockHiveLazyBox<dynamic>> _lazyBoxes = {};
 
   Future<void> initFlutter() async {
     // لا شيء للتهيئة في الاختبار

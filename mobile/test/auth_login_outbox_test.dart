@@ -38,17 +38,50 @@ void main() {
     expect(await outbox.count(), 0);
   });
 
+  test('تحديث كلمة مرور المدير يبطل الجلسة المحلية المحفوظة القديمة', () async {
+    final store = AuthLocalStore();
+    await store.saveCurrentUser({
+      'id': 1,
+      'username': 'admin',
+      'full_name': 'مدير النظام',
+      'user_type': 'admin',
+      'permissions': <String>['all'],
+    });
+    await store.setRememberMe(true);
+    await store.setAuthType(AuthType.local);
+
+    final notifier = AuthNotifier(
+      store: store,
+      restoreSessionOnCreate: false,
+    );
+    addTearDown(notifier.dispose);
+    await notifier.restoreSession();
+
+    expect(notifier.state.isAuthenticated, isFalse);
+    expect(notifier.state.error, contains('تم تحديث بيانات دخول المدير'));
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('current_user'), isNull);
+    expect(prefs.getInt('local_admin_credential_version'), 2);
+  });
+
   test('تُحفظ جلسة الدخول وتُستعاد بعد إعادة إنشاء AuthNotifier', () async {
-    final first = AuthNotifier(restoreSessionOnCreate: false);
+    final testStore = _SessionTestAuthStore();
+    final first = AuthNotifier(
+      store: testStore,
+      restoreSessionOnCreate: false,
+    );
     addTearDown(first.dispose);
 
-    await first.login('admin', 'admin');
+    await first.login('admin', 'test-only-password');
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('remember_me'), isTrue);
     expect(prefs.getString('current_user'), isNotNull);
 
-    final restored = AuthNotifier(restoreSessionOnCreate: false);
+    final restored = AuthNotifier(
+      store: testStore,
+      restoreSessionOnCreate: false,
+    );
     addTearDown(restored.dispose);
     await restored.restoreSession();
 
@@ -58,10 +91,13 @@ void main() {
   });
 
   test('إلغاء تذكر الجلسة يمنع الاستعادة بعد إعادة التشغيل', () async {
-    final first = AuthNotifier(restoreSessionOnCreate: false);
+    final first = AuthNotifier(
+      store: _SessionTestAuthStore(),
+      restoreSessionOnCreate: false,
+    );
     addTearDown(first.dispose);
 
-    await first.login('admin', 'admin', rememberMe: false);
+    await first.login('admin', 'test-only-password', rememberMe: false);
 
     final restored = AuthNotifier(restoreSessionOnCreate: false);
     addTearDown(restored.dispose);
@@ -71,14 +107,13 @@ void main() {
     expect(restored.state.currentUser, isNull);
   });
 
-  test('التحقق الحقيقي من الحساب المحلي لا ينشئ Outbox', () async {
+  test('كلمة المرور القديمة للحساب المحلي مرفوضة ولا تنشئ Outbox', () async {
     final store = AuthLocalStore();
     final outbox = OutboxDao(db, AdapterRegistry.testing(db));
 
     final user = await store.validateCredentials('admin', 'admin');
 
-    expect(user, isNotNull);
-    expect(user?['username'], 'admin');
+    expect(user, isNull);
     expect(await outbox.count(), 0);
   });
 
@@ -95,6 +130,25 @@ void main() {
     expect(notifier.state.error, isNotNull);
     expect(await OutboxDao(db, AdapterRegistry.testing(db)).count(), 0);
   });
+}
+
+class _SessionTestAuthStore extends AuthLocalStore {
+  @override
+  Future<Map<String, dynamic>?> validateCredentials(
+    String username,
+    String password,
+  ) async {
+    if (username != 'admin' || password != 'test-only-password') {
+      return null;
+    }
+    return <String, dynamic>{
+      'id': 1,
+      'username': 'admin',
+      'full_name': 'مدير اختبار',
+      'user_type': 'admin',
+      'permissions': <String>['all'],
+    };
+  }
 }
 
 class _LocalOnlyAuthStore extends AuthLocalStore {

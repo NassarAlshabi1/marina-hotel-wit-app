@@ -76,8 +76,8 @@ models.Document _nightDoc(int i) {
       'bookingUuidCache': 'booking-uuid-$booking',
       'serverId': i,
       'hotelDayKey': day.toIso8601String().substring(0, 10),
-      'nightStart': '${day.toIso8601String()}',
-      'nightEnd': '${nextDay.toIso8601String()}',
+      'nightStart': day.toIso8601String(),
+      'nightEnd': nextDay.toIso8601String(),
       'nightlyRate': 100.0 + (i % 7) * 10,
       'baseRate': 100.0 + (i % 7) * 10,
       'adjustment': 0,
@@ -119,7 +119,7 @@ Future<void> _seedParents(AppDatabase db) async {
         guestName: d.Value('ضيف $b'),
         guestPhone: d.Value('05000$b'),
         guestNationality: const d.Value('يمني'),
-        checkinDate: d.Value('${day.toIso8601String()}'),
+        checkinDate: d.Value(day.toIso8601String()),
         status: const d.Value('نشط'),
         localUuid: d.Value('booking-uuid-$b'),
         createdAt: const d.Value(_kBaseEpochSec),
@@ -193,7 +193,7 @@ void main() {
       );
 
       final observer = _openObserver(dbPath);
-      addTearDown(observer.dispose);
+      addTearDown(observer.close);
 
       final docs = List<models.Document>.generate(_kTotalNights, _nightDoc);
 

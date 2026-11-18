@@ -153,7 +153,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         DateTime.now().millisecondsSinceEpoch,
       );
 
-      if (mounted && pulledCount > 0) {
+      if (mounted && result.hasPullFailures) {
+        // ✅ (2026-11-02) سحب جزئي: مجموعات (مثل bookings) فشلت ولم تصل —
+        // كان السحب التلقائي يعرض «تم سحب N سجل» الخضراء حتى مع فشل
+        // bookings فيظن المستخدم أن كل شيء وصل. المؤشرات لم تتقدم فتُعاد
+        // المحاولة تلقائياً في الدورة التالية.
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '⚠️ سحب جزئي — فشل: ${result.failedCollections.join("، ")} '
+                    '(ستُعاد المحاولة تلقائياً)',
+                    style: const TextStyle(fontFamily: 'Tajawal'),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else if (mounted && pulledCount > 0) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1001,13 +1030,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'استلامات المستخدمين الآخرين في النوبات',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  'استلام الموظفين',
+                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
                 'اليوم الفندقي الحالي',
-                style: TextStyle(fontSize: 9, color: Colors.grey),
+                style: TextStyle(fontSize: 8, color: Colors.grey),
               ),
               const SizedBox(width: 4),
               // ✅ تحديث فوري من السحابة عند الطلب.
@@ -1079,24 +1108,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           '${summary.paymentCount} دفعة',
                           style: const TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             color: Colors.grey,
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 6),
                         Text(
                           currencyFmt.format(summary.totalAmount),
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.blue.shade700,
                           ),

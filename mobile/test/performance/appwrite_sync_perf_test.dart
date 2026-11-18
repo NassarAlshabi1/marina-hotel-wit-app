@@ -223,6 +223,8 @@ void main() {
         assert(localUuid.isNotEmpty);
         assert(status.isNotEmpty);
         assert(roomNumber.isNotEmpty);
+        assert(guestName.isNotEmpty);
+        assert(checkinDate.isNotEmpty);
       }
 
       stopwatch.stop();

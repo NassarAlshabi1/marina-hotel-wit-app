@@ -312,6 +312,11 @@ class AppwriteRealtimeSync {
     _stopPollingFallback();
     remoteChangeQueue.clear();
     resetRemoteChangesFlag();
+    // ✅ إصلاح شاشة إعدادات Appwrite Cloud: إسقاط مرجع Realtime القديم —
+    // كان يُبنى مرة واحدة على عميل الإعدادات القديمة (??=) فيبقى
+    // متصلاً بالمشروع القديم بعد تغيير الإعدادات؛ start() التالي يعيد
+    // بناءه من العميل الحالي.
+    _realtime = null;
   }
 
   void dispose() => unawaited(stop());

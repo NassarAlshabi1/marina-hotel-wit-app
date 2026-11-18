@@ -54,36 +54,32 @@ void main() {
 
   group('SyncPullService — pushedToRemote behavior', () {
     test(
-      '25. تعارض متزامن مع 3-way merge ناجح → pushedToRemote=true',
+      '25. تعارض متزامن → Cloud Wins: نسخة السحابة تُطبَّق كاملة (وثيقة §7.5)',
       () async {
-        // ✅ إعداد: سجل محلي بنسخة متجهية + ancestor مشترك
+        // ✅ (2026-11-04 — وثيقة الربط والمزامنة الموحدة §7.5): سياسة الحسم
+        // أصبحت **Appwrite Cloud Wins** — لا دمج حقول (3-way merge) ولا LWW.
+        // VectorClock للكشف فقط؛ الفائز دائماً هو نسخة السحابة كاملة،
+        // وعمليات Outbox المحلية المتعارضة تُعلَّم superseded_by_cloud.
         const localUuid = 'booking-001';
         const entity = 'bookings';
 
-        // ancestor مشترك (النسخة الأصلية قبل التشعّب)
-        final ancestor = {
-          'localUuid': localUuid,
-          'status': 'confirmed',
-          'roomNumber': '101',
-          'lastModified': 1000,
-          'vectorClock': '{"device-A": 1, "device-B": 1}',
-        };
-        await ancestorCacheDao.saveAncestor(
-          entity: entity,
-          localUuid: localUuid,
-          data: ancestor,
-        );
-
-        // محلي: غيّر status من device-A
+        // محلي: غيّر status من device-A (مع تعديل معلّق في outbox)
         final localData = {
           'localUuid': localUuid,
-          'status': 'checked_in', // ← تغيير محلي
+          'status': 'checked_in', // ← تغيير محلي متعارض
           'roomNumber': '101',
           'lastModified': 2000,
           'vectorClock': '{"device-A": 2, "device-B": 1}',
         };
+        await outboxDao.merge(
+          entity: entity,
+          op: 'update',
+          localUuid: localUuid,
+          payload: {'status': 'checked_in'},
+          clientTs: 2000,
+        );
 
-        // بعيد: غيّر roomNumber من device-B (في نفس الوقت)
+        // بعيد: غيّر roomNumber من device-B (في نفس الوقت — concurrent)
         final remoteData = {
           'localUuid': localUuid,
           'status': 'confirmed',
@@ -103,25 +99,27 @@ void main() {
           localData: localData,
         );
 
-        // تحقق
+        // تحقق — Cloud Wins
         expect(
           result.shouldApplyRemote,
           isTrue,
-          reason: 'البيانات المدمجة يجب أن تُطبَّق محلياً',
-        );
-        expect(
-          result.pushedToRemote,
-          isTrue,
-          reason: 'يجب رفع النتيجة للسحابة لمنع silent divergence',
+          reason: 'نسخة Appwrite (السحابة) هي المرجع والفائزة دائماً (§7.5)',
         );
         expect(
           result.mergedData,
-          isNotNull,
-          reason: 'يجب أن تحتوي على بيانات مدمجة',
+          isNull,
+          reason: 'Cloud Wins يعتمد السجل السحابي كاملاً — لا دمج حقول',
         );
-        // دمج ثلاثي الأطراف: status من المحلي، roomNumber من البعيد
-        expect(result.mergedData!['status'], 'checked_in');
-        expect(result.mergedData!['roomNumber'], '102');
+        expect(
+          result.pushedToRemote,
+          isFalse,
+          reason: 'لا يُرفع شيء من الجهاز فوق السحابة في التعارض المتزامن',
+        );
+        // ✅ عمليات Outbox المحلية المتعارضة عُلّمت superseded_by_cloud
+        final op = await (db.select(
+          db.outbox,
+        )..where((o) => o.localUuid.equals(localUuid))).getSingle();
+        expect(op.processingStatus, 'superseded_by_cloud');
       },
     );
 
