@@ -5,7 +5,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_config.dart';
 import '../../services/appwrite_config_manager.dart';
-import '../../services/appwrite_messaging_service.dart';
 import '../../utils/snackbar_helper.dart';
 
 class AppwriteConnectionSettingsScreen extends ConsumerStatefulWidget {
@@ -86,21 +85,17 @@ class _AppwriteConnectionSettingsScreenState
         apiKey: _apiKeyController.text.trim(),
       );
 
-      // ✅ تطبيق فوري: إعادة بناء عميل Appwrite بالإعدادات الجديدة
-      // (بدون هذا كان العميل القديم يبقى فعّالاً حتى إعادة تشغيل
-      // التطبيق، وزر «اختبار الاتصال» في الشاشة الرئيسية يفحص
-      // الإعدادات القديمة).
-      await _applyConnectionSettings();
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('تم حفظ الإعدادات وتطبيقها فوراً'),
+            content: Text('تم حفظ الإعدادات بنجاح'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 3),
           ),
         );
         setState(() => _hasChanges = false);
+
+        _showRestartDialog();
       }
     } catch (e) {
       if (mounted) {
@@ -113,16 +108,28 @@ class _AppwriteConnectionSettingsScreenState
     }
   }
 
-  /// يطبّق الإعدادات المحفوظة حديثاً على الاتصال الحالي:
-  /// 1. إعادة بناء عميل Appwrite الأساسي (reconfigure)
-  /// 2. إعادة ربط خدمة الإشعارات بالعميل الجديد
-  /// 3. إلغاء تخزين معلومات المشروع مؤقتاً (provider) ليعاد حسابها
-  /// 4. فحص الاتصال فوراً بالقيم الجديدة وتحديث مؤشر الحالة
-  Future<void> _applyConnectionSettings() async {
-    await ref.read(ap.appwriteServiceProvider).reconfigure();
-    AppwriteMessagingService().reconfigure();
-    ref.invalidate(ap.projectInfoProvider);
-    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
+  void _showRestartDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.info, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('إعادة تشغيل مطلوبة'),
+          ],
+        ),
+        content: const Text(
+          'لتطبيق الإعدادات الجديدة، يرجى إغلاق التطبيق وإعادة فتحه.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _resetToDefaults() async {
@@ -153,9 +160,6 @@ class _AppwriteConnectionSettingsScreenState
 
     await AppwriteConfigManager.resetToDefaults();
 
-    // ✅ تطبيق فوري للإعدادات الافتراضية (نفس مسار الحفظ)
-    await _applyConnectionSettings();
-
     if (!mounted) {
       return;
     }
@@ -171,11 +175,13 @@ class _AppwriteConnectionSettingsScreenState
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم إعادة تعيين الإعدادات وتطبيقها فوراً'),
+          content: Text('تم إعادة تعيين الإعدادات'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 3),
         ),
       );
+
+      _showRestartDialog();
     }
   }
 
@@ -258,7 +264,7 @@ class _AppwriteConnectionSettingsScreenState
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'تُملأ بيانات Endpoint وProject ID وDatabase ID تلقائياً، ويمكنك تعديلها وحفظها يدوياً هنا. اترك API Key فارغاً في تطبيق الهاتف؛ مفاتيح Appwrite API مخصصة للخادم ويمكن استخراجها من التطبيق. استخدم مصادقة Appwrite وصلاحيات المجموعات بدلاً منها.',
+                'يمكنك تغيير إعدادات الاتصال بـ Appwrite Cloud هنا. تأكد من إدخال البيانات الصحيحة من لوحة تحكم Appwrite.',
                 style: TextStyle(color: Colors.blue.shade700),
               ),
             ),
@@ -336,9 +342,10 @@ class _AppwriteConnectionSettingsScreenState
             TextFormField(
               controller: _apiKeyController,
               decoration: InputDecoration(
-                labelText: 'API Key (اختياري)',
-                hintText: 'اتركه فارغاً لتطبيق الهاتف',
-                helperText: 'لا تُضمّن مفتاح API سرياً في تطبيق الهاتف.',
+                labelText: 'API Key',
+                hintText: 'مفتاح API من Appwrite (افتراضي مُدمج)',
+                helperText:
+                    'يُستخدم المفتاح الافتراضي تلقائياً. يمكنك استبداله بأي وقت.',
                 prefixIcon: const Icon(Icons.key),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(

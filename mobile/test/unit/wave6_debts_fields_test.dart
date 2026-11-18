@@ -17,6 +17,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/adapters/debts_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
+import 'package:marina_hotel_mobile/services/adapters/resolve_result.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
@@ -297,7 +298,7 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 76', () {
+    test('3e. أحدث schemaVersion = 74', () {
       // ✅ (2026-09-14) محاذاة بعد bump إلى 66 (recorder_name على
       // salary_withdrawals — إسناد السحبة لمسجّلها). القيمة مقصودة صريحة:
       // كل bump جديد يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
@@ -313,12 +314,7 @@ void main() {
       // ✅ (2026-10-15) bump إلى 73 — تتبّع حاذف المدفوعات:
       // deletedByDevice/deletedByName على payments (Migration 73).
       // ✅ (2026-10-21) bump إلى 74 — entry_date nullable لبيانات النزلاء.
-      // ✅ (2026-11-04) bump إلى 75 — «وثيقة الربط والمزامنة الموحدة» PR-1:
-      // pending_links + orphan_quarantine + الفهارس المرجعية §4.1.
-      // ✅ (2026-11-04) bump إلى 76 — قرار المالك: **لا عمود expense_kind**
-      // (التصنيف من expense_type عبر SalaryExpenseClassifier) — إزالة
-      // العمود وفهرسه من أجهزة شغّلت 75 القديم (Migration 76).
-      expect(db.schemaVersion, 76);
+      expect(db.schemaVersion, 74);
     });
   });
 

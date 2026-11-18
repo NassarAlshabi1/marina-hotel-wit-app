@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:marina_hotel_mobile/services/database_fixer.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/repositories/expenses_repository.dart';
+import 'package:marina_hotel_mobile/services/repositories/salary_withdrawals_repository.dart';
 import 'package:marina_hotel_mobile/services/salary_fix_helper.dart';
 
 /// ✅ اختبارات وظيفية للإصلاح المرة واحدة لمصروفات الرواتب اليتيمة.
@@ -26,11 +28,15 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late AppDatabase db;
+  late ExpensesRepository expensesRepo;
+  late SalaryWithdrawalsRepository salaryRepo;
   late DatabaseFixer fixer;
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    expensesRepo = ExpensesRepository(db);
+    salaryRepo = SalaryWithdrawalsRepository(db);
     fixer = DatabaseFixer(db);
   });
 
@@ -219,7 +225,7 @@ void main() {
           employeeUuid: null,
         );
         // إنشاء سحب بـ reason فقط (محاكاة pre-migration 40)
-        await db
+        final swId = await db
             .into(db.salaryWithdrawals)
             .insert(
               SalaryWithdrawalsCompanion(

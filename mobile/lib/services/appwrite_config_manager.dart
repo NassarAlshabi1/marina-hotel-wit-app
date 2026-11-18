@@ -37,7 +37,10 @@ class AppwriteConfigManager {
       dlog(() => '   Endpoint: $_endpoint');
       dlog(() => '   Project ID: $_projectId');
       dlog(() => '   Database ID: $_databaseId');
-      // لا تسجل المفتاح أو جزءاً منه؛ قد تكون سجلات التصحيح قابلة للتصدير.
+      dlog(
+        () =>
+            '   API Key: ${_apiKeyValue.isEmpty ? '(empty)' : '${_apiKeyValue.substring(0, 12)}...'}',
+      );
     }
   }
 

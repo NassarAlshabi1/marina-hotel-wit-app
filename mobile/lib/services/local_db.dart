@@ -16,76 +16,6 @@ part 'local_db.g.dart';
 
 const String _dbFileName = 'marina_hotel.db';
 
-/// ✅ (migration 75) «وثيقة الربط والمزامنة الموحدة» §4.1 — فهارس روابط UUID
-/// المرجعية بصيغها الفعلية المطابقة لمخطط Drift الحالي:
-///
-/// - idx_exp_employee_uuid ↔ idx_expenses_employee_uuid (منذ migration 69)
-/// - idx_sw_employee_uuid ↔ idx_salary_withdrawals_employee_uuid (67)
-/// - idx_sw_employee_id ↔ idx_salary_withdrawals_employee (معلن بالجدول)
-/// - idx_sc_employee_uuid ↔ idx_salary_cycles_employee_uuid (67)
-/// - idx_emp_local_uuid: local_uuid عليه قيد UNIQUE ضمني في كل جدول
-///   SyncFields (Drift يبني فهرساً فريداً ضمنياً) — إعادة إنشائه فهرساً
-///   صريحاً بنفس الاسم تكرار ضار بلا فائدة.
-///
-/// ⚠️ فهرس idx_exp_kind_day على expenses(expense_kind) أُزيل بقرار
-/// المالك (2026-11-04): **لا يُضاف عمود expense_kind** — التصنيف يتم من
-/// عمود `expense_type` الموجود عبر SalaryExpenseClassifier. جهاز سبق له
-/// تشغيل الترحيل 75 القديم يُنظَّف عموده وفهرسه في الترحيل 76.
-///
-/// فهرس المرآة الفريد الجزئي (ux_salary_withdrawals_expense_uuid_active)
-/// مستثنى عمداً من هذه القائمة: يُدار في onUpgrade بحارس التكرارات —
-/// «الفهرس الفريد لا يُنشأ قبل معالجة التكرارات وتقريرها، ولا تُحذف
-/// التكرارات تلقائياً» (§4.1).
-///
-/// تُنشأ فعلياً بـ IF NOT EXISTS في onUpgrade وفي beforeOpen — لا يُعتمد
-/// على `List<Index> get indexes` وحدها لأنها تُطبق على قواعد الجديدة فقط.
-const List<String> kUuidLinkIndexStatements = [
-  'CREATE INDEX IF NOT EXISTS idx_expenses_employee_uuid '
-      'ON expenses (employee_uuid)',
-  'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid '
-      'ON salary_withdrawals (employee_uuid)',
-  'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee '
-      'ON salary_withdrawals (employee_id)',
-  'CREATE INDEX IF NOT EXISTS idx_salary_cycles_employee_uuid '
-      'ON salary_cycles (employee_uuid)',
-  'CREATE INDEX IF NOT EXISTS idx_salary_payments_employee_uuid '
-      'ON salary_payments (employee_uuid)',
-  'CREATE INDEX IF NOT EXISTS idx_salary_carryover_employee_uuid '
-      'ON salary_carry_over_logs (employee_uuid)',
-];
-
-/// ✅ (migration 76) قرار المالك (2026-11-04): **لا عمود expense_kind**.
-///
-/// الترحيل 75 القديم (قبل هذا القرار) كان يضيف `expenses.expense_kind`
-/// ويفهرسه — الجهاز الذي سبق له تشغيله يحمل العمود والفهرس زائدين.
-/// هذه الصيغ تنظّفهما بلا أي مسّ لبيانات مالية: DROP INDEX ثم
-/// DROP COLUMN، وكلاهما مغلّف بفحص وجود لتجاوز الأجهزة التي لا تحملهما
-/// (أجهزة سبق لها تشغيل 75 الجديد أو أجهزة أنشأت القاعدة عند v76).
-///
-/// التصنيف الراتبي يظل يعمل من نص `expense_type` عبر
-/// `SalaryExpenseClassifier` (نفس المصدر الذي بُني عليه backfill 75)،
-/// فلا يُفقد أي تصنيف بحذف العمود المكرر.
-const List<String> kExpenseKindCleanupStatements = [
-  'DROP INDEX IF EXISTS idx_exp_kind_day',
-  "ALTER TABLE expenses DROP COLUMN expense_kind",
-];
-
-/// ✅ (migration 75) فهارس جدولي pending_links / orphan_quarantine.
-///
-/// ⚠️ درس §4.1: قوائم `List<Index> get indexes` لا ينفذها drift الحالي
-/// عند الإنشاء (المُولّد لا يضعها في allSchemaEntities) — لذا تُنشأ فعلياً
-/// بـ IF NOT EXISTS هنا + في beforeOpen على كل فتح.
-const List<String> kPendingLinksIndexStatements = [
-  'CREATE INDEX IF NOT EXISTS idx_pending_links_parent '
-      'ON pending_links (parent_entity, parent_uuid) '
-      'WHERE resolved_at IS NULL',
-  'CREATE INDEX IF NOT EXISTS idx_pending_links_unresolved '
-      'ON pending_links (entity, local_uuid) '
-      'WHERE resolved_at IS NULL',
-  'CREATE INDEX IF NOT EXISTS idx_orphan_quarantine_time '
-      'ON orphan_quarantine (quarantined_at)',
-];
-
 mixin SyncFields on Table {
   TextColumn get localUuid => text().unique()();
   IntColumn get serverId => integer().nullable()();
@@ -269,10 +199,6 @@ class Expenses extends Table with SyncFields {
   // ترقيم المعرفات عبر الأجهزة. Nullable — السجلات القديمة تُعبأ عبر
   // backfill الترحيل ما أمكن، وما لا يُحسم حتمياً يبقى بلا رابط (أأمن).
   TextColumn get withdrawalUuid => text().nullable()();
-
-  // ⚠️ قرار المالك (2026-11-04): **لا عمود expense_kind** — التصنيف
-  // الراتبي يتم من نص `expenseType` الموجود عبر SalaryExpenseClassifier.
-  // العمود الذي أضافه الترحيل 75 القديم يُحذف في الترحيل 76.
 
   List<Index> get indexes => [
     Index(
@@ -1287,115 +1213,6 @@ class SyncRemoteMeta extends Table {
   Set<Column> get primaryKey => {collection, docId};
 }
 
-/// ✅ (migration 75) سجل الروابط المعلّقة — «وثيقة الربط والمزامنة الموحدة»
-/// §4.1 (جدول pending_links) + §5.2 (عدم حل الأب) + §8.1 (Pull).
-///
-/// يحفظ — بشكل دائم وقابل لإعادة المحاولة — الـ payloads الواردة من السحابة
-/// التي لم يُحل رابطها الأبوي محلياً (موظف/مصروف لم يصل بعد عبر المزامنة).
-/// القواعد غير القابلة للتجاوز (§1.3):
-/// - لا حذف نهائي لسجل مالي لأن أبوه لم يصل بعد (§1.3-1).
-/// - لا يُستعمل الرقم البعيد fallback لحل الهوية (§5.2).
-/// - عند وصول الأب تُعاد المحاولة، ثم يُطبّق السجل ويُحسم القيد (§8.1).
-/// - سبب التعذر يُعرض في شاشة المزامنة/الصيانة (§5.2/§11).
-@DataClassName('PendingLinkRow')
-class PendingLinks extends Table {
-  IntColumn get id => integer().autoIncrement()();
-
-  /// الجدول/الكولكشن الذي ينتمي إليه السجل غير المحلول
-  /// (expenses | salary_withdrawals | salary_cycles | salary_payments |
-  /// salary_carry_over_logs)
-  TextColumn get entity => text()();
-
-  /// localUuid للسجل نفسه — الهوية الثابتة عبر الأجهزة (§1.1)
-  TextColumn get localUuid => text()();
-
-  /// نوع الأب الغائب (employees | expenses)
-  TextColumn get parentEntity => text()();
-
-  /// UUID الأب المنتظر (employeeUuid / expenseUuid) — nullable لأن سبب
-  /// التعذر قد يكون غياب الهوية نفسها وليس غياب صف الأب (§7.4-4).
-  TextColumn get parentUuid => text().nullable()();
-
-  /// الـ payload الكامل كما ورد (JSON) — يُطبّق محلياً عند وصول الأب،
-  /// مع حل الأرقام المحلية عبر LocalLinkResolver فقط (§5.1)
-  TextColumn get payloadJson => text()();
-
-  /// سبب التعذر — يُعرض في تقرير pending links (§11)
-  TextColumn get reason => text()();
-
-  /// عدد محاولات الحل وآخر محاولة — لتقرير «pending links وعدد محاولاتها
-  /// وأسبابها» (§11)
-  IntColumn get attempts => integer().withDefault(const Constant(0))();
-  IntColumn get lastAttemptAt => integer().nullable()();
-
-  /// زمن الحل — NULL = ما زال معلقاً (قابل لإعادة المحاولة، لا يُحذف)
-  IntColumn get resolvedAt => integer().nullable()();
-
-  /// كيف حُلّ السجل (parent_arrived | applied_from_payload) — تشخيص فقط
-  TextColumn get resolvedHow => text().nullable()();
-
-  IntColumn get createdAt => integer()();
-  IntColumn get updatedAt => integer()();
-
-  @override
-  List<Set<Column>> get uniqueKeys => [
-    {entity, localUuid},
-  ];
-
-  List<Index> get indexes => [
-    // إعادة المحاولة فور وصول الأب: كل السجلات المعلقة المنتظرة أباً معيناً
-    Index(
-      'idx_pending_links_parent',
-      'CREATE INDEX idx_pending_links_parent ON pending_links '
-          '(parent_entity, parent_uuid) WHERE resolved_at IS NULL',
-    ),
-    // تقرير الروابط المعلقة النشطة (§11)
-    Index(
-      'idx_pending_links_unresolved',
-      'CREATE INDEX idx_pending_links_unresolved ON pending_links '
-          '(entity, local_uuid) WHERE resolved_at IS NULL',
-    ),
-  ];
-}
-
-/// ✅ (migration 75) حجر السجلات اليتيمة — «وثيقة الربط والمزامنة الموحدة»
-/// §4.1 (جدول orphan_quarantine اختياري) + §10.8.
-///
-/// عزل payloads غير القابلة للحل (بلا هوية موظف أصلاً ولا يمكن إسنادها
-/// تخمينياً) بدل حذفها — «البيانات المفسدة سابقاً لا تُصلح تلقائياً؛ تبقى
-/// كما هي حتى reconciliation موثق» (§10.8)، والتقرير يعرض الأدلة (§11).
-@DataClassName('OrphanQuarantineRow')
-class OrphanQuarantine extends Table {
-  IntColumn get id => integer().autoIncrement()();
-
-  /// الكولكشن الأصلي للسجل المحجور
-  TextColumn get entity => text()();
-
-  /// localUuid للسجل إن وُجد — قد يغيب تماماً في payloads تالفة
-  TextColumn get localUuid => text().nullable()();
-
-  /// الـ payload الكامل كما ورد (JSON) — محفوظ دائماً، لا حذف أبداً
-  TextColumn get payloadJson => text()();
-
-  /// سبب الحجر (بلا employee_uuid، مرجع أب غير موجود بلا بديل موثوق...)
-  TextColumn get reason => text()();
-
-  IntColumn get quarantinedAt => integer()();
-
-  @override
-  List<Set<Column>> get uniqueKeys => [
-    {entity, localUuid},
-  ];
-
-  List<Index> get indexes => [
-    Index(
-      'idx_orphan_quarantine_time',
-      'CREATE INDEX idx_orphan_quarantine_time ON orphan_quarantine '
-          '(quarantined_at)',
-    ),
-  ];
-}
-
 @DriftDatabase(
   tables: [
     Rooms,
@@ -1432,8 +1249,6 @@ class OrphanQuarantine extends Table {
     InventoryTransactions,
     AncestorCache,
     SyncRemoteMeta,
-    PendingLinks,
-    OrphanQuarantine,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1443,7 +1258,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 76;
+  int get schemaVersion => 74;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1470,137 +1285,8 @@ class AppDatabase extends _$AppDatabase {
       // page_size يجب تعيينه فقط عند إنشاء قاعدة بيانات جديدة، وبما أن
       // قاعدة البيانات موجودة مسبقاً بقيمة مختلفة (غالباً 1024) فهذا إهدار I/O
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
-      // ✅ (migration 75) وثيقة الربط §4.1: «الفهارس (تُنشأ فعلياً في
-      // beforeOpen أو onCreate باستخدام IF NOT EXISTS، ولا يُعتمد على
-      // List<Index> get indexes وحدها)» — شبكة أمان idempotent تضمن وجود
-      // فهارس UUID المرجعية على كل قواعد الأجهزة المرقّة قبل 67-69.
-      // (فهرس المرآة الفريد الجزئي يُدار في onUpgrade بحارس التكرارات —
-      // لا يُنشأ هنا فهرس غير فريد مكرر فوق الفريد القائم.)
-      for (final ddl in kUuidLinkIndexStatements) {
-        await customStatement(ddl);
-      }
-      for (final ddl in kPendingLinksIndexStatements) {
-        await customStatement(ddl);
-      }
     },
     onUpgrade: (m, from, to) async {
-      // ✅ (2026-11-04) الإصدار 75: «وثيقة الربط والمزامنة الموحدة» — PR-1
-      // (متطلبات قاعدة البيانات المحلية §4.1).
-      //
-      // المطلوب ناقصاً بعد الترحيلات 66-74:
-      // - pending_links: حفظ دائم للسجلات التي وصل رابطها الأبوي متأخراً
-      //   (§4.1/§5.2/§8.1) — لا حذف ولا إسقاط من outbox أبداً.
-      // - orphan_quarantine: عزل payloads غير القابلة للحل بلا حذف (§4.1).
-      // - الفهارس المرجعية §4.1 تُنشأ فعلياً بـ IF NOT EXISTS (هنا +
-      //   beforeOpen) ولا يُعتمد على List<Index> get indexes وحدها.
-      //
-      // ⚠️ قرار المالك (2026-11-04): عمود `expenses.expense_kind` الذي
-      // كان يُضاف هنا أُزيل من هذا الترحيل — التصنيف يتم من عمود
-      // `expense_type` الموجود عبر SalaryExpenseClassifier، والجهاز الذي
-      // سبق له تشغيل النسخة القديمة من 75 يُنظّف في الترحيل 76.
-      //
-      // كل العمليات إضافية (CREATE TABLE + فهارس) — لا حذف ولا إعادة بناء
-      // ولا فقدان بيانات بأي شكل، وبلا outbox وبلا version/lastModified.
-      if (from < 75) {
-        // 1) جدولا الروابط المعلقة والحجر (§4.1) + فهارسهما الفعلية
-        await m.createTable(pendingLinks);
-        await m.createTable(orphanQuarantine);
-        for (final ddl in kPendingLinksIndexStatements) {
-          await m.database.customStatement(ddl);
-        }
-
-        // 2) الفهارس المرجعية (§4.1) — IF NOT EXISTS idempotent
-        for (final ddl in kUuidLinkIndexStatements) {
-          await m.database.customStatement(ddl);
-        }
-
-        // 3) فهرس بحث expense_uuid على السحبات: الفريد الجزئي فقط عند
-        //    خلوّ البيانات من التكرارات النشطة — «الفهرس الفريد لا يُنشأ
-        //    قبل معالجة التكرارات وتقريرها، ولا تُحذف التكرارات تلقائياً»
-        //    (§4.1) — نفس حارس الترحيلات 68-70.
-        final uxRow = await m.database
-            .customSelect(
-              "SELECT COUNT(*) AS c FROM sqlite_master "
-              "WHERE type = 'index' "
-              "AND name = 'ux_salary_withdrawals_expense_uuid_active'",
-            )
-            .getSingle();
-        final uniqueMirrorIndexExists = (uxRow.data['c'] as int? ?? 0) > 0;
-        if (!uniqueMirrorIndexExists) {
-          final activeMirrorDuplicates = await m.database
-              .customSelect(
-                'SELECT expense_uuid, COUNT(*) AS c '
-                'FROM salary_withdrawals '
-                "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
-                'AND deleted_at IS NULL '
-                'GROUP BY expense_uuid HAVING COUNT(*) > 1',
-              )
-              .get();
-          if (activeMirrorDuplicates.isEmpty) {
-            await m.database.customStatement(
-              'CREATE UNIQUE INDEX IF NOT EXISTS '
-              'ux_salary_withdrawals_expense_uuid_active '
-              'ON salary_withdrawals (expense_uuid) '
-              "WHERE expense_uuid IS NOT NULL AND TRIM(expense_uuid) != '' "
-              'AND deleted_at IS NULL',
-            );
-          } else {
-            // تكرارات تاريخية: فهرس بحث عادي فقط + تقرير — الحسم لأداة
-            // المعالجة التاريخية المدققة، لا لترحيل صامت (§1.3-2/§14).
-            await m.database.customStatement(
-              'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid '
-              'ON salary_withdrawals (expense_uuid)',
-            );
-            developer.log(
-              'Migration 75: preserved ${activeMirrorDuplicates.length} active '
-              'expense_uuid collision group(s); unique enforcement withheld '
-              '(no guessing, no auto-deletion)',
-              name: 'db.migration',
-            );
-          }
-        }
-
-        developer.log(
-          'Migration 75: pending_links + orphan_quarantine + UUID link '
-          'indexes (وثيقة الربط والمزامنة الموحدة PR-1)',
-          name: 'db.migration',
-        );
-      }
-
-      // ✅ (2026-11-04) الإصدار 76: إزالة عمود expense_kind — قرار المالك
-      // «لا تقوم باضافة عامود expenseKind هناك عامود باسم expensetype».
-      //
-      // الجهاز الذي سبق له تشغيل الترحيل 75 القديم يحمل `expense_kind`
-      // وفهرس `idx_exp_kind_day` زائدين؛ تنظيفهما هنا بلا أي مسّ لبيانات
-      // مالية (DROP INDEX/DROP COLUMN فقط). كل صيغة مغلّفة بفحص وجود —
-      // أجهزة لم تشغّل 75 القديم تتجاوز التنظيف بأمان.
-      if (from < 76) {
-        final kindCol = await m.database
-            .customSelect(
-              "SELECT COUNT(*) AS c FROM pragma_table_info('expenses') "
-              "WHERE name = 'expense_kind'",
-            )
-            .getSingle();
-        if ((kindCol.data['c'] as int? ?? 0) > 0) {
-          for (final ddl in kExpenseKindCleanupStatements) {
-            try {
-              await m.database.customStatement(ddl);
-            } catch (e) {
-              // DROP COLUMN قد يفشل على SQLite < 3.35 — الفهرس أُسقط
-              // دائماً والعمود الزائد بلا فهرس غير ضار بالاستعلامات.
-              developer.log(
-                'Migration 76: cleanup step skipped: $e',
-                name: 'db.migration',
-              );
-            }
-          }
-          developer.log(
-            'Migration 76: expense_kind column + idx_exp_kind_day removed '
-            '(التصنيف من expense_type عبر SalaryExpenseClassifier)',
-            name: 'db.migration',
-          );
-        }
-      }
       // Migration 74: تاريخ الدخول للسجلات الجديدة فقط. لا تتم تعبئة
       // السجلات الموجودة حتى تبقى مستثناة من التاريخ في تقرير PDF.
       if (from < 74) {

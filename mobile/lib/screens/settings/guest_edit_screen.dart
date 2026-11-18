@@ -1144,29 +1144,24 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                           ],
                                         ),
                                       ),
-                                      Wrap(
-                                        spacing: 6,
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'تعديل $typeName',
-                                            onPressed: () => _editPriceAdjustment(adj),
-                                            icon: const Icon(Icons.edit, color: Colors.blue),
+                                      ElevatedButton.icon(
+                                        onPressed: () => _endPriceAdjustment(
+                                          adj.localUuid,
+                                          typeName,
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red.shade400,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
                                           ),
-                                          ElevatedButton.icon(
-                                            onPressed: () => _endPriceAdjustment(
-                                              adj.localUuid, typeName,
-                                            ),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.red.shade400,
-                                              foregroundColor: Colors.white,
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 6,
-                                              ),
-                                            ),
-                                            icon: const Icon(Icons.stop_circle, size: 18),
-                                            label: Text('إنهاء $typeName'),
-                                          ),
-                                        ],
+                                        ),
+                                        icon: const Icon(
+                                          Icons.stop_circle,
+                                          size: 18,
+                                        ),
+                                        label: Text('إنهاء $typeName'),
                                       ),
                                     ],
                                   ),
@@ -1403,101 +1398,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       if (mounted) {
         setState(() => _saving = false);
       }
-    }
-  }
-
-  Future<void> _editPriceAdjustment(BookingPriceAdjustment adjustment) async {
-    final amountController = TextEditingController(
-      text: adjustment.amount.toStringAsFixed(0),
-    );
-    var mode = AdjustmentMode.fromValue(adjustment.adjustmentMode);
-    final dateController = TextEditingController(
-      text: adjustment.effectiveHotelDay,
-    );
-    final formKey = GlobalKey<FormState>();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('تعديل التخفيض / الزيادة'),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                TextFormField(
-                  controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: false),
-                  decoration: const InputDecoration(labelText: 'قيمة التعديل'),
-                  validator: (v) => (_parseAmount(v ?? '') <= 0) ? 'أدخل مبلغاً صحيحاً' : null,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<AdjustmentMode>(
-                  value: mode,
-                  decoration: const InputDecoration(labelText: 'طريقة التطبيق'),
-                  items: const [
-                    DropdownMenuItem(value: AdjustmentMode.perNight, child: Text('لكل ليلة')),
-                    DropdownMenuItem(value: AdjustmentMode.total, child: Text('إجمالي على الفترة')),
-                  ],
-                  onChanged: (v) { if (v != null) setDialogState(() => mode = v); },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: dateController,
-                  readOnly: true,
-                  decoration: const InputDecoration(labelText: 'تاريخ بداية التعديل', suffixIcon: Icon(Icons.calendar_today)),
-                  onTap: () async {
-                    final initial = DateTime.tryParse(dateController.text) ?? DateTime.now();
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: initial,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2100),
-                    );
-                    if (picked != null) {
-                      dateController.text = '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                const Text('سيُعاد احتساب الليالي المتأثرة بعد الحفظ.', style: TextStyle(fontSize: 12)),
-              ]),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-            ElevatedButton(onPressed: () {
-              if (formKey.currentState!.validate() && dateController.text.isNotEmpty) {
-                Navigator.pop(dialogContext, true);
-              }
-            }, child: const Text('حفظ التعديل')),
-          ],
-        ),
-      ),
-    );
-    if (saved != true) return;
-    try {
-      setState(() => _saving = true);
-      await BookingPriceAdjustmentService(ref.read(databaseProvider)).updateAdjustment(
-        adjustmentUuid: adjustment.localUuid,
-        amount: _parseAmount(amountController.text).round(),
-        mode: mode,
-        effectiveHotelDay: dateController.text,
-        updatedBy: 'admin',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تعديل التخفيض/الزيادة وإعادة احتساب الحساب بنجاح'), backgroundColor: Colors.green),
-      );
-      setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تعذر تعديل العملية: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      amountController.dispose();
-      dateController.dispose();
-      if (mounted) setState(() => _saving = false);
     }
   }
 

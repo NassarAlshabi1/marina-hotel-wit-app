@@ -489,9 +489,7 @@ class EnhancedBookingCalculationService {
     }
 
     final totalPaid = await totalPaymentsForBooking(booking);
-    // Keep negative balances: they represent money owed back to the guest / credit.
-    // Clamping to zero silently discarded overpayments from reports and cached balances.
-    final remaining = totalDue - totalPaid;
+    final remaining = (totalDue - totalPaid).clamp(0, totalDue);
 
     return FinancialSummary(
       subtotal: subtotal,

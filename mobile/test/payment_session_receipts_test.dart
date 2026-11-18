@@ -66,7 +66,7 @@ void main() {
         revenueType: 'room',
       );
       await (db.update(db.payments)..where((p) => p.id.equals(voidedId))).write(
-        const PaymentsCompanion(isVoided: Value(true)),
+        PaymentsCompanion(isVoided: Value(true)),
       );
 
       final total = await repository

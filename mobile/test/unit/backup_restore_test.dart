@@ -1339,6 +1339,7 @@ void main() {
         await oldDb.close();
 
         // التحقق من وجود ملف -wal (يعتمد على توقيت checkpoint)
+        final oldWalPath = '$oldDbPath-wal';
         // ملاحظة: قد يكون -wal فارغاً أو غير موجود اعتماداً على auto-checkpoint.
         // الاختبار الفعلي أدناه يتحقق من السلوك المستقل عن وجود -wal.
 
@@ -1419,6 +1420,7 @@ void main() {
 
         // التحقق من وجود -wal
         final walFile = File('$oldDbPath-wal');
+        final shmFile = File('$oldDbPath-shm');
         // قد يكون walFile موجوداً وغير فارغ، أو قد يكون sqflite قد checkpoint تلقائياً
         final walExisted = walFile.existsSync();
         debugPrint(

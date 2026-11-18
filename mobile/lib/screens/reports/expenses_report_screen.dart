@@ -389,10 +389,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen>
       // ✅ إصلاح المعادلة: الخصوم تسويات استحقاق بلا تدفق نقدي (تُقرأ من
       // شاشة استحقاقات الرواتب فقط) — كانت تُحسب مصروفات وتضخّم المجموع.
       // أما السلفة فنقد خارج فعلاً وتُدرج هنا (كانت تُستبعد ظلماً).
-      // ✅ (2026-11-04) تسديد السلفة ليس خرجاً نقدياً — سداد رصيد سلفة
-      // (نقدي أو من استحقاق الراتب) ولا يدخل في مصروفات الصندوق.
-      if (SalaryExpenseClassifier.isSalaryDeduction(expense.expenseType) ||
-          SalaryExpenseClassifier.isLoanRepayment(expense.expenseType)) {
+      if (SalaryExpenseClassifier.isSalaryDeduction(expense.expenseType)) {
         continue;
       }
       final employee = expense.relatedId != null

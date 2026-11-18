@@ -227,7 +227,7 @@ void main() {
         const OutboxCompanion(processingStatus: drift.Value('completed')),
       );
 
-      await outboxDao.merge(
+      final idPending = await outboxDao.merge(
         entity: 'rooms',
         op: 'delete',
         localUuid: 'soft-deleted-room-delete',

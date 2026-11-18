@@ -106,17 +106,12 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 
     try {
       final service = ref.read(appwriteServiceProvider);
-      // ✅ إصلاح شاشة إعدادات Appwrite Cloud: إذا غيّر المستخدم إعدادات
-      // الاتصال (Endpoint/Project/Database/API Key) وحفظها، يُعاد بناء
-      // العميل قبل الفحص — وإلا فحصنا الإعدادات القديمة وعرضنا
-      // «غير متصل» رغم صحة القيم الجديدة.
-      await service.reconfigureIfNeeded();
       await service.initialize();
       final connectionResult = await service.testConnection();
       final isConnected = connectionResult['overall_success'] == true;
       final failureMessage = isConnected
           ? null
-          : _extractFailureMessage(connectionResult);
+          : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
 
       state = ConnectionState(
         isConnected: isConnected,
@@ -128,32 +123,6 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
         errorMessage: 'خطأ في الاتصال: $e',
       );
     }
-  }
-
-  /// يستخرج رسالة الفشل الأكثر إفادة للمستخدم من نتيجة الفحص:
-  /// يفضّل الخطأ الفادح ثم أول خطأ اختبار فرعي (rooms/bookings/devices)
-  /// — قبل هذا الإصلاح كانت الأخطاء التفصيلية (401 مفتاح غير صالح،
-  /// database_not_found، انقطاع شبكة…) محفوظة في tests/*_error ولا
-  /// تُعرض أبداً، فكانت الشاشة تعرض رسالة عامة بلا أي تفاصيل.
-  String _extractFailureMessage(Map<String, dynamic> result) {
-    final fatal = result['error'] as String?;
-    if (fatal != null && fatal.isNotEmpty) {
-      return fatal;
-    }
-    final tests = result['tests'];
-    if (tests is Map<String, dynamic>) {
-      for (final key in const [
-        'rooms_error',
-        'bookings_error',
-        'devices_error',
-      ]) {
-        final err = tests[key];
-        if (err is String && err.isNotEmpty) {
-          return err;
-        }
-      }
-    }
-    return 'فشل الاتصال بـ Appwrite';
   }
 }
 

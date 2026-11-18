@@ -27,6 +27,7 @@ import 'package:marina_hotel_mobile/services/adapters/bookings_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
 import 'package:marina_hotel_mobile/services/adapters/resolve_result.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
+import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/payment_session_context.dart';
 import 'package:marina_hotel_mobile/services/repositories/bookings_repository.dart';
@@ -42,6 +43,7 @@ void main() {
   late BookingsRepository bookingsRepo;
   late PaymentsRepository paymentsRepo;
   late RoomsRepository roomsRepo;
+  late OutboxDao outboxDao;
 
   // ─── خط زمني حتمي (كل التواريخ في الماضي العميق، مستقلة عن ساعة الجهاز) ───
   // الدخول بعد حد 14:01 حتى يبدأ يوم الفندق من يوم الدخول نفسه.
@@ -89,6 +91,7 @@ void main() {
     bookingsRepo = BookingsRepository(db);
     paymentsRepo = PaymentsRepository(db);
     roomsRepo = RoomsRepository(db);
+    outboxDao = OutboxDao(db);
 
     PaymentSessionContext.start(userId: 1, userName: 'اختبار');
 
@@ -204,7 +207,7 @@ void main() {
         );
 
         // (2) المردود: paid(500) - actualCost(300) = 200 → دفعة سالبة -200.
-        const refund = (rate * 5) - (rate * 3);
+        final refund = (rate * 5) - (rate * 3);
         final refundPaymentId = await paymentsRepo.create(
           bookingLocalId: bookingId,
           roomNumber: '101',
@@ -413,7 +416,7 @@ void main() {
           'isFullyPaid': true,
           'lastModified': 1,
         };
-        const refs = ResolveResult(bookingLocalId: null, lastModifiedEpoch: 1);
+        final refs = ResolveResult(bookingLocalId: null, lastModifiedEpoch: 1);
         final companion = adapter.fromJson(
           json,
           src: Source.appwrite,

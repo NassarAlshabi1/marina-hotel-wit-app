@@ -16,7 +16,6 @@ import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/salary_expense_classifier.dart';
-import '../../services/salary_expense_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
@@ -24,20 +23,7 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 import '../../utils/english_digits_input_formatter.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
-  const ExpensesListScreen({
-    super.key,
-    // ✅ (2026-11-04) تطوير الحسابات المالية للموظفين — فتح الشاشة من زر
-    // «سحب» في شاشة الموظفين: الموظف محدد مسبقاً + تصنيف «رواتب» +
-    // نوع العملية «سحب من الراتب» تلقائياً + بطاقة أرصدة الموظف.
-    this.preselectedEmployeeUuid,
-    this.preselectedSalaryAction,
-  });
-
-  /// UUID الموظف المحدد مسبقاً (تمرير من شاشة الموظفين)
-  final String? preselectedEmployeeUuid;
-
-  /// نوع العملية المحدد مسبقاً (افتراضياً «سحب من الراتب»)
-  final String? preselectedSalaryAction;
+  const ExpensesListScreen({super.key});
 
   @override
   ConsumerState<ExpensesListScreen> createState() => _ExpensesListScreenState();
@@ -94,16 +80,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   static const String _salaryWithdrawAction = 'سحب من الراتب';
   static const String _salaryDeductionAction = 'خصم من الراتب';
   static const String _salaryAdvanceAction = 'سلفة';
-  // ✅ (2026-11-04) تسديد السلفة — سداد رصيد لا سحباً جديداً:
-  // نقدي (مرآة سالبة بلا مصروف) أو من استحقاق الراتب (مصروف + مرآة سالبة).
-  static const String _salaryRepayAction = 'تسديد سلفة';
-  static const String _repayModeCash = 'نقدي';
-  static const String _repayModeFromSalary = 'من الراتب';
   static const List<String> _salaryActions = [
     _salaryWithdrawAction,
     _salaryDeductionAction,
-    _salaryAdvanceAction,
-    _salaryRepayAction,
   ];
   @override
   void initState() {
@@ -117,32 +96,14 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       ),
     );
     _expensesStream = _buildExpensesStream();
-
-    // ✅ (2026-11-04) فتح من زر «سحب» بشاشة الموظفين: فتح حوار الإضافة
-    // تلقائياً بعد أول إطار — الموظف والتصنيف ونوع العملية محددة سلفاً.
-    if (widget.preselectedEmployeeUuid != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _edit(
-          initialEmployeeUuid: widget.preselectedEmployeeUuid,
-          initialSalaryAction:
-              widget.preselectedSalaryAction ?? _salaryWithdrawAction,
-        );
-      });
-    }
   }
 
   /// أنواع المصروفات تُقرأ من القائمة الديناميكية (مباشرة من Provider)
-  /// ✅ استبعاد السلفة وتسديد السلفة — عمليات الرواتب تُدار من «نوع
-  /// المعاملة» تحت تصنيف «رواتب» لمنع تكرار العرض والحساب.
+  /// ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
   List<String> get _expenseTypes {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyExpenseType));
     final types = asyncTypes.valueOrNull ?? kDefaultExpenseTypes;
-    return types
-        .where(
-          (t) => t != 'سلفة' && !SalaryExpenseClassifier.isLoanRepayment(t),
-        )
-        .toList();
+    return types.where((t) => t != 'سلفة').toList();
   }
 
   @override
@@ -198,23 +159,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                 );
                 final filteredCount = filteredExpenses.length;
 
-                // ✅ (2026-11-04) بطاقة أرصدة الموظف عند الفتح من شاشة
-                // الموظفين: الاستحقاق + المتبقي + رصيد السلف + الصافي
-                // (معادلة المالك: 2026-11-04) — حساب مباشر من
-                // SalaryEntitlementService بدون تغيير نظام الاستحقاق.
-                final preEmployeeUuid = widget.preselectedEmployeeUuid
-                    ?.trim()
-                    .toLowerCase();
-                Employee? preEmployee;
-                if (preEmployeeUuid != null && preEmployeeUuid.isNotEmpty) {
-                  preEmployee = employees
-                      .where(
-                        (e) =>
-                            e.localUuid.trim().toLowerCase() == preEmployeeUuid,
-                      )
-                      .firstOrNull;
-                }
-
                 return RefreshIndicator(
                   onRefresh: () async {
                     _refreshExpensesStream();
@@ -223,18 +167,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     // ✅ أجهزة 1GB: مجال إنشاء عناصر أصغر خارج الشاشة.
                     scrollCacheExtent: optimizedScrollCacheExtent,
                     slivers: [
-                      if (preEmployee != null)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                            child: _EmployeeBalanceCard(
-                              employee: preEmployee,
-                              entitlementService: SalaryEntitlementService(
-                                ref.read(databaseProvider),
-                              ),
-                            ),
-                          ),
-                        ),
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.all(12),
@@ -944,13 +876,20 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (confirmed != true) return;
 
     try {
-      final salaryExpenseService = ref.read(salaryExpenseServiceProvider);
+      final repo = ref.read(expensesRepoProvider);
+      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
 
-      // ✅ (وثيقة §6.3) حذف ذري: المرآة والمصروف soft-delete في معاملة
-      // واحدة + tombstones/outbox لكليهما — فشل أي طرف يُلغي الطرفين.
+      // ✅ إصلاح: حذف سحب الراتب أولاً ثم المصروف — لحماية تكامل البيانات
+      // إذا فشل حذف المصروف، سحب الراتب يبقى مرتبطاً (آمن)
+      // إذا فشل حذف سحب الراتب بعد حذف المصروف، نحاول مرة أخرى
       // ✅ (المرحلة 0 — P0.3) تمرير موظف المصروف كي لا يُحذف مسحوب جهاز/موظف
       // آخر تصادم expense_id/reason رقمياً مع هذا المصروف (R3).
-      await salaryExpenseService.deleteSalaryExpense(expense);
+      await salaryRepo.deleteByExpenseId(
+        expense.id,
+        employeeId: expense.relatedId,
+        employeeUuid: expense.employeeUuid,
+      );
+      await repo.delete(expense.id);
 
       markDataChanged();
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
@@ -979,13 +918,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
   }
 
-  Future<void> _edit({
-    Expense? existing,
-    List<Employee>? employees,
-    // ✅ (2026-11-04) فتح من زر «سحب» بشاشة الموظفين — تحديد مسبق
-    String? initialEmployeeUuid,
-    String? initialSalaryAction,
-  }) async {
+  Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
     final action = existing == null ? 'create' : 'update';
     if (!(ref.read(authProvider).currentUser?.canPerform('expenses', action) ??
         false)) {
@@ -1027,13 +960,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     }
 
     try {
-      // ✅ (2026-11-04) فتح من زر «سحب» بشاشة الموظفين: التصنيف «رواتب»
-      // ونوع العملية المحدد مسبقاً (افتراضياً «سحب من الراتب») تلقائياً.
-      final hasPreselection =
-          initialEmployeeUuid != null && initialEmployeeUuid.isNotEmpty;
-      String dialogSalaryAction = hasPreselection
-          ? (initialSalaryAction ?? _salaryWithdrawAction)
-          : _salaryWithdrawAction;
+      String dialogSalaryAction = _salaryWithdrawAction;
       String selectedType = existing?.expenseType ?? 'اخرى';
 
       if (existing != null && _isSalaryAction(existing.expenseType)) {
@@ -1041,13 +968,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         dialogSalaryAction = _mapExpenseTypeToSalaryAction(
           existing.expenseType,
         );
-      } else if (existing == null && hasPreselection) {
-        selectedType = _salaryType;
       }
-
-      // ✅ وضع التسديد (نقدي / من الراتب) — يظهر فقط لنوع «تسديد سلفة».
-      // افتراضياً نقدي: الموظف يعيد المبلغ للصندوق دون مسّ الاستحقاق.
-      String repayMode = _repayModeCash;
 
       final List<Employee> allEmployees =
           employees ?? await ref.read(employeesRepoProvider).watchAll().first;
@@ -1095,11 +1016,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             .where((e) => e.id == existing!.relatedId)
             .map((e) => e.localUuid.trim().toLowerCase())
             .firstOrNull;
-      }
-      // ✅ التحديد المسبق من شاشة الموظفين — الموظف محدد تلقائياً
-      if ((selectedEmployeeUuid == null || selectedEmployeeUuid.isEmpty) &&
-          hasPreselection) {
-        selectedEmployeeUuid = initialEmployeeUuid.trim().toLowerCase();
       }
       int? selectedEmployeeId = selectedEmployeeUuid == null
           ? null
@@ -1221,37 +1137,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                             setState(() => dialogSalaryAction = value);
                           },
                         ),
-                        // ✅ (2026-11-04) وضع التسديد — يسأل فقط لنوع
-                        // «تسديد سلفة»: نقدي (مرآة سالبة بلا مصروف) أو
-                        // من استحقاق الراتب (مصروف + مرآة سالبة).
-                        if (dialogSalaryAction == _salaryRepayAction) ...[
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            initialValue: repayMode,
-                            decoration: const InputDecoration(
-                              labelText: 'طريقة التسديد',
-                            ),
-                            items: [
-                              DropdownMenuItem<String>(
-                                value: _repayModeCash,
-                                child: Text('نقدي', style: dropdownTextStyle),
-                              ),
-                              DropdownMenuItem<String>(
-                                value: _repayModeFromSalary,
-                                child: Text(
-                                  'من استحقاق الراتب',
-                                  style: dropdownTextStyle,
-                                ),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-                              setState(() => repayMode = value);
-                            },
-                          ),
-                        ],
                       ],
                     ],
                     const SizedBox(height: 12),
@@ -1345,20 +1230,11 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
 
       final repo = ref.read(expensesRepoProvider);
-      // ✅ (وثيقة §6.1) الخدمة الذرية — المسار الوحيد لعمليات مصروفات
-      // عائلة الرواتب: مصروف + مرآة في transaction واحدة.
-      final salaryExpenseService = ref.read(salaryExpenseServiceProvider);
+      final salaryRepo = ref.read(salaryWithdrawalsRepoProvider);
       final parsedAmount = CurrencyFormatter.parseAmount(amount.text) ?? 0;
       final trimmedDescription = description.text.trim();
       final trimmedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
       final isSalaryExpense = selectedType == _salaryType;
-      final isLoanRepaymentAction = dialogSalaryAction == _salaryRepayAction;
-      // ✅ (2026-11-04) التسديد النقدي لا ينشئ مصروفاً — مرآة سالبة فقط
-      // (نقد دخل الصندوق لا خرج) — §6.2 سحب مباشر.
-      final isCashRepayment =
-          isSalaryExpense &&
-          isLoanRepaymentAction &&
-          repayMode == _repayModeCash;
       final savedType = isSalaryExpense
           ? _deriveSalaryExpenseType(dialogSalaryAction)
           : selectedType;
@@ -1397,63 +1273,33 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           }
           selectedEmployeeId = resolvedEmployee?.id;
 
-          if (isCashRepayment) {
-            // ✅ تسديد سلفة نقدياً: بلا مصروف — مرآة سالبة مباشرة (§6.2):
-            // تخفّض رصيد السلف فقط، ولا تمس المتبقي من الراتب ولا خرج الصندوق.
-            // ✅ (وثيقة §6.1) عبر الخدمة الذرية.
-            await salaryExpenseService.saveSalaryExpense(
-              SalaryExpenseDraft(
-                expenseType: _salaryRepayAction,
-                amount: parsedAmount,
-                date: trimmedDate,
-                hotelDayKey: newHotelDayKey,
-                description: trimmedDescription,
-                isSalaryFamily: true,
-                employeeUuid: resolvedEmployee!.localUuid,
-                cashRepaymentOnly: true,
-              ),
-            );
-            markDataChanged();
-            unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
-            if (mounted) {
-              _refreshExpensesStream();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _refreshExpensesStream();
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم تسجيل تسديد السلفة نقدياً'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            }
-            return;
-          }
+          final newId = await repo.create(
+            expenseType: savedType,
+            relatedId: isSalaryExpense ? selectedEmployeeId : null,
+            description: trimmedDescription,
+            amount: parsedAmount,
+            date: trimmedDate,
+            hotelDayKey: newHotelDayKey,
+            // ✅ التوصية 1: اكتب employeeUuid وقت الإنشاء — مصدر الحقيقة المحمول.
+            employeeUuid: (isSalaryExpense && resolvedEmployee != null)
+                ? resolvedEmployee.localUuid
+                : null,
+          );
 
           if (isSalaryExpense && resolvedEmployee != null) {
-            // ✅ (وثيقة §6.1) المسار الوحيد الذري: المصروف + المرآة في
-            // transaction واحدة — فشل إنشاء المرآة يلغي حفظ المصروف (§13)،
-            // وتُثبَّت employeeUuid/expenseUuid في الطرفين وقت الكتابة نفسها.
-            await salaryExpenseService.saveSalaryExpense(
-              SalaryExpenseDraft(
-                expenseType: savedType,
-                amount: parsedAmount,
-                date: trimmedDate,
-                hotelDayKey: newHotelDayKey,
-                description: trimmedDescription,
-                isSalaryFamily: true,
-                employeeUuid: resolvedEmployee.localUuid,
-              ),
-            );
-          } else {
-            // مصروف غير راتبي — خارج نطاق خدمة الرواتب (§6.1).
-            await repo.create(
-              expenseType: savedType,
-              relatedId: null,
-              description: trimmedDescription,
-              amount: parsedAmount,
+            final signedAmount = savedType == _salaryDeductionAction
+                ? -parsedAmount
+                : parsedAmount;
+
+            await salaryRepo.saveFromExpense(
+              expenseId: newId,
+              employeeId:
+                  resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
+              action: savedType,
+              amount: signedAmount,
               date: trimmedDate,
+              note: trimmedDescription,
+              // ✅ hotelDayKey مطابق لليوم الفندقي من التاريخ المختار
               hotelDayKey: newHotelDayKey,
             );
           }
@@ -1482,26 +1328,63 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
           }
           selectedEmployeeId = resolvedEmployee?.id;
 
-          // ✅ (وثيقة §6.1) المسار الوحيد الذري للتعديل: المصروف + المرآة
-          // (أو حذف مرآته عند التحويل لغير الراتب) في transaction واحدة.
-          // - المبلغ الموقّع القديم وموظف المصروف السابق يُشتقان داخل
-          //   الخدمة من existing (التبنّي بهوية العملية لا الاستدلال).
-          // - لغير الراتب: مسح employeeUuid يمنع بقاء رابط يتيم عند
-          //   التحويل من راتب إلى نوع آخر.
-          await salaryExpenseService.saveSalaryExpense(
-            SalaryExpenseDraft(
-              existing: existing,
-              expenseType: savedType,
-              amount: parsedAmount,
-              date: trimmedDate,
-              hotelDayKey: updatedHotelDayKey,
-              description: trimmedDescription,
-              isSalaryFamily: isSalaryExpense,
-              employeeUuid: isSalaryExpense
-                  ? resolvedEmployee!.localUuid
-                  : null,
-            ),
+          await repo.update(
+            existing.id,
+            expenseType: savedType,
+            relatedId: isSalaryExpense ? selectedEmployeeId : null,
+            description: trimmedDescription,
+            amount: parsedAmount,
+            date: trimmedDate,
+            hotelDayKey: updatedHotelDayKey,
+            // ✅ التوصية 1: اكتب employeeUuid وقت التعديل.
+            // - لمصروف الراتب: localUuid للموظف المختار.
+            // - لغير الراتب: '' لمسح أي رابط قديم (يمنع بقاء رابط يتيم عند
+            //   التحويل من راتب إلى نوع آخر).
+            employeeUuid: (isSalaryExpense && resolvedEmployee != null)
+                ? resolvedEmployee.localUuid
+                : '',
           );
+
+          if (isSalaryExpense && resolvedEmployee != null) {
+            final signedAmount = savedType == _salaryDeductionAction
+                ? -parsedAmount
+                : parsedAmount;
+
+            // ✅ إصلاح تكرار التقرير عند تعديل المبلغ (2026-09-25):
+            // المبلغ الموقّع القديم للمرآة قبل التعديل — يُمرَّر
+            // لتبنّي المرآة اليتيمة (رابطها يحمل معرّف جهاز المصدر)
+            // بدل إنشاء مرآة ثانية يظهر مبلغها مكرراً في التقارير.
+            final previousSignedAmount =
+                SalaryExpenseClassifier.isSalaryDeduction(existing.expenseType)
+                ? -existing.amount
+                : existing.amount;
+
+            await salaryRepo.saveFromExpense(
+              expenseId: existing.id,
+              employeeId:
+                  resolvedEmployee.id, // استخدام employee.id كـ EmployeeID
+              action: savedType,
+              amount: signedAmount,
+              date: trimmedDate,
+              note: trimmedDescription,
+              // ✅ hotelDayKey مطابق للمصروف المُحدّث
+              hotelDayKey: updatedHotelDayKey,
+              // ✅ المبلغ القديم الموقّع — للتبنّي بدل التكرار
+              previousAmount: previousSignedAmount,
+              // ✅ (المرحلة 0 — P0.3) موظف المصروف السابق — كي تجد المرآة
+              // عند إعادة تعيين الموظف ولا تُنشأ مرآة ثانية مكررة.
+              previousEmployeeId: existing.relatedId,
+            );
+          } else {
+            // ✅ (المرحلة 0 — P0.3) تمرير موظف المصروف السابق (قبل التحويل
+            // من راتب لغير راتب — existing يحمل القيم قبل update) كي لا تُمسَّ
+            // مرآة أجنبية تصادم الرقم.
+            await salaryRepo.deleteByExpenseId(
+              existing.id,
+              employeeId: existing.relatedId,
+              employeeUuid: existing.employeeUuid,
+            );
+          }
         }
 
         markDataChanged();
@@ -1600,13 +1483,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       // تنظيف وتنسيق رقم الهاتف — البادئة الافتراضية 967 (اليمن)
       final String cleanedPhone = _cleanAndFormatPhone(phone);
 
-      // ✅ (2026-11-04) نص النوع يشمل تسديد السلفة
       final actionText = action == _salaryDeductionAction
           ? 'خصم'
           : action == _salaryAdvanceAction
           ? 'سلفة'
-          : SalaryExpenseClassifier.isLoanRepayment(action)
-          ? 'تسديد سلفة'
           : 'سحب';
 
       // حساب الراتب المتبقي
@@ -1689,8 +1569,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         normalized == 'سحب راتب' ||
         normalized == _salaryWithdrawAction ||
         normalized == _salaryDeductionAction ||
-        normalized == _salaryAdvanceAction ||
-        normalized == _salaryRepayAction ||
         normalized == 'خصم راتب';
   }
 
@@ -1702,9 +1580,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (normalized == _salaryAdvanceAction) {
       return _salaryAdvanceAction;
     }
-    if (normalized == _salaryRepayAction) {
-      return _salaryRepayAction;
-    }
     return _salaryWithdrawAction;
   }
 
@@ -1715,175 +1590,6 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     if (action == _salaryAdvanceAction) {
       return _salaryAdvanceAction;
     }
-    if (action == _salaryRepayAction) {
-      return _salaryRepayAction;
-    }
     return 'سحب راتب';
-  }
-}
-
-/// ✅ (2026-11-04) بطاقة أرصدة الموظف — تعرض عند فتح شاشة المصروفات من
-/// زر «سحب» بشاشة الموظفين (متطلب 1: عرض استحقاق الموظف والمتبقي من
-/// راتبه ورصيد السلف). الحساب عبر SalaryEntitlementService (نظام
-/// الاستحقاق الحالي دون تغيير) وفق معادلة المالك:
-/// - المتبقي من الراتب = الاستحقاق − السحوبات − الخصومات − تسديد السلف من الراتب
-/// - رصيد السلف = إجمالي السلف − إجمالي تسديد السلف
-/// - صافي الوضع المالي = المتبقي من الراتب − رصيد السلف
-class _EmployeeBalanceCard extends StatefulWidget {
-  const _EmployeeBalanceCard({
-    required this.employee,
-    required this.entitlementService,
-  });
-
-  final Employee employee;
-  final SalaryEntitlementService entitlementService;
-
-  @override
-  State<_EmployeeBalanceCard> createState() => _EmployeeBalanceCardState();
-}
-
-class _EmployeeBalanceCardState extends State<_EmployeeBalanceCard> {
-  SalaryEntitlement? _entitlement;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(covariant _EmployeeBalanceCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.employee.localUuid != widget.employee.localUuid) {
-      _entitlement = null;
-      _load();
-    }
-  }
-
-  Future<void> _load() async {
-    try {
-      final entitlement = await widget.entitlementService
-          .calculateEmployeeEntitlement(widget.employee);
-      if (!mounted) return;
-      setState(() => _entitlement = entitlement);
-    } catch (_) {
-      // الفشل لا يعطل الشاشة — البطاقة تبقى بحالة التحميل/فارغة
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final e = _entitlement;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.indigo.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.indigo.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.account_balance_wallet,
-                size: 14,
-                color: Colors.indigo.shade700,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'الحساب المالي: ${widget.employee.name}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo.shade700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (e == null)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(4),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else
-            Row(
-              children: [
-                _balanceCell(
-                  'الاستحقاق',
-                  e.totalEntitlement,
-                  Colors.indigo.shade700,
-                ),
-                const SizedBox(width: 8),
-                _balanceCell(
-                  'المتبقي من الراتب',
-                  e.remainingSalary,
-                  Colors.green.shade700,
-                ),
-                const SizedBox(width: 8),
-                _balanceCell(
-                  'رصيد السلف',
-                  e.advanceBalance,
-                  Colors.orange.shade800,
-                ),
-                const SizedBox(width: 8),
-                _balanceCell(
-                  'الصافي',
-                  e.netFinancialPosition,
-                  e.netFinancialPosition >= 0
-                      ? Colors.teal.shade700
-                      : Colors.red.shade700,
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _balanceCell(String label, double value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                CurrencyFormatter.formatAmount(value),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
