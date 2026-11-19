@@ -1419,6 +1419,13 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   }
 
   Future<void> _editPriceAdjustment(BookingPriceAdjustment adjustment) async {
+    final isNegotiatedRateSurcharge =
+        adjustment.reason ==
+            BookingPriceAdjustmentService.negotiatedRateReason &&
+        adjustment.adjustmentType == AdjustmentType.surcharge.value;
+    final negotiatedModeIsLocked =
+        isNegotiatedRateSurcharge &&
+        adjustment.adjustmentMode == AdjustmentMode.perNight.value;
     final amountController = TextEditingController(
       text: adjustment.amount.toStringAsFixed(0),
     );
@@ -1466,10 +1473,20 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         child: Text('إجمالي على الفترة'),
                       ),
                     ],
-                    onChanged: (v) {
-                      if (v != null) setDialogState(() => mode = v);
-                    },
+                    onChanged: negotiatedModeIsLocked
+                        ? null
+                        : (v) {
+                            if (v != null) setDialogState(() => mode = v);
+                          },
                   ),
+                  if (isNegotiatedRateSurcharge)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'الزيادة التفاوضية تبقى محسوبة لكل ليلة ضمن الحد المعتمد.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: dateController,
