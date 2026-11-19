@@ -29,6 +29,7 @@ import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/repositories/guest_infos_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// AppwriteService مُسجِّل بلا شبكة.
@@ -37,7 +38,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// وراثته، لذا نستخدم implements + noSuchMethod: الأعضاء غير المكْسَوضون
 /// هنا يرمون StateError صاخباً — أي لمسة شبكة غير متوقعة تُفشل الاختبار.
 class _RecordingAppwriteService implements AppwriteService {
-  final upsertedDocuments = <({String collectionId, String documentId})>[];
+  final upsertedDocuments =
+      <({String collectionId, String documentId, Map<String, dynamic> data})>[];
   final upsertedBlacklist = <String>[];
   final deletedBlacklist = <String>[];
   int getDocumentCalls = 0;
@@ -59,7 +61,11 @@ class _RecordingAppwriteService implements AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    upsertedDocuments.add((collectionId: collectionId, documentId: documentId));
+    upsertedDocuments.add((
+      collectionId: collectionId,
+      documentId: documentId,
+      data: Map<String, dynamic>.from(data),
+    ));
     return _fakeDoc(documentId, collectionId, data);
   }
 
@@ -126,6 +132,7 @@ void main() {
   setUp(() async {
     // نظافة قبل كل اختبار (أبناء قبل آباء لقيود FK).
     await db.delete(db.outbox).go();
+    await db.delete(db.guestInfos).go();
     await db.delete(db.salaryWithdrawals).go();
     await db.delete(db.shiftNotes).go();
     // ✅ (migration 72) جدول القائمة السوداء المستقل يُنظَّف أيضاً —
@@ -136,6 +143,97 @@ void main() {
     fakeService.upsertedBlacklist.clear();
     fakeService.deletedBlacklist.clear();
     fakeService.getDocumentCalls = 0;
+  });
+
+  group('guest_infos: رفع عناصر outbox إلى Appwrite', () {
+    test('الرفع الفعلي يرسل الحقول الاختيارية الممسوحة كـ null', () async {
+      final repo = GuestInfosRepository(db);
+      final id = await repo.create(
+        roomNumber: '801',
+        guestName: 'ضيف رفع اختبار',
+        nationality: 'يمني',
+        idNumber: '80112233',
+        issueDate: '2025-01-01',
+        issuePlace: 'عدن',
+        governorate: 'عدن',
+        notes: 'نص قديم',
+        entryDate: '2025-01-03',
+      );
+      final guest = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.id.equals(id))).getSingle();
+      await repo.update(
+        id,
+        roomNumber: guest.roomNumber,
+        guestName: guest.guestName,
+        nationality: guest.nationality,
+        idNumber: guest.idNumber,
+        issueDate: '',
+        issuePlace: '',
+        governorate: '',
+        notes: '',
+      );
+
+      final batch = await outboxDao.takeBatch(5, sources: const ['local']);
+      expect(batch, hasLength(1));
+      expect(batch.single.entity, 'guest_infos');
+      expect(batch.single.op, 'update');
+      expect(
+        await manager.processGuestInfoEntryForTesting(batch.single),
+        isTrue,
+      );
+
+      expect(fakeService.upsertedDocuments, hasLength(1));
+      final pushed = fakeService.upsertedDocuments.single;
+      expect(pushed.collectionId, 'guest_infos');
+      expect(pushed.documentId, guest.localUuid);
+      for (final field in const [
+        'issueDate',
+        'issuePlace',
+        'governorate',
+        'notes',
+      ]) {
+        expect(pushed.data, contains(field));
+        expect(
+          pushed.data[field],
+          isNull,
+          reason: '$field يجب مسحه على Appwrite',
+        );
+      }
+      expect(pushed.data['entryDate'], '2025-01-03');
+      expect(fakeService.getDocumentCalls, 1);
+    });
+
+    test(
+      'الحذف الناعم يُرفع عبر upsert مع tombstone ولا يحذف السجل سحابياً',
+      () async {
+        final repo = GuestInfosRepository(db);
+        final id = await repo.create(
+          roomNumber: '802',
+          guestName: 'ضيف حذف اختبار',
+          nationality: 'يمني',
+          idNumber: '80223344',
+        );
+        final guest = await (db.select(
+          db.guestInfos,
+        )..where((t) => t.id.equals(id))).getSingle();
+        await repo.delete(id);
+
+        final batch = await outboxDao.takeBatch(5, sources: const ['local']);
+        expect(batch, hasLength(1));
+        expect(
+          await manager.processGuestInfoEntryForTesting(batch.single),
+          isTrue,
+        );
+
+        expect(fakeService.upsertedDocuments, hasLength(1));
+        final pushed = fakeService.upsertedDocuments.single;
+        expect(pushed.collectionId, 'guest_infos');
+        expect(pushed.documentId, guest.localUuid);
+        expect(pushed.data['deletedAt'], isNotNull);
+        expect(fakeService.getDocumentCalls, 1);
+      },
+    );
   });
 
   Future<int> addEmployeeWithServerId({int id = 42, String uuid = 'uuid-42'}) =>
