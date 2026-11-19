@@ -1158,8 +1158,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                                           ),
                                           ElevatedButton.icon(
                                             onPressed: () =>
-                                                _endPriceAdjustment(
-                                                  adj.localUuid,
+                                                _choosePriceAdjustmentAction(
+                                                  adj,
                                                   typeName,
                                                 ),
                                             style: ElevatedButton.styleFrom(
@@ -1521,7 +1521,16 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         ),
       ),
     );
-    if (saved != true) return;
+    if (saved != true) {
+      amountController.dispose();
+      dateController.dispose();
+      return;
+    }
+    if (!mounted) {
+      amountController.dispose();
+      dateController.dispose();
+      return;
+    }
     try {
       setState(() => _saving = true);
       await BookingPriceAdjustmentService(
@@ -1553,6 +1562,41 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       amountController.dispose();
       dateController.dispose();
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _choosePriceAdjustmentAction(
+    BookingPriceAdjustment adjustment,
+    String typeName,
+  ) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('إدارة التخفيض / الزيادة'),
+        content: Text('اختر الإجراء المطلوب للتعديل الحالي: $typeName'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'edit'),
+            child: const Text('تعديل'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, 'end'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('إنهاء $typeName'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || action == null) return;
+    if (action == 'edit') {
+      await _editPriceAdjustment(adjustment);
+    } else if (action == 'end') {
+      await _endPriceAdjustment(adjustment.localUuid, typeName);
     }
   }
 
