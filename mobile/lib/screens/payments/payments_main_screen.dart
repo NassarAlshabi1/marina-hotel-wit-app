@@ -167,13 +167,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
     // مدفوعات اليوم الفندقي الحالي — من الدفعات الفعلية فقط
     final todayPayments = activePayments.where((p) {
-      if (p.hotelDayKey == hotelDay) {
-        return true;
-      }
-      if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
-        return true;
-      }
-      return false;
+      return HotelTimeEngine.paymentBelongsToHotelDay(
+        storedHotelDayKey: p.hotelDayKey,
+        paymentDate: p.paymentDate,
+        hotelDayKey: hotelDay,
+      );
     }).toList();
     final todayAmount = todayPayments.fold<double>(
       0,
@@ -318,13 +316,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       if (p.isVoided || p.isPendingBalance) {
         return false;
       }
-      if (p.hotelDayKey == hotelDay) {
-        return true;
-      }
-      if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
-        return true;
-      }
-      return false;
+      return HotelTimeEngine.paymentBelongsToHotelDay(
+        storedHotelDayKey: p.hotelDayKey,
+        paymentDate: p.paymentDate,
+        hotelDayKey: hotelDay,
+      );
     }).toList();
 
     // ترتيب تنازلي حسب التاريخ

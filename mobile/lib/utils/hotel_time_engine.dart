@@ -130,6 +130,59 @@ class HotelTimeEngine {
     }
   }
 
+  /// هل تنتمي الدفعة إلى اليوم الفندقي المحدد؟
+  ///
+  /// يكون [storedHotelDayKey] هو المصدر المعتمد إن كان محفوظاً. أما السجلات
+  /// القديمة التي لا تملك مفتاحاً، فيُشتق اليوم من وقت الدفعة وحدّ 14:01.
+  /// التاريخ بلا وقت يُعامل كيوم تقويمي، والتاريخ غير الصالح يُرفض.
+  static bool paymentBelongsToHotelDay({
+    required String? storedHotelDayKey,
+    required String paymentDate,
+    required String hotelDayKey,
+  }) {
+    return resolvePaymentHotelDayKey(
+          storedHotelDayKey: storedHotelDayKey,
+          paymentDate: paymentDate,
+        ) ==
+        hotelDayKey;
+  }
+
+  /// حلّ مفتاح اليوم الفندقي للدفعة دون إسناد تاريخ غير صالح إلى اليوم الحالي.
+  static String? resolvePaymentHotelDayKey({
+    required String? storedHotelDayKey,
+    required String paymentDate,
+  }) {
+    final storedKey = storedHotelDayKey?.trim();
+    if (storedKey != null && storedKey.isNotEmpty) {
+      return storedKey;
+    }
+
+    final rawDate = paymentDate.trim();
+    if (rawDate.isEmpty) return null;
+    final normalized = rawDate.contains('T')
+        ? rawDate
+        : rawDate.replaceFirst(' ', 'T');
+    try {
+      final parsedDate = DateTime.parse(normalized);
+      // التاريخ بلا وقت لا يمكن إسناده إلى صباح أو مساء؛ يُعامل كيوم
+      // تقويمي محدد عند حد اليوم الفندقي، مثل HotelDayKeyFixService.
+      if (rawDate.length == 10) {
+        return getHotelDayKey(
+          dateTime: DateTime(
+            parsedDate.year,
+            parsedDate.month,
+            parsedDate.day,
+            boundaryHour,
+            boundaryMinute,
+          ),
+        );
+      }
+      return getHotelDayKey(dateTime: parsedDate);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // حساب الليالي (المصدر الوحيد)
   // ═══════════════════════════════════════════════════════════════

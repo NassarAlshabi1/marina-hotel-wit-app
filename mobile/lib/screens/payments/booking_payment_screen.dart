@@ -587,9 +587,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           (p) =>
               !p.isVoided &&
               !p.isPendingBalance &&
-              (p.hotelDayKey == hotelDay ||
-                  (p.hotelDayKey == null &&
-                      p.paymentDate.startsWith(hotelDay))),
+              HotelTimeEngine.paymentBelongsToHotelDay(
+                storedHotelDayKey: p.hotelDayKey,
+                paymentDate: p.paymentDate,
+                hotelDayKey: hotelDay,
+              ),
         )
         .fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
@@ -3532,9 +3534,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               .where(
                 (p) =>
                     !p.isVoided &&
-                    (p.hotelDayKey == hotelDay ||
-                        (p.hotelDayKey == null &&
-                            p.paymentDate.startsWith(hotelDay))),
+                    !p.isPendingBalance &&
+                    HotelTimeEngine.paymentBelongsToHotelDay(
+                      storedHotelDayKey: p.hotelDayKey,
+                      paymentDate: p.paymentDate,
+                      hotelDayKey: hotelDay,
+                    ),
               )
               .toList();
 

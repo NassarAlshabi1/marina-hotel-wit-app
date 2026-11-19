@@ -505,16 +505,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Widget _buildTodayPayments(List<db.Payment> payments) {
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPayments = payments.where((p) {
-      if (p.isVoided) {
+      if (p.isVoided || p.isPendingBalance) {
         return false;
       }
-      if (p.hotelDayKey == hotelDay) {
-        return true;
-      }
-      if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
-        return true;
-      }
-      return false;
+      return HotelTimeEngine.paymentBelongsToHotelDay(
+        storedHotelDayKey: p.hotelDayKey,
+        paymentDate: p.paymentDate,
+        hotelDayKey: hotelDay,
+      );
     }).toList();
 
     // تجميع المدفوعات حسب رقم الغرفة

@@ -125,6 +125,76 @@ void main() {
     });
   });
 
+  group('paymentBelongsToHotelDay — الدفعات القديمة', () {
+    test(
+      'قبل 14:01 تُنسب لليوم الفندقي السابق رغم اختلاف التاريخ التقويمي',
+      () {
+        expect(
+          HotelTimeEngine.paymentBelongsToHotelDay(
+            storedHotelDayKey: null,
+            paymentDate: '2025-06-15T14:00:59',
+            hotelDayKey: '2025-06-14',
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('دفعة 08:00 يوم 5 لنزيل مستمر تُسجل على اليوم الفندقي 4', () {
+      expect(
+        HotelTimeEngine.paymentBelongsToHotelDay(
+          storedHotelDayKey: null,
+          paymentDate: '2025-06-05T08:00:00',
+          hotelDayKey: '2025-06-04',
+        ),
+        isTrue,
+      );
+    });
+
+    test('التاريخ بلا وقت يُنسب لليوم التقويمي نفسه', () {
+      expect(
+        HotelTimeEngine.resolvePaymentHotelDayKey(
+          storedHotelDayKey: null,
+          paymentDate: '2025-06-05',
+        ),
+        '2025-06-05',
+      );
+    });
+
+    test('14:01 بالضبط تُنسب لليوم الفندقي الجديد', () {
+      expect(
+        HotelTimeEngine.paymentBelongsToHotelDay(
+          storedHotelDayKey: null,
+          paymentDate: '2025-06-15 14:01:00',
+          hotelDayKey: '2025-06-15',
+        ),
+        isTrue,
+      );
+    });
+
+    test('المفتاح المخزن له الأولوية على timestamp', () {
+      expect(
+        HotelTimeEngine.paymentBelongsToHotelDay(
+          storedHotelDayKey: '2025-06-14',
+          paymentDate: '2025-06-15T15:00:00',
+          hotelDayKey: '2025-06-14',
+        ),
+        isTrue,
+      );
+    });
+
+    test('التاريخ غير الصالح لا يُحتسب ضمن اليوم الحالي', () {
+      expect(
+        HotelTimeEngine.paymentBelongsToHotelDay(
+          storedHotelDayKey: null,
+          paymentDate: 'not-a-date',
+          hotelDayKey: '2025-06-15',
+        ),
+        isFalse,
+      );
+    });
+  });
+
   // ═══════════════════════════════════════════════════════════════
   // calculateTotal — حساب المبلغ الإجمالي
   // ═══════════════════════════════════════════════════════════════
