@@ -100,8 +100,11 @@ jobs:
           BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
           BUILD_NUMBER=${GITHUB_RUN_NUMBER}
           BUILD_NAME="${BASE_VERSION}.${BUILD_NUMBER}"
+          SAFE_BRANCH=$(printf '%s' "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')
+          SHORT_SHA=${GITHUB_SHA::7}
           echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "artifact_suffix=${SAFE_BRANCH}-run-${BUILD_NUMBER}-${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Build runner - clean generated files
         run: flutter pub run build_runner clean
@@ -127,12 +130,107 @@ jobs:
           --dart-define=APPWRITE_API_KEY=${{ secrets.APPWRITE_API_KEY }}
           --dart-define=SECONDARY_APPWRITE_API_KEY=${{ secrets.SECONDARY_APPWRITE_API_KEY }}
 
-      - name: Upload release artifact
+      - name: Write build metadata and stage diagnostics
+        env:
+          BUILD_NAME: ${{ steps.version.outputs.build_name }}
+          BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          ARTIFACT_SUFFIX: ${{ steps.version.outputs.artifact_suffix }}
+        run: |
+          mkdir -p build/release/diagnostics/dart-symbols
+          export FLUTTER_VERSION_JSON="$(flutter --version --machine)"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(block)
+              return digest.hexdigest()
+
+          apk = Path("build/app/outputs/flutter-apk/app-release.apk")
+          mapping = Path("build/app/outputs/mapping/release/mapping.txt")
+          symbols = sorted(Path("debug-info").rglob("*.symbols")) if Path("debug-info").exists() else []
+          if not apk.is_file():
+              sys.exit("::error::Release APK was not found; refusing to create incomplete metadata.")
+          if not mapping.is_file():
+              sys.exit("::error::R8 mapping.txt was not generated; check minifyEnabled and the Gradle release build.")
+          if not symbols:
+              sys.exit("::error::Dart obfuscation symbols were not generated in mobile/debug-info.")
+
+          flutter = json.loads(os.environ["FLUTTER_VERSION_JSON"])
+          diagnostic_dir = Path("build/release/diagnostics")
+          shutil.copy2(mapping, diagnostic_dir / "mapping.txt")
+          for symbol in symbols:
+              shutil.copy2(symbol, diagnostic_dir / "dart-symbols" / symbol.name)
+
+          files = {
+              "apk": {"path": apk.as_posix(), "sha256": sha256(apk)},
+              "r8_mapping": {"path": mapping.as_posix(), "sha256": sha256(mapping)},
+              "dart_symbols": [
+                  {"path": symbol.as_posix(), "sha256": sha256(symbol)}
+                  for symbol in symbols
+              ],
+          }
+          metadata = {
+              "schema_version": 1,
+              "created_at_utc": datetime.now(timezone.utc).isoformat(),
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "workflow_run": {
+                  "id": int(os.environ["GITHUB_RUN_ID"]),
+                  "number": int(os.environ["GITHUB_RUN_NUMBER"]),
+                  "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              },
+              "artifact_name": f"marina-hotel-release-{os.environ['ARTIFACT_SUFFIX']}",
+              "build_name": os.environ["BUILD_NAME"],
+              "build_number": int(os.environ["BUILD_NUMBER"]),
+              "flutter": flutter,
+              "source_file_sha256": {
+                  "pubspec.lock": sha256(Path("pubspec.lock")),
+                  "android/app/build.gradle": sha256(Path("android/app/build.gradle")),
+              },
+              "files": files,
+          }
+          metadata_path = Path("build/release/release-metadata.json")
+          metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+          shutil.copy2(metadata_path, diagnostic_dir / metadata_path.name)
+
+          checksum_lines = [f"{files['apk']['sha256']}  {apk.as_posix()}"]
+          checksum_lines.extend(f"{item['sha256']}  {item['path']}" for item in files["dart_symbols"])
+          checksum_lines.append(f"{files['r8_mapping']['sha256']}  {files['r8_mapping']['path']}")
+          checksums = Path("build/release/SHA256SUMS.txt")
+          checksums.write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+          shutil.copy2(checksums, diagnostic_dir / checksums.name)
+          print(f"Prepared metadata and {len(symbols)} Dart symbol file(s) with the R8 mapping.")
+
+      - name: Upload release APK and metadata
         uses: actions/upload-artifact@v7
         with:
-          name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          name: 'marina-hotel-release-${{ steps.version.outputs.artifact_suffix }}'
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/release/release-metadata.json
+            mobile/build/release/SHA256SUMS.txt
           if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload crash diagnostics
+        uses: actions/upload-artifact@v7
+        with:
+          name: 'marina-hotel-diagnostics-${{ steps.version.outputs.artifact_suffix }}'
+          path: mobile/build/release/diagnostics/
+          if-no-files-found: error
+          retention-days: 90
 
       # Signing files preserved for debugging/reuse
       # - name: Clean signing files
