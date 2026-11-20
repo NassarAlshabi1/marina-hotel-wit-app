@@ -866,7 +866,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
       await paymentsRepo.create(
         amount: parsedAmount,
-        paymentDate: Time.nowIso(),
+        paymentDate: Time.nowPaymentIso(),
         notes: notes.trim().isEmpty ? null : notes.trim(),
         paymentMethod: dbMethod,
         revenueType: 'other',

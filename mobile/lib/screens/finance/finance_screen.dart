@@ -1029,7 +1029,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
 
       await paymentsRepo.create(
         amount: parsedAmount,
-        paymentDate: Time.nowIso(),
+        paymentDate: Time.nowPaymentIso(),
         notes: notes.trim().isEmpty ? null : notes.trim(),
         paymentMethod: dbMethod,
         revenueType: 'other',

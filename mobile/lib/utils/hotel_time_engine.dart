@@ -1,4 +1,5 @@
 import 'time.dart';
+import 'hotel_timezone.dart';
 
 /// محرك الوقت الفندقي — المصدر الوحيد للحسابات
 ///
@@ -97,20 +98,21 @@ class HotelTimeEngine {
   /// - 2025-01-15 14:00 → 2025-01-14 (نهاية اليوم الفندقي 14)
   /// - 2025-01-15 14:01 → 2025-01-15 (بداية يوم فندقي جديد)
   static DateTime getHotelDay(DateTime dt) {
+    final hotelTime = HotelTimezone.toHotelDateTime(dt);
     final isAfterBoundary =
-        dt.hour > boundaryHour ||
-        (dt.hour == boundaryHour && dt.minute >= boundaryMinute);
+        hotelTime.hour > boundaryHour ||
+        (hotelTime.hour == boundaryHour && hotelTime.minute >= boundaryMinute);
     if (isAfterBoundary) {
-      return DateTime(dt.year, dt.month, dt.day);
+      return DateTime(hotelTime.year, hotelTime.month, hotelTime.day);
     } else {
-      final prev = dt.subtract(const Duration(days: 1));
+      final prev = hotelTime.subtract(const Duration(days: 1));
       return DateTime(prev.year, prev.month, prev.day);
     }
   }
 
   /// مفتاح اليوم الفندقي كنص YYYY-MM-DD.
   static String getHotelDayKey({DateTime? dateTime}) {
-    final dt = dateTime ?? DateTime.now();
+    final dt = dateTime ?? HotelTimezone.now();
     return Time.dateToString(getHotelDay(dt));
   }
 
@@ -239,15 +241,16 @@ class HotelTimeEngine {
   /// هل الوقت الحالي بعد ساعة بداية اليوم الفندقي؟
   /// true إذا الوقت >= 14:01:00.
   static bool isNowAfterCutoff() {
-    final now = DateTime.now();
+    final now = HotelTimezone.now();
     return now.hour > boundaryHour ||
         (now.hour == boundaryHour && now.minute >= boundaryMinute);
   }
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
   static bool isAfterCutoff(DateTime dateTime) {
-    return dateTime.hour > boundaryHour ||
-        (dateTime.hour == boundaryHour && dateTime.minute >= boundaryMinute);
+    final hotelTime = HotelTimezone.toHotelDateTime(dateTime);
+    return hotelTime.hour > boundaryHour ||
+        (hotelTime.hour == boundaryHour && hotelTime.minute >= boundaryMinute);
   }
 
   // ═══════════════════════════════════════════════════════════════

@@ -1569,7 +1569,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       serverBookingId: widget.booking.serverBookingId,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
-      paymentDate: Time.nowIso(),
+      paymentDate: Time.nowPaymentIso(),
       notes: notes.isEmpty
           ? 'دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية'
           : notes,
@@ -2019,7 +2019,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           serverBookingId: widget.booking.serverBookingId,
           roomNumber: widget.booking.roomNumber,
           amount: amount,
-          paymentDate: Time.nowIso(),
+          paymentDate: Time.nowPaymentIso(),
           notes: notes.isEmpty ? null : notes,
           paymentMethod: _mapUiMethodToDb(method),
           revenueType: 'room',
@@ -2925,7 +2925,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         serverBookingId: widget.booking.serverBookingId,
         roomNumber: widget.booking.roomNumber,
         amount: refundAmount.toDouble() * -1,
-        paymentDate: nowIso,
+        paymentDate: Time.nowPaymentIso(),
         notes:
             'مردود مغادرة مبكرة - $unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'} غير مستخدمة',
         paymentMethod: 'نقدي',
@@ -4772,7 +4772,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         serverBookingId: widget.booking.serverBookingId,
         roomNumber: widget.booking.roomNumber,
         amount: amount,
-        paymentDate: Time.nowIso(),
+        paymentDate: Time.nowPaymentIso(),
         notes: notes.isEmpty
             ? 'تمديد $additionalNights ${additionalNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
             : notes,

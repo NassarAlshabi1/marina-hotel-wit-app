@@ -866,7 +866,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                     bookingLocalId: newBookingId,
                                     roomNumber: roomNumber,
                                     amount: advanceAmount,
-                                    paymentDate: Time.nowIso(),
+                                    paymentDate: Time.nowPaymentIso(),
                                     notes: _paymentNotes.text.trim().isEmpty
                                         ? null
                                         : _paymentNotes.text.trim(),

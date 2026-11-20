@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/hotel_time_engine.dart';
+import 'package:marina_hotel_mobile/utils/hotel_timezone.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 
 void main() {
   // ═══════════════════════════════════════════════════════════════
@@ -90,6 +92,43 @@ void main() {
     });
   });
 
+  group('Asia/Aden timezone', () {
+    test('uses the IANA zone and converts UTC to its UTC+03 wall clock', () {
+      expect(HotelTimezone.locationId, 'Asia/Aden');
+      final adenTime = HotelTimezone.fromInstant(
+        DateTime.utc(2025, 6, 15, 11, 1),
+      );
+      expect(adenTime.hour, 14);
+      expect(adenTime.minute, 1);
+      expect(adenTime.timeZoneOffset, const Duration(hours: 3));
+    });
+
+    test(
+      'payment timestamps use Asia/Aden wall time in the existing field',
+      () {
+        expect(
+          Time.paymentIsoFromInstant(DateTime.utc(2025, 6, 15, 11, 1)),
+          '2025-06-15T14:01:00.000',
+        );
+      },
+    );
+
+    test('UTC instants switch hotel day at 14:01 Asia/Aden', () {
+      expect(
+        HotelTimeEngine.getHotelDayKeyFromIso('2025-06-15T11:00:59.000Z'),
+        '2025-06-14',
+      );
+      expect(
+        HotelTimeEngine.getHotelDayKeyFromIso('2025-06-15T11:01:00.000Z'),
+        '2025-06-15',
+      );
+      expect(
+        HotelTimeEngine.getHotelDayKeyFromIso('2025-06-15T14:01:00+03:00'),
+        '2025-06-15',
+      );
+    });
+  });
+
   // ═══════════════════════════════════════════════════════════════
   // getHotelDayKeyFromIso — من سلسلة ISO
   // ═══════════════════════════════════════════════════════════════
@@ -169,6 +208,26 @@ void main() {
           hotelDayKey: '2025-06-15',
         ),
         isTrue,
+      );
+    });
+
+    test('UTC 11:01 is 14:01 in Aden and starts the new hotel day', () {
+      expect(
+        HotelTimeEngine.resolvePaymentHotelDayKey(
+          storedHotelDayKey: null,
+          paymentDate: '2025-06-15T11:01:00.000Z',
+        ),
+        '2025-06-15',
+      );
+    });
+
+    test('UTC 11:00:59 remains the previous hotel day in Aden', () {
+      expect(
+        HotelTimeEngine.resolvePaymentHotelDayKey(
+          storedHotelDayKey: null,
+          paymentDate: '2025-06-15T11:00:59.000Z',
+        ),
+        '2025-06-14',
       );
     });
 

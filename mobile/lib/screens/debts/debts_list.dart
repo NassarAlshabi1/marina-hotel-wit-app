@@ -897,7 +897,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                 .read(paymentsRepoProvider)
                 .create(
                   amount: amountNow,
-                  paymentDate: Time.nowIso(),
+                  paymentDate: Time.nowPaymentIso(),
                   paymentMethod: selectedMethod,
                   revenueType: 'other',
                   bookingLocalId: debt.bookingLocalId,
