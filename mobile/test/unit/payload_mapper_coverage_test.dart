@@ -396,13 +396,21 @@ void main() {
       expect(payload.containsKey('guestPhone'), isFalse);
     });
 
-    test('الحقول الاختيارية النل/الفارغة تُحذف', () {
+    test('الحقول الاختيارية النل تُرسل صراحةً لتمسح القيمة البعيدة', () {
       final payload = mapper.guestInfoToRemote(_guestInfo());
 
-      expect(payload.containsKey('issueDate'), isFalse);
-      expect(payload.containsKey('issuePlace'), isFalse);
-      expect(payload.containsKey('governorate'), isFalse);
-      expect(payload.containsKey('notes'), isFalse);
+      // ✅ (777b2e78) الحقول الاختيارية تُرسل دائماً حتى بقيمة null:
+      // مسار Worker يُبقي القيم null الصريحة في SET (يفلتر undefined فقط)
+      // فتمسح القيمة السابقة في D1، بينما الحقل الغائب يُتْرك كما هو —
+      // وبغير null الصريحة لا يمكن تمييز «حُذف محلياً» عن «لم يتغير».
+      expect(payload.containsKey('issueDate'), isTrue);
+      expect(payload['issueDate'], isNull);
+      expect(payload.containsKey('issuePlace'), isTrue);
+      expect(payload['issuePlace'], isNull);
+      expect(payload.containsKey('governorate'), isTrue);
+      expect(payload['governorate'], isNull);
+      expect(payload.containsKey('notes'), isTrue);
+      expect(payload['notes'], isNull);
     });
 
     test('الحقول الاختيارية المعبأة تُرسل', () {

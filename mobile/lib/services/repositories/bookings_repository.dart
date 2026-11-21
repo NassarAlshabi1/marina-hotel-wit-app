@@ -158,6 +158,31 @@ class BookingsRepository {
     try {
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
       final result = await db.transaction(() async {
+        // ✅ P1 (double-checkout، 8bb86a37 من فرع guest): حرس حتمية
+        // المغادرة — بعد تسجيل وقت المغادرة لا يجوز استبداله بقيمة مختلفة
+        // (إعادة ضغط «تسجيل المغادرة»/«مغادرة مبكرة» تستبدل actualCheckout
+        // بوقت أحدث فتمدد الليالي وتضخّم الفاتورة). المسارات الشرعية
+        // لا تتأثر: القيمة نفسها (idempotent) مسموحة، والغياب (null)
+        // لا يغيّر شيئاً، والمزامنة تستخدم upsert عبر DAO لا هذه الدالة.
+        final current = await dao.getById(id);
+        final recorded = current?.actualCheckout;
+        final hasRecordedCheckout = recorded != null && recorded.isNotEmpty;
+        final isFirstCheckout =
+            current != null &&
+            !hasRecordedCheckout &&
+            actualCheckout != null &&
+            actualCheckout.isNotEmpty;
+        if (current != null) {
+          if (hasRecordedCheckout &&
+              actualCheckout != null &&
+              actualCheckout != recorded) {
+            throw StateError(
+              'لا يمكن تسجيل المغادرة مرتين للحجز $id — '
+              'غادر فعلياً بتاريخ $recorded '
+              '(الحالة: ${current.status})',
+            );
+          }
+        }
         final updated = await dao.updateById(
           id,
           BookingsCompanion(
@@ -221,7 +246,14 @@ class BookingsRepository {
         );
         if (updated > 0) {
           await syncLegacyDiscountToAdjustments(id);
-          await derivedFields.refreshForBookingId(id);
+          // المغادرة الأولى يجب أن تقتطع الليالي حتى وقت المغادرة الفعلي
+          // (مسار الحساب الكامل يُظهر فائض الدفع كرصيد دائن سالب —
+          // 24f6356c)، أما التحديثات اللاحقة (مثل تسجيل دفعة) فتحافظ
+          // على الإقامة المكتملة ولا تعيد تسعيرها.
+          await derivedFields.refreshForBookingId(
+            id,
+            forceRebuild: isFirstCheckout,
+          );
         }
         return updated;
       });

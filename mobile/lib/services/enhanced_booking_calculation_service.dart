@@ -269,7 +269,11 @@ class EnhancedBookingCalculationService {
     }
 
     final totalPaid = await _getTotalPayments(booking);
-    final remaining = (totalDue - totalPaid).clamp(0, totalDue);
+    // ✅ (5bb19ec1 من فرع guest) بلا قيد عند الصفر: فائض الدفع بعد
+    // المغادرة المبكرة يبقى رصيداً دائناً سالباً للنزيل (24f6356c) —
+    // تقييده عند الصفر كان يُخفي الفائض فلا يظهر في شاشات الدفع ولا
+    // يُعالَج بمسار الاسترداد.
+    final remaining = totalDue - totalPaid;
 
     return FinancialSummary(
       subtotal: subtotal,

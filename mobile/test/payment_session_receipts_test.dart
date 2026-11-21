@@ -91,8 +91,12 @@ void main() {
       // مفتاحان فندقيان مختلفان (قبل وبعد حد 14:01) لنفس الجلسة.
       // نفس اليوم التقويمي حول حد 14:01: 13:00 ← مفتاح اليوم السابق
       // الفندقي، 15:00 ← مفتاح يومه الفندقي (نوبة تعبر الحد).
-      const dayAPayment = '2026-08-20T13:00:00.000Z';
-      const dayBPayment = '2026-08-20T15:00:00.000Z';
+      // ✅ (1b75b4c8) طوابع الدفع تُخزّن بتوقيت الفندق بلا لاحقة Z
+      // (صيغة paymentTimestampFromInstant) — لذلك تُفسَّر هنا كتوقيت
+      // جداري لآسيا/عدن، لا كتحويل لحظة UTC (+03 يحوّل 13:00Z إلى
+      // 16:00 فيفسد حدود 14:01).
+      const dayAPayment = '2026-08-20T13:00:00.000';
+      const dayBPayment = '2026-08-20T15:00:00.000';
       final keyA = HotelTimeEngine.getHotelDayKeyFromIso(dayAPayment);
       final keyB = HotelTimeEngine.getHotelDayKeyFromIso(dayBPayment);
       expect(keyA, isNot(keyB), reason: 'يجب أن يكونا مفتاحين مختلفين');
@@ -184,8 +188,10 @@ void main() {
 
       AdapterRegistry.initialize(db);
       final repository = PaymentsRepository(db);
-      const yesterdayPortion = '2026-08-20T13:00:00.000Z';
-      const todayPortion = '2026-08-20T15:00:00.000Z';
+      // ✅ (1b75b4c8) طوابع فندقية جدارية بلا لاحقة Z — 13:00 قبل
+      // حد 14:01 فيعود لليوم الفندقي السابق، و15:00 داخل يومه.
+      const yesterdayPortion = '2026-08-20T13:00:00.000';
+      const todayPortion = '2026-08-20T15:00:00.000';
       final todayKey = HotelTimeEngine.getHotelDayKeyFromIso(todayPortion);
       expect(
         HotelTimeEngine.getHotelDayKeyFromIso(yesterdayPortion),
