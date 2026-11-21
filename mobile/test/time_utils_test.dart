@@ -68,11 +68,11 @@ void main() {
       1,
     );
 
-    // Checkin at 10:00 (before 14:00 cutoff) → hotel day shifts to previous day
-    // startOfCheckinHotelDay = 2024-02-29 14:00 (shifted back 1 day)
+    // Checkin at 10:00 is before the 11:00 grace window
+    // → first hotel-day boundary is 2024-02-29 14:01.
     // end = 2024-03-02 15:00
-    // duration = 49h = 176400s
-    // nights = (176400 ~/ 86400) + 1 = 2 + 1 = 3
+    // duration = 48h 59m = 176340s
+    // nights = (176340 ~/ 86400) + 1 = 2 + 1 = 3
     final earlyCheckin = DateTime(2024, 3, 1, 10);
     final lateCheckout = DateTime(2024, 3, 2, 15);
     expect(
@@ -84,6 +84,44 @@ void main() {
       3,
     );
   });
+
+  test(
+    '11:00 early-arrival grace covers a 13:00-to-13:00 stay in one night',
+    () {
+      final arrivalAt13 = DateTime(2024, 3, 1, 13);
+      final checkoutNextDayAt13 = DateTime(2024, 3, 2, 13);
+
+      expect(
+        Time.nightsWithCutoff(arrivalAt13, checkout: checkoutNextDayAt13),
+        1,
+      );
+      expect(
+        Time.nightsWithCutoff(
+          arrivalAt13,
+          checkout: checkoutNextDayAt13,
+          applyEarlyCheckinGrace: false,
+        ),
+        2,
+        reason: 'non-arrival intervals retain the original hotel-day cutoff',
+      );
+      expect(
+        Time.nightsWithCutoff(
+          DateTime(2024, 3, 1, 10, 59, 59),
+          checkout: checkoutNextDayAt13,
+        ),
+        2,
+        reason: 'arrivals before 11:00 remain on the previous hotel day',
+      );
+      expect(
+        Time.nightsWithCutoff(
+          DateTime(2024, 3, 1, 11),
+          checkout: checkoutNextDayAt13,
+        ),
+        1,
+        reason: '11:00 exactly is the start of the arrival grace window',
+      );
+    },
+  );
 
   // ════════════════════════════════════════════════════════════════════
   // Boundary tests for 14:01 cutoff — exact minute precision

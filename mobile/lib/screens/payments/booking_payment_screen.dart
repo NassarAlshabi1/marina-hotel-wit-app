@@ -256,7 +256,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     if (!checkout.isAfter(effectiveStart)) {
       return 0;
     }
-    return Time.nightsWithCutoff(effectiveStart, checkout: checkout);
+    return Time.nightsWithCutoff(
+      effectiveStart,
+      checkout: checkout,
+      applyEarlyCheckinGrace: effectiveStart.isAtSameMomentAs(checkin),
+    );
   }
 
   /// ════════════════════════════════════════════════════════════════

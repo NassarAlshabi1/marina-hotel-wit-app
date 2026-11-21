@@ -11,8 +11,9 @@ import 'hotel_timezone.dart';
 ///
 /// **قاعدة 14:01:**
 /// - اليوم الفندقي يمتد من 14:01 حتى 14:00 من اليوم التالي
-/// - check-in قبل 14:01 = يوم فندقي سابق
-/// - check-in في 14:01 أو بعد = يوم فندقي جديد
+/// - تصنيف التوقيت ومفاتيح الدفعات قبل 14:01 = اليوم الفندقي السابق
+/// - محاسبة ليلة الحجز الجديد تطبق سماح الوصول 11:00–14:00:59 عبر Time
+/// - 14:01 أو بعد = بداية اليوم الفندقي الجديد
 /// - checkout بعد 14:01 = ليلة إضافية
 class HotelTimeEngine {
   HotelTimeEngine._();
@@ -202,8 +203,16 @@ class HotelTimeEngine {
   /// - 01/01 14:01 → 02/01 14:01 = 2 ليالي
   /// - 01/01 14:01 → 02/01 14:00 = 1 ليلة
   /// - 01/01 14:01 → (الآن بعد 3 أيام) = 3 ليالي
-  static int calculateDays(DateTime checkIn, {DateTime? checkOut}) {
-    return Time.nightsWithCutoff(checkIn, checkout: checkOut);
+  static int calculateDays(
+    DateTime checkIn, {
+    DateTime? checkOut,
+    bool applyEarlyCheckinGrace = true,
+  }) {
+    return Time.nightsWithCutoff(
+      checkIn,
+      checkout: checkOut,
+      applyEarlyCheckinGrace: applyEarlyCheckinGrace,
+    );
   }
 
   /// حساب الليالي مع مراعاة تاريخ بداية الخصم.
@@ -231,7 +240,11 @@ class HotelTimeEngine {
     if (!checkOut.isAfter(effectiveStart)) {
       return 0;
     }
-    return calculateDays(effectiveStart, checkOut: checkOut);
+    return calculateDays(
+      effectiveStart,
+      checkOut: checkOut,
+      applyEarlyCheckinGrace: effectiveStart.isAtSameMomentAs(checkIn),
+    );
   }
 
   // ═══════════════════════════════════════════════════════════════

@@ -1,5 +1,4 @@
 import '../utils/hotel_time_engine.dart';
-import '../utils/hotel_timezone.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -250,14 +249,11 @@ class StayBalanceCalculator {
       manualCheckout,
     );
 
-    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:01) ───
-    final hotelDay = HotelTimeEngine.getHotelDay(checkin);
-    final firstHotelDay = HotelTimezone.atHotelTime(
-      hotelDay.year,
-      hotelDay.month,
-      hotelDay.day,
-      HotelTimeEngine.boundaryHour,
-      HotelTimeEngine.boundaryMinute,
+    // ─── حساب بداية الليلة الأولى بحدّ 14:01 وسماح الوصول 11:00 ───
+    final firstHotelDay = Time.hotelDayStartForNewBooking(
+      checkin,
+      cutoffHour: HotelTimeEngine.boundaryHour,
+      cutoffMinute: HotelTimeEngine.boundaryMinute,
     );
 
     // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
@@ -329,7 +325,11 @@ class StayBalanceCalculator {
     // ─── الأيام المتبقية حتى تاريخ المغادرة اليدوي ───
     final int manualNightsRemaining =
         (manualCheckout != null && manualCheckout.isAfter(moment))
-        ? Time.nightsWithCutoff(moment, checkout: manualCheckout)
+        ? Time.nightsWithCutoff(
+            moment,
+            checkout: manualCheckout,
+            applyEarlyCheckinGrace: false,
+          )
         : 0;
 
     // قارن عدد الليالي على نفس مرجع اليوم الفندقي من الدخول. مقارنة حدّ

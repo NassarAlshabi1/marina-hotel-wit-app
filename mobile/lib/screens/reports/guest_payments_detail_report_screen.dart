@@ -113,7 +113,11 @@ class _GuestPaymentsDetailReportScreenState
     if (checkout.isBefore(now)) {
       return 0;
     }
-    return Time.nightsWithCutoff(now, checkout: checkout);
+    return Time.nightsWithCutoff(
+      now,
+      checkout: checkout,
+      applyEarlyCheckinGrace: false,
+    );
   }
 
   /// حساب متوسط سعر الليلة الواحدة للحجز
@@ -176,7 +180,11 @@ class _GuestPaymentsDetailReportScreenState
     if (checkout == null) {
       return 0;
     }
-    return Time.nightsWithCutoff(checkout, checkout: DateTime.now());
+    return Time.nightsWithCutoff(
+      checkout,
+      checkout: DateTime.now(),
+      applyEarlyCheckinGrace: false,
+    );
   }
 
   /// تكلفة أيام التأخير
@@ -718,7 +726,11 @@ class _GuestPaymentsDetailReportScreenState
     final isAutoOverdue =
         DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
     final autoOverdueDays = isAutoOverdue
-        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        ? Time.nightsWithCutoff(
+            plannedCheckout,
+            checkout: DateTime.now(),
+            applyEarlyCheckinGrace: false,
+          )
         : 0;
     final autoOverdueCost = autoOverdueDays * nightlyRate;
 
@@ -875,7 +887,11 @@ class _GuestPaymentsDetailReportScreenState
     final isAutoOverdue =
         DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
     final autoOverdueDays = isAutoOverdue
-        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        ? Time.nightsWithCutoff(
+            plannedCheckout,
+            checkout: DateTime.now(),
+            applyEarlyCheckinGrace: false,
+          )
         : 0;
 
     return Column(
@@ -991,11 +1007,19 @@ class _GuestPaymentsDetailReportScreenState
     final isAutoOverdue =
         DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
     final autoOverdueDays = isAutoOverdue
-        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        ? Time.nightsWithCutoff(
+            plannedCheckout,
+            checkout: DateTime.now(),
+            applyEarlyCheckinGrace: false,
+          )
         : 0;
     final nightsUntilPlanned =
         !isAutoOverdue && plannedCheckout.isAfter(DateTime.now())
-        ? Time.nightsWithCutoff(DateTime.now(), checkout: plannedCheckout)
+        ? Time.nightsWithCutoff(
+            DateTime.now(),
+            checkout: plannedCheckout,
+            applyEarlyCheckinGrace: false,
+          )
         : 0;
 
     return Row(
@@ -1243,7 +1267,11 @@ class _GuestPaymentsDetailReportScreenState
     final isAutoOverdue =
         DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
     final autoOverdueDays = isAutoOverdue
-        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        ? Time.nightsWithCutoff(
+            plannedCheckout,
+            checkout: DateTime.now(),
+            applyEarlyCheckinGrace: false,
+          )
         : 0;
     final autoOverdueCost = autoOverdueDays * nightlyRate;
 

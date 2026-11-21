@@ -41,14 +41,16 @@ void main() {
 
   Future<Booking> seedBooking({
     required double amount,
+    DateTime? checkinAt,
     DateTime? checkout,
   }) async {
+    final bookingCheckin = checkinAt ?? checkin;
     final bookingId = await bookingsRepo.create(
       roomNumber: roomNumber,
       guestName: 'اختبار حدّ اليوم الفندقي',
       guestPhone: '0500000000',
       guestNationality: 'يمني',
-      checkinDate: checkin.toIso8601String(),
+      checkinDate: bookingCheckin.toIso8601String(),
       checkoutDate: (checkout ?? plannedCheckout).toIso8601String(),
       status: 'نشط',
       expectedNights: 4,
@@ -58,7 +60,7 @@ void main() {
       bookingLocalId: bookingId,
       roomNumber: roomNumber,
       amount: amount,
-      paymentDate: checkin.toIso8601String(),
+      paymentDate: bookingCheckin.toIso8601String(),
       paymentMethod: 'نقدي',
       revenueType: 'room',
     );
@@ -109,6 +111,33 @@ void main() {
         expect(result.autoCheckoutDate.minute, 1);
         expect(result.extraNightsBeyondManual, 0);
         expect(result.isAutoExtended, isFalse);
+      },
+    );
+
+    test(
+      'a 13:00 arrival and next-day 13:00 departure count as one night',
+      () async {
+        final arrivalAt13 = DateTime(2026, 10, 4, 13);
+        final checkoutNextDayAt13 = DateTime(2026, 10, 5, 13);
+        final booking = await seedBooking(
+          amount: nightlyRate,
+          checkinAt: arrivalAt13,
+          checkout: checkoutNextDayAt13,
+        );
+
+        final result = StayBalanceCalculator.calculate(
+          booking,
+          roomRate: nightlyRate,
+          now: now,
+        );
+
+        expect(result.totalPaidNights, 1);
+        expect(result.actualNightsSpent, 1);
+        expect(result.extraNightsBeyondManual, 0);
+        expect(result.isAutoExtended, isFalse);
+        expect(result.autoCheckoutDate.day, 5);
+        expect(result.autoCheckoutDate.hour, 14);
+        expect(result.autoCheckoutDate.minute, 1);
       },
     );
 

@@ -417,13 +417,10 @@ class BookingDerivedFieldsService {
       checkOut: checkout,
     );
 
-    final hotelDay = HotelTimeEngine.getHotelDay(checkin);
-    final startOfCheckinHotelDay = DateTime(
-      hotelDay.year,
-      hotelDay.month,
-      hotelDay.day,
-      HotelTimeEngine.boundaryHour,
-      HotelTimeEngine.boundaryMinute,
+    final startOfCheckinHotelDay = Time.hotelDayStartForNewBooking(
+      checkin,
+      cutoffHour: HotelTimeEngine.boundaryHour,
+      cutoffMinute: HotelTimeEngine.boundaryMinute,
     );
 
     for (int i = 0; i < totalNights; i++) {

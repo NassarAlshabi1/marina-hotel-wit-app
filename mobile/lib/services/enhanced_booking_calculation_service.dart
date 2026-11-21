@@ -856,19 +856,12 @@ class EnhancedBookingCalculationService {
       cutoffMinute: cutoffMinute,
     );
 
-    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      cutoffHour,
-      cutoffMinute,
+    // مزامنة تاريخ شرائح التسعير مع سماح الوصول المبكر في عدّ الليالي.
+    final startOfCheckinHotelDay = Time.hotelDayStartForNewBooking(
+      checkin,
+      cutoffHour: cutoffHour,
+      cutoffMinute: cutoffMinute,
     );
-    if (checkin.isBefore(startOfCheckinHotelDay)) {
-      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
-        const Duration(days: 1),
-      );
-    }
 
     for (int i = 0; i < totalNights; i++) {
       final dayDate = startOfCheckinHotelDay.add(Duration(days: i));

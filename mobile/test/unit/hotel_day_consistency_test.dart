@@ -57,11 +57,26 @@ void main() {
       );
     });
 
-    test('a pre-cutoff booking starts with the previous hotel day', () {
-      expect(
-        Time.hotelDayStartForNewBooking(DateTime(2026, 8, 13, 14, 0)),
-        DateTime(2026, 8, 12, 14, 1),
+    test('new booking check-in at 13:00 receives the early-arrival grace', () {
+      final start = Time.hotelDayStartForNewBooking(DateTime(2026, 8, 13, 13));
+
+      expect(start.year, 2026);
+      expect(start.month, 8);
+      expect(start.day, 13);
+      expect(start.hour, 14);
+      expect(start.minute, 1);
+    });
+
+    test('new booking before 11:00 still starts on the previous hotel day', () {
+      final start = Time.hotelDayStartForNewBooking(
+        DateTime(2026, 8, 13, 10, 59, 59),
       );
+
+      expect(start.year, 2026);
+      expect(start.month, 8);
+      expect(start.day, 12);
+      expect(start.hour, 14);
+      expect(start.minute, 1);
     });
   });
 }

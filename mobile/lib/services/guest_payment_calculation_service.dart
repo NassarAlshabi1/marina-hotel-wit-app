@@ -152,6 +152,7 @@ class GuestPaymentCalculationService {
       plannedDaysRemaining = Time.nightsWithCutoff(
         moment,
         checkout: plannedCheckout,
+        applyEarlyCheckinGrace: false,
       );
     }
 
@@ -229,7 +230,11 @@ class GuestPaymentCalculationService {
         actualCheckout == null;
     int overdueDays = 0;
     if (isOverdue) {
-      overdueDays = Time.nightsWithCutoff(plannedCheckout, checkout: moment);
+      overdueDays = Time.nightsWithCutoff(
+        plannedCheckout,
+        checkout: moment,
+        applyEarlyCheckinGrace: false,
+      );
     }
     final overdueCost = overdueDays * nightlyRate;
 

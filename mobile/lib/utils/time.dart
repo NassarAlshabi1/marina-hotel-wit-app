@@ -1,7 +1,7 @@
 import 'hotel_timezone.dart';
 
 class Time {
-  static const int earlyCheckinGraceHour = 8;
+  static const int earlyCheckinGraceHour = 11;
 
   /// حد اليوم الفندقي الموحد: يبدأ اليوم الجديد عند 14:01 بالضبط.
   static const int hotelDayBoundaryHour = 14;
@@ -83,18 +83,28 @@ class Time {
     return start;
   }
 
+  /// First billed hotel-day boundary for a new stay.
+  /// Check-ins from 11:00 until immediately before 14:01 receive the
+  /// early-arrival grace and start on that calendar day's 14:01 boundary;
+  /// earlier arrivals belong to the previous hotel day.
   static DateTime hotelDayStartForNewBooking(
     DateTime checkin, {
     int cutoffHour = hotelDayBoundaryHour,
     int cutoffMinute = hotelDayBoundaryMinute,
   }) {
-    // الحجز قبل 14:01 ينتمي إلى اليوم الفندقي السابق؛ يعيد hotelDayStart
-    // بداية ذلك اليوم بدلاً من إعادة وقت قطع مستقبلي في اليوم التقويمي نفسه.
-    return hotelDayStart(
-      checkin,
-      cutoffHour: cutoffHour,
-      cutoffMinute: cutoffMinute,
+    final hotelCheckin = HotelTimezone.toHotelDateTime(checkin);
+    final todayBoundary = HotelTimezone.atHotelTime(
+      hotelCheckin.year,
+      hotelCheckin.month,
+      hotelCheckin.day,
+      cutoffHour,
+      cutoffMinute,
     );
+    if (hotelCheckin.isBefore(todayBoundary) &&
+        hotelCheckin.hour < earlyCheckinGraceHour) {
+      return todayBoundary.subtract(const Duration(days: 1));
+    }
+    return todayBoundary;
   }
 
   static String hotelDayStartIso(
@@ -165,33 +175,42 @@ class Time {
     }
   }
 
-  /// حساب عدد الأيام مع قاعدة الساعة 14:01
-  /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
-  /// وحتى الساعة 14:01 من اليوم التالي.
-  /// أي مغادرة عند أو بعد الساعة 14:01، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
+  /// حساب عدد الليالي وفق حدّ اليوم الفندقي 14:01 وفترة سماح الوصول 11:00.
+  /// الوصول من 11:00 وحتى ما قبل 14:01 يبدأ يومه الفندقي في نفس التاريخ؛
+  /// الوصول قبل 11:00 ينتمي إلى اليوم الفندقي السابق.
+  /// المغادرة عند أو بعد 14:01 تبدأ يوماً فندقياً جديداً وتضيف ليلة.
   static int nightsWithCutoff(
     DateTime checkin, {
     DateTime? checkout,
     int cutoffHour = hotelDayBoundaryHour,
     int cutoffMinute = hotelDayBoundaryMinute,
+    bool applyEarlyCheckinGrace = true,
   }) {
     final hotelCheckin = HotelTimezone.toHotelDateTime(checkin);
     final end = checkout == null
         ? HotelTimezone.now()
         : HotelTimezone.toHotelDateTime(checkout);
 
-    // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = HotelTimezone.atHotelTime(
-      hotelCheckin.year,
-      hotelCheckin.month,
-      hotelCheckin.day,
-      cutoffHour,
-      cutoffMinute,
-    );
-    if (hotelCheckin.isBefore(startOfCheckinHotelDay)) {
-      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
-        const Duration(days: 1),
+    // السماح خاص بوقت وصول النزيل الجديد، وليس بالفترات الاصطناعية
+    // مثل «من الآن إلى المغادرة» أو «من المغادرة إلى الآن».
+    final DateTime startOfCheckinHotelDay;
+    if (applyEarlyCheckinGrace) {
+      startOfCheckinHotelDay = hotelDayStartForNewBooking(
+        hotelCheckin,
+        cutoffHour: cutoffHour,
+        cutoffMinute: cutoffMinute,
       );
+    } else {
+      final todayHotelDayStart = HotelTimezone.atHotelTime(
+        hotelCheckin.year,
+        hotelCheckin.month,
+        hotelCheckin.day,
+        cutoffHour,
+        cutoffMinute,
+      );
+      startOfCheckinHotelDay = hotelCheckin.isBefore(todayHotelDayStart)
+          ? todayHotelDayStart.subtract(const Duration(days: 1))
+          : todayHotelDayStart;
     }
 
     // حساب الفرق الزمني بين الوقت الحالي (أو وقت المغادرة) وبداية يوم الفندق للحجز
