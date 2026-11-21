@@ -300,21 +300,34 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Stream<Payment?> watchById(int id) =>
       (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
+  String _canonicalPaymentUuid(String value) {
+    final trimmed = value.trim();
+    if (trimmed.length == 32 && !trimmed.contains('-')) {
+      return '${trimmed.substring(0, 8)}-${trimmed.substring(8, 12)}-'
+          '${trimmed.substring(12, 16)}-${trimmed.substring(16, 20)}-'
+          '${trimmed.substring(20)}';
+    }
+    return trimmed;
+  }
+
   Future<int> insertOne(
     PaymentsCompanion data, {
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
-    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+    final uu = _canonicalPaymentUuid(
+      data.localUuid.present ? data.localUuid.value : IdGen.uuid(),
+    );
+    final deviceId = originIsServer
+        ? null
+        : await AppwriteSyncManager.ensureDeviceIdForLocalWrite();
     final comp = data.copyWith(
       localUuid: Value(uu),
       createdAt: Value(now),
       updatedAt: Value(now),
       lastModified: Value(now),
       origin: Value(originIsServer ? 'server' : 'local'),
-      deviceId: originIsServer
-          ? const Value.absent()
-          : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      deviceId: originIsServer ? const Value.absent() : Value(deviceId!),
       serverId: data.serverPaymentId.present
           ? Value(data.serverPaymentId.value)
           : const Value.absent(),

@@ -214,7 +214,7 @@ class PayloadMapper {
       'paymentDate': payment.paymentDate,
       'paymentMethod': payment.paymentMethod,
       'revenueType': payment.revenueType,
-      'localUuid': payment.localUuid,
+      'localUuid': _normalizeUuid(payment.localUuid),
       'createdAt': payment.createdAt,
       'updatedAt': payment.updatedAt,
       'lastModified': payment.lastModified,

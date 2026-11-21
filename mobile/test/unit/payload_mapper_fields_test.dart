@@ -233,6 +233,17 @@ void main() {
     expect(data.containsKey('deletedAtIso'), isTrue);
   });
 
+  test('paymentToRemote يرسل UUID بالشرطات كما هو معرف المستند وdeviceId', () {
+    const paymentUuid = '621b28eb87dd429b9f12fe19c18f17df';
+    final payment = _receiptPayment().copyWith(localUuid: paymentUuid);
+    final data = mapper.paymentToRemote(payment);
+
+    expect(data['localUuid'], '621b28eb-87dd-429b-9f12-fe19c18f17df');
+    expect(data['deviceId'], 'device-1');
+    // مسار createDocument يستخدم payload.localUuid مباشرةً كـ $id.
+    expect(data['localUuid'], '621b28eb-87dd-429b-9f12-fe19c18f17df');
+  });
+
   // ═══════════════════════════════════════════════════════════════
   // ✅ (2026-11-03) اختبارات إزالة FK الرقمية المحلية من الرفع (P1):
   // المعرفات الرقمية (autoincrement) تختلف بين الأجهزة — رفعها كان يشوّه
