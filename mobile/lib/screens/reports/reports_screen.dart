@@ -91,16 +91,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           // الآن: يعرض فقط إيرادات ومصروفات اليوم الفندقي الحالي
           final hotelDay = HotelTimeEngine.getHotelDayKey();
 
-          // المدفوعات: فلترة بـ hotelDayKey
-          final paymentsQuery = db.select(db.payments)
-            ..where((p) => p.deletedAt.isNull())
-            ..where((p) => p.isVoided.equals(false))
-            ..where(
-              (p) =>
-                  p.hotelDayKey.equals(hotelDay) |
-                  (p.hotelDayKey.isNull() & p.paymentDate.like('$hotelDay%')),
-            );
-          final todayPayments = await paymentsQuery.get();
+          // المدفوعات: المفتاح المسجل أولاً، ثم اشتقاق اليوم الفندقي
+          // لدفعات التوافق القديمة التي لا تحمل hotelDayKey.
+          final todayPayments = await ref
+              .read(paymentsRepoProvider)
+              .listFilteredByHotelDay(
+                fromHotelDay: hotelDay,
+                toHotelDay: hotelDay,
+                excludeVoided: true,
+                excludePendingBalance: true,
+              );
           double income = 0;
           for (final p in todayPayments) {
             income += p.amount;

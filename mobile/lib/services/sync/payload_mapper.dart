@@ -209,7 +209,7 @@ class PayloadMapper {
       'paymentDate': payment.paymentDate,
       'paymentMethod': payment.paymentMethod,
       'revenueType': payment.revenueType,
-      'localUuid': payment.localUuid,
+      'localUuid': _normalizeUuid(payment.localUuid),
       'createdAt': payment.createdAt,
       'updatedAt': payment.updatedAt,
       'lastModified': payment.lastModified,
@@ -764,6 +764,11 @@ class PayloadMapper {
       'nationality': info.nationality,
       'idNumber': info.idNumber,
       'idType': info.idType,
+      // صرّح بالقيم null كي يمسح المزامنة القيم السابقة للحقول الاختيارية.
+      'issueDate': info.issueDate,
+      'issuePlace': info.issuePlace,
+      'governorate': info.governorate,
+      'notes': info.notes,
     };
 
     putIfStringNotEmpty(data, 'idempotencyKey', info.idempotencyKey);
@@ -774,10 +779,6 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'createdAtIso', info.createdAtIso);
     putIfStringNotEmpty(data, 'updatedAtIso', info.updatedAtIso);
     putIfStringNotEmpty(data, 'deletedAtIso', info.deletedAtIso);
-    putIfStringNotEmpty(data, 'issueDate', info.issueDate);
-    putIfStringNotEmpty(data, 'issuePlace', info.issuePlace);
-    putIfStringNotEmpty(data, 'governorate', info.governorate);
-    putIfStringNotEmpty(data, 'notes', info.notes);
     return data;
   }
 

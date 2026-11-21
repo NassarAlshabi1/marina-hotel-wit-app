@@ -78,6 +78,8 @@ class GuestInfosRepository {
               createdAt: d.Value(now),
               updatedAt: d.Value(now),
               lastModified: d.Value(now),
+              createdAtEpoch: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               createdAtIso: d.Value(nowIso),
               updatedAtIso: d.Value(nowIso),
               version: const d.Value(1),
@@ -142,29 +144,41 @@ class GuestInfosRepository {
       // ✅ OCC: فحص version في WHERE لمنع lost update
       // إذا عدّل جهاز آخر السجل بين القراءة والكتابة، لن يطابق الشرط
       // وسيُرجع 0 صفوف → نكتشف التعارض بدلاً من طمس التعديل الآخر
-      await (_db.update(
-            _db.guestInfos,
-          )..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
-          .write(
-            GuestInfosCompanion(
-              roomNumber: d.Value(roomNumber),
-              guestName: d.Value(guestName),
-              nationality: d.Value(nationality),
-              idNumber: d.Value(idNumber),
-              idType: d.Value(idType),
-              issueDate: d.Value(issueDate.isEmpty ? null : issueDate),
-              issuePlace: d.Value(issuePlace.isEmpty ? null : issuePlace),
-              governorate: d.Value(governorate.isEmpty ? null : governorate),
-              notes: d.Value(notes.isEmpty ? null : notes),
-              entryDate: entryDate == null
-                  ? const d.Value.absent()
-                  : d.Value(entryDate),
-              updatedAt: d.Value(now),
-              lastModified: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              version: d.Value(existing.version + 1),
-            ),
-          );
+      final updatedRows =
+          await (_db.update(_db.guestInfos)..where(
+                (t) => t.id.equals(id) & t.version.equals(existing.version),
+              ))
+              .write(
+                GuestInfosCompanion(
+                  roomNumber: d.Value(roomNumber),
+                  guestName: d.Value(guestName),
+                  nationality: d.Value(nationality),
+                  idNumber: d.Value(idNumber),
+                  idType: d.Value(idType),
+                  issueDate: d.Value(issueDate.isEmpty ? null : issueDate),
+                  issuePlace: d.Value(issuePlace.isEmpty ? null : issuePlace),
+                  governorate: d.Value(
+                    governorate.isEmpty ? null : governorate,
+                  ),
+                  notes: d.Value(notes.isEmpty ? null : notes),
+                  entryDate: entryDate == null
+                      ? const d.Value.absent()
+                      : d.Value(entryDate),
+                  updatedAt: d.Value(now),
+                  lastModified: d.Value(now),
+                  lastModifiedEpoch: d.Value(now),
+                  updatedAtIso: d.Value(nowIso),
+                  version: d.Value(existing.version + 1),
+                  origin: d.Value(originIsServer ? 'server' : 'local'),
+                ),
+              );
+
+      // لا تسجل تغييراً في outbox إذا رُفض تحديث الصف بسبب تعارض النسخة.
+      if (updatedRows == 0) {
+        throw StateError(
+          'تغيّرت بيانات النزيل من جهاز آخر. أعد تحميل السجل وحاول مجدداً.',
+        );
+      }
 
       if (!originIsServer) {
         await _outboxDao.merge(
@@ -206,19 +220,28 @@ class GuestInfosRepository {
 
       // soft delete: تعيين deletedAt بدلاً من حذف فعلي
       // ✅ OCC: فحص version في WHERE لمنع lost update
-      await (_db.update(
-            _db.guestInfos,
-          )..where((t) => t.id.equals(id) & t.version.equals(existing.version)))
-          .write(
-            GuestInfosCompanion(
-              deletedAt: d.Value(now),
-              updatedAt: d.Value(now),
-              lastModified: d.Value(now),
-              version: d.Value(existing.version + 1),
-              updatedAtIso: d.Value(nowIso),
-              deletedAtIso: d.Value(nowIso),
-            ),
-          );
+      final deletedRows =
+          await (_db.update(_db.guestInfos)..where(
+                (t) => t.id.equals(id) & t.version.equals(existing.version),
+              ))
+              .write(
+                GuestInfosCompanion(
+                  deletedAt: d.Value(now),
+                  updatedAt: d.Value(now),
+                  lastModified: d.Value(now),
+                  lastModifiedEpoch: d.Value(now),
+                  version: d.Value(existing.version + 1),
+                  updatedAtIso: d.Value(nowIso),
+                  deletedAtIso: d.Value(nowIso),
+                  origin: const d.Value('local'),
+                ),
+              );
+
+      if (deletedRows == 0) {
+        throw StateError(
+          'تغيّرت بيانات النزيل من جهاز آخر. أعد تحميل السجل وحاول مجدداً.',
+        );
+      }
 
       await _outboxDao.merge(
         entity: 'guest_infos',

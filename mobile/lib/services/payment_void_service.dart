@@ -3,6 +3,7 @@
 import 'package:drift/drift.dart' as drift;
 
 import '../utils/debug_log.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
@@ -94,7 +95,13 @@ class PaymentVoidService {
         // 1.5) حل bookingUuid و hotelDayKey من الدفعة أو من الحجز المرتبط
         // ✅ OCR Comment #2: معالجة حالة عدم التمكن من حل bookingUuid/hotelDayKey
         String bookingUuid = payment.bookingUuidCache ?? '';
-        String hotelDayKey = payment.hotelDayKey ?? '';
+        final hotelDayKey = HotelTimeEngine.resolvePaymentHotelDayKey(
+          storedHotelDayKey: payment.hotelDayKey,
+          paymentDate: payment.paymentDate,
+        );
+        if (hotelDayKey == null) {
+          throw StateError('تعذر تحديد اليوم الفندقي للدفعة المراد إلغاؤها');
+        }
 
         // إذا لم يكن bookingUuid متوفراً، نحاول حله من bookingLocalId
         if (bookingUuid.isEmpty && payment.bookingLocalId != null) {
@@ -106,11 +113,6 @@ class PaymentVoidService {
           if (booking != null) {
             bookingUuid = booking.localUuid;
           }
-        }
-
-        // إذا لم يكن hotelDayKey متوفراً، نستمده من paymentDate
-        if (hotelDayKey.isEmpty && payment.paymentDate.isNotEmpty) {
-          hotelDayKey = payment.paymentDate;
         }
 
         // إذا لم نتمكن من حل bookingUuid، نرفض العملية

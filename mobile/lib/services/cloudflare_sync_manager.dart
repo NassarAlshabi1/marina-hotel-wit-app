@@ -184,7 +184,30 @@ class CloudflareSyncManager {
   // ─── Static device ID (same interface as AppwriteSyncManager) ──
   static String? _staticDeviceId;
   static String? get currentDeviceIdStatic => _staticDeviceId;
-  static void setStaticDeviceId(String id) => _staticDeviceId = id;
+  static void setStaticDeviceId(String? id) => _staticDeviceId = id;
+
+  /// يوفر هوية جهاز مستقرة محلياً قبل إنشاء أي سجل يحتاج deviceId
+  /// (مثل الدفعات المسجلة دون اتصال وقبل اكتمال initialize).
+  /// إذا لم تكن هناك هوية محفوظة بعد، تُولَّد مرة واحدة وتُخزَّن ثم
+  /// يعاد استخدامها لاحقاً عند initialize بدلاً من توليد هوية ثانية.
+  static Future<String> ensureDeviceIdForLocalWrite() async {
+    final prefs = await SharedPreferences.getInstance();
+    final registeredId =
+        _staticDeviceId ??
+        _instance._deviceId ??
+        prefs.getString('cf_device_id');
+    if (registeredId != null && registeredId.trim().isNotEmpty) {
+      setStaticDeviceId(registeredId);
+      _instance._deviceId ??= registeredId;
+      return registeredId;
+    }
+
+    final deviceId = _instance._generateDeviceId();
+    await prefs.setString('cf_device_id', deviceId);
+    _instance._deviceId = deviceId;
+    setStaticDeviceId(deviceId);
+    return deviceId;
+  }
 
   // ─── State ──────────────────────────────────────────────────
   AppDatabase? _db;

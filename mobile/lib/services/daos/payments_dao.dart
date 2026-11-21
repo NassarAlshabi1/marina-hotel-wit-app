@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
@@ -210,27 +211,33 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (excludePendingBalance) {
       q.where((t) => t.isPendingBalance.equals(false));
     }
-    if (fromHotelDay != null) {
-      // hotelDayKey >= fromHotelDay، مع fallback لحقل paymentDate عند كون hotelDayKey فارغاً
-      q.where(
-        (t) =>
-            (t.hotelDayKey.isNotNull() &
-                t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() &
-                t.paymentDate.isBiggerOrEqualValue(fromHotelDay)),
-      );
-    }
-    if (toHotelDay != null) {
-      final endRange = SqlDateRange.forDay(toHotelDay);
-      q.where(
-        (t) =>
-            (t.hotelDayKey.isNotNull() &
-                t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() &
-                (endRange == null
-                    ? t.paymentDate.isSmallerOrEqualValue(toHotelDay)
-                    : t.paymentDate.isSmallerThanValue(endRange.endExclusive))),
-      );
+    if (fromHotelDay != null || toHotelDay != null) {
+      q.where((t) {
+        Expression<bool> hotelDayKeyRange = const Constant(true);
+        Expression<bool> legacyDateRange = const Constant(true);
+        if (fromHotelDay != null) {
+          hotelDayKeyRange =
+              hotelDayKeyRange &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay);
+          legacyDateRange =
+              legacyDateRange &
+              t.paymentDate.isBiggerOrEqualValue(fromHotelDay);
+        }
+        if (toHotelDay != null) {
+          hotelDayKeyRange =
+              hotelDayKeyRange &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay);
+          legacyDateRange =
+              legacyDateRange &
+              t.paymentDate.isSmallerThanValue(Time.hotelDayEndIso(toHotelDay));
+        }
+        final hasHotelDayKey =
+            t.hotelDayKey.isNotNull() & t.hotelDayKey.equals('').not();
+        final hasNoHotelDayKey =
+            t.hotelDayKey.isNull() | t.hotelDayKey.equals('');
+        return (hasHotelDayKey & hotelDayKeyRange) |
+            (hasNoHotelDayKey & legacyDateRange);
+      });
     }
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
@@ -241,7 +248,20 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-    return q.get();
+    final results = await q.get();
+    if (fromHotelDay == null && toHotelDay == null) return results;
+    return results
+        .where((payment) {
+          final hotelDayKey = HotelTimeEngine.resolvePaymentHotelDayKey(
+            storedHotelDayKey: payment.hotelDayKey,
+            paymentDate: payment.paymentDate,
+          );
+          if (hotelDayKey == null) return false;
+          return (fromHotelDay == null ||
+                  hotelDayKey.compareTo(fromHotelDay) >= 0) &&
+              (toHotelDay == null || hotelDayKey.compareTo(toHotelDay) <= 0);
+        })
+        .toList(growable: false);
   }
 
   Future<List<Payment>> listByHotelDayKey(
@@ -280,21 +300,36 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Stream<Payment?> watchById(int id) =>
       (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
+  /// يوحّد شكل UUID (بشرطات 8-4-4-4-12) كي تتطابق هويات المستندات
+  /// البعيدة مع السجلات المحلية مهما كان مصدر التوليد.
+  String _canonicalPaymentUuid(String value) {
+    final trimmed = value.trim();
+    if (trimmed.length == 32 && !trimmed.contains('-')) {
+      return '${trimmed.substring(0, 8)}-${trimmed.substring(8, 12)}-'
+          '${trimmed.substring(12, 16)}-${trimmed.substring(16, 20)}-'
+          '${trimmed.substring(20)}';
+    }
+    return trimmed;
+  }
+
   Future<int> insertOne(
     PaymentsCompanion data, {
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
-    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+    final uu = _canonicalPaymentUuid(
+      data.localUuid.present ? data.localUuid.value : IdGen.uuid(),
+    );
+    final deviceId = originIsServer
+        ? null
+        : await AppwriteSyncManager.ensureDeviceIdForLocalWrite();
     final comp = data.copyWith(
       localUuid: Value(uu),
       createdAt: Value(now),
       updatedAt: Value(now),
       lastModified: Value(now),
       origin: Value(originIsServer ? 'server' : 'local'),
-      deviceId: originIsServer
-          ? const Value.absent()
-          : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      deviceId: originIsServer ? const Value.absent() : Value(deviceId!),
       serverId: data.serverPaymentId.present
           ? Value(data.serverPaymentId.value)
           : const Value.absent(),

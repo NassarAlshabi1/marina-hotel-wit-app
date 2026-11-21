@@ -17,6 +17,8 @@ import '../services/repositories/payments_repository.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/debug_log.dart';
+import '../utils/hotel_time_engine.dart';
+import '../utils/hotel_timezone.dart';
 import '../utils/loading_snackbar.dart';
 import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
@@ -676,9 +678,113 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               );
             },
           ),
+          const SizedBox(height: 12),
+          _buildLatestRoomReceiptCard(),
         ],
       ),
     );
+  }
+
+  /// بطاقة «آخر استلام من الغرف» — أحدث دفعة فعلية مسجلة ضمن اليوم
+  /// الفندقي الجاري، مع وقتها بتوقيت الفندق (Asia/Aden).
+  Widget _buildLatestRoomReceiptCard() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final user = ref.watch(authProvider).currentUser;
+        final canViewLatestRoomReceipt =
+            user?.isAdmin == true ||
+            user?.userType == 'manager' ||
+            user?.userType == 'supervisor';
+        if (!canViewLatestRoomReceipt) return const SizedBox.shrink();
+
+        final receiptsAsync = ref.watch(latestRoomReceiptsProvider);
+        return receiptsAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (error, stackTrace) {
+            dlog(() => 'تعذر تحميل آخر استلام للغرف: $error');
+            return const SizedBox.shrink();
+          },
+          data: (receipts) {
+            if (receipts.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'لا توجد استلامات مسجلة من الغرف حتى الآن',
+                  style: TextStyle(fontSize: 9),
+                ),
+              );
+            }
+
+            final receipt = receipts.first;
+            final parsedPaymentDate = DateTime.tryParse(receipt.paymentDate);
+            final paidAt = parsedPaymentDate == null
+                ? null
+                : HotelTimezone.toHotelDateTime(parsedPaymentDate);
+            final amount = NumberFormat(
+              '#,##0',
+              'en_US',
+            ).format(receipt.amount.round());
+            final timeLabel = paidAt == null
+                ? 'الوقت غير متاح'
+                : _formatReceiptTime(paidAt);
+            final dateLabel = paidAt == null
+                ? ''
+                : HotelTimeEngine.getHotelDayKeyFromIso(
+                    receipt.paymentDate,
+                  ).replaceAll('-', '/');
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'آخر استلام من الغرف',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'استلم مبلغ $amount ريال من غرفة ${receipt.roomNumber}',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$timeLabel${dateLabel.isEmpty ? '' : ' • $dateLabel'}',
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatReceiptTime(DateTime dateTime) {
+    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour < 12 ? 'صباحًا' : 'مساءً';
+    return 'الساعة $hour:$minute $period';
   }
 
   Widget _buildLegendItem(String label, Color color) {

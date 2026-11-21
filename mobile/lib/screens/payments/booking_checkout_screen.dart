@@ -638,7 +638,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             bookingLocalId: widget.booking.id,
             roomNumber: widget.booking.roomNumber,
             amount: amount,
-            paymentDate: Time.nowIso(),
+            paymentDate: Time.nowPaymentIso(),
             notes: notesController.text.isEmpty ? null : notesController.text,
             paymentMethod: selectedMethod,
             revenueType: selectedType,

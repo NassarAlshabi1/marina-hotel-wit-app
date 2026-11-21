@@ -169,7 +169,12 @@ class _IncomeExpenseReportScreenState
           payments: payments
               .map(
                 (p) => {
-                  'date': p.paymentDate,
+                  'date':
+                      HotelTimeEngine.resolvePaymentHotelDayKey(
+                        storedHotelDayKey: p.hotelDayKey,
+                        paymentDate: p.paymentDate,
+                      ) ??
+                      p.paymentDate,
                   'roomNumber': p.roomNumber ?? '',
                   'guestName': p.bookingLocalId != null
                       ? (bookingGuestMap[p.bookingLocalId] ?? '')

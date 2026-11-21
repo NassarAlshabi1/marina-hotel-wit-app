@@ -215,6 +215,69 @@ void main() {
     });
   });
 
+  // ✅ يقابل إصلاح 78faa5c6 (offer edit or end for active price adjustments)
+  // من فرع guest-adjustment-edit-end.
+  group('تعديل سجل تخفيض/زيادة نشط (updateAdjustment)', () {
+    test(
+      'يحدّث التخفيض الحالي في مكانه ويعيد احتساب الحجز دون إنشاء سجل مكرر',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '102-A',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'ضيف تعديل التخفيض',
+          nightCount: 5,
+          nightlyRate: 15000,
+        );
+        final effectiveDay = _hotelDayKey(_dayFromNow(-2));
+        final adjustment = await adjustmentService.applyTemporaryAdjustment(
+          bookingLocalUuid: seed.bookingUuid,
+          amount: 2000,
+          type: AdjustmentType.discount,
+          mode: AdjustmentMode.perNight,
+          effectiveHotelDay: effectiveDay,
+          reason: 'تخفيض قابل للتعديل',
+          appliedBy: 'المدير',
+        );
+        final bookingBeforeEdit = await (db.select(
+          db.bookings,
+        )..where((b) => b.localUuid.equals(seed.bookingUuid))).getSingle();
+
+        await adjustmentService.updateAdjustment(
+          adjustmentUuid: adjustment.localUuid,
+          amount: 1000,
+          mode: AdjustmentMode.perNight,
+          effectiveHotelDay: effectiveDay,
+          updatedBy: 'المدير',
+        );
+
+        final adjustments = await adjustmentService.getAllAdjustments(
+          seed.bookingUuid,
+        );
+        final active = await adjustmentService.getActiveAdjustments(
+          seed.bookingUuid,
+        );
+        final bookingAfterEdit = await (db.select(
+          db.bookings,
+        )..where((b) => b.localUuid.equals(seed.bookingUuid))).getSingle();
+
+        expect(adjustments, hasLength(1));
+        expect(adjustments.single.localUuid, adjustment.localUuid);
+        expect(adjustments.single.amount, 1000);
+        expect(adjustments.single.isActive, isTrue);
+        expect(adjustments.single.version, adjustment.version + 1);
+        expect(active, hasLength(1));
+        expect(active.single.localUuid, adjustment.localUuid);
+        expect(
+          bookingAfterEdit.totalDueCached,
+          greaterThan(bookingBeforeEdit.totalDueCached),
+          reason:
+              'تقليل قيمة التخفيض يجب أن يرفع إجمالي المستحق بعد إعادة الحساب',
+        );
+      },
+    );
+  });
+
   group('السيناريو 2: زيادة سعر (surcharge)', () {
     test(
       'تطبيق surcharge 3000 ر.ي يُسجَّل في تقرير الإيرادات الإضافية',

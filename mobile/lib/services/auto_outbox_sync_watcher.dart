@@ -8,7 +8,7 @@
 //    is restored. Outbox entries remain in 'pending' status until successful
 //    push, so no data is lost.
 // ✅ Weak-device friendly: uses a single stream subscription (no polling),
-//    debounced push (3s), and prevents overlapping pushes.
+//    debounced push (2s), and prevents overlapping pushes.
 
 import 'dart:async';
 
@@ -87,7 +87,7 @@ class AutoOutboxSyncWatcher {
 
     // 2. Watch outbox table for new pending entries
     // ✅ الآن `_isOnline` صحيح، فلو كان هناك pending entries عند البدء
-    // و online، الـ first push سيحدث بشكل صحيح بعد الـ 3s debounce.
+    // و online، الـ first push سيحدث بشكل صحيح بعد مهلة debounce ثانيتين.
     _subscription = db
         .customSelect(
           'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ?',

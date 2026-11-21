@@ -215,4 +215,12 @@ void main() {
     expect(data['receivedSessionUuid'], 'sess-1');
     expect(data['receivedByCloudId'], 'cloud-user-7');
   });
+
+  test('paymentToRemote يرسل UUID بالشرطات بالشكل القياسي للمستند', () {
+    const paymentUuid = '621b28eb87dd429b9f12fe19c18f17df';
+    final payment = _paymentWithReceiver().copyWith(localUuid: paymentUuid);
+    final data = mapper.paymentToRemote(payment);
+
+    expect(data['localUuid'], '621b28eb-87dd-429b-9f12-fe19c18f17df');
+  });
 }

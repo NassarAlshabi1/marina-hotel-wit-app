@@ -159,18 +159,16 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     // حساب المبالغ
     final totalAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
 
-    // مدفوعات اليوم الفندقي الحالي
+    // مدفوعات اليوم الفندقي الحالي — من الدفعات الفعلية فقط
     final todayPayments = payments.where((p) {
-      if (p.isVoided) {
+      if (p.isVoided || p.isPendingBalance) {
         return false;
       }
-      if (p.hotelDayKey == hotelDay) {
-        return true;
-      }
-      if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
-        return true;
-      }
-      return false;
+      return HotelTimeEngine.paymentBelongsToHotelDay(
+        storedHotelDayKey: p.hotelDayKey,
+        paymentDate: p.paymentDate,
+        hotelDayKey: hotelDay,
+      );
     }).toList();
     final todayAmount = todayPayments.fold<double>(
       0,
@@ -312,16 +310,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     // عرض مدفوعات اليوم الفندقي الحالي
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPayments = payments.where((p) {
-      if (p.isVoided) {
+      if (p.isVoided || p.isPendingBalance) {
         return false;
       }
-      if (p.hotelDayKey == hotelDay) {
-        return true;
-      }
-      if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
-        return true;
-      }
-      return false;
+      return HotelTimeEngine.paymentBelongsToHotelDay(
+        storedHotelDayKey: p.hotelDayKey,
+        paymentDate: p.paymentDate,
+        hotelDayKey: hotelDay,
+      );
     }).toList();
 
     // ترتيب تنازلي حسب التاريخ
@@ -867,7 +863,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
 
       await paymentsRepo.create(
         amount: parsedAmount,
-        paymentDate: Time.nowIso(),
+        paymentDate: Time.nowPaymentIso(),
         notes: notes.trim().isEmpty ? null : notes.trim(),
         paymentMethod: dbMethod,
         revenueType: 'other',

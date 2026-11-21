@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/booking_payment_matcher.dart';
 import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/time.dart';
 import '../auth_local_store.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
@@ -17,6 +18,26 @@ import '../payment_session_context.dart';
 import '../payment_void_service.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+
+class LatestRoomReceipt {
+  const LatestRoomReceipt({
+    required this.roomNumber,
+    required this.amount,
+    required this.paymentDate,
+  });
+
+  factory LatestRoomReceipt.fromRow(Map<String, dynamic> row) {
+    return LatestRoomReceipt(
+      roomNumber: row['room_number']?.toString() ?? '',
+      amount: (row['amount'] as num?)?.toDouble() ?? 0,
+      paymentDate: row['payment_date']?.toString() ?? '',
+    );
+  }
+
+  final String roomNumber;
+  final double amount;
+  final String paymentDate;
+}
 
 /// ملخّص استلامات هوية مستخدم واحدة بحسب اليوم الفندقي — سطر واحد
 /// في بطاقة «استلامات المستخدمين الآخرين بحسب اليوم الفندقي».
@@ -53,6 +74,54 @@ class PaymentsRepository {
   late final OutboxDao outbox;
   late final PaymentsDao dao;
   late final BookingDerivedFieldsService derivedFields;
+
+  String _hotelDayPaymentPredicate() =>
+      "(hotel_day_key = ? OR ((hotel_day_key IS NULL OR TRIM(hotel_day_key) = '') "
+      "AND ((LENGTH(TRIM(payment_date)) <= 10 "
+      "AND SUBSTR(TRIM(payment_date), 1, 10) = ?) "
+      "OR (LENGTH(TRIM(payment_date)) > 10 "
+      "AND datetime(replace(TRIM(payment_date), ' ', 'T')) >= datetime(?) "
+      "AND datetime(replace(TRIM(payment_date), ' ', 'T')) < datetime(?)))))";
+
+  List<d.Variable<Object>> _hotelDayPaymentVariables(String hotelDayKey) => [
+    d.Variable.withString(hotelDayKey),
+    d.Variable.withString(hotelDayKey),
+    d.Variable.withString(Time.hotelDayStartIso(hotelDayKey)),
+    d.Variable.withString(Time.hotelDayEndIso(hotelDayKey)),
+  ];
+
+  /// أحدث دفعة فعلية لكل غرفة ضمن اليوم الفندقي المحدد، مرتبة بالأحدث أولاً.
+  /// تُستثنى الدفعات المحذوفة والملغاة والمعلّقة، وتُراقَب تغييرات payments.
+  /// يُرجع صفاً واحداً لكل غرفة بدلاً من تحميل سجل المدفوعات بالكامل إلى الذاكرة.
+  Stream<List<LatestRoomReceipt>> watchLatestRoomReceiptsByRoom(
+    String hotelDayKey,
+  ) {
+    return db
+        .customSelect(
+          'WITH ranked_room_receipts AS ('
+          ' SELECT room_number, amount, payment_date,'
+          ' ROW_NUMBER() OVER ('
+          ' PARTITION BY room_number ORDER BY payment_date DESC, id DESC'
+          ' ) AS room_rank'
+          ' FROM payments'
+          ' WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0'
+          " AND room_number IS NOT NULL AND TRIM(room_number) <> ''"
+          " AND revenue_type = 'room'"
+          ' AND ${_hotelDayPaymentPredicate()}'
+          ') '
+          'SELECT room_number, amount, payment_date '
+          'FROM ranked_room_receipts WHERE room_rank = 1 '
+          'ORDER BY payment_date DESC, room_number ASC',
+          variables: _hotelDayPaymentVariables(hotelDayKey),
+          readsFrom: {db.payments},
+        )
+        .watch()
+        .map(
+          (rows) => rows
+              .map((row) => LatestRoomReceipt.fromRow(row.data))
+              .toList(growable: false),
+        );
+  }
 
   /// يحلّ هوية من نفّذ الحذف: مفتاح الجهاز المخزن عند تسجيل الجهاز
   /// (`appwrite_device_id` مع رجوع لـ `device_id`) واسم المستخدم الحالي
@@ -134,16 +203,14 @@ class PaymentsRepository {
   /// من تحميل جميع صفوف المدفوعات (38 عمود لكل صف) ثم جمعها في Dart.
   /// يُحدَّث تلقائياً عند أي تغيير في جدول المدفوعات بفضل Stream من Drift.
   /// يطابق المنطق السابق: hotelDayKey مطابق OR (hotelDayKey فارغ AND paymentDate ضمن النطاق).
+  /// السجلات التاريخية بلا مفتاح تُحسب ضمن النطاق الحصري 14:01→14:01.
   Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
     return db
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0 AND '
-          '(hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
-          variables: [
-            d.Variable.withString(hotelDayKey),
-            d.Variable.withString('$hotelDayKey%'),
-          ],
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 AND ${_hotelDayPaymentPredicate()}',
+          variables: _hotelDayPaymentVariables(hotelDayKey),
           readsFrom: {db.payments},
         )
         .watchSingle()
@@ -230,8 +297,7 @@ class PaymentsRepository {
           '$excludedUserIdFilter'
           '$excludedNameFilter'
           '$excludedCloudIdFilter'
-          'AND (hotel_day_key = ? '
-          'OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
+          'AND ${_hotelDayPaymentPredicate()} '
           "GROUP BY COALESCE(received_by_cloud_id, 'legacy:' || received_by_user_id) "
           'ORDER BY total_amount DESC',
           variables: [
@@ -240,8 +306,7 @@ class PaymentsRepository {
               d.Variable.withString(excludedUserName),
             if (excludedUserCloudId != null)
               d.Variable.withString(excludedUserCloudId),
-            d.Variable.withString(hotelDayKey),
-            d.Variable.withString('$hotelDayKey%'),
+            ..._hotelDayPaymentVariables(hotelDayKey),
           ],
           readsFrom: {db.payments},
         )
@@ -344,7 +409,12 @@ class PaymentsRepository {
       if (!PaymentSessionContext.isActive) {
         throw StateError('لا يمكن تسجيل دفعة دون جلسة مستخدم نشطة');
       }
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+      final hotelDayKey =
+          HotelTimeEngine.resolvePaymentHotelDayKey(
+            storedHotelDayKey: null,
+            paymentDate: paymentDate,
+          ) ??
+          HotelTimeEngine.getHotelDayKey();
       // ✅ (2026-09-16) الهوية السحابية تُحسم قبل المعاملة — انظر
       // [_resolveReceiverCloudId]: الجلسة أولاً، وإلا مطابقة الاسم
       // الفريدة في مرآة app_users (الجلسة المستعادة تفقد cloud_user_id).
@@ -431,7 +501,10 @@ class PaymentsRepository {
       final oldBookingId = before?.bookingLocalId;
 
       final hotelDayKey = paymentDate != null
-          ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate)
+          ? HotelTimeEngine.resolvePaymentHotelDayKey(
+              storedHotelDayKey: null,
+              paymentDate: paymentDate,
+            )
           : null;
 
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
@@ -602,13 +675,32 @@ class PaymentsRepository {
     return (result.data['total'] as num).toDouble();
   }
 
+  /// قائمة المدفوعات حسب نطاق اليوم الفندقي، بما فيها السجلات التاريخية
+  /// التي لا تحمل مفتاح يوم فندقي محفوظاً (تُشتق من وقت الدفعة وحدّ 14:01).
+  Future<List<Payment>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? roomNumber,
+    String? revenueType,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
+    bool includeDeleted = false,
+  }) => dao.listFilteredByHotelDay(
+    fromHotelDay: fromHotelDay,
+    toHotelDay: toHotelDay,
+    roomNumber: roomNumber,
+    revenueType: revenueType,
+    excludeVoided: excludeVoided,
+    excludePendingBalance: excludePendingBalance,
+    includeDeleted: includeDeleted,
+  );
+
   Future<double> getTotalByHotelDayKey(
     String hotelDayKey, {
     String? revenueType,
   }) async {
     final variables = <d.Variable<Object>>[
-      d.Variable.withString(hotelDayKey),
-      d.Variable.withString('$hotelDayKey%'),
+      ..._hotelDayPaymentVariables(hotelDayKey),
     ];
     var revenueFilter = '';
     if (revenueType != null && revenueType.isNotEmpty) {
@@ -618,8 +710,8 @@ class PaymentsRepository {
     final result = await db
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0'
-          '  AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))'
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 AND ${_hotelDayPaymentPredicate()}'
           '$revenueFilter',
           variables: variables,
           readsFrom: {db.payments},

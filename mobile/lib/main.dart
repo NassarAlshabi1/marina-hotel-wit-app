@@ -478,7 +478,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // وpushFunction لم تكن مضبوطة، فكان الرفع بعد الكتابة ميتاً
         // (لا يحدث إلا عبر مؤقت 15 دقيقة / فتح التطبيق / الأزرار اليدوية).
         // الآن: أي إدخال جديد في outbox يُرفع تلقائياً بعد debounce
-        // 3 ثوانٍ — مع ضمان التهيئة (إعادة محاولة الدخول عند فشلها
+        // ثانيتين — مع ضمان التهيئة (إعادة محاولة الدخول عند فشلها
         // السابق) قبل كل محاولة رفع، فلا يضيع أي رفع بعد تهيئة فاشلة.
         AutoOutboxSyncWatcher.pushFunction = () async {
           if (syncManager.token == null) {
