@@ -318,16 +318,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     final uu = _canonicalPaymentUuid(
       data.localUuid.present ? data.localUuid.value : IdGen.uuid(),
     );
-    final deviceId = originIsServer
-        ? null
-        : await AppwriteSyncManager.ensureDeviceIdForLocalWrite();
     final comp = data.copyWith(
       localUuid: Value(uu),
       createdAt: Value(now),
       updatedAt: Value(now),
       lastModified: Value(now),
       origin: Value(originIsServer ? 'server' : 'local'),
-      deviceId: originIsServer ? const Value.absent() : Value(deviceId!),
+      deviceId: originIsServer
+          ? const Value.absent()
+          : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       serverId: data.serverPaymentId.present
           ? Value(data.serverPaymentId.value)
           : const Value.absent(),

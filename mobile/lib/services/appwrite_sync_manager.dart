@@ -461,6 +461,7 @@ class AppwriteSyncManager {
     final prefs = await SharedPreferences.getInstance();
     // قراءة الإعدادات المحفوظة (بدون تغييرها)
     _currentDeviceId = prefs.getString('appwrite_device_id');
+    AppwriteSyncManager.updateStaticDeviceId(_currentDeviceId);
 
     final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
     _lastSyncTime = lastSyncEpoch != null
@@ -468,9 +469,6 @@ class AppwriteSyncManager {
         : null;
 
     _deviceLocalUuid = prefs.getString('appwrite_device_local_uuid');
-    AppwriteSyncManager.updateStaticDeviceId(
-      _currentDeviceId ?? _deviceLocalUuid,
-    );
     // ✅ propagate the real deviceId now that it is known
     _pullService?.setAncestorCacheDao(
       _ancestorCacheDao,
@@ -5739,21 +5737,8 @@ class AppwriteSyncManager {
     Expense expense,
   ) => _expenseToRemoteWithEmployeeLink(expense);
 
-  Map<String, dynamic> _paymentToRemote(Payment payment) {
-    final payload = _payloadMapper.paymentToRemote(payment);
-    final deviceId = payment.deviceId.trim().isNotEmpty
-        ? payment.deviceId.trim()
-        : (_currentDeviceId ??
-              _deviceLocalUuid ??
-              AppwriteSyncManager.currentDeviceIdStatic);
-    if (deviceId == null || deviceId.trim().isEmpty) {
-      throw StateError(
-        'لا يمكن رفع payment ${payment.localUuid}: deviceId غير متوفر.',
-      );
-    }
-    payload['deviceId'] = deviceId;
-    return payload;
-  }
+  Map<String, dynamic> _paymentToRemote(Payment payment) =>
+      _payloadMapper.paymentToRemote(payment);
 
   Map<String, dynamic> _debtToRemote(Debt debt) =>
       _payloadMapper.debtToRemote(debt);
@@ -8907,33 +8892,6 @@ class AppwriteSyncManager {
   /// تحديث الـ static deviceId — يُستدعى عند تسجيل الجهاز أو تهيئة المزامنة
   static void updateStaticDeviceId(String? id) {
     _staticDeviceId = id;
-  }
-
-  /// يوفر هوية مستقرة محلياً قبل إنشاء أي سجل يحتاج deviceId.
-  /// إذا لم يكن الجهاز مسجلاً بعد، تُحفظ هوية UUID واحدة ويعاد استخدامها
-  /// لاحقاً بواسطة registerDevice بدلاً من توليد هوية ثانية.
-  static Future<String> ensureDeviceIdForLocalWrite() async {
-    final prefs = await SharedPreferences.getInstance();
-    final registeredId =
-        _staticDeviceId ??
-        _instance?._currentDeviceId ??
-        prefs.getString('appwrite_device_id');
-    if (registeredId != null && registeredId.trim().isNotEmpty) {
-      updateStaticDeviceId(registeredId);
-      if (_instance != null) _instance!._currentDeviceId ??= registeredId;
-      return registeredId;
-    }
-
-    final localId =
-        _instance?._deviceLocalUuid ??
-        prefs.getString('appwrite_device_local_uuid');
-    final deviceId = (localId == null || localId.trim().isEmpty)
-        ? IdGen.uuid()
-        : localId;
-    await prefs.setString('appwrite_device_local_uuid', deviceId);
-    if (_instance != null) _instance!._deviceLocalUuid = deviceId;
-    updateStaticDeviceId(deviceId);
-    return deviceId;
   }
 
   /// ✅ معرف الجهاز المحلي من SharedPreferences (fallback إذا لم يُسجَّل في Appwrite)
