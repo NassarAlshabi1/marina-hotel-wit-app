@@ -18,6 +18,26 @@ import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
+class LatestRoomReceipt {
+  const LatestRoomReceipt({
+    required this.roomNumber,
+    required this.amount,
+    required this.paymentDate,
+  });
+
+  factory LatestRoomReceipt.fromRow(Map<String, dynamic> row) {
+    return LatestRoomReceipt(
+      roomNumber: row['room_number']?.toString() ?? '',
+      amount: (row['amount'] as num?)?.toDouble() ?? 0,
+      paymentDate: row['payment_date']?.toString() ?? '',
+    );
+  }
+
+  final String roomNumber;
+  final double amount;
+  final String paymentDate;
+}
+
 class PaymentShiftSummary {
   const PaymentShiftSummary({
     required this.userId,
@@ -51,6 +71,39 @@ class PaymentsRepository {
   late final OutboxDao outbox;
   late final PaymentsDao dao;
   late final BookingDerivedFieldsService derivedFields;
+
+  /// أحدث دفعة فعلية لكل غرفة ضمن اليوم الفندقي المحدد، مرتبة بالأحدث أولاً.
+  /// تُستثنى الدفعات المحذوفة والملغاة والمعلّقة، وتُراقَب تغييرات payments.
+  /// يُرجع صفاً واحداً لكل غرفة بدلاً من تحميل سجل المدفوعات بالكامل إلى الذاكرة.
+  Stream<List<LatestRoomReceipt>> watchLatestRoomReceiptsByRoom(
+    String hotelDayKey,
+  ) {
+    return db
+        .customSelect(
+          'WITH ranked_room_receipts AS ('
+          ' SELECT room_number, amount, payment_date,'
+          ' ROW_NUMBER() OVER ('
+          ' PARTITION BY room_number ORDER BY payment_date DESC, id DESC'
+          ' ) AS room_rank'
+          ' FROM payments'
+          ' WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0'
+          " AND room_number IS NOT NULL AND TRIM(room_number) <> ''"
+          " AND revenue_type = 'room'"
+          ' AND ${_hotelDayPaymentPredicate()}'
+          ') '
+          'SELECT room_number, amount, payment_date '
+          'FROM ranked_room_receipts WHERE room_rank = 1 '
+          'ORDER BY payment_date DESC, room_number ASC',
+          variables: _hotelDayPaymentVariables(hotelDayKey),
+          readsFrom: {db.payments},
+        )
+        .watch()
+        .map(
+          (rows) => rows
+              .map((row) => LatestRoomReceipt.fromRow(row.data))
+              .toList(growable: false),
+        );
+  }
 
   String _hotelDayPaymentPredicate() =>
       "(hotel_day_key = ? OR ((hotel_day_key IS NULL OR TRIM(hotel_day_key) = '') "

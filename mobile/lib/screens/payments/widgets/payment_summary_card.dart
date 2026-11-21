@@ -2,11 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../../../models/payment_models.dart';
 import '../../../services/local_db.dart' as db;
-import '../../../services/stay_balance_calculator.dart';
-
 /// بطاقة ملخص الدفع — widget مستقل مُستخرج من BookingPaymentScreen.
 ///
 /// قبل الإصلاح: كان هذا الـ widget مُضمَّناً كـ method داخل BookingPaymentScreen
@@ -206,29 +203,6 @@ class PaymentSummaryCard extends StatelessWidget {
                   'المغادرة المخططة: $plannedText',
                   style: const TextStyle(fontSize: 9, color: Colors.grey),
                 ),
-              Builder(
-                builder: (context) {
-                  final balanceResult = StayBalanceCalculator.calculate(
-                    liveBooking ?? booking,
-                    roomRate: roomRate,
-                    priceAdjustments: priceAdjustments,
-                  );
-                  if (!balanceResult.hasPayments) {
-                    return const SizedBox.shrink();
-                  }
-                  final autoFmt = DateFormat('dd/MM/yyyy', 'en');
-                  final autoStr = autoFmt.format(
-                    balanceResult.autoCheckoutDate,
-                  );
-                  final extra = balanceResult.isAutoExtended
-                      ? ' (+${balanceResult.extraNightsBeyondManual})'
-                      : '';
-                  return Text(
-                    'المدفوع يغطي حتى: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                    style: const TextStyle(fontSize: 9, color: Colors.grey),
-                  );
-                },
-              ),
               if (actualText != null)
                 Text(
                   'المغادرة الفعلي: $actualText',
