@@ -203,8 +203,8 @@ class PaymentSummaryCard extends StatelessWidget {
               ),
               if (plannedText != null)
                 Text(
-                  'المغادرة المخطط: $plannedText',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  'المغادرة المخططة: $plannedText',
+                  style: const TextStyle(fontSize: 9, color: Colors.grey),
                 ),
               Builder(
                 builder: (context) {
@@ -224,8 +224,8 @@ class PaymentSummaryCard extends StatelessWidget {
                       ? ' (+${balanceResult.extraNightsBeyondManual})'
                       : '';
                   return Text(
-                    'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    'المدفوع يغطي حتى: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
+                    style: const TextStyle(fontSize: 9, color: Colors.grey),
                   );
                 },
               ),
