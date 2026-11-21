@@ -1,4 +1,5 @@
 import '../utils/hotel_time_engine.dart';
+import '../utils/hotel_timezone.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -10,7 +11,7 @@ import 'local_db.dart';
 ///
 /// القواعد الأساسية:
 ///   1. الرصيد التراكمي = إجمالي المدفوعات - تكلفة الأيام المقضية فعلياً
-///   2. تاريخ المغادرة التلقائي = تاريخ الدخول + عدد الليالي المغطاة بالمدفوع
+///   2. نهاية التغطية = بداية يوم الفندق الأول + الليالي المدفوعة، عند 14:01
 ///   3. لا يتم تغيير حالة الحجز أو تسجيل مغادرة تلقائياً أبداً
 ///   4. كل دفعة جديدة تُحدّث: الرصيد، التاريخ التلقائي، فترة التغطية فوراً
 ///   5. تعديلات الأسعار من booking_price_adjustments فقط
@@ -44,7 +45,7 @@ class StayBalanceResult {
   /// تاريخ المغادرة المُحدد يدوياً (nullable)
   final DateTime? manualCheckoutDate;
 
-  /// تاريخ المغادرة المحسوب تلقائياً = checkinDate + totalPaidNights
+  /// حدّ بداية يوم الفندق التالي لعدد الليالي المدفوعة، بتوقيت Asia/Aden.
   final DateTime autoCheckoutDate;
 
   // ─── المبالغ ───
@@ -67,7 +68,7 @@ class StayBalanceResult {
 
   // ─── الأيام ───
 
-  /// الأيام المقضية فعلياً حتى الآن (بناءً على قاعدة 14:00)
+  /// الأيام المقضية فعلياً حتى الآن (بناءً على حدّ اليوم الفندقي 14:01)
   final int actualNightsSpent;
 
   /// إجمالي الليالي التي يغطيها المدفوع التراكمي
@@ -251,7 +252,7 @@ class StayBalanceCalculator {
 
     // ─── حساب بداية يوم الفندق الأول (قاعدة 14:01) ───
     final hotelDay = HotelTimeEngine.getHotelDay(checkin);
-    final firstHotelDay = DateTime(
+    final firstHotelDay = HotelTimezone.atHotelTime(
       hotelDay.year,
       hotelDay.month,
       hotelDay.day,
@@ -321,9 +322,9 @@ class StayBalanceCalculator {
     final effectiveBalance = fromMinor(totalPaidMinor - consumedCostMinor);
 
     // ─── تاريخ المغادرة التلقائي ───
-    final autoCheckout = checkinDateOnly.add(
-      Duration(days: totalCoveredNights),
-    );
+    // currentNight يتقدم بعد كل ليلة مغطاة؛ لذلك يمثّل حدّ التغطية الحصري
+    // التالي عند 14:01 بتوقيت الفندق، لا منتصف الليل التقويمي.
+    final autoCheckout = currentNight;
 
     // ─── الأيام المتبقية حتى تاريخ المغادرة اليدوي ───
     final int manualNightsRemaining =
@@ -331,14 +332,19 @@ class StayBalanceCalculator {
         ? Time.nightsWithCutoff(moment, checkout: manualCheckout)
         : 0;
 
-    // ─── هل التاريخ التلقائي يتجاوز التاريخ اليدوي؟ ───
-    final bool isAutoExtended =
-        manualCheckout != null && autoCheckout.isAfter(manualCheckout);
-
-    // ─── عدد الأيام الإضافية وراء تاريخ المغادرة اليدوي ───
-    final int extraNightsBeyondManual = isAutoExtended
-        ? Time.nightsWithCutoff(manualCheckout, checkout: autoCheckout)
+    // قارن عدد الليالي على نفس مرجع اليوم الفندقي من الدخول. مقارنة حدّ
+    // التغطية (14:01) بوقت المغادرة الخام قد تحتسب جزءاً من اليوم كليلة
+    // إضافية؛ والاحتساب من المغادرة إلى الحدّ يضيف ليلة شاملة زائفة.
+    final plannedNights =
+        manualCheckout != null && manualCheckout.isAfter(checkin)
+        ? Time.nightsWithCutoff(checkin, checkout: manualCheckout)
         : 0;
+    final int extraNightsBeyondManual = manualCheckout == null
+        ? 0
+        : (totalCoveredNights - plannedNights)
+              .clamp(0, totalCoveredNights)
+              .toInt();
+    final bool isAutoExtended = extraNightsBeyondManual > 0;
 
     // ─── الفائض المالي بعد تغطية جميع الليالي ───
     final surplusMinor = remainingBalanceMinor < 0 ? 0 : remainingBalanceMinor;
