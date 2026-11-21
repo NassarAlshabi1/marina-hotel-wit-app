@@ -546,7 +546,7 @@ final cloudEmployeeShiftPaymentSummariesProvider =
 ///
 /// يتحدّث لحظياً عبر drift stream — يظهر على البطاقة كمؤشر «بانتظار
 /// الرفع التلقائي» ويختفي بمجرد أن يستلم AutoOutboxSyncWatcher الرفع
-/// (debounce 3 ثوانٍ + إعادة محاولة فورية عند عودة الشبكة).
+/// (debounce ثانيتين + إعادة محاولة فورية عند عودة الشبكة).
 final paymentsOutboxPendingProvider = StreamProvider.autoDispose<int>((ref) {
   final repo = ref.watch(paymentsRepoProvider);
   return repo.outbox.watchEntityCount('payments');

@@ -210,7 +210,7 @@ Future<void> main() async {
   }
 
   // ✅ AutoOutboxSyncWatcher: يراقب جدول outbox ويُطلق pushLocalChanges
-  // تلقائياً (مع debounce 3 ثوانٍ) عند إضافة أي سجل جديد.
+  // تلقائياً (مع debounce ثانيتين) عند إضافة أي سجل جديد.
   // هذا يضمن أن أي عملية CRUD (إضافة/تعديل/حذف) في أي شاشة تُزامن
   // تلقائياً دون الحاجة لاستدعاء pushLocalChanges يدوياً في كل شاشة.
   //

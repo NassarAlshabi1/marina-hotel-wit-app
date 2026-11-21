@@ -50,10 +50,7 @@ void main() {
     await store.setRememberMe(true);
     await store.setAuthType(AuthType.local);
 
-    final notifier = AuthNotifier(
-      store: store,
-      restoreSessionOnCreate: false,
-    );
+    final notifier = AuthNotifier(store: store, restoreSessionOnCreate: false);
     addTearDown(notifier.dispose);
     await notifier.restoreSession();
 
@@ -66,10 +63,7 @@ void main() {
 
   test('تُحفظ جلسة الدخول وتُستعاد بعد إعادة إنشاء AuthNotifier', () async {
     final testStore = _SessionTestAuthStore();
-    final first = AuthNotifier(
-      store: testStore,
-      restoreSessionOnCreate: false,
-    );
+    final first = AuthNotifier(store: testStore, restoreSessionOnCreate: false);
     addTearDown(first.dispose);
 
     await first.login('admin', 'test-only-password');

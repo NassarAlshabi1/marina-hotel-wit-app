@@ -143,6 +143,8 @@ void main() {
       expect(row.roomNumber, '202');
       expect(row.deletedAt, isNull);
       expect(row.version, 1);
+      expect(row.createdAtEpoch, row.createdAt);
+      expect(row.lastModifiedEpoch, row.lastModified);
 
       final entries = await outboxFor(row.localUuid);
       expect(entries, hasLength(1));
@@ -230,6 +232,7 @@ void main() {
       final updated = await findByUuid(created.localUuid);
       expect(updated.version, created.version + 1);
       expect(updated.lastModified, greaterThanOrEqualTo(created.lastModified));
+      expect(updated.lastModifiedEpoch, updated.lastModified);
 
       final entries = await outboxFor(created.localUuid);
       // coalescing: عنصر واحد pending فقط بعد create ثم update
@@ -241,6 +244,114 @@ void main() {
       expect(outboxPayload(pending.single)['roomNumber'], '405');
       expect(outboxPayload(pending.single)['notes'], 'بعد التعديل');
       expect(outboxPayload(pending.single)['entryDate'], '2026-04-15');
+    });
+
+    test('مسح الحقول الاختيارية يمرر null صريحاً إلى Appwrite', () async {
+      await repo.create(
+        roomNumber: '406',
+        guestName: 'أنور سالم',
+        nationality: 'يمني',
+        idNumber: '2233445566',
+        issueDate: '2025-01-02',
+        issuePlace: 'تعز',
+        governorate: 'تعز',
+        notes: 'ملاحظة قديمة',
+      );
+      final created = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('أنور سالم'))).getSingle();
+
+      await repo.update(
+        created.id,
+        roomNumber: created.roomNumber,
+        guestName: created.guestName,
+        nationality: created.nationality,
+        idNumber: created.idNumber,
+        issueDate: '',
+        issuePlace: '',
+        governorate: '',
+        notes: '',
+      );
+
+      final updated = await findByUuid(created.localUuid);
+      final payload = AppwriteSyncUtils.filterPayloadForCollection(
+        'guest_infos',
+        mapper.guestInfoToRemote(updated),
+      );
+      for (final field in const [
+        'issueDate',
+        'issuePlace',
+        'governorate',
+        'notes',
+      ]) {
+        expect(payload, contains(field));
+        expect(payload[field], isNull, reason: '$field يجب أن يُمسح بالسحابة');
+      }
+    });
+
+    test('عدم تحديث أي صف لا ينشئ تغييراً زائفاً في outbox', () async {
+      await repo.create(
+        roomNumber: '408',
+        guestName: 'نادر صالح',
+        nationality: 'يمني',
+        idNumber: '9080706050',
+      );
+      final created = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('نادر صالح'))).getSingle();
+      final originalOutbox = (await outboxFor(created.localUuid)).single;
+
+      // RAISE(IGNORE) يجعل SQLite يعيد صفر صفوف متأثرة من UPDATE،
+      // وهو نفس الشرط الذي ينتج عندما لا تطابق version شرط OCC.
+      await db.customStatement('''
+        CREATE TRIGGER ignore_guest_info_update
+        BEFORE UPDATE ON guest_infos
+        WHEN OLD.id = ${created.id}
+        BEGIN SELECT RAISE(IGNORE); END
+      ''');
+      await expectLater(
+        repo.update(
+          created.id,
+          roomNumber: '410',
+          guestName: 'نادر صالح',
+          nationality: 'يمني',
+          idNumber: '9080706050',
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      final row = await findByUuid(created.localUuid);
+      expect(row.roomNumber, '408', reason: 'يجب ألا يكتب التحديث المرفوض');
+      final entries = await outboxFor(created.localUuid);
+      expect(entries, hasLength(1));
+      expect(entries.single.payload, originalOutbox.payload);
+    });
+
+    test('عدم تطبيق الحذف لا ينشئ tombstone زائفاً في outbox', () async {
+      await repo.create(
+        roomNumber: '411',
+        guestName: 'بشير علي',
+        nationality: 'يمني',
+        idNumber: '0011223344',
+      );
+      final created = await (db.select(
+        db.guestInfos,
+      )..where((t) => t.guestName.equals('بشير علي'))).getSingle();
+      final originalOutbox = (await outboxFor(created.localUuid)).single;
+      await db.customStatement('''
+        CREATE TRIGGER ignore_guest_info_delete
+        BEFORE UPDATE ON guest_infos
+        WHEN OLD.id = ${created.id}
+        BEGIN SELECT RAISE(IGNORE); END
+      ''');
+
+      await expectLater(repo.delete(created.id), throwsA(isA<StateError>()));
+
+      final row = await findByUuid(created.localUuid);
+      expect(row.deletedAt, isNull);
+      final entries = await outboxFor(created.localUuid);
+      expect(entries, hasLength(1));
+      expect(entries.single.payload, originalOutbox.payload);
     });
 
     test('الحذف الناعم يرفع tombstone (deletedAt) لا حذفاً صامتاً', () async {

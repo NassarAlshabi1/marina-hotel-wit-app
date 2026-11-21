@@ -260,21 +260,8 @@ class BookingPriceAdjustmentService {
 
     // ─── سقف السعر الكلّي: (زيادات per_night النشطة + المُدخلة) ≤ 5000
     // فوق السعر الأصلي — أي سعر الليلة النهائي لا يتجاوز الأصلي + 5000.
-    final activePerNightSurcharges =
-        await (db.select(db.bookingPriceAdjustments)
-              ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
-              ..where(
-                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
-              )
-              ..where(
-                (a) => a.adjustmentMode.equals(AdjustmentMode.perNight.value),
-              )
-              ..where((a) => a.isActive.equals(true))
-              ..where((a) => a.deletedAt.isNull()))
-            .get();
-    final existingPerNight = activePerNightSurcharges.fold<int>(
-      0,
-      (sum, a) => sum + a.amount.round(),
+    final existingPerNight = await _sumActivePerNightSurcharges(
+      bookingLocalUuid,
     );
     if (existingPerNight + amount > maxNegotiatedPerNightIncrease) {
       throw StateError(
@@ -302,6 +289,32 @@ class BookingPriceAdjustmentService {
       appliedBy: appliedBy,
       appliedAt: now,
     );
+  }
+
+  Future<int> _sumActivePerNightSurcharges(
+    String bookingLocalUuid, {
+    String? excludingAdjustmentUuid,
+  }) async {
+    final activePerNightSurcharges =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
+              ..where(
+                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
+              )
+              ..where(
+                (a) => a.adjustmentMode.equals(AdjustmentMode.perNight.value),
+              )
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull()))
+            .get();
+
+    var total = 0;
+    for (final adjustment in activePerNightSurcharges) {
+      if (adjustment.localUuid != excludingAdjustmentUuid) {
+        total += adjustment.amount.round();
+      }
+    }
+    return total;
   }
 
   Future<AdjustmentPreview> previewAdjustment({
@@ -518,6 +531,103 @@ class BookingPriceAdjustmentService {
     dlog(() => '✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
+  }
+
+  /// تعديل سجل تخفيض/زيادة نشط مع الحفاظ على UUID وسجل المزامنة.
+  /// لا يسمح بتعديل سجل منتهي أو محذوف حتى لا تتغير الحسابات التاريخية بصمت.
+  Future<void> updateAdjustment({
+    required String adjustmentUuid,
+    required int amount,
+    required AdjustmentMode mode,
+    required String effectiveHotelDay,
+    String? updatedBy,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError('يجب أن تكون قيمة التعديل أكبر من صفر');
+    }
+    if (effectiveHotelDay.trim().isEmpty) {
+      throw ArgumentError('تاريخ بداية التعديل مطلوب');
+    }
+    final now = Time.nowEpoch();
+
+    final update = await db.transaction(() async {
+      final adjustment =
+          await (db.select(db.bookingPriceAdjustments)
+                ..where((a) => a.localUuid.equals(adjustmentUuid))
+                ..where((a) => a.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (adjustment == null) {
+        throw StateError('Adjustment not found: $adjustmentUuid');
+      }
+      final today = HotelTimeEngine.getHotelDayKey();
+      if (!adjustment.isActive ||
+          (adjustment.endHotelDay != null &&
+              adjustment.endHotelDay!.isNotEmpty &&
+              adjustment.endHotelDay!.compareTo(today) < 0)) {
+        throw StateError('لا يمكن تعديل تعديل سعري منتهي');
+      }
+
+      final isNegotiatedRateSurcharge =
+          adjustment.reason == negotiatedRateReason &&
+          adjustment.adjustmentType == AdjustmentType.surcharge.value;
+      if (isNegotiatedRateSurcharge) {
+        if (mode != AdjustmentMode.perNight) {
+          throw ArgumentError('الزيادة التفاوضية يجب أن تبقى محسوبة لكل ليلة');
+        }
+        if (amount > maxNegotiatedPerNightIncrease) {
+          throw ArgumentError(
+            'الزيادة التفاوضية لا يجوز أن تتجاوز '
+            '$maxNegotiatedPerNightIncrease ريال لكل ليلة',
+          );
+        }
+
+        final otherPerNightSurcharges = await _sumActivePerNightSurcharges(
+          adjustment.bookingLocalUuid,
+          excludingAdjustmentUuid: adjustment.localUuid,
+        );
+        final proposedTotal = otherPerNightSurcharges + amount;
+        if (proposedTotal > maxNegotiatedPerNightIncrease) {
+          throw StateError(
+            'مجموع الزيادات النشطة لكل ليلة يتجاوز الحد '
+            '($proposedTotal > $maxNegotiatedPerNightIncrease ريال)',
+          );
+        }
+      }
+
+      final update = BookingPriceAdjustmentsCompanion(
+        amount: Value(amount.toDouble()),
+        adjustmentMode: Value(mode.value),
+        effectiveHotelDay: Value(effectiveHotelDay),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(adjustment.version + 1),
+        appliedBy: updatedBy == null ? const Value.absent() : Value(updatedBy),
+      );
+      await (db.update(
+        db.bookingPriceAdjustments,
+      )..where((a) => a.localUuid.equals(adjustmentUuid))).write(update);
+      await OutboxDao(db).merge(
+        entity: 'booking_price_adjustments',
+        op: 'update',
+        localUuid: adjustmentUuid,
+        payload: {
+          'amount': amount.toDouble(),
+          'adjustmentMode': mode.value,
+          'effectiveHotelDay': effectiveHotelDay,
+          'updatedBy': updatedBy,
+        },
+        clientTs: now,
+      );
+      if (adjustment.bookingLocalId != null) {
+        await _recalculateBookingNights(adjustment.bookingLocalId!);
+      }
+      return update;
+    });
+    await AutoBackupManager.instance.onDataChange(
+      'booking_price_adjustments',
+      'UPDATE',
+      recordData: update.toColumns(false),
+    );
   }
 
   Future<void> cancelAdjustment({

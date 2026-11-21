@@ -12,7 +12,7 @@
 //      كسعر لليلة، ليست مبلغاً منفصلاً غير قابل للاستهلاك).
 //    • التعديل مالي فقط: لا يتمدد الحجز ولا تُضاف ليالٍ ولا تُنشأ دفعات.
 //
-//  الاختبارات العشرة المطلوبة تغطي: التسعير، حدود السقف، الحجز الكامل،
+//  الاختبارات تغطي: التسعير، حدود السقف، الحجز الكامل،
 //  المغادرة المبكرة، إلغاء دفعة، إعادة الفتح، المزامنة، منع التكرار،
 //  وعدم تأثر الحجوزات التاريخية.
 // ============================================================================
@@ -271,7 +271,7 @@ void main() {
     );
 
     test(
-      '5 — مغادرة مبكرة بعد ليلتين: 2 × 23,000 = 46,000 والمسترد وفق النظام',
+      '5 — مغادرة مبكرة بعد ليلتين: 2 × 23,000 = 46,000 والفائض رصيد دائن',
       () async {
         final booking = await seedBooking(checkout: fourNightsLater);
         await negotiateAndPay(booking, increase: 3000, paymentAmount: 92000);
@@ -298,9 +298,12 @@ void main() {
         );
         expect(after.totalDueCached, 46000, reason: '2 × 23,000 = 46,000');
         expect(after.totalPaidCached, 92000);
-        // نظام المحاسبة الحالي: المتبقي يُقيد عند صفر والفارق (46,000)
-        // رصيد دائن للنزيل يُعالَج بمسار الاسترداد القائم
-        expect(after.remainingBalanceCached, 0);
+        // يحتفظ النظام بالفائض كرصيد دائن سالب للنزيل حتى يُعالج الاسترداد.
+        expect(
+          after.remainingBalanceCached,
+          -46000,
+          reason: '92,000 مدفوع − 46,000 مستحق = 46,000 رصيد دائن',
+        );
       },
     );
 
@@ -568,6 +571,151 @@ void main() {
           isEmpty,
           reason: 'الحجز القديم لا يُعاد اعتباره حجزاً متفاوضاً عليه',
         );
+      },
+    );
+  });
+
+  group('تعديل الزيادة التفاوضية — الحفاظ على حد 5,000 لكل ليلة', () {
+    Future<BookingPriceAdjustment> createNegotiatedAdjustment(Booking booking) {
+      return adjustmentService.applyNegotiatedRateIncrease(
+        bookingLocalUuid: booking.localUuid,
+        amount: 3000,
+        appliedBy: 'اختبار',
+      );
+    }
+
+    test(
+      'يرفض زيادة السجل التفاوضي فوق الحد الفردي ويبقي السجل دون تغيير',
+      () async {
+        final booking = await seedBooking();
+        final adjustment = await createNegotiatedAdjustment(booking);
+
+        await expectLater(
+          adjustmentService.updateAdjustment(
+            adjustmentUuid: adjustment.localUuid,
+            amount:
+                BookingPriceAdjustmentService.maxNegotiatedPerNightIncrease + 1,
+            mode: AdjustmentMode.perNight,
+            effectiveHotelDay: adjustment.effectiveHotelDay,
+            updatedBy: 'اختبار',
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+
+        final active = await adjustmentService.getActiveAdjustments(
+          booking.localUuid,
+        );
+        expect(active, hasLength(1));
+        expect(active.single.localUuid, adjustment.localUuid);
+        expect(active.single.amount, 3000);
+      },
+    );
+
+    test(
+      'يحسب الزيادة الأخرى ضمن السقف التراكمي ويقبل قيمة تساوي الحد تماماً',
+      () async {
+        final booking = await seedBooking();
+        final negotiated = await createNegotiatedAdjustment(booking);
+        await adjustmentService.applyNegotiatedRateIncrease(
+          bookingLocalUuid: booking.localUuid,
+          amount: 1000,
+          appliedBy: 'اختبار',
+        );
+
+        await expectLater(
+          adjustmentService.updateAdjustment(
+            adjustmentUuid: negotiated.localUuid,
+            amount: 4001,
+            mode: AdjustmentMode.perNight,
+            effectiveHotelDay: negotiated.effectiveHotelDay,
+            updatedBy: 'اختبار',
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        var active = await adjustmentService.getActiveAdjustments(
+          booking.localUuid,
+        );
+        expect(active, hasLength(2));
+        expect(
+          active
+              .singleWhere((item) => item.localUuid == negotiated.localUuid)
+              .amount,
+          3000,
+          reason: 'رفض التعديل لا يغيّر سجل التفاوض الأصلي',
+        );
+
+        await adjustmentService.updateAdjustment(
+          adjustmentUuid: negotiated.localUuid,
+          amount:
+              BookingPriceAdjustmentService.maxNegotiatedPerNightIncrease -
+              1000,
+          mode: AdjustmentMode.perNight,
+          effectiveHotelDay: negotiated.effectiveHotelDay,
+          updatedBy: 'اختبار',
+        );
+        active = await adjustmentService.getActiveAdjustments(
+          booking.localUuid,
+        );
+        expect(
+          active
+              .singleWhere((item) => item.localUuid == negotiated.localUuid)
+              .amount,
+          4000,
+        );
+      },
+    );
+
+    test('يرفض تغيير الزيادة التفاوضية من لكل ليلة إلى إجمالي', () async {
+      final booking = await seedBooking();
+      final adjustment = await createNegotiatedAdjustment(booking);
+
+      await expectLater(
+        adjustmentService.updateAdjustment(
+          adjustmentUuid: adjustment.localUuid,
+          amount: 3000,
+          mode: AdjustmentMode.total,
+          effectiveHotelDay: adjustment.effectiveHotelDay,
+          updatedBy: 'اختبار',
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      final active = await adjustmentService.getActiveAdjustments(
+        booking.localUuid,
+      );
+      expect(active.single.adjustmentMode, AdjustmentMode.perNight.value);
+      expect(active.single.amount, 3000);
+    });
+
+    test(
+      'تظل الزيادات العادية من إدارة الضيوف قابلة للتعديل فوق سقف التفاوض',
+      () async {
+        final booking = await seedBooking();
+        final adjustment = await adjustmentService.applyTemporaryAdjustment(
+          bookingLocalUuid: booking.localUuid,
+          amount: 7000,
+          type: AdjustmentType.surcharge,
+          mode: AdjustmentMode.perNight,
+          effectiveHotelDay: '2026-09-30',
+          reason: 'زيادة عادية من إدارة الضيوف',
+          appliedBy: 'اختبار',
+        );
+
+        await adjustmentService.updateAdjustment(
+          adjustmentUuid: adjustment.localUuid,
+          amount: 9000,
+          mode: AdjustmentMode.perNight,
+          effectiveHotelDay: adjustment.effectiveHotelDay,
+          updatedBy: 'اختبار',
+        );
+
+        final active = await adjustmentService.getActiveAdjustments(
+          booking.localUuid,
+        );
+        expect(active, hasLength(1));
+        expect(active.single.localUuid, adjustment.localUuid);
+        expect(active.single.amount, 9000);
       },
     );
   });

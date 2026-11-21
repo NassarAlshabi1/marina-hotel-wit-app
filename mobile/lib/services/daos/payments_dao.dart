@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
@@ -210,27 +211,33 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (excludePendingBalance) {
       q.where((t) => t.isPendingBalance.equals(false));
     }
-    if (fromHotelDay != null) {
-      // hotelDayKey >= fromHotelDay، مع fallback لحقل paymentDate عند كون hotelDayKey فارغاً
-      q.where(
-        (t) =>
-            (t.hotelDayKey.isNotNull() &
-                t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() &
-                t.paymentDate.isBiggerOrEqualValue(fromHotelDay)),
-      );
-    }
-    if (toHotelDay != null) {
-      final endRange = SqlDateRange.forDay(toHotelDay);
-      q.where(
-        (t) =>
-            (t.hotelDayKey.isNotNull() &
-                t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() &
-                (endRange == null
-                    ? t.paymentDate.isSmallerOrEqualValue(toHotelDay)
-                    : t.paymentDate.isSmallerThanValue(endRange.endExclusive))),
-      );
+    if (fromHotelDay != null || toHotelDay != null) {
+      q.where((t) {
+        Expression<bool> hotelDayKeyRange = const Constant(true);
+        Expression<bool> legacyDateRange = const Constant(true);
+        if (fromHotelDay != null) {
+          hotelDayKeyRange =
+              hotelDayKeyRange &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay);
+          legacyDateRange =
+              legacyDateRange &
+              t.paymentDate.isBiggerOrEqualValue(fromHotelDay);
+        }
+        if (toHotelDay != null) {
+          hotelDayKeyRange =
+              hotelDayKeyRange &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay);
+          legacyDateRange =
+              legacyDateRange &
+              t.paymentDate.isSmallerThanValue(Time.hotelDayEndIso(toHotelDay));
+        }
+        final hasHotelDayKey =
+            t.hotelDayKey.isNotNull() & t.hotelDayKey.equals('').not();
+        final hasNoHotelDayKey =
+            t.hotelDayKey.isNull() | t.hotelDayKey.equals('');
+        return (hasHotelDayKey & hotelDayKeyRange) |
+            (hasNoHotelDayKey & legacyDateRange);
+      });
     }
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
@@ -241,7 +248,20 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-    return q.get();
+    final results = await q.get();
+    if (fromHotelDay == null && toHotelDay == null) return results;
+    return results
+        .where((payment) {
+          final hotelDayKey = HotelTimeEngine.resolvePaymentHotelDayKey(
+            storedHotelDayKey: payment.hotelDayKey,
+            paymentDate: payment.paymentDate,
+          );
+          if (hotelDayKey == null) return false;
+          return (fromHotelDay == null ||
+                  hotelDayKey.compareTo(fromHotelDay) >= 0) &&
+              (toHotelDay == null || hotelDayKey.compareTo(toHotelDay) <= 0);
+        })
+        .toList(growable: false);
   }
 
   Future<List<Payment>> listByHotelDayKey(

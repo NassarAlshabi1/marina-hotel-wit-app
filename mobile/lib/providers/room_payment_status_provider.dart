@@ -4,8 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/local_db.dart';
+import '../services/repositories/payments_repository.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import 'repository_providers.dart';
+
+/// مفتاح اليوم الفندقي الحالي؛ يُعاد احتسابه تلقائيًا عند حد 14:01.
+final currentHotelDayKeyProvider = Provider.autoDispose<String>((ref) {
+  final hotelDayKey = HotelTimeEngine.getHotelDayKey();
+  final timer = Timer(
+    HotelTimeEngine.timeUntilNextHotelDay(),
+    () => ref.invalidateSelf(),
+  );
+  ref.onDispose(timer.cancel);
+  return hotelDayKey;
+});
+
+/// أحدث دفعة فعلية مسجلة لكل غرفة، وتُحدّث تلقائيًا عند تغير المدفوعات.
+final latestRoomReceiptsProvider =
+    StreamProvider.autoDispose<List<LatestRoomReceipt>>((ref) {
+      final hotelDayKey = ref.watch(currentHotelDayKeyProvider);
+      return ref
+          .watch(paymentsRepoProvider)
+          .watchLatestRoomReceiptsByRoom(hotelDayKey);
+    });
 
 /// ✅ مقارنة قائمتين من RoomWithPaymentStatus لمنع إعادة الإرسال غير الضرورية
 /// هذا يمنع وميض الشاشة (flickering) عند عدم تغيير البيانات فعلياً

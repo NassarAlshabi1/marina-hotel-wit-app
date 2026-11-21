@@ -1,4 +1,5 @@
 import 'time.dart';
+import 'hotel_timezone.dart';
 
 /// محرك الوقت الفندقي — المصدر الوحيد للحسابات
 ///
@@ -97,20 +98,21 @@ class HotelTimeEngine {
   /// - 2025-01-15 14:00 → 2025-01-14 (نهاية اليوم الفندقي 14)
   /// - 2025-01-15 14:01 → 2025-01-15 (بداية يوم فندقي جديد)
   static DateTime getHotelDay(DateTime dt) {
+    final hotelTime = HotelTimezone.toHotelDateTime(dt);
     final isAfterBoundary =
-        dt.hour > boundaryHour ||
-        (dt.hour == boundaryHour && dt.minute >= boundaryMinute);
+        hotelTime.hour > boundaryHour ||
+        (hotelTime.hour == boundaryHour && hotelTime.minute >= boundaryMinute);
     if (isAfterBoundary) {
-      return DateTime(dt.year, dt.month, dt.day);
+      return DateTime(hotelTime.year, hotelTime.month, hotelTime.day);
     } else {
-      final prev = dt.subtract(const Duration(days: 1));
+      final prev = hotelTime.subtract(const Duration(days: 1));
       return DateTime(prev.year, prev.month, prev.day);
     }
   }
 
   /// مفتاح اليوم الفندقي كنص YYYY-MM-DD.
   static String getHotelDayKey({DateTime? dateTime}) {
-    final dt = dateTime ?? DateTime.now();
+    final dt = dateTime ?? HotelTimezone.now();
     return Time.dateToString(getHotelDay(dt));
   }
 
@@ -127,6 +129,59 @@ class HotelTimeEngine {
       return getHotelDayKey(dateTime: dt);
     } catch (_) {
       return getHotelDayKey();
+    }
+  }
+
+  /// هل تنتمي الدفعة إلى اليوم الفندقي المحدد؟
+  ///
+  /// يكون [storedHotelDayKey] هو المصدر المعتمد إن كان محفوظاً. أما السجلات
+  /// القديمة التي لا تملك مفتاحاً، فيُشتق اليوم من وقت الدفعة وحدّ 14:01.
+  /// التاريخ بلا وقت يُعامل كيوم تقويمي، والتاريخ غير الصالح يُرفض.
+  static bool paymentBelongsToHotelDay({
+    required String? storedHotelDayKey,
+    required String paymentDate,
+    required String hotelDayKey,
+  }) {
+    return resolvePaymentHotelDayKey(
+          storedHotelDayKey: storedHotelDayKey,
+          paymentDate: paymentDate,
+        ) ==
+        hotelDayKey;
+  }
+
+  /// حلّ مفتاح اليوم الفندقي للدفعة دون إسناد تاريخ غير صالح إلى اليوم الحالي.
+  static String? resolvePaymentHotelDayKey({
+    required String? storedHotelDayKey,
+    required String paymentDate,
+  }) {
+    final storedKey = storedHotelDayKey?.trim();
+    if (storedKey != null && storedKey.isNotEmpty) {
+      return storedKey;
+    }
+
+    final rawDate = paymentDate.trim();
+    if (rawDate.isEmpty) return null;
+    final normalized = rawDate.contains('T')
+        ? rawDate
+        : rawDate.replaceFirst(' ', 'T');
+    try {
+      final parsedDate = DateTime.parse(normalized);
+      // التاريخ بلا وقت لا يمكن إسناده إلى صباح أو مساء؛ يُعامل كيوم
+      // تقويمي محدد عند حد اليوم الفندقي، مثل HotelDayKeyFixService.
+      if (rawDate.length == 10) {
+        return getHotelDayKey(
+          dateTime: DateTime(
+            parsedDate.year,
+            parsedDate.month,
+            parsedDate.day,
+            boundaryHour,
+            boundaryMinute,
+          ),
+        );
+      }
+      return getHotelDayKey(dateTime: parsedDate);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -186,15 +241,16 @@ class HotelTimeEngine {
   /// هل الوقت الحالي بعد ساعة بداية اليوم الفندقي؟
   /// true إذا الوقت >= 14:01:00.
   static bool isNowAfterCutoff() {
-    final now = DateTime.now();
+    final now = HotelTimezone.now();
     return now.hour > boundaryHour ||
         (now.hour == boundaryHour && now.minute >= boundaryMinute);
   }
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
   static bool isAfterCutoff(DateTime dateTime) {
-    return dateTime.hour > boundaryHour ||
-        (dateTime.hour == boundaryHour && dateTime.minute >= boundaryMinute);
+    final hotelTime = HotelTimezone.toHotelDateTime(dateTime);
+    return hotelTime.hour > boundaryHour ||
+        (hotelTime.hour == boundaryHour && hotelTime.minute >= boundaryMinute);
   }
 
   // ═══════════════════════════════════════════════════════════════

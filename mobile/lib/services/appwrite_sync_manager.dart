@@ -2653,6 +2653,11 @@ class AppwriteSyncManager {
   Future<int> syncGuestInfosForTesting(List<models.Document> documents) =>
       _syncGuestInfos(documents);
 
+  /// جسر بلا شبكة لاختبار رفع guest_infos من عنصر outbox عبر المعالج الفعلي.
+  @visibleForTesting
+  Future<bool> processGuestInfoEntryForTesting(OutboxData entry) =>
+      _processGuestInfoEntry(entry);
+
   @visibleForTesting
   Future<int> syncBlacklistForTesting(List<models.Document> documents) =>
       _syncBlacklist(documents);

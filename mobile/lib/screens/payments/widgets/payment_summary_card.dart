@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
 import '../../../models/payment_models.dart';
 import '../../../services/local_db.dart' as db;
 import '../../../services/stay_balance_calculator.dart';
@@ -201,11 +200,6 @@ class PaymentSummaryCard extends StatelessWidget {
                 'الوصول: $checkinText',
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
-              if (plannedText != null)
-                Text(
-                  'المغادرة المخطط: $plannedText',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
               Builder(
                 builder: (context) {
                   final balanceResult = StayBalanceCalculator.calculate(
@@ -224,8 +218,8 @@ class PaymentSummaryCard extends StatelessWidget {
                       ? ' (+${balanceResult.extraNightsBeyondManual})'
                       : '';
                   return Text(
-                    'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    'المدفوع يغطي حتى: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
+                    style: const TextStyle(fontSize: 9, color: Colors.grey),
                   );
                 },
               ),
