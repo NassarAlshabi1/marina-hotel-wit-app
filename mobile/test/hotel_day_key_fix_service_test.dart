@@ -21,6 +21,9 @@ void main() {
         .insert(
           PaymentsCompanion(
             localUuid: d.Value(uuid),
+            createdAt: const d.Value(1000),
+            updatedAt: const d.Value(1000),
+            lastModified: const d.Value(1000),
             roomNumber: const d.Value('101'),
             amount: const d.Value(25),
             paymentDate: const d.Value('2026-06-10T14:00:00'),

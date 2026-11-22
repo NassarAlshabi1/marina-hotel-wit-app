@@ -38,6 +38,9 @@ jobs:
       - name: Generate code
         run: dart run build_runner build
 
+      - name: Apply Dart fixes
+        run: dart fix --apply
+
       - name: Flutter Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 

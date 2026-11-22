@@ -26,6 +26,31 @@ import 'package:marina_hotel_mobile/services/stay_balance_calculator.dart';
 import 'package:marina_hotel_mobile/utils/hotel_time_engine.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
+void expectSameWallClock(DateTime? actual, DateTime expected) {
+  final value = actual;
+  expect(value, isNotNull);
+  expect(
+    [
+      value!.year,
+      value.month,
+      value.day,
+      value.hour,
+      value.minute,
+      value.second,
+      value.millisecond,
+    ],
+    [
+      expected.year,
+      expected.month,
+      expected.day,
+      expected.hour,
+      expected.minute,
+      expected.second,
+      expected.millisecond,
+    ],
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -158,7 +183,7 @@ void main() {
         final result = await calculator.calculateForBooking(booking, now: nowA);
 
         expect(result.bookingActive, isFalse);
-        expect(result.checkout, actualCheckout);
+        expectSameWallClock(result.checkout, actualCheckout);
         expect(
           result.financialSummary.totalNights,
           3,
@@ -202,9 +227,9 @@ void main() {
         final rB = await calculator.calculateForBooking(booking, now: nowB);
         final rC = await calculator.calculateForBooking(booking, now: nowC);
 
-        expect(rA.checkout, actualCheckout);
-        expect(rB.checkout, actualCheckout);
-        expect(rC.checkout, actualCheckout);
+        expectSameWallClock(rA.checkout, actualCheckout);
+        expectSameWallClock(rB.checkout, actualCheckout);
+        expectSameWallClock(rC.checkout, actualCheckout);
         expect(rA.financialSummary.totalNights, 3);
         expect(rB.financialSummary.totalNights, 3);
         expect(rC.financialSummary.totalNights, 3);
@@ -316,7 +341,7 @@ void main() {
 
       final result = await calculator.calculateForBooking(booking, now: nowA);
       expect(result.financialSummary.totalNights, 3);
-      expect(result.checkout, DateTime(2024, 3, 4, 14, 0, 59));
+      expectSameWallClock(result.checkout, DateTime(2024, 3, 4, 14, 0, 59));
     });
 
     test('actualCheckout عند 14:01:00 → 4 ليالٍ عبر مسار الإنتاج', () async {
@@ -334,7 +359,7 @@ void main() {
 
       final result = await calculator.calculateForBooking(booking, now: nowA);
       expect(result.financialSummary.totalNights, 4);
-      expect(result.checkout, DateTime(2024, 3, 4, 14, 1, 0));
+      expectSameWallClock(result.checkout, DateTime(2024, 3, 4, 14, 1, 0));
     });
   });
 

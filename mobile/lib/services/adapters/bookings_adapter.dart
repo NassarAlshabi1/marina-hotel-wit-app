@@ -40,12 +40,10 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       uuid: bookingUuid,
       fromRemote: src == Source.appwrite || src == Source.drive,
     );
-    if ((src == Source.appwrite || src == Source.drive) && resolvedId == null) {
-      return const ResolveResult(
-        shouldSkip: true,
-        skipReason: 'Remote booking has no trusted UUID/server identity match',
-      );
-    }
+    // A remote booking with a stable localUuid may be new on this device, so
+    // there is no local id to resolve yet. BaseRepository validates that every
+    // remote row carries localUuid and upserts by that UUID; only its numeric
+    // id is device-local and must not be used as a remote conflict key.
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(

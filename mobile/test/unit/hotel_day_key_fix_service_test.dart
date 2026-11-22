@@ -53,14 +53,18 @@ void main() {
       expect(key, '2025-06-14');
     });
 
-    test('سلسلة فارغة تعيد مفتاح اليوم الحالي', () {
-      final key = HotelDayKeyFixService.computeCorrectHotelDayKey('');
-      expect(key.length, 10);
+    test('السلسلة الفارغة مرفوضة ولا تُخمَّن كيوم حالي', () {
+      expect(
+        () => HotelDayKeyFixService.computeCorrectHotelDayKey(''),
+        throwsA(isA<FormatException>()),
+      );
     });
 
-    test('تاريخ غير صالح يعيد مفتاح اليوم الحالي', () {
-      final key = HotelDayKeyFixService.computeCorrectHotelDayKey('not-a-date');
-      expect(key.length, 10);
+    test('التاريخ غير الصالح مرفوض ولا يُخمَّن كيوم حالي', () {
+      expect(
+        () => HotelDayKeyFixService.computeCorrectHotelDayKey('not-a-date'),
+        throwsA(isA<FormatException>()),
+      );
     });
 
     test('تاريخ مع مسافات بادئة/خلفية', () {
@@ -70,9 +74,11 @@ void main() {
       expect(key, '2025-06-15');
     });
 
-    test('تاريخ تقويمي بتنسيق غير صالح (أجزاء < 3)', () {
-      final key = HotelDayKeyFixService.computeCorrectHotelDayKey('2025-06');
-      expect(key.length, 10); // يقع في اليوم الحالي
+    test('التاريخ التقويمي الجزئي مرفوض ولا يُخمَّن كيوم حالي', () {
+      expect(
+        () => HotelDayKeyFixService.computeCorrectHotelDayKey('2025-06'),
+        throwsA(isA<FormatException>()),
+      );
     });
 
     test('منتصف الليل (00:00) يعود لليوم السابق', () {
