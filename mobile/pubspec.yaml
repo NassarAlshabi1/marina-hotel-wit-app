@@ -8,19 +8,19 @@ environment:
   flutter: '>=3.35.7'
 dependencies:
   android_alarm_manager_plus: ^4.0.5
-  appwrite: ^21.0.0
+  appwrite: ^27.2.0
   archive: ^3.6.1
   battery_plus: ^6.0.2
   characters: any
   collection: ^1.18.0
   connectivity_plus: ^6.1.0
   crypto: ^3.0.3
-  device_info_plus: ^12.3.0
+  device_info_plus: ^13.3.0
   dio: ^5.7.0
   drift: ^2.31.0
   encrypt: ^5.0.3
   excel: ^4.0.6
-  file_picker: ^8.1.2
+  file_picker: ^12.0.0-beta.7
   firebase_ai: ^3.6.0
   firebase_analytics: ^12.3.0
   firebase_core: ^4.7.0
@@ -33,18 +33,18 @@ dependencies:
     sdk: flutter
   flutter_animate: ^4.5.2
   flutter_contacts: ^2.6.0
-  flutter_local_notifications: ^23.0.2
+  flutter_local_notifications: ^23.0.3
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^2.6.1
-  flutter_secure_storage: ^10.3.4
+  flutter_secure_storage: ^11.2.0
   freezed_annotation: ^3.1.0
   google_sign_in: ^6.2.1
   googleapis: ^13.2.0
   http: ^1.2.2
   intl: ^0.20.3
   json_annotation: ^4.12.0
-  package_info_plus: ^8.1.1
+  package_info_plus: ^10.2.2
   path: ^1.9.0
   path_provider: ^2.1.4
   pdf: ^3.11.1
@@ -52,7 +52,7 @@ dependencies:
   pointycastle: ^3.9.1
   posthog_flutter: ^4.0.0
   printing: ^5.13.2
-  share_plus: ^10.1.1
+  share_plus: ^13.3.1
   shared_preferences: ^2.3.2
   shimmer: ^3.0.0
   signals_flutter: ^6.0.0
