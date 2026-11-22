@@ -116,6 +116,21 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return row.read(countExp) ?? 0;
   }
 
+  /// بث حيّ لعدد سجلات Outbox المحلية غير المسلّمة للرئيسي.
+  /// يستخدمه Dashboard لتعطيل زر الرفع فور تفريغ الصف، مع احتساب السجلات
+  /// `pending` و`processing` و`failed` كيلا تختفي السجلات التي تحتاج إعادة محاولة.
+  Stream<int> watchUndeliveredToPrimaryCount({List<String>? sources}) {
+    final countExp = outbox.id.count();
+    final query = selectOnly(outbox)
+      ..addColumns([countExp])
+      ..where(outbox.processingStatus.isIn(['pending', 'processing', 'failed']))
+      ..where(outbox.deliveredToPrimary.equals(false));
+    if (sources != null && sources.isNotEmpty) {
+      query.where(outbox.source.isIn(sources));
+    }
+    return query.map((row) => row.read(countExp) ?? 0).watchSingle();
+  }
+
   /// ✅ يُعيد السجلات العالقة في `processing` و/أو الفاشلة `failed` إلى
   /// `pending` قبل بدء رفع يدوي، بحيث يلتقطها `takeBatch` فعلياً.
   ///

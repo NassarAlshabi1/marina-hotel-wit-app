@@ -33,6 +33,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   bool _waitingToPush = false;
   bool _appwriteEnabled = true;
   Timer? _pendingChangesTimer;
+  StreamSubscription<int>? _pendingChangesSubscription;
   late AnimationController _pullAnimationController;
   late AnimationController _pushAnimationController;
   int _pendingChangesCount = 0;
@@ -50,15 +51,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       duration: const Duration(milliseconds: 1200),
     );
 
-    _loadPendingChangesCount();
     _loadAppwriteEnabled();
+    _watchPendingChangesCount();
 
-    // ✅ خفض تردد التحديث من 5 ثوان إلى 15 ثانية
-    // 5 ثوان = 12 استعلام DB في الدقيقة = ضغط على الأجهزة الضعيفة
-    // 15 ثانية = 4 استعلام DB في الدقيقة = كافي لمؤشر pending changes
+    // إعدادات التفعيل محلية؛ يُعاد فحصها دوريًا. عداد Outbox نفسه يعتمد
+    // على Stream تفاعلي كي تتغير حالة الزر فور تسليم آخر سجل.
     _pendingChangesTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted && !_isPulling && !_isPushing) {
-        _loadPendingChangesCount();
         _loadAppwriteEnabled();
       }
     });
@@ -67,6 +66,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   @override
   void dispose() {
     _pendingChangesTimer?.cancel();
+    _pendingChangesSubscription?.cancel();
     _pullAnimationController.dispose();
     _pushAnimationController.dispose();
     super.dispose();
@@ -92,6 +92,25 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
     } catch (e) {
       dlog(() => '❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
+    }
+  }
+
+  void _watchPendingChangesCount() {
+    try {
+      final outboxDao = OutboxDao(ref.read(databaseProvider));
+      _pendingChangesSubscription = outboxDao
+          .watchUndeliveredToPrimaryCount(sources: const ['local'])
+          .listen(
+            (count) {
+              if (!mounted || count == _pendingChangesCount) return;
+              setState(() => _pendingChangesCount = count);
+            },
+            onError: (Object error, StackTrace stackTrace) {
+              dlog(() => '❌ خطأ في مراقبة سجلات Outbox: $error');
+            },
+          );
+    } catch (e) {
+      dlog(() => '❌ تعذر بدء مراقبة سجلات Outbox: $e');
     }
   }
 
@@ -993,11 +1012,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   }
 
   Widget _buildPushButton(bool hasChanges) {
-    // يظل الزر قابلًا للضغط حتى عند عدم وجود تغييرات ظاهرة؛ عند الضغط
-    // يعيد قراءة Outbox مباشرة ويعرض «لا توجد تغييرات» إن كانت قد رُفعت تلقائيًا.
-    // وإذا كانت مزامنة أخرى جارية، ينتظرها _pushChanges بدل إسقاط الطلب.
     final bool pushEnabled =
-        _appwriteEnabled && !_isPulling && !_isPushing && !_waitingToPush;
+        _appwriteEnabled &&
+        hasChanges &&
+        !_isPulling &&
+        !_isPushing &&
+        !_waitingToPush;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -1016,9 +1036,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonIcon = Icons.cloud_upload;
       buttonText = 'رفع التغييرات';
     } else {
-      buttonColor = Colors.purple;
-      buttonIcon = Icons.cloud_upload;
-      buttonText = 'رفع الآن';
+      buttonColor = Colors.grey;
+      buttonIcon = Icons.cloud_done;
+      buttonText = 'محدّث';
     }
 
     return Tooltip(
@@ -1026,7 +1046,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ? 'سيبدأ الرفع بعد انتهاء المزامنة الجارية'
           : hasChanges
           ? 'اضغط لرفع $_pendingChangesCount تغيير إلى السحابة'
-          : 'اضغط للتحقق من التغييرات ورفعها يدويًا',
+          : 'لا توجد سجلات معلقة في Outbox',
       child: Stack(
         clipBehavior: Clip.none,
         children: [

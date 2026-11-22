@@ -7,6 +7,8 @@
 
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values, unused_local_variable, unnecessary_parenthesis
 
+import 'dart:async';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -603,6 +605,45 @@ void main() {
           2,
           reason: 'يجب أن يشمل processing و failed أيضاً',
         );
+      },
+    );
+
+    test(
+      'watchUndeliveredToPrimaryCount يتابع إضافة السجل وتفريغ Outbox',
+      () async {
+        final observedCounts = <int>[];
+        final pendingCount = Completer<void>();
+        final clearedCount = Completer<void>();
+        final subscription = outboxDao
+            .watchUndeliveredToPrimaryCount(sources: const ['local'])
+            .listen((count) {
+              observedCounts.add(count);
+              if (count > 0 && !pendingCount.isCompleted) {
+                pendingCount.complete();
+              } else if (count == 0 &&
+                  pendingCount.isCompleted &&
+                  !clearedCount.isCompleted) {
+                clearedCount.complete();
+              }
+            });
+        addTearDown(subscription.cancel);
+
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'live-outbox-count',
+          payload: {},
+          clientTs: 100,
+          source: 'local',
+        );
+        await pendingCount.future.timeout(const Duration(seconds: 2));
+
+        final batch = await outboxDao.takeBatch(1, sources: const ['local']);
+        await outboxDao.markDeliveredToPrimary(batch.single.id);
+        await clearedCount.future.timeout(const Duration(seconds: 2));
+
+        expect(observedCounts, contains(1));
+        expect(observedCounts.last, 0);
       },
     );
   });
