@@ -105,6 +105,29 @@ void main() {
     expect(refs.bookingLocalId, isNull);
   });
 
+  group('payments', () {
+    test('appwrite برقم محلي فقط → shouldSkip ولا دفعة عامة', () async {
+      final refs = await adapters.payments.adapter.resolveRefs(db, {
+        'localUuid': 'payment-orphan-1',
+        'bookingLocalId': localBookingId,
+      }, src: Source.appwrite);
+      expect(refs.shouldSkip, isTrue);
+      expect(refs.bookingLocalId, isNull);
+      expect(refs.skipReason, contains('unresolved booking'));
+    });
+
+    test('appwrite عبر UUID → يُحل حتى مع localId بعيد مختلف', () async {
+      final refs = await adapters.payments.adapter.resolveRefs(db, {
+        'localUuid': 'payment-uuid-1',
+        'bookingLocalId': 999999,
+        'bookingUuidCache': bookingUuid,
+      }, src: Source.appwrite);
+      expect(refs.shouldSkip, isFalse);
+      expect(refs.bookingLocalId, localBookingId);
+      expect(refs.bookingUuidCache, bookingUuid);
+    });
+  });
+
   test('booking_price_adjustments: appwrite برقم محلي فقط → تخطٍّ', () async {
     final refs = await adapters.bookingPriceAdjustments.adapter.resolveRefs(
       db,

@@ -431,7 +431,9 @@ class RestoreFixService {
                       p.bookingLocalId.equals(booking.id) |
                       p.bookingUuidCache.equals(booking.localUuid),
                 )
-                ..where((p) => p.deletedAt.isNull()))
+                ..where((p) => p.deletedAt.isNull())
+                ..where((p) => p.isVoided.equals(false))
+                ..where((p) => p.isPendingBalance.equals(false)))
               .get();
 
       final totalPaid = payments.fold<double>(
@@ -478,9 +480,8 @@ class RestoreFixService {
         // ✅ إصلاح الخصم المزدوج: الخصم تم حسابه بالفعل في totalNightAmount أعلاه
         expectedTotal = totalNightAmount;
 
-        final remainingBalance = (expectedTotal - totalPaid)
-            .clamp(0, expectedTotal)
-            .toDouble();
+        // الرصيد الموقع يحفظ الفائض كرصيد دائن بدلاً من قصّه إلى صفر.
+        final remainingBalance = (expectedTotal - totalPaid).toDouble();
         final isFullyPaid = remainingBalance <= 0;
 
         if (booking.totalDueCached != expectedTotal ||
@@ -539,9 +540,7 @@ class RestoreFixService {
                 ..where((d) => d.deletedAt.isNull()))
               .get();
       if (debts.isNotEmpty && expectedTotal != null) {
-        final remaining = (expectedTotal - totalPaid)
-            .clamp(0, expectedTotal)
-            .toDouble();
+        final remaining = (expectedTotal - totalPaid).toDouble();
         final isSettled = remaining <= 0 ? 1 : 0;
         for (final debt in debts) {
           final shouldUpdate =

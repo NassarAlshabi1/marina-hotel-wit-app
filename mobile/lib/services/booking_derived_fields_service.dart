@@ -231,7 +231,8 @@ class BookingDerivedFieldsService {
       );
     }
 
-    final remainingBalance = (totalDue - totalPaid).clamp(0, totalDue);
+    // الرصيد الموقع: السالب رصيد دائن للنزيل ولا يجوز قصّه إلى صفر.
+    final remainingBalance = totalDue - totalPaid;
 
     await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
       BookingsCompanion(

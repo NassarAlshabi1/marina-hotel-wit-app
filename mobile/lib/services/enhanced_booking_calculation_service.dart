@@ -891,7 +891,22 @@ class EnhancedBookingCalculationService {
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
-      return HotelTimezone.parseHotelDateTime(withSeconds);
+      // Keep the business meaning (hotel wall-clock time) but do not leak
+      // timezone.TZDateTime through the public calculation result.  A
+      // TZDateTime is a DateTime subtype, yet Dart equality also considers
+      // the runtime type; callers and tests reasonably expect a plain
+      // DateTime contract here.
+      final hotelTime = HotelTimezone.parseHotelDateTime(withSeconds);
+      return DateTime(
+        hotelTime.year,
+        hotelTime.month,
+        hotelTime.day,
+        hotelTime.hour,
+        hotelTime.minute,
+        hotelTime.second,
+        hotelTime.millisecond,
+        hotelTime.microsecond,
+      );
     } catch (_) {
       return null;
     }

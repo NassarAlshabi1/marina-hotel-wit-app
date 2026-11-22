@@ -595,8 +595,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
         )
         .fold<double>(0, (s, p) => s + p.amount);
-    double remainingAmount = totalAmount - paidAmount;
-    if (remainingAmount < 0) remainingAmount = 0;
+    // الرصيد السالب يعني رصيداً دائناً للنزيل، وليس متبقياً صفراً.
+    final remainingAmount = totalAmount - paidAmount;
     _remainingAmount = remainingAmount;
     final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
     final summary = BookingPaymentSummary(
@@ -898,20 +898,31 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     double roomRate = 0,
   }) {
     if (summary.isFullyPaid) {
-      return const Center(
+      final hasGuestCredit = summary.remainingAmount < 0;
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, size: 80, color: Colors.green),
-            SizedBox(height: 16),
-            Text(
-              'تم سداد المبلغ كاملاً',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            Icon(
+              hasGuestCredit
+                  ? Icons.account_balance_wallet
+                  : Icons.check_circle,
+              size: 80,
+              color: hasGuestCredit ? Colors.orange : Colors.green,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
-              'يمكنك الآن تسجيل مغادرة العميل',
-              style: TextStyle(color: Colors.grey),
+              hasGuestCredit
+                  ? 'للنزيل رصيد دائن: ${_currencyFmt.format(-summary.remainingAmount)}'
+                  : 'تم سداد المبلغ كاملاً',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              hasGuestCredit
+                  ? 'لا تُنشئ دفعة عكسية تلقائياً؛ راجع التسوية المالية.'
+                  : 'يمكنك الآن تسجيل مغادرة العميل',
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),
@@ -1744,10 +1755,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paidAmount = payments
         .where((p) => !p.isVoided && !p.isPendingBalance)
         .fold<double>(0, (s, p) => s + p.amount);
-    double remainingAmount = stayCalc.totalAmount - paidAmount;
-    if (remainingAmount < 0) {
-      remainingAmount = 0;
-    }
+    final remainingAmount = stayCalc.totalAmount - paidAmount;
 
     return _PaymentTotals(stayCalc.totalAmount, remainingAmount);
   }

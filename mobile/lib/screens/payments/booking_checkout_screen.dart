@@ -243,9 +243,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     final totalPaid = payments
         .where((p) => !p.isVoided && !p.isPendingBalance)
         .fold<double>(0, (sum, p) => sum + p.amount);
-    final remainingAmount = (totalDue - totalPaid)
-        .clamp(0, totalDue)
-        .toDouble();
+    // احتفظ بالرصيد الموقع؛ القيمة السالبة رصيد دائن للنزيل.
+    final remainingAmount = (totalDue - totalPaid).toDouble();
 
     return wrapWithSyncOnExit(
       child: AppScaffold(

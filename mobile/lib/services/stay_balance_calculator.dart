@@ -347,8 +347,10 @@ class StayBalanceCalculator {
     final bool isAutoExtended = extraNightsBeyondManual > 0;
 
     // ─── الفائض المالي بعد تغطية جميع الليالي ───
-    final surplusMinor = remainingBalanceMinor < 0 ? 0 : remainingBalanceMinor;
-    final double surplusAfterAllNights = fromMinor(surplusMinor);
+    // remainingBalanceMinor هو المبلغ غير المطبق بعد تغطية الليالي.
+    // لا نحوله إلى صفر حتى يظهر الفائض/الرصيد الدائن في المصالحة.
+    final surplusMinor = remainingBalanceMinor;
+    final surplusAfterAllNights = fromMinor(surplusMinor);
 
     // ─── متوسط السعر الفعلي بعد التعديلات ───
     double effectiveNightlyRate = baseRate;

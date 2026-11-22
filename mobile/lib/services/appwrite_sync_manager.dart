@@ -2132,6 +2132,7 @@ class AppwriteSyncManager {
     try {
       var applied = 0;
       final appliers = <String, Future<int> Function(List<models.Document>)>{
+        'payments': _syncPayments,
         'salary_cycles': _syncSalaryCycles,
         'salary_payments': _syncSalaryPayments,
         'salary_carry_over_logs': _syncSalaryCarryOverLogs,
@@ -2234,6 +2235,7 @@ class AppwriteSyncManager {
       'salary_carry_over_logs': 'salary_carry_over_logs',
       'expenses': 'expenses',
       'salary_withdrawals': 'salary_withdrawals',
+      'payments': 'payments',
     };
     final table = tableByEntity[entity];
     if (table == null) return false;
@@ -2978,8 +2980,34 @@ class AppwriteSyncManager {
         // فقط إذا كان رقمياً (نادر). للمعرّفات النصية، يبقى localUuid هو
         // المرجع. هذا لا يضر — الـ adapter يتعامل مع serverId الغائب.
 
-        // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
+        // ✅ P0: resolveRefs هو الحارس الوحيد قبل إدخال دفعة بعيدة.
+        // لا نسمح بإدخال دفعة بحجز null؛ نحفظ payload كاملاً في pending_links.
+        final refs = await _adapterRegistry.payments.adapter.resolveRefs(
+          database,
+          data,
+          src: Source.appwrite,
+        );
         final localUuid = (data['localUuid'] as String?) ?? '';
+        if (refs.shouldSkip) {
+          await _pendingLinks.recordUnresolved(
+            entity: 'payments',
+            localUuid: localUuid,
+            parentEntity: 'bookings',
+            parentUuid:
+                refs.bookingUuidCache ??
+                data['bookingUuidCache']?.toString() ??
+                data['booking_uuid_cache']?.toString(),
+            payload: data,
+            reason: refs.skipReason ?? 'payment booking unresolved',
+          );
+          _logger.debug(
+            'Deferring payment ${doc.$id}: ${refs.skipReason}',
+            tag: 'SYNC_PENDING',
+          );
+          continue;
+        }
+
+        // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final existingPayment = await _getPaymentByLocalUuid(localUuid);
 
         // منع إعادة إحياء السجلات المحذوفة softly
@@ -3062,6 +3090,25 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
+          final refs = await _adapterRegistry.payments.adapter.resolveRefs(
+            database,
+            data,
+            src: Source.appwrite,
+          );
+          if (refs.shouldSkip) {
+            await _pendingLinks.recordUnresolved(
+              entity: 'payments',
+              localUuid: (data['localUuid'] as String?) ?? doc.$id,
+              parentEntity: 'bookings',
+              parentUuid:
+                  refs.bookingUuidCache ??
+                  data['bookingUuidCache']?.toString() ??
+                  data['booking_uuid_cache']?.toString(),
+              payload: data,
+              reason: refs.skipReason ?? 'payment booking unresolved on retry',
+            );
+            continue;
+          }
           await _adapterRegistry.payments.upsertFromJson(
             data,
             src: Source.appwrite,
