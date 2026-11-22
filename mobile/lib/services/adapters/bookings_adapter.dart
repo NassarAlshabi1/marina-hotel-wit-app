@@ -41,7 +41,7 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       fromRemote: src == Source.appwrite || src == Source.drive,
     );
     if ((src == Source.appwrite || src == Source.drive) && resolvedId == null) {
-      return ResolveResult(
+      return const ResolveResult(
         shouldSkip: true,
         skipReason: 'Remote booking has no trusted UUID/server identity match',
       );

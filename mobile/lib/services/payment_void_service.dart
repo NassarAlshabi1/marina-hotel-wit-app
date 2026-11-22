@@ -171,7 +171,7 @@ class PaymentVoidService {
                 entityUuid: paymentUuid,
                 entityId: drift.Value(payment.id),
                 previousState: const drift.Value('{"isVoided":false}'),
-                newState: drift.Value('{"isVoided":true}'),
+                newState: const drift.Value('{"isVoided":true}'),
                 changedFields: const drift.Value(
                   'isVoided,voidedAt,voidedBy,voidReason',
                 ),
@@ -179,6 +179,8 @@ class PaymentVoidService {
                 hotelDayKey: hotelDayKey,
                 timestamp: nowEpoch,
                 timestampIso: nowIso,
+                updatedAt: nowEpoch,
+                lastModified: nowEpoch,
                 isFinancial: const drift.Value(true),
                 amountImpact: drift.Value(payment.amount.toInt()),
                 deviceId: drift.Value(
