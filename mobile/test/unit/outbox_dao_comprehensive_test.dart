@@ -374,6 +374,75 @@ void main() {
       expect(updated.processingWorker, isNull);
     });
 
+    test('الاستعادة التلقائية لا تعيد سجلاً processing حديثاً', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'recent-processing',
+        payload: {},
+        clientTs: 101,
+        source: 'local',
+      );
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await db.customStatement(
+        'UPDATE outbox SET processing_status = ?, processing_started_at = ? WHERE id = ?',
+        ['processing', now, id],
+      );
+
+      expect(await outboxDao.reclaimForPush(), 0);
+      final updated = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(updated.processingStatus, 'processing');
+    });
+
+    test('الضغط اليدوي يعيد processing حديثاً فوراً', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'manual-retry-processing',
+        payload: {},
+        clientTs: 102,
+        source: 'local',
+      );
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await db.customStatement(
+        'UPDATE outbox SET processing_status = ?, processing_started_at = ? WHERE id = ?',
+        ['processing', now, id],
+      );
+
+      expect(
+        await outboxDao.reclaimForPush(retryProcessingImmediately: true),
+        1,
+      );
+      final updated = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(updated.processingStatus, 'pending');
+      expect(updated.processingStartedAt, isNull);
+    });
+
+    test('processing بلا وقت بدء يُستعاد بدل أن يبقى عالقاً', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'processing-without-start-time',
+        payload: {},
+        clientTs: 103,
+        source: 'local',
+      );
+      await db.customStatement(
+        'UPDATE outbox SET processing_status = ?, processing_started_at = NULL WHERE id = ?',
+        ['processing', id],
+      );
+
+      expect(await outboxDao.reclaimForPush(), 1);
+      final updated = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(updated.processingStatus, 'pending');
+    });
+
     test('يُعيد السجلات الفاشلة ذات المحاولات القليلة إلى pending', () async {
       final id = await outboxDao.merge(
         entity: 'rooms',

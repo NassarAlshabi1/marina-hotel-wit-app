@@ -14,6 +14,7 @@ import '../services/daos/sync_log_dao.dart';
 // ✅ Wave 5 (2026-08-12): secondary_sync_provider.dart و secondary_sync_manager.dart
 // أُزيلا بالكامل — Appwrite primary هو authority الوحيد.
 import '../services/sync/sync_gate.dart';
+import '../services/sync_guard.dart';
 import '../utils/loading_snackbar.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -29,6 +30,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     with TickerProviderStateMixin {
   bool _isPulling = false;
   bool _isPushing = false;
+  bool _waitingToPush = false;
   bool _appwriteEnabled = true;
   Timer? _pendingChangesTimer;
   late AnimationController _pullAnimationController;
@@ -453,34 +455,70 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   ///
   /// ✅ P3-5 (Global SyncGate): العملية بالكامل محاطة بـ runGuarded.
   Future<void> _pushChanges(BuildContext context) async {
-    final executed = await SyncGate.instance.runGuardedVoid(
-      operation: 'push',
-      source: 'dashboard_button',
-      task: () => _pushChangesInner(context),
-    );
-    if (!executed && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.lock_clock, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '⏳ المزامنة مشغولة حالياً بعملية أخرى '
-                  '(${SyncGate.instance.state.operation ?? "?"})',
-                ),
-              ),
-            ],
+    if (_isPushing || _waitingToPush) return;
+
+    _waitingToPush = true;
+    if (mounted) setState(() {});
+
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    try {
+      while (mounted && DateTime.now().isBefore(deadline)) {
+        // الرفع التلقائي يستخدم SyncGuard، والسحب/المزامنة اليدوية تستخدم
+        // SyncGate. ننتظر انتهاء أي منهما ثم نعيد المحاولة بدل إسقاط الضغط.
+        if (SyncGate.instance.isBusy || SyncGuard.isActive) {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+          continue;
+        }
+
+        final executed = await SyncGate.instance.runGuardedVoid(
+          operation: 'push',
+          source: 'dashboard_button',
+          task: () => _pushChangesInner(context),
+        );
+        if (executed) return;
+
+        // قد يدخل مسار مزامنة آخر بين فحص الحالة واكتساب البوابة.
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'انتهت مهلة انتظار المزامنة الحالية. حاول الرفع مجددًا.',
+            ),
+            backgroundColor: Colors.orange,
           ),
-          backgroundColor: Colors.blueGrey,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        );
+      }
+    } catch (e, stackTrace) {
+      dlog(() => '❌ تعذر بدء الرفع اليدوي من Dashboard: $e\n$stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تعذر بدء الرفع اليدوي. حاول مرة أخرى.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      _waitingToPush = false;
+      if (mounted) {
+        setState(() {
+          _isPushing = false;
+        });
+      }
     }
   }
 
   Future<void> _pushChangesInner(BuildContext context) async {
+    if (_isPushing) return;
+    _isPushing = true;
+    _waitingToPush = false;
+    if (mounted) {
+      setState(() {});
+    }
+
     final stopwatch = Stopwatch()..start();
     final syncId = 'push_${DateTime.now().millisecondsSinceEpoch}';
     String? deviceId;
@@ -490,17 +528,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       deviceId = 'unknown';
     }
 
-    // ✅ P1-2 fix: ضبط العلم متزامناً فوراً قبل أي await
-    if (_isPushing) {
-      return;
-    }
-    _isPushing = true;
-    if (mounted) {
-      setState(() {});
-    }
-
     // ✅ P1-1 fix: كل الفحوص قبل كتابة سجل in_progress
-    if (_pendingChangesCount == 0) {
+    // لا نعتمد على العداد الدوري (يُحدَّث كل 15 ثانية) عند الضغط اليدوي؛
+    // قد يكون قديمًا بينما التغيير دخل للتو إلى Outbox أو رفعه التلقائي للتو.
+    final freshPendingCount = await OutboxDao(
+      ref.read(databaseProvider),
+    ).countUndeliveredToPrimary(sources: const ['local']);
+    if (mounted) {
+      setState(() => _pendingChangesCount = freshPendingCount);
+    }
+    if (freshPendingCount == 0) {
       if (mounted) {
         setState(() => _isPushing = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -599,7 +636,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ P1-3 موسّع: pushLocalChanges تُرجع -1 عند الفشل الحقيقي
       // (فشل sync() أو استثناء) — لا نعرض «نجاح» كاذماً عند بقاء Outbox ممتلئاً.
-      final pushedCount = await appwriteSyncManager.pushLocalChanges();
+      final pushedCount = await appwriteSyncManager.pushLocalChanges(
+        retryProcessingImmediately: true,
+      );
       await _loadPendingChangesCount();
 
       final remaining = _pendingChangesCount;
@@ -953,11 +992,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     );
   }
 
-  Widget _buildPushButton(bool hasChanges, bool gateBusy) {
-    // زر الدفع متاح فقط إذا كان يوجد تغييرات محلية، والبوّابة العامة
-    // ليست مشغولة بعملية من أي مصدر آخر.
+  Widget _buildPushButton(bool hasChanges) {
+    // يظل الزر قابلًا للضغط حتى عند عدم وجود تغييرات ظاهرة؛ عند الضغط
+    // يعيد قراءة Outbox مباشرة ويعرض «لا توجد تغييرات» إن كانت قد رُفعت تلقائيًا.
+    // وإذا كانت مزامنة أخرى جارية، ينتظرها _pushChanges بدل إسقاط الطلب.
     final bool pushEnabled =
-        hasChanges && !_isPulling && !_isPushing && !gateBusy;
+        _appwriteEnabled && !_isPulling && !_isPushing && !_waitingToPush;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -967,20 +1007,26 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       buttonColor = Colors.purple;
       buttonIcon = Icons.cloud_upload;
       buttonText = 'جاري الرفع...';
+    } else if (_waitingToPush) {
+      buttonColor = Colors.blueGrey;
+      buttonIcon = Icons.sync;
+      buttonText = 'بانتظار المزامنة...';
     } else if (hasChanges) {
       buttonColor = Colors.purple;
       buttonIcon = Icons.cloud_upload;
       buttonText = 'رفع التغييرات';
     } else {
-      buttonColor = Colors.grey.shade400;
-      buttonIcon = Icons.cloud_done;
-      buttonText = 'محدّث';
+      buttonColor = Colors.purple;
+      buttonIcon = Icons.cloud_upload;
+      buttonText = 'رفع الآن';
     }
 
     return Tooltip(
-      message: hasChanges
+      message: _waitingToPush
+          ? 'سيبدأ الرفع بعد انتهاء المزامنة الجارية'
+          : hasChanges
           ? 'اضغط لرفع $_pendingChangesCount تغيير إلى السحابة'
-          : 'جميع التغييرات مرفوعة',
+          : 'اضغط للتحقق من التغييرات ورفعها يدويًا',
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1119,7 +1165,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 ),
                 const SizedBox(width: 8),
                 // زر الدفع إلى السيرفر (Appwrite فقط — حُذف Google Drive)
-                _buildPushButton(hasLocalChanges, gateBusy),
+                _buildPushButton(hasLocalChanges),
               ],
             ),
             const SizedBox(height: 6),

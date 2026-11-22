@@ -127,11 +127,15 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// [maxFailedAttempts] — لا نُعيد محاولة السجلات الفاشلة التي تجاوزت هذا الحدّ
   /// حفاظاً على منطق التراجع الأسّي (backoff) للسجلات ذات الفشل المزمن؛ تلك
   /// تُترك للمؤقّت الدوري `retryFailedWithBackoff`.
+  /// [retryProcessingImmediately] — يعيد كل السجلات processing فوراً. يُستخدم
+  /// فقط بعد دخول مسار الدفع اليدوي إلى قفل المزامنة، لاستعادة عملية قطعها
+  /// انقطاع الإنترنت دون انتظار مهلة الاكتشاف التلقائي.
   ///
   /// يُرجع عدد السجلات التي أُعيدت إلى `pending`.
   Future<int> reclaimForPush({
     Duration stuckAfter = const Duration(seconds: 30),
     int maxFailedAttempts = 5,
+    bool retryProcessingImmediately = false,
   }) async {
     final cutoff =
         (DateTime.now().millisecondsSinceEpoch ~/ 1000) - stuckAfter.inSeconds;
@@ -139,11 +143,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     // 1) استعادة السجلات العالقة في 'processing' الأقدم من العتبة —
     //    هذه هي جوهر الإصلاح: سجلات حُجزت لرفع انقطع ولم يكتمل.
     final reclaimedProcessing =
-        await (update(outbox)..where(
-              (t) =>
-                  t.processingStatus.equals('processing') &
-                  t.processingStartedAt.isSmallerOrEqualValue(cutoff),
-            ))
+        await (update(outbox)..where((t) {
+              final processing = t.processingStatus.equals('processing');
+              if (retryProcessingImmediately) return processing;
+              return processing &
+                  (t.processingStartedAt.isNull() |
+                      t.processingStartedAt.isSmallerOrEqualValue(cutoff));
+            }))
             .write(
               const OutboxCompanion(
                 processingStatus: Value('pending'),

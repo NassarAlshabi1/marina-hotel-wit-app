@@ -887,7 +887,11 @@ class AppwriteSyncManager {
   /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
-  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+  Future<SyncResult> sync({
+    bool push = true,
+    bool pull = true,
+    bool retryProcessingImmediately = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
       _logger.info(
@@ -1069,7 +1073,9 @@ class AppwriteSyncManager {
           if (push) {
             recordsPushed += await _timePhase(
               'pushAllEntities',
-              _pushAllEntities,
+              () => _pushAllEntities(
+                retryProcessingImmediately: retryProcessingImmediately,
+              ),
               phaseMs,
             );
 
@@ -3232,7 +3238,9 @@ class AppwriteSyncManager {
     return _asIntNullable(value);
   }
 
-  Future<int> _pushAllEntities() async {
+  Future<int> _pushAllEntities({
+    bool retryProcessingImmediately = false,
+  }) async {
     // ✅ فحص الاتصال أولاً
     List<ConnectivityResult> connectivity = const <ConnectivityResult>[];
     try {
@@ -3266,7 +3274,9 @@ class AppwriteSyncManager {
     // فلا تُرفع أبداً رغم أن المستخدم يضغط "رفع التغييرات" مراراً.
     // الرفع مُسلسَل عبر قفل المزامنة، لذا لا توجد دفعة أخرى قيد المعالجة الآن.
     try {
-      final reclaimed = await outboxDao.reclaimForPush();
+      final reclaimed = await outboxDao.reclaimForPush(
+        retryProcessingImmediately: retryProcessingImmediately,
+      );
       if (reclaimed > 0) {
         _logger.info(
           '♻️ أُعيد $reclaimed سجل عالق/فاشل إلى pending قبل الرفع',
@@ -6558,9 +6568,14 @@ class AppwriteSyncManager {
   /// ✅ P1-3 fix: يُرجع عدد السجلات المدفوعة فعلياً بدل bool
   /// ✅ P1-3 موسّع: يُرجع `-1` عند الفشل الحقيقي (فشل `sync()` أو استثناء)
   /// حتى لا يعرض النداء «نجاح» كاذماً عند بقاء Outbox ممتلئاً.
-  Future<int> pushLocalChanges() async {
+  Future<int> pushLocalChanges({
+    bool retryProcessingImmediately = false,
+  }) async {
     try {
-      final result = await sync(pull: false);
+      final result = await sync(
+        pull: false,
+        retryProcessingImmediately: retryProcessingImmediately,
+      );
       if (result.status == SyncStatus.failed) {
         _logger.warning(
           'pushLocalChanges: sync() returned failed — '
