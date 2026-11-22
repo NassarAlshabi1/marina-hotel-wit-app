@@ -383,6 +383,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
+      if (existing.isImmutable && !originIsServer) {
+        // Immutable financial records may only change through an explicit,
+        // audited domain operation (for example PaymentVoidService).
+        return 0;
+      }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
       final effectiveLastModified = originIsServer && data.lastModified.present
@@ -418,6 +423,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) {
+        return 0;
+      }
+      if (existing.isImmutable && !originIsServer) {
         return 0;
       }
       final rows = await (update(payments)..where((t) => t.id.equals(id)))

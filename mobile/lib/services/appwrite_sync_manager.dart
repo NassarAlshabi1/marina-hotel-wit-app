@@ -32,6 +32,7 @@ import 'appwrite_models.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_utils.dart';
 import 'booking_derived_fields_service.dart';
+import 'hotel_day_key_fix_service.dart';
 import 'crashlytics_service.dart';
 import 'daos/ancestor_cache_dao.dart';
 import 'daos/outbox_dao.dart';
@@ -1155,6 +1156,19 @@ class AppwriteSyncManager {
               recordsPulled += pullResult.recordsPulled;
               failedCollections.addAll(pullResult.failedCollections);
 
+              // Remote upserts may introduce legacy/missing computed keys. Repair
+              // only after the complete pull succeeds, so OCC/pull has finished;
+              // corrected keys then enter Outbox and win the next push.
+              if (pullResult.failedCollections.isEmpty) {
+                try {
+                  await HotelDayKeyFixService.instance.runIfNeeded(database);
+                } catch (e) {
+                  _logger.warning(
+                    'hotelDayKey repair after pull failed: $e',
+                    tag: 'SYNC',
+                  );
+                }
+              }
               // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات (توافق خلفي —
               // المؤشرات الفعلية أصبحت لكل مجموعة في sync_checkpoints).
               if (failedCollections.isEmpty) {

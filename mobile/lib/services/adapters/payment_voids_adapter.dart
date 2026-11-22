@@ -171,8 +171,11 @@ class PaymentVoidsAdapter
       _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'originalPaymentUuid', 'original_payment_uuid'):
           model.originalPaymentUuid,
-      _k(src, 'originalPaymentId', 'original_payment_id'):
-          model.originalPaymentId,
+      // originalPaymentId is a SQLite-local key, not a cross-device identity.
+      // Preserve it only in local Drive/backup payloads; cloud identity is UUID.
+      if (src != Source.appwrite)
+        _k(src, 'originalPaymentId', 'original_payment_id'):
+            model.originalPaymentId,
       _k(src, 'bookingUuid', 'booking_uuid'): model.bookingUuid,
       _k(src, 'voidedAmount', 'voided_amount'): model.voidedAmount,
       _k(src, 'voidReason', 'void_reason'): model.voidReason,

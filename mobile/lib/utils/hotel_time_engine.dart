@@ -125,7 +125,7 @@ class HotelTimeEngine {
       final normalized = isoString.trim().contains('T')
           ? isoString.trim()
           : isoString.trim().replaceFirst(' ', 'T');
-      final dt = DateTime.parse(normalized);
+      final dt = HotelTimezone.parseHotelDateTime(normalized);
       return getHotelDayKey(dateTime: dt);
     } catch (_) {
       return getHotelDayKey();
@@ -179,7 +179,9 @@ class HotelTimeEngine {
           ),
         );
       }
-      return getHotelDayKey(dateTime: parsedDate);
+      return getHotelDayKey(
+        dateTime: HotelTimezone.parseHotelDateTime(normalized),
+      );
     } catch (_) {
       return null;
     }

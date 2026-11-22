@@ -49,7 +49,7 @@ class Time {
     final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
     try {
       return hotelDayKey(
-        now: DateTime.parse(normalized),
+        now: HotelTimezone.parseHotelDateTime(normalized),
         cutoffHour: cutoffHour,
         cutoffMinute: cutoffMinute,
       );

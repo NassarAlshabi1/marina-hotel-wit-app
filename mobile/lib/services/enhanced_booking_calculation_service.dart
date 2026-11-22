@@ -6,6 +6,7 @@ import '../models/financial_models.dart';
 import 'daos/outbox_dao.dart';
 import 'daos/bookings_dao.dart';
 import '../utils/hotel_time_engine.dart';
+import '../utils/hotel_timezone.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -96,6 +97,78 @@ class EnhancedBookingCalculationService {
       breakdown: resolvedBreakdown,
       totalNights: resolvedBreakdown.length,
     );
+  }
+
+  /// Prices a manual extension as the difference between the same booking's
+  /// canonical totals before and after adding nights. This keeps discounts and
+  /// dated price adjustments consistent with the stay ledger.
+  Future<int> calculateManualExtensionCharge(
+    Booking booking, {
+    required DateTime currentCheckout,
+    required DateTime newCheckout,
+    required int additionalNights,
+  }) async {
+    if (additionalNights <= 0 || !newCheckout.isAfter(currentCheckout)) {
+      throw ArgumentError('Invalid manual extension date range');
+    }
+    final baselineBooking = booking.copyWith(
+      status: 'مكتمل',
+      checkoutDate: d.Value(currentCheckout.toIso8601String()),
+      actualCheckout: const d.Value(null),
+    );
+    final extendedBooking = booking.copyWith(
+      status: 'مكتمل',
+      checkoutDate: d.Value(newCheckout.toIso8601String()),
+      actualCheckout: const d.Value(null),
+    );
+    final baseline = await calculateFinancials(
+      baselineBooking,
+      now: newCheckout,
+    );
+    final extended = await calculateFinancials(
+      extendedBooking,
+      now: newCheckout,
+    );
+    final charge = extended.totalDue - baseline.totalDue;
+    if (baseline.totalNights <= 0 ||
+        extended.totalNights - baseline.totalNights != additionalNights ||
+        charge <= 0) {
+      throw StateError(
+        'Unable to calculate a positive, exact extension charge',
+      );
+    }
+    return charge;
+  }
+
+  /// Calculates the consumed stay cost using canonical nightly rates and
+  /// discounts, including the fallback path when persisted booking-night rows
+  /// are absent or fail integrity validation.
+  Future<int> calculateActualStayCost(
+    Booking booking, {
+    required DateTime actualCheckout,
+    required int actualNights,
+  }) async {
+    if (actualNights <= 0) {
+      throw ArgumentError.value(actualNights, 'actualNights');
+    }
+    final completedBooking = booking.copyWith(
+      status: 'مكتمل',
+      actualCheckout: d.Value(actualCheckout.toIso8601String()),
+    );
+    final breakdown = await calculateNightlyBreakdown(
+      completedBooking,
+      now: actualCheckout,
+    );
+    if (breakdown.length != actualNights ||
+        breakdown.any((night) => night.baseRate <= 0 || night.finalRate < 0)) {
+      throw StateError('Unable to calculate exact actual stay pricing');
+    }
+    final financials = await calculateFinancials(
+      completedBooking,
+      now: actualCheckout,
+      breakdown: breakdown,
+    );
+    return financials.totalDue;
   }
 
   Future<void> updateNightlyRecords(
@@ -818,7 +891,7 @@ class EnhancedBookingCalculationService {
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
-      return DateTime.parse(withSeconds);
+      return HotelTimezone.parseHotelDateTime(withSeconds);
     } catch (_) {
       return null;
     }
@@ -847,24 +920,26 @@ class EnhancedBookingCalculationService {
     int cutoffMinute = Time.hotelDayBoundaryMinute,
   }) {
     final segments = <_NightSegment>[];
+    final hotelCheckin = HotelTimezone.toHotelDateTime(checkin);
+    final hotelCheckout = HotelTimezone.toHotelDateTime(checkout);
 
     // استخدام حد اليوم الفندقي الموحد 14:01.
     final int totalNights = Time.nightsWithCutoff(
-      checkin,
-      checkout: checkout,
+      hotelCheckin,
+      checkout: hotelCheckout,
       cutoffHour: cutoffHour,
       cutoffMinute: cutoffMinute,
     );
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
+    DateTime startOfCheckinHotelDay = HotelTimezone.atHotelTime(
+      hotelCheckin.year,
+      hotelCheckin.month,
+      hotelCheckin.day,
       cutoffHour,
       cutoffMinute,
     );
-    if (checkin.isBefore(startOfCheckinHotelDay)) {
+    if (hotelCheckin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
         const Duration(days: 1),
       );
@@ -875,13 +950,13 @@ class EnhancedBookingCalculationService {
       final dayKey = Time.dateToString(dayDate);
 
       // بداية الشريحة: وقت الوصول الفعلي لأول شريحة، أو بداية يوم الفندق للشرائح التالية
-      final segStart = i == 0 ? checkin : dayDate;
+      final segStart = i == 0 ? hotelCheckin : dayDate;
 
       // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
       final nextHotelDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == totalNights - 1
-          ? (checkout.isAfter(segStart)
-                ? checkout
+          ? (hotelCheckout.isAfter(segStart)
+                ? hotelCheckout
                 : segStart.add(const Duration(minutes: 1)))
           : nextHotelDay;
 

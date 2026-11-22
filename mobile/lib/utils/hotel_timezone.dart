@@ -63,6 +63,32 @@ class HotelTimezone {
     );
   }
 
+  /// Parses an ISO value without losing an explicit UTC offset.
+  ///
+  /// Zone-less legacy values are interpreted as hotel wall-clock time, while
+  /// values ending in `Z` or a numeric offset are treated as absolute instants.
+  static DateTime parseHotelDateTime(String value) {
+    final trimmed = value.trim();
+    final normalized = trimmed.contains('T')
+        ? trimmed
+        : trimmed.replaceFirst(' ', 'T');
+    final parsed = DateTime.parse(normalized);
+    final hasExplicitZone = RegExp(
+      r'(?:[zZ]|[+-]\d{2}:?\d{2})$',
+    ).hasMatch(normalized);
+    if (hasExplicitZone) return fromInstant(parsed.toUtc());
+    return atHotelTime(
+      parsed.year,
+      parsed.month,
+      parsed.day,
+      parsed.hour,
+      parsed.minute,
+      parsed.second,
+      parsed.millisecond,
+      parsed.microsecond,
+    );
+  }
+
   /// Serializes an instant as the hotel's local wall-clock ISO value for the
   /// existing `paymentDate` field. The zone-less format is intentional for
   /// compatibility with existing readers and rows. Hotel-day logic treats

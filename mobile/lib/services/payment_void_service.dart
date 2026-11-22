@@ -87,6 +87,14 @@ class PaymentVoidService {
           return false;
         }
 
+        // No currency scale is declared: do not silently round REAL amounts
+        // into the integer voidedAmount schema. Reject unrepresentable values.
+        if (!payment.amount.isFinite ||
+            payment.amount != payment.amount.roundToDouble()) {
+          dlog(() => 'PaymentVoid refused: amount requires rounding');
+          return false;
+        }
+
         final nowEpoch = Time.nowEpoch();
         final nowIso = DateTime.now().toIso8601String();
         final voidUuid = IdGen.uuid();
@@ -135,7 +143,7 @@ class PaymentVoidService {
                 originalPaymentUuid: paymentUuid,
                 originalPaymentId: payment.id,
                 bookingUuid: bookingUuid,
-                voidedAmount: payment.amount.round(),
+                voidedAmount: payment.amount.toInt(),
                 voidReason: voidReason,
                 voidedBy: voidedBy,
                 voidedAt: nowEpoch,
@@ -149,6 +157,34 @@ class PaymentVoidService {
                   AppwriteSyncManager.currentDeviceIdStatic ?? '',
                 ),
                 approvedBy: drift.Value(approvedBy),
+              ),
+            );
+
+        // Durable audit entry, in the same transaction as the void.
+        await _db
+            .into(_db.auditLogs)
+            .insert(
+              AuditLogsCompanion.insert(
+                localUuid: voidUuid,
+                operationType: 'void',
+                entityType: 'payments',
+                entityUuid: paymentUuid,
+                entityId: drift.Value(payment.id),
+                previousState: const drift.Value('{"isVoided":false}'),
+                newState: drift.Value('{"isVoided":true}'),
+                changedFields: const drift.Value(
+                  'isVoided,voidedAt,voidedBy,voidReason',
+                ),
+                performedBy: voidedBy,
+                hotelDayKey: hotelDayKey,
+                timestamp: nowEpoch,
+                timestampIso: nowIso,
+                isFinancial: const drift.Value(true),
+                amountImpact: drift.Value(payment.amount.toInt()),
+                deviceId: drift.Value(
+                  AppwriteSyncManager.currentDeviceIdStatic ?? '',
+                ),
+                createdAt: nowEpoch,
               ),
             );
 
@@ -179,9 +215,8 @@ class PaymentVoidService {
           clientTs: nowEpoch,
           payload: {
             'originalPaymentUuid': paymentUuid,
-            'originalPaymentId': payment.id,
             'bookingUuid': bookingUuid,
-            'voidedAmount': payment.amount.round(),
+            'voidedAmount': payment.amount.toInt(),
             'voidReason': voidReason,
             'voidedBy': voidedBy,
             'voidedAt': nowEpoch,

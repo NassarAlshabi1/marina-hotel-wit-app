@@ -337,4 +337,121 @@ void main() {
       expect(result.checkout, DateTime(2024, 3, 4, 14, 1, 0));
     });
   });
+
+  test(
+    'NightlyBreakdown يحول UTC إلى توقيت الفندق قبل إنشاء hotelDayKey',
+    () async {
+      // 12:00Z تساوي 15:00 في Asia/Aden؛ هذه بداية يوم الفندق 2 مارس.
+      // جهاز UTC كان سيعاملها كوقت قبل cutoff لو بُني الحد محلياً.
+      final utcCheckin = DateTime.utc(2024, 3, 2, 12);
+      final utcCheckout = DateTime.utc(2024, 3, 3, 10, 59, 59);
+      final id = await bookingsRepo.create(
+        roomNumber: '101',
+        guestName: 'UTC hotel-day regression',
+        guestPhone: '0500000099',
+        guestNationality: 'يمني',
+        checkinDate: utcCheckin.toIso8601String(),
+        checkoutDate: utcCheckout.toIso8601String(),
+        status: 'مكتمل',
+        expectedNights: 1,
+      );
+      await bookingsRepo.update(
+        id,
+        actualCheckout: utcCheckout.toIso8601String(),
+        calculatedNights: 1,
+      );
+
+      final result = await calculator.calculateForBooking(
+        await fetchBooking(id),
+        now: utcCheckout,
+      );
+
+      expect(result.financialSummary.totalNights, 1);
+      expect(result.breakdown, hasLength(1));
+      expect(result.breakdown.single.hotelDayKey, '2024-03-02');
+    },
+  );
+
+  test('سعر التمديد اليدوي يستخدم الخصم الفعّال لليلة الإضافية', () async {
+    final checkinDate = DateTime(2024, 3, 1, 15);
+    final currentCheckout = DateTime(2024, 3, 2, 14);
+    final newCheckout = DateTime(2024, 3, 3, 14);
+    final id = await bookingsRepo.create(
+      roomNumber: '101',
+      guestName: 'Manual extension discount regression',
+      guestPhone: '0500000098',
+      guestNationality: 'يمني',
+      checkinDate: checkinDate.toIso8601String(),
+      checkoutDate: currentCheckout.toIso8601String(),
+      status: 'مكتمل',
+      expectedNights: 1,
+      discount: 20,
+      discountType: 'per_night',
+    );
+
+    final charge = await calculator.calculateManualExtensionCharge(
+      await fetchBooking(id),
+      currentCheckout: currentCheckout,
+      newCheckout: newCheckout,
+      additionalNights: 1,
+    );
+
+    expect(charge, 80, reason: '100 سعر أساسي − 20 خصم لليلة الإضافة');
+  });
+
+  test('تكلفة fallback للمغادرة المبكرة تشمل الخصم الليلي والإجمالي', () async {
+    final checkinDate = DateTime(2024, 3, 1, 15);
+    final actualCheckout = DateTime(2024, 3, 3, 10);
+
+    Future<Booking> createDiscountedBooking({
+      required String guestName,
+      required String phone,
+      required double discount,
+      required String discountType,
+    }) async {
+      final id = await bookingsRepo.create(
+        roomNumber: '101',
+        guestName: guestName,
+        guestPhone: phone,
+        guestNationality: 'يمني',
+        checkinDate: checkinDate.toIso8601String(),
+        checkoutDate: actualCheckout.toIso8601String(),
+        status: 'مكتمل',
+        expectedNights: 2,
+        discount: discount,
+        discountType: discountType,
+      );
+      return fetchBooking(id);
+    }
+
+    final perNightBooking = await createDiscountedBooking(
+      guestName: 'Early checkout per-night discount',
+      phone: '0500000097',
+      discount: 20,
+      discountType: 'per_night',
+    );
+    final totalDiscountBooking = await createDiscountedBooking(
+      guestName: 'Early checkout total discount',
+      phone: '0500000096',
+      discount: 30,
+      discountType: 'total',
+    );
+
+    expect(
+      await calculator.calculateActualStayCost(
+        perNightBooking,
+        actualCheckout: actualCheckout,
+        actualNights: 2,
+      ),
+      160,
+    );
+    expect(
+      await calculator.calculateActualStayCost(
+        totalDiscountBooking,
+        actualCheckout: actualCheckout,
+        actualNights: 2,
+      ),
+      170,
+    );
+  });
 }

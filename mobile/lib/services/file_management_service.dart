@@ -398,7 +398,18 @@ class FileManagementService {
     return value;
   }
 
-  /// دمج نسخ متعددة
+  dynamic _canonicalizeJson(dynamic value) {
+    if (value is Map) {
+      final keys = value.keys.map((key) => key.toString()).toList()..sort();
+      return <String, dynamic>{
+        for (final key in keys) key: _canonicalizeJson(value[key]),
+      };
+    }
+    if (value is List) return value.map(_canonicalizeJson).toList();
+    return value;
+  }
+
+  /// دمج نسخ متعددة — لا تعاد أرقام SQLite ولا تدمج سجلات متعارضة.
   Future<String> mergeBackupFiles(
     List<String> backupPaths,
     String mergedFileName,
@@ -418,6 +429,13 @@ class FileManagementService {
 
       BackupMetadata? latestMetadata;
       int totalRecords = 0;
+      final idsByUuid = <String, Map<String, int>>{
+        for (final key in mergedData.keys) key: <String, int>{},
+      };
+      final uuidById = <String, Map<int, String>>{
+        for (final key in mergedData.keys) key: <int, String>{},
+      };
+      final roomUuidByNumber = <String, String>{};
 
       for (final backupPath in backupPaths) {
         try {
@@ -431,20 +449,59 @@ class FileManagementService {
               final tableData = backupData[key] as List<dynamic>;
               for (final record in tableData) {
                 // تجنب التكرار باستخدام localUuid
-                final recordMap = record as Map<String, dynamic>;
-                final uuid = recordMap['localUuid'];
-
-                if (uuid != null) {
-                  final exists = mergedData[key]!.any(
-                    (existing) =>
-                        existing is Map && existing['localUuid'] == uuid,
-                  );
-
-                  if (!exists) {
-                    mergedData[key]!.add(record);
-                    totalRecords++;
-                  }
+                if (record is! Map) {
+                  throw StateError('Invalid $key record: expected JSON object');
                 }
+                final recordMap = Map<String, dynamic>.from(record);
+                final uuidValue = recordMap['localUuid'];
+                final idValue = recordMap['id'];
+                if (uuidValue is! String || uuidValue.trim().isEmpty) {
+                  throw StateError('$key record has no trusted localUuid');
+                }
+                if (idValue is! num || idValue.toInt() != idValue) {
+                  throw StateError(
+                    '$key/$uuidValue has no valid local SQLite id',
+                  );
+                }
+                final uuid = uuidValue;
+                final localId = idValue.toInt();
+                if (key == 'rooms') {
+                  final roomNumber = recordMap['roomNumber'];
+                  if (roomNumber is! String || roomNumber.trim().isEmpty) {
+                    throw StateError('Room $uuid has no valid roomNumber');
+                  }
+                  final existingRoomUuid = roomUuidByNumber[roomNumber];
+                  if (existingRoomUuid != null && existingRoomUuid != uuid) {
+                    throw StateError(
+                      'roomNumber $roomNumber is claimed by multiple UUIDs; merge aborted',
+                    );
+                  }
+                  roomUuidByNumber[roomNumber] = uuid;
+                }
+                final existingId = idsByUuid[key]![uuid];
+                if (existingId != null) {
+                  final existing = mergedData[key]!
+                      .cast<Map<String, dynamic>>()
+                      .firstWhere((item) => item['localUuid'] == uuid);
+                  if (existingId != localId ||
+                      jsonEncode(_canonicalizeJson(existing)) !=
+                          jsonEncode(_canonicalizeJson(recordMap))) {
+                    throw StateError(
+                      'Conflicting $key record for UUID $uuid; manual review required',
+                    );
+                  }
+                  continue;
+                }
+                final idOwner = uuidById[key]![localId];
+                if (idOwner != null && idOwner != uuid) {
+                  throw StateError(
+                    'SQLite primary-key collision in $key: id=$localId belongs to $idOwner and $uuid',
+                  );
+                }
+                idsByUuid[key]![uuid] = localId;
+                uuidById[key]![localId] = uuid;
+                mergedData[key]!.add(recordMap);
+                totalRecords++;
               }
             }
           }
@@ -465,7 +522,21 @@ class FileManagementService {
             }
           }
         } catch (e) {
-          dlog(() => '⚠️ خطأ في معالجة الملف $backupPath: $e');
+          dlog(() => '❌ رفض دمج النسخة $backupPath بسبب تعارض/خطأ: $e');
+          rethrow;
+        }
+      }
+
+      final bookingIds = idsByUuid['bookings']!.values.toSet();
+      for (final payment in mergedData['payments']!) {
+        if (payment is! Map) continue;
+        final bookingLocalId = payment['bookingLocalId'];
+        if (bookingLocalId != null &&
+            (bookingLocalId is! num ||
+                !bookingIds.contains(bookingLocalId.toInt()))) {
+          throw StateError(
+            'Payment ${payment['localUuid']} references an unresolved local booking id; merge aborted',
+          );
         }
       }
 

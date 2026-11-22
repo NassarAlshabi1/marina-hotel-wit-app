@@ -22,6 +22,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
+import '../../services/enhanced_booking_calculation_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../services/payment_session_context.dart';
 import '../../services/stay_balance_calculator.dart';
@@ -2689,20 +2690,38 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ? nights[i].finalRate
             : nights[i].nightlyRate;
       }
-    } else if (nights.isNotEmpty) {
-      // Nights exist but failed validation — fallback to calculated nights
-      final roomsRepo = ref.read(roomsRepoProvider);
-      final room = await roomsRepo
-          .watchByNumber(widget.booking.roomNumber)
-          .first;
-      actualNightsCost = actualNights * (room?.price ?? 0);
     } else {
-      // بديل: سعر الغرفة × الليالي الفعلية
-      final roomsRepo = ref.read(roomsRepoProvider);
-      final room = await roomsRepo
-          .watchByNumber(widget.booking.roomNumber)
-          .first;
-      actualNightsCost = actualNights * (room?.price ?? 0);
+      try {
+        final room =
+            await (dbInstance.select(dbInstance.rooms)
+                  ..where((r) => r.roomNumber.equals(widget.booking.roomNumber))
+                  ..where((r) => r.deletedAt.isNull()))
+                .getSingleOrNull();
+        if (room == null || room.price <= 0 || actualNights <= 0) {
+          throw StateError('Room pricing is unavailable');
+        }
+        actualNightsCost =
+            (await EnhancedBookingCalculationService(
+                  dbInstance,
+                ).calculateActualStayCost(
+                  widget.booking,
+                  actualCheckout: now,
+                  actualNights: actualNights,
+                ))
+                .toDouble();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'تعذر حساب تكلفة المغادرة بدقة — لم يتم تسجيل المردود',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
     }
 
     final totalPaid = summary.paidAmount;
@@ -4747,13 +4766,28 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final currentCheckout = widget.booking.checkoutDate != null
           ? DateTime.tryParse(widget.booking.checkoutDate!)
           : DateTime.now().add(const Duration(days: 1));
-
-      final newCheckout = (currentCheckout ?? DateTime.now()).add(
-        Duration(days: additionalNights),
-      );
+      final extensionStart = currentCheckout ?? DateTime.now();
+      final newCheckout = extensionStart.add(Duration(days: additionalNights));
 
       final newExpectedNights =
           widget.booking.expectedNights + additionalNights;
+
+      final dbInstance = ref.read(databaseProvider);
+      final room =
+          await (dbInstance.select(dbInstance.rooms)
+                ..where((r) => r.roomNumber.equals(widget.booking.roomNumber))
+                ..where((r) => r.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (room == null || room.price <= 0) {
+        throw StateError('سعر الغرفة غير متوفر لحساب التمديد');
+      }
+      final calculation = EnhancedBookingCalculationService(dbInstance);
+      final amount = (await calculation.calculateManualExtensionCharge(
+        widget.booking,
+        currentCheckout: extensionStart,
+        newCheckout: newCheckout,
+        additionalNights: additionalNights,
+      )).toDouble();
 
       // تحديث الحجز
       await bookingsRepo.update(
@@ -4766,7 +4800,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
 
       // تسجيل دفعة الليالي الإضافية
-      final double amount = additionalNights * roomRate;
       await paymentsRepo.create(
         bookingLocalId: widget.booking.id,
         serverBookingId: widget.booking.serverBookingId,

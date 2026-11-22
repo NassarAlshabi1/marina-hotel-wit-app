@@ -38,7 +38,14 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       localId: localId,
       serverId: serverBookingId,
       uuid: bookingUuid,
+      fromRemote: src == Source.appwrite || src == Source.drive,
     );
+    if ((src == Source.appwrite || src == Source.drive) && resolvedId == null) {
+      return ResolveResult(
+        shouldSkip: true,
+        skipReason: 'Remote booking has no trusted UUID/server identity match',
+      );
+    }
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(

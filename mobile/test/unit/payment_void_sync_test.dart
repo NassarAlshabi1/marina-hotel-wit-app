@@ -75,6 +75,16 @@ void main() {
         outboxEntries.map((entry) => entry.entity),
         containsAll(<String>['payment_voids', 'payments']),
       );
+
+      final audit =
+          await (database.select(database.auditLogs)..where(
+                (row) => row.entityUuid.equals('payment-void-sync-uuid'),
+              ))
+              .getSingle();
+      expect(audit.operationType, 'void');
+      expect(audit.isFinancial, isTrue);
+      expect(audit.amountImpact, 125);
+      expect(audit.performedBy, 'manager-1');
     },
   );
 
@@ -111,6 +121,42 @@ void main() {
               ))
               .getSingle();
       expect(voidRecord.hotelDayKey, '2026-08-13');
+    },
+  );
+
+  test(
+    'rejects fractional amount instead of silently rounding the void',
+    () async {
+      await database
+          .into(database.payments)
+          .insert(
+            PaymentsCompanion.insert(
+              localUuid: 'fractional-payment-void-uuid',
+              createdAt: 1723564800,
+              updatedAt: 1723564800,
+              lastModified: 1723564800,
+              amount: 12.5,
+              paymentDate: '2026-08-13',
+              paymentMethod: 'نقدي',
+              revenueType: 'إقامة',
+              bookingUuidCache: const drift.Value('booking-void-sync-uuid'),
+            ),
+          );
+
+      expect(
+        await service.voidPayment(
+          paymentUuid: 'fractional-payment-void-uuid',
+          voidReason: 'precision guard',
+          voidedBy: 'manager-1',
+        ),
+        isFalse,
+      );
+      expect(await database.select(database.paymentVoids).get(), isEmpty);
+      expect(await database.select(database.auditLogs).get(), isEmpty);
+      expect(
+        (await database.select(database.payments).get()).single.isVoided,
+        isFalse,
+      );
     },
   );
 }
