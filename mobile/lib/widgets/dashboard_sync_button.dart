@@ -479,36 +479,37 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _waitingToPush = true;
     if (mounted) setState(() {});
 
-    final deadline = DateTime.now().add(const Duration(seconds: 30));
     try {
-      while (mounted && DateTime.now().isBefore(deadline)) {
+      while (mounted) {
         // الرفع التلقائي يستخدم SyncGuard، والسحب/المزامنة اليدوية تستخدم
-        // SyncGate. ننتظر انتهاء أي منهما ثم نعيد المحاولة بدل إسقاط الضغط.
-        if (SyncGate.instance.isBusy || SyncGuard.isActive) {
+        // SyncGate. لا نسقط طلب المستخدم بمهلة ثابتة؛ كما أن canStart يفحص
+        // القفل المنتهي ويحرره، بخلاف isActive الذي قد يبقي الزر منتظراً إلى
+        // أن تنتهي مهلة الانتظار قبل أن تبدأ المحاولة الفعلية. نحجز القفل
+        // ذرياً قبل دخول SyncGate لتفادي بدء الرفع التلقائي بالتوازي.
+        if (SyncGate.instance.isBusy) {
           await Future<void>.delayed(const Duration(milliseconds: 250));
           continue;
         }
 
-        final executed = await SyncGate.instance.runGuardedVoid(
-          operation: 'push',
-          source: 'dashboard_button',
-          task: () => _pushChangesInner(context),
-        );
-        if (executed) return;
+        final syncToken = SyncGuard.tryAcquire(label: 'dashboard_manual_push');
+        if (syncToken == null) {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+          continue;
+        }
+
+        try {
+          final executed = await SyncGate.instance.runGuardedVoid(
+            operation: 'push',
+            source: 'dashboard_button',
+            task: () => _pushChangesInner(context),
+          );
+          if (executed) return;
+        } finally {
+          SyncGuard.release(syncToken);
+        }
 
         // قد يدخل مسار مزامنة آخر بين فحص الحالة واكتساب البوابة.
         await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'انتهت مهلة انتظار المزامنة الحالية. حاول الرفع مجددًا.',
-            ),
-            backgroundColor: Colors.orange,
-          ),
-        );
       }
     } catch (e, stackTrace) {
       dlog(() => '❌ تعذر بدء الرفع اليدوي من Dashboard: $e\n$stackTrace');

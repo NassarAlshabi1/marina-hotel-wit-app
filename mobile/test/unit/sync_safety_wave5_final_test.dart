@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/sync_constants.dart';
 import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
 import 'package:marina_hotel_mobile/services/sync_guard.dart';
 
@@ -259,22 +260,35 @@ void main() {
       SyncGuard.release(token1!);
     });
 
-    test('3f. stale lock (تجاوز timeout) يُمسح تلقائياً', () {
-      // ✅ Wave 5: stale lock handling
-      SyncGuard.configureTimeouts(
-        staleLockTimeout: const Duration(milliseconds: 100),
-      );
-      final token1 = SyncGuard.tryAcquire(label: 'stale_test');
-      expect(token1, isNotNull);
-      // ننتظر حتى يصبح stale (محاكاة بـ fakeAsync غير متوفرة، نكتفي بالتحقق)
-      // في الحقيقة، الـ lock يصبح stale بعد 100ms لكن نحتاج وقت فعلي
-      // نتحقق فقط أن canStart يعمل بشكل صحيح
-      SyncGuard.configureTimeouts(
-        staleLockTimeout: const Duration(minutes: 10),
-      );
-      // تنظيف
-      SyncGuard.release(token1!);
-    });
+    test(
+      '3f. طلب إعادة المحاولة يحرر stale lock ويسمح بمحاولة جديدة',
+      () async {
+        SyncGuard.configureTimeouts(
+          staleLockTimeout: const Duration(milliseconds: 100),
+        );
+        try {
+          final token1 = SyncGuard.tryAcquire(label: 'auto_outbox_push');
+          expect(token1, isNotNull);
+
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+
+          // tryAcquire يفحص صلاحية القفل القديم ويستبدله ذرياً بقفل المحاولة
+          // اليدوية؛ قراءة isActive وحدها كانت ستُبقي الطلب منتظراً.
+          final retryToken = SyncGuard.tryAcquire(
+            label: 'dashboard_manual_push',
+          );
+          expect(retryToken, isNotNull);
+          expect(SyncGuard.activeLabel, 'dashboard_manual_push');
+          SyncGuard.release(retryToken!);
+          expect(SyncGuard.isActive, isFalse);
+        } finally {
+          SyncGuard.markFinished();
+          SyncGuard.configureTimeouts(
+            staleLockTimeout: SyncConstants.syncGuardMaxHoldDuration,
+          );
+        }
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
