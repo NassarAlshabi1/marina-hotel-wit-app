@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/delta_sync_service.dart';
+import 'package:marina_hotel_mobile/services/enhanced_booking_calculation_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/restore_fix_service.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
@@ -54,9 +55,13 @@ void main() {
               guestName: const Value('أحمد'),
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('سعودي'),
-              checkinDate: Value(DateTime(2024, 10, 1, 15).toIso8601String()),
-              checkoutDate: Value(DateTime(2024, 10, 4, 13).toIso8601String()),
-              status: const Value('محجوزة'),
+              // ✅ حجز نشط حديث (بلا مغادرة مسجلة) — المحرك الموحد هو
+              // مصدر المستحق الوحيد ويحاسب النشط حتى اللحظة (عقيدة ديناميكية).
+              checkinDate: Value(
+                DateTime.now().subtract(const Duration(days: 2, hours: 9))
+                    .toIso8601String(),
+              ),
+              status: const Value('نشط'),
               expectedNights: const Value(1),
               calculatedNights: const Value(1),
               createdAt: Value(now),
@@ -64,13 +69,23 @@ void main() {
               lastModified: Value(now),
             ),
           );
+      // ✅ المستحق المرجعي من المحرك الموحد نفسه — حتمي أياً كانت ساعة
+      // التشغيل (النشط يحاسب حتى اللحظة)، والدفع يساويه ليختبر التسوية الكاملة.
+      final engine = EnhancedBookingCalculationService(database);
+      final expectedDue = (await engine.calculateFinancials(
+        await (database.select(
+              database.bookings,
+            )..where((b) => b.id.equals(bookingId))).getSingle(),
+      ))
+          .totalDue;
+      expect(expectedDue, greaterThan(0));
       await database
           .into(database.payments)
           .insert(
             PaymentsCompanion(
               localUuid: Value(IdGen.uuid()),
               bookingLocalId: Value(bookingId),
-              amount: const Value(600),
+              amount: Value(expectedDue.toDouble()),
               paymentDate: Value(DateTime.now().toIso8601String()),
               paymentMethod: const Value('cash'),
               revenueType: const Value('room'),
@@ -106,8 +121,9 @@ void main() {
       final debt = await (database.select(
         database.debts,
       )..where((d) => d.localUuid.equals(debtUuid))).getSingle();
-      expect(debt.totalAmount, closeTo(600.0, 0.01));
-      expect(debt.paidAmount, closeTo(600.0, 0.01));
+      expect(debt.totalAmount, closeTo(expectedDue.toDouble(), 0.01),
+          reason: 'المستحق من المحرك الموحد — لا تقدير يدوي');
+      expect(debt.paidAmount, closeTo(expectedDue.toDouble(), 0.01));
       expect(debt.remainingAmount, closeTo(0.0, 0.01));
       expect(debt.isSettled, equals(1));
     });

@@ -394,13 +394,16 @@ class RestoreFixService {
           },
         );
 
-        await bookingsDao.updateById(
-          booking.id,
+        // ✅ كتابة مباشرة (لا bookingsDao.updateById الذي يختم lastModified
+        // تلقائياً): نتائج إعادة الحساب ليست تعديلات مستخدم ولا تُرفع كذلك —
+        // نفس عقيدة recalculateAfterSync و BookingDerivedFieldsService.
+        await (db.update(
+          db.bookings,
+        )..where((b) => b.id.equals(booking.id))).write(
           BookingsCompanion(
             calculatedNights: Value(calculatedNights),
             expectedNights: Value(calculatedNights),
             updatedAt: Value(Time.nowEpoch()),
-            lastModified: Value(Time.nowEpoch()),
           ),
         );
 
@@ -446,6 +449,10 @@ class RestoreFixService {
                 ..where((r) => r.roomNumber.equals(booking.roomNumber)))
               .getSingleOrNull();
       double? expectedTotal;
+      // هل اشتُق المستحق من المحرك (غياب الليالي المخزنة)؟ — يُعلن ولا يُمرر
+      // كتقدير صامت. القاعدة: مصدر حساب واحد — لا تقدير يدوي بسعر الغرفة
+      // الحالي متجاهلاً تعديلات الأسعار (booking_price_adjustments).
+      var derivedByEngine = false;
       if (room != null) {
         final nights =
             await (db.select(db.bookingNights)
@@ -453,85 +460,79 @@ class RestoreFixService {
                   ..where((n) => n.deletedAt.isNull()))
                 .get();
 
-        final double totalNightAmount;
         if (nights.isNotEmpty) {
-          totalNightAmount = nights.fold<double>(
+          expectedTotal = nights.fold<double>(
             0,
             (sum, n) => sum + n.nightlyRate,
           );
         } else {
-          final baseRate = room.price;
-          final discount = booking.discount;
-          final discountType = booking.discountType;
-          if (discountType == 'total') {
-            totalNightAmount = (baseRate * booking.calculatedNights - discount)
-                .clamp(0, baseRate * booking.calculatedNights)
-                .toDouble();
-          } else if (discount > 0) {
-            final discountedRate = (baseRate - discount)
-                .clamp(0, baseRate)
-                .toDouble();
-            totalNightAmount = discountedRate * booking.calculatedNights;
-          } else {
-            totalNightAmount = baseRate * booking.calculatedNights;
+          // ✅ استبدال التقدير اليدوي بالمحرك الموحد: يشمل تعديلات الأسعار
+          // المؤرخة والخصومات والتسعير القانوني للليالي (قاعدة 14:01) —
+          // نفس مصدر الحقيقة الوحيد الذي تستهلكه الواجهات والتقارير.
+          try {
+            final engine = EnhancedBookingCalculationService(db);
+            final financials = await engine.calculateFinancials(booking);
+            if (financials.totalDue > 0) {
+              expectedTotal = financials.totalDue.toDouble();
+              derivedByEngine = true;
+            }
+          } catch (e) {
+            dlog(() => 'تعذر اشتقاق المستحق بالمحرك للحجز #${booking.id}: $e');
           }
         }
+      }
 
-        // ✅ إصلاح الخصم المزدوج: الخصم تم حسابه بالفعل في totalNightAmount أعلاه
-        expectedTotal = totalNightAmount;
+      if (expectedTotal != null) {
+        // ✅ إصلاح الخصم المزدوج: الخصم محسوب بالفعل في مصدر المبلغ أعلاه
+        // (الليالي المخزنة أو المحرك — كلاهما يطبق الخصومات والتعديلات).
 
         // الرصيد الموقع يحفظ الفائض كرصيد دائن بدلاً من قصّه إلى صفر.
-        final remainingBalance = (expectedTotal - totalPaid).toDouble();
+        final remainingBalance = expectedTotal - totalPaid;
         final isFullyPaid = remainingBalance <= 0;
 
         if (booking.totalDueCached != expectedTotal ||
             booking.totalPaidCached != totalPaid ||
             booking.remainingBalanceCached != remainingBalance ||
             booking.isFullyPaid != isFullyPaid) {
-          await bookingsDao.updateById(
-            booking.id,
+          final stamp = Time.nowEpoch();
+          // ✅ كتابة مباشرة (لا bookingsDao.updateById الذي يختم lastModified
+          // تلقائياً) — نفس عقيدة recalculateAfterSync: نتائج إعادة الحساب
+          // ليست تعديلات مستخدم ولا تُرفع كذلك.
+          await (db.update(
+            db.bookings,
+          )..where((b) => b.id.equals(booking.id))).write(
             BookingsCompanion(
               totalDueCached: Value(expectedTotal),
               totalPaidCached: Value(totalPaid),
               remainingBalanceCached: Value(remainingBalance),
               isFullyPaid: Value(isFullyPaid),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
+              updatedAt: Value(stamp),
             ),
           );
 
           changes.add(
-            'تحديث المبالغ المخزنة للحجز #${booking.id}: الإجمالي=$expectedTotal, المدفوع=$totalPaid, المتبقي=$remainingBalance',
+            'تحديث المبالغ المخزنة للحجز #${booking.id}: الإجمالي=$expectedTotal, المدفوع=$totalPaid, المتبقي=$remainingBalance'
+            '${derivedByEngine ? ' (مشتق بالمحرك الموحد — لا ليالٍ مخزنة على هذا الجهاز)' : ''}',
           );
           dlog(() => '💰 ${changes.last}');
         }
-
-        if ((totalPaid - expectedTotal).abs() > 0 &&
-            totalPaid != expectedTotal) {
-          await _logChange(
-            fixId: fixId,
-            targetTable: 'payments',
-            targetRecordId: booking.id,
-            fieldName: 'amount_check',
-            oldValue: totalPaid.toString(),
-            newValue: expectedTotal.toString(),
-            reason:
-                'مبلغ الدفع لا يتطابق مع المبلغ المتوقع (${booking.calculatedNights} × ${room.price})',
-            fixType: 'payment_check',
-          );
-          await _logConflict(
-            fixId: fixId,
-            tableName: 'payments',
-            fixType: 'payment_check',
-            localUuid: booking.localUuid,
-            oldData: {'total_paid': totalPaid},
-            newData: {'expected_total': expectedTotal},
-          );
-          final warningMsg =
-              'تنبيه: الحجز #${booking.id} - إجمالي المدفوعات ($totalPaid) لا يتطابق مع المتوقع ($expectedTotal)';
-          changes.add(warningMsg);
-          dlog(() => '⚠️ $warningMsg');
-        }
+      } else if (totalPaid > 0) {
+        // دفعات موجودة ولا يمكن حساب مستحق قانوني (لا ليالٍ ولا سعر غرفة
+        // ولا نطاق تواريخ صالح للمحرك) — شذوذ يُعلن في السجل ولا يُكتب له
+        // مستحق متخيل. هذا استبدال شرط التنبيه الفارغ السابق الذي كان
+        // يصيح لكل حجز غير مسدد بالكامل.
+        await _logConflict(
+          fixId: fixId,
+          tableName: 'payments',
+          fixType: 'unpriceable_payments',
+          localUuid: booking.localUuid,
+          oldData: {'total_paid': totalPaid},
+          newData: {'expected_total': null},
+        );
+        final warningMsg =
+            'تنبيه: الحجز #${booking.id} فيه دفعات ($totalPaid) دون مستحق قابل للحساب — يحتاج مراجعة يدوية';
+        changes.add(warningMsg);
+        dlog(() => '⚠️ $warningMsg');
       }
 
       final debts =
@@ -875,10 +876,11 @@ class RestoreFixService {
       accumulator.paymentsTotal += payment.amount;
     }
 
-    double remaining = totalDue - totalPaid;
-    if (remaining < 0) {
-      remaining = 0;
-    }
+    // ✅ لا قصّ للرصيد الدائن (تأكيد مراجعة 2026-11-23): المتبقي السالف
+    // رصيد دائن للنزيل ويُكتب كما هو — نفس ثابت المحرك الموحد
+    // remaining = due − paid (السلوك القديم كان يصفّره هنا فقط في هذا
+    // المسار بينما مسار الإصلاح الآخر أُصلح في 6835412).
+    final double remaining = totalDue - totalPaid;
 
     final bool isFullyPaid = remaining <= 0;
     final bool isOverdue =
@@ -916,9 +918,10 @@ class RestoreFixService {
         hotelDayCheckin: Value(calculation.hotelDayCheckin),
         hotelDayCheckout: Value(calculation.hotelDayCheckout),
         updatedAt: Value(stamp),
-        lastModified: Value(stamp),
         updatedAtIso: Value(stampIso),
-        lastModifiedEpoch: Value(stamp),
+        // ✅ لا نكتب lastModified في مسار إعادة البناء/الاشتقاق — نفس
+        // عقيدة BookingDerivedFieldsService وrecalculateAfterSync: كتابته
+        // تجعل نتائج إعادة الحساب تبدو تعديلات مستخدم قابلة للرفع.
       ),
     );
 

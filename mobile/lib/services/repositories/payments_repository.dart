@@ -105,13 +105,27 @@ class PaymentsRepository {
         );
   }
 
+  /// ✅ تصنيف اليوم الفندقي في SQL مطابق لـ Dart (HotelTimezone.parseHotelDateTime):
+  /// الطوابع المنتهية بـ Z أو بإزاحة زمنية صريحة (±HH:MM) لحظات مطلقة تُحوَّل
+  /// إلى توقيت الفندق (Asia/Aden = UTC+3 ثابت) قبل المقارنة بحدود اليوم
+  /// الفندقي — بينما الطوابع الخالية من المنطقة الزمنية أصلًا توقيت جداري
+  /// للفندق فتُقارن كما هي. (بند 3.5: كان `datetime(...)` الساذج يقارن
+  /// توقيت UTC الخام بحدود جدارية فيُصنّف 10 سجلات إنتاج يومًا خاطئًا.)
   String _hotelDayPaymentPredicate() =>
       "(hotel_day_key = ? OR ((hotel_day_key IS NULL OR TRIM(hotel_day_key) = '') "
       "AND ((LENGTH(TRIM(payment_date)) <= 10 "
       "AND SUBSTR(TRIM(payment_date), 1, 10) = ?) "
       "OR (LENGTH(TRIM(payment_date)) > 10 "
-      "AND datetime(replace(TRIM(payment_date), ' ', 'T')) >= datetime(?) "
-      "AND datetime(replace(TRIM(payment_date), ' ', 'T')) < datetime(?)))))";
+      "AND (CASE "
+      "WHEN TRIM(payment_date) GLOB '*Z' "
+      "OR TRIM(payment_date) GLOB '*[+-][0-9][0-9]:[0-9][0-9]' "
+      "THEN datetime(replace(TRIM(payment_date), ' ', 'T'), '+3 hours') "
+      "ELSE datetime(replace(TRIM(payment_date), ' ', 'T')) END) >= datetime(?) "
+      "AND (CASE "
+      "WHEN TRIM(payment_date) GLOB '*Z' "
+      "OR TRIM(payment_date) GLOB '*[+-][0-9][0-9]:[0-9][0-9]' "
+      "THEN datetime(replace(TRIM(payment_date), ' ', 'T'), '+3 hours') "
+      "ELSE datetime(replace(TRIM(payment_date), ' ', 'T')) END) < datetime(?)))))";
 
   List<d.Variable<Object>> _hotelDayPaymentVariables(String hotelDayKey) => [
     d.Variable.withString(hotelDayKey),
@@ -306,19 +320,47 @@ class PaymentsRepository {
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
   /// لـ [paymentsByBooking] عندما يحتاج المستهلك فقط للمجموع (مثل قائمة الحجوزات).
   /// يتجنب تحميل جميع صفوف المدفوعات (38 عمود) وفك تشفيرها فقط لجمع `amount`.
-  /// الرصيد الفعلي المدفوع للحجز (للعرض في قائمة الحجوزات) — نفس قاعدة
-  /// المحرك الموحد: غير المحذوفة/الملغاة/المعلّقة، بدون فلتر نوع الإيراد.
+  ///
+  /// ✅ نفس قاعدة المحرك الموحد حرفياً (totalPaymentsForBooking):
+  /// (booking_local_id = ? OR booking_uuid_cache = ?) — فيلتقط الدفعات
+  /// المرتبطة بـ UUID فقط (سحب المزامنة بلا bookingLocalId — نمط الإنتاج
+  /// الموثق: 98/172 دفعة لحجز غرفة 203) — مع الفلاتر الثلاثة:
+  /// غير المحذوفة/الملغاة/المعلّقة، وبدون فلتر نوع الإيراد.
+  /// نراقب صف الحجز نفسه حتى إذا وُجد لاحقاً (بعد استعادة/مزامنة) تنعكس
+  /// هويته فوراً في الاستعلام.
   Stream<double> watchTotalPaidForBooking(int bookingLocalId) {
-    return db
-        .customSelect(
-          'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0 '
-          'AND is_pending_balance = 0 AND booking_local_id = ?',
-          variables: [d.Variable.withInt(bookingLocalId)],
-          readsFrom: {db.payments},
-        )
-        .watchSingle()
-        .map((result) => (result.data['total'] as num).toDouble());
+    final bookingStream =
+        (db.select(
+              db.bookings,
+            )..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
+
+    return bookingStream.asyncExpand((booking) {
+      final variables = <d.Variable<Object>>[
+        d.Variable.withInt(bookingLocalId),
+      ];
+      var uuidFilter = '';
+      if (booking != null && booking.localUuid.isNotEmpty) {
+        // ✅ الصيغتان معاً دائماً: كما خُزن وبالمطبّعة بلا شرطات (تطبيع
+        // BaseRepository) — كي يلتقط الدفعات أياً كان تنسيق أي الطرفين.
+        uuidFilter = ' OR booking_uuid_cache = ? OR booking_uuid_cache = ?';
+        variables
+          ..add(d.Variable.withString(booking.localUuid))
+          ..add(
+            d.Variable.withString(booking.localUuid.replaceAll('-', '')),
+          );
+      }
+      return db
+          .customSelect(
+            'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+            'WHERE deleted_at IS NULL AND is_voided = 0 '
+            'AND is_pending_balance = 0 '
+            'AND (booking_local_id = ?$uuidFilter)',
+            variables: variables,
+            readsFrom: {db.payments},
+          )
+          .watchSingle()
+          .map((result) => (result.data['total'] as num).toDouble());
+    });
   }
 
   Future<int> create({

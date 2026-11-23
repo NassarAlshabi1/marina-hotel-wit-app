@@ -704,14 +704,57 @@ class EnhancedBookingCalculationService {
     }
 
     Future<void> doWrite() async {
-      if (shouldRebuild) {
-        await (db.delete(
-          db.bookingNights,
-        )..where((n) => n.bookingLocalId.equals(booking.id))).go();
+      if (!shouldRebuild) {
+        // ✅ لا فرق بين المخزون والناتج — لا كتابة إطلاقاً. (الكود القديم
+        // كان يعيد الإدراج بمعرفات UUID جديدة حتى دون أي تغيير — ثقلُ
+        // مزامنة واضطرابُ هوية بلا داعٍ.)
+        return;
+      }
+      // ✅ استقرار هوية الليالي (بند 3.3 من التدقيق): لا حذف جذري وإعادة
+      // إدراج بمعرفات UUID جديدة عند كل إعادة حساب. المنطق الجديد:
+      //   ① ليلة موجودة بنفس اليوم الفندقي → تحديث في المكان محافظاً على
+      //      localUuid/origin/createdAt (نفس نمط refreshCompletedStay)
+      //   ② ليلة جديدة في الناتج → إدراج بمعرف جديد (origin: derived)
+      //   ③ ليلة زائدة لم تعد في الناتج → حذف ناعم (deletedAt) + قبر
+      //      مُزامَن عبر outbox (op=delete — آلية tombstone القائمة في
+      //      _processBookingNightEntry) بدل الحذف الجذري الصامت الذي لا
+      //      تعرف السحابة بحدوثه إطلاقاً.
+      final existing =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where((n) => n.deletedAt.isNull()))
+              .get();
+      final existingByDay = {for (final n in existing) n.hotelDayKey: n};
+      final breakdownDays = breakdown.map((n) => n.hotelDayKey).toSet();
+
+      // ③ الليالي الزائدة → حذف ناعم + قبر مُزامَن
+      for (final night in existing) {
+        if (breakdownDays.contains(night.hotelDayKey)) {
+          continue;
+        }
+        await (db.update(db.bookingNights)
+              ..where((n) => n.localUuid.equals(night.localUuid)))
+            .write(
+          BookingNightsCompanion(
+            deletedAt: d.Value(stamp),
+            updatedAt: d.Value(stamp),
+            // lastModified يُحدَّث ليتنامَن القبر عبر delta sync وoutbox
+            lastModified: d.Value(stamp),
+            lastModifiedEpoch: d.Value(stamp),
+          ),
+        );
+        await _outboxDao.merge(
+          entity: 'booking_nights',
+          op: 'delete',
+          localUuid: night.localUuid,
+          serverId: night.serverId,
+          payload: night.toJson(),
+          clientTs: stamp,
+        );
       }
 
       int sequence = 0;
-      await db.batch((batch) {
+      await db.batch((batch) async {
         for (final night in breakdown) {
           sequence += 1;
           final appliedJson = night.appliedAdjustments.isEmpty
@@ -723,34 +766,58 @@ class EnhancedBookingCalculationService {
               ? night.appliedAdjustments.first.uuid
               : null;
 
-          batch.insert(
-            db.bookingNights,
-            BookingNightsCompanion(
-              localUuid: d.Value(IdGen.uuid()),
-              createdAt: d.Value(stamp),
-              updatedAt: d.Value(stamp),
-              lastModified: d.Value(stamp),
-              createdAtIso: d.Value(stampIso),
-              updatedAtIso: d.Value(stampIso),
-              createdAtEpoch: d.Value(stamp),
-              lastModifiedEpoch: d.Value(stamp),
-              origin: const d.Value('derived'),
-              bookingLocalId: d.Value(booking.id),
-              bookingUuidCache: d.Value(booking.localUuid),
-              hotelDayKey: d.Value(night.hotelDayKey),
-              nightStart: d.Value(night.nightStart.toIso8601String()),
-              nightEnd: d.Value(night.nightEnd.toIso8601String()),
-              nightlyRate: d.Value(night.finalRate.toDouble()),
-              baseRate: d.Value(night.baseRate.toDouble()),
-              adjustment: d.Value(night.adjustmentAmount.toDouble()),
-              finalRate: d.Value(night.finalRate.toDouble()),
-              appliedAdjustmentUuid: d.Value(appliedUuid),
-              appliedAdjustmentsJson: d.Value(appliedJson),
-              sequence: d.Value(sequence),
-              isProcessedByAutoFix: const d.Value(false),
-            ),
-            mode: d.InsertMode.insertOrReplace,
-          );
+          final current = existingByDay[night.hotelDayKey];
+          if (current != null) {
+            // ① تحديث في المكان — نفس المعرف والهوية وتاريخ الإنشاء الأصلي.
+            // (خارج batch: تحديث مع شرط where يحتاج المسماة في drift)
+            await (db.update(db.bookingNights)
+                  ..where((n) => n.localUuid.equals(current.localUuid)))
+                .write(
+              BookingNightsCompanion(
+                updatedAt: d.Value(stamp),
+                updatedAtIso: d.Value(stampIso),
+                lastModified: d.Value(stamp),
+                lastModifiedEpoch: d.Value(stamp),
+                nightlyRate: d.Value(night.finalRate.toDouble()),
+                baseRate: d.Value(night.baseRate.toDouble()),
+                adjustment: d.Value(night.adjustmentAmount.toDouble()),
+                finalRate: d.Value(night.finalRate.toDouble()),
+                appliedAdjustmentUuid: d.Value(appliedUuid),
+                appliedAdjustmentsJson: d.Value(appliedJson),
+                sequence: d.Value(sequence),
+              ),
+            );
+          } else {
+            // ② ليلة جديدة — إدراج بمعرف جديد
+            batch.insert(
+              db.bookingNights,
+              BookingNightsCompanion(
+                localUuid: d.Value(IdGen.uuid()),
+                createdAt: d.Value(stamp),
+                updatedAt: d.Value(stamp),
+                lastModified: d.Value(stamp),
+                createdAtIso: d.Value(stampIso),
+                updatedAtIso: d.Value(stampIso),
+                createdAtEpoch: d.Value(stamp),
+                lastModifiedEpoch: d.Value(stamp),
+                origin: const d.Value('derived'),
+                bookingLocalId: d.Value(booking.id),
+                bookingUuidCache: d.Value(booking.localUuid),
+                hotelDayKey: d.Value(night.hotelDayKey),
+                nightStart: d.Value(night.nightStart.toIso8601String()),
+                nightEnd: d.Value(night.nightEnd.toIso8601String()),
+                nightlyRate: d.Value(night.finalRate.toDouble()),
+                baseRate: d.Value(night.baseRate.toDouble()),
+                adjustment: d.Value(night.adjustmentAmount.toDouble()),
+                finalRate: d.Value(night.finalRate.toDouble()),
+                appliedAdjustmentUuid: d.Value(appliedUuid),
+                appliedAdjustmentsJson: d.Value(appliedJson),
+                sequence: d.Value(sequence),
+                isProcessedByAutoFix: const d.Value(false),
+              ),
+              mode: d.InsertMode.insertOrReplace,
+            );
+          }
         }
       });
     }

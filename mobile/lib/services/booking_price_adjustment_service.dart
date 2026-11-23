@@ -10,6 +10,7 @@ import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'stay_balance_calculator.dart';
 
 enum AdjustmentType {
   discount(0),
@@ -453,6 +454,156 @@ class BookingPriceAdjustmentService {
     );
   }
 
+  /// ✅ قاعدة الفندق المُثبتة (تأكيد المالك 2026-11-23): «لا ليالٍ مجانية»
+  /// — أي خصم (per_night أو توزيع total) يجعل السعر الفعلي لأي ليلة في
+  /// نطاقه ≤ 0 يُرفض عند الإدخال برسالة صريحة للمستخدم. الزيادات
+  /// (surcharges) لا يمكنها تصفير ليلة فلا يفحصها هذا الحارس.
+  ///
+  /// المحاكاة بنفس منطق الحاسبة الموحدة (StayBalanceCalculator.
+  /// buildPerNightAdjustments): سعر الغرفة الأساسي − الخصم الليلي القديم
+  /// (booking.discount غير الكلي) + خريطة كل التعديلات النشطة (بعد إضافة
+  /// التعديل قيد الإنشاء/التعديل). حارس الحساب (anomalyNights) يبقى خط
+  /// الدفاع الثاني لأي بيانات قديمة/مسحوبة.
+  Future<void> _assertNoFreeNights({
+    required Booking booking,
+    required int amount,
+    required AdjustmentType type,
+    required AdjustmentMode mode,
+    required String effectiveHotelDay,
+    String? endHotelDay,
+    String? excludingAdjustmentUuid,
+  }) async {
+    if (type != AdjustmentType.discount) {
+      return; // الزيادات لا تصفّر ليالٍ
+    }
+    if (amount <= 0) {
+      return; // ترفضه تحققات أسبق
+    }
+
+    // 1) السعر الأساسي — نفس مصدر المحرك الموحد (سعر الغرفة)
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.roomNumber.equals(booking.roomNumber))
+          ..where((r) => r.deletedAt.isNull()))
+        .getSingleOrNull();
+    final baseRate = (room?.price ?? 0).round();
+    if (baseRate <= 0) {
+      // لا يمكن التحقق دون سعر أساسي — حارس الحساب سيلتقطه عند التنفيذ
+      return;
+    }
+
+    // 2) نطاق الإقامة للفحص والتوزيع
+    final checkin = DateTime.tryParse(booking.checkinDate);
+    if (checkin == null) {
+      return;
+    }
+    final checkinOnly = DateTime(checkin.year, checkin.month, checkin.day);
+    final recordedCheckout = (booking.actualCheckout != null &&
+            booking.actualCheckout!.isNotEmpty)
+        ? DateTime.tryParse(booking.actualCheckout!)
+        : null;
+    final manualCheckout = (booking.checkoutDate != null &&
+            booking.checkoutDate!.isNotEmpty)
+        ? DateTime.tryParse(booking.checkoutDate!)
+        : null;
+    final now = DateTime.now();
+    DateTime hotelDayDate(DateTime instant) => DateTime.parse(
+          HotelTimeEngine.getHotelDayKey(dateTime: instant),
+        );
+    final distributionEnd = recordedCheckout != null &&
+            !recordedCheckout.isAfter(now)
+        ? hotelDayDate(recordedCheckout)
+        : hotelDayDate(now);
+
+    // 3) التعديلات النشطة الحالية (مع استثناء قيد التعديل)
+    final actives = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) =>
+              a.bookingLocalUuid.equals(booking.localUuid) |
+              a.bookingLocalId.equals(booking.id))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull()))
+        .get();
+    final relevant = actives
+        .where((a) => a.localUuid != excludingAdjustmentUuid)
+        .toList();
+
+    // 4) خريطة لكل ليلة بنفس منطق الحاسبة الموحدة + التعديل الجديد فوقها
+    // (نسخة قابلة للتعديل: الدالة قد تعيد const {} عند فراغ القائمة)
+    final map = Map<String, double>.from(
+      StayBalanceCalculator.buildPerNightAdjustments(
+        relevant,
+        checkinOnly,
+        manualCheckout,
+        distributionEnd: distributionEnd,
+      ),
+    );
+    final effDate = DateTime.tryParse(effectiveHotelDay);
+    if (effDate != null) {
+      final effOnly = DateTime(effDate.year, effDate.month, effDate.day);
+      final endParsed = (endHotelDay != null && endHotelDay.isNotEmpty)
+          ? DateTime.tryParse(endHotelDay)
+          : null;
+      final endOnly = endParsed != null
+          ? DateTime(endParsed.year, endParsed.month, endParsed.day)
+          : null;
+      if (mode == AdjustmentMode.total) {
+        final rangeStart =
+            effOnly.isBefore(checkinOnly) ? checkinOnly : effOnly;
+        final rangeEnd = (endOnly != null && endOnly.isBefore(distributionEnd))
+            ? endOnly
+            : distributionEnd;
+        int nights = rangeEnd.difference(rangeStart).inDays + 1;
+        if (nights > 0) {
+          if (nights > 365) nights = 365;
+          final basePart = amount ~/ nights;
+          final remainder = amount % nights;
+          for (int i = 0; i < nights; i++) {
+            final key =
+                Time.dateToString(rangeStart.add(Duration(days: i)));
+            map[key] = (map[key] ?? 0.0) -
+                (basePart + (i < remainder ? 1 : 0)).toDouble();
+          }
+        }
+      } else {
+        final perNightEnd = endOnly ??
+            manualCheckout ??
+            checkinOnly.add(const Duration(days: 365));
+        DateTime night = effOnly;
+        int safety = 0;
+        while (!night.isAfter(perNightEnd) && safety < 365) {
+          final key = Time.dateToString(night);
+          map[key] = (map[key] ?? 0.0) - amount.toDouble();
+          night = night.add(const Duration(days: 1));
+          safety++;
+        }
+      }
+    }
+
+    // 5) الخصم الليلي القديم (booking.discount غير الكلي) يخفض السعر الأساسي
+    final legacyPerNight =
+        booking.discountType != 'total' ? booking.discount.round() : 0;
+    final effectiveBase = baseRate - legacyPerNight;
+
+    // 6) أي ليلة يصبح سعرها الفعلي ≤ 0 → رفض صريح (لا مجانية ولا عبور)
+    final violating = <String>[];
+    for (final entry in map.entries) {
+      final adjSum = entry.value;
+      if (adjSum >= 0) continue; // لا خصم صافياً على هذه الليلة
+      if (effectiveBase + adjSum <= 0) {
+        violating.add(entry.key);
+      }
+    }
+    if (violating.isNotEmpty) {
+      violating.sort();
+      final shown = violating.take(3).join('، ');
+      throw ArgumentError(
+        'قاعدة الفندق: لا ليالٍ مجانية إطلاقاً — هذا الخصم يجعل السعر الفعلي '
+        'لليالٍ ($shown${violating.length > 3 ? ' و${violating.length - 3} أخرى' : ''}) '
+        'صفراً أو أقل (السعر الأساسي الفعلي $effectiveBase). '
+        'خفّض قيمة الخصم أو قصّر نطاقه.',
+      );
+    }
+  }
+
   /// النواة المشتركة لإنشاء سجل تعديل سعر: تعبئة كل الأعمدة الإلزامية،
   /// تسجيل Outbox للمزامنة، إعادة تسعير الليالي، والنسخ الاحتياطي.
   /// يستخدمها مسار شاشة إدارة الضيوف (applyTemporaryAdjustment) ومسار
@@ -471,6 +622,17 @@ class BookingPriceAdjustmentService {
     final bookingLocalUuid = booking.localUuid;
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
+
+    // ✅ قاعدة «لا ليالٍ مجانية» (تأكيد المالك 2026-11-23): منع عند
+    // الإدخال — رفض أي خصم يصفّر ليلة داخل نطاقه برسالة صريحة.
+    await _assertNoFreeNights(
+      booking: booking,
+      amount: amount,
+      type: type,
+      mode: mode,
+      effectiveHotelDay: effectiveHotelDay,
+      endHotelDay: endHotelDay,
+    );
 
     final adjustment = BookingPriceAdjustmentsCompanion(
       localUuid: Value(uuid),
@@ -592,6 +754,25 @@ class BookingPriceAdjustmentService {
             '($proposedTotal > $maxNegotiatedPerNightIncrease ريال)',
           );
         }
+      }
+
+      // ✅ قاعدة «لا ليالٍ مجانية» (تأكيد المالك 2026-11-23): منع عند
+      // الإدخال في مسار التعديل أيضاً — التحقق بالقيم الجديدة مع استثناء
+      // التعديل القديم من الحساب (سيُستبدل).
+      final linkedBooking = await (db.select(
+            db.bookings,
+          )..where((b) => b.localUuid.equals(adjustment.bookingLocalUuid)))
+          .getSingleOrNull();
+      if (linkedBooking != null) {
+        await _assertNoFreeNights(
+          booking: linkedBooking,
+          amount: amount,
+          type: AdjustmentType.fromValue(adjustment.adjustmentType ?? 0),
+          mode: mode,
+          effectiveHotelDay: effectiveHotelDay,
+          endHotelDay: adjustment.endHotelDay,
+          excludingAdjustmentUuid: adjustment.localUuid,
+        );
       }
 
       final update = BookingPriceAdjustmentsCompanion(

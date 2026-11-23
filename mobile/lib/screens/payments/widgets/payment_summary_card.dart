@@ -217,9 +217,45 @@ class PaymentSummaryCard extends StatelessWidget {
                   final extra = balanceResult.isAutoExtended
                       ? ' (+${balanceResult.extraNightsBeyondManual})'
                       : '';
-                  return Text(
-                    'المدفوع يغطي حتى: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'المدفوع يغطي حتى: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      // ✅ قاعدة «لا ليالٍ مجانية» (تأكيد المالك
+                      // 2026-11-23): شذوذ السعر الصفري يُعلن صريحاً ولا
+                      // يُكسر العدّ بصمت.
+                      if (balanceResult.hasAnomaly)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                size: 11,
+                                color: Colors.orange,
+                              ),
+                              const SizedBox(width: 3),
+                              Expanded(
+                                child: Text(
+                                  balanceResult.anomalyReason ??
+                                      'شذوذ: ليلة بسعر صفري (لا ليالٍ مجانية)',
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   );
                 },
               ),

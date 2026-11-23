@@ -6,7 +6,7 @@ import 'hotel_timezone.dart';
 /// **مبدأ التصميم:**
 /// - لا يخزن أي قيمة — يحسب فقط
 /// - كل حسابات الليالي والمبالغ تمر من هنا
-/// - يُستخدم مباشرة من UI عبر BookingComputedStreamService
+/// - يُستهلك من المحرك الموحد (EnhancedBookingCalculationService) وحاسبة الرصيد
 /// - لا يعتمد على أي حقل محسوب في قاعدة البيانات
 ///
 /// **قاعدة 14:01:**
@@ -357,7 +357,7 @@ class HotelTimeEngine {
   ///
   /// تُستخدم في:
   /// - Appwrite Delta Sync: حذفها قبل الدفع (push)
-  /// - BookingComputedStreamService: تجاهلها عند القراءة
+  /// - المحرك الموحد عند إعادة الاشتقاق: تجاهلها
   static const bookingComputedFields = <String>{
     'calculatedNights',
     'totalNightsCached',
