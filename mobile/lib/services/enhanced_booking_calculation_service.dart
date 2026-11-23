@@ -259,6 +259,8 @@ class EnhancedBookingCalculationService {
     final legacyDiscount = booking.discountType == 'total'
         ? 0
         : _asInt(booking.discount);
+    final hasCurrentAdjustmentSource =
+        adjustments.isNotEmpty || legacyDiscount > 0;
     final legacyDiscountStart = _parseDateTime(booking.discountStartDate);
     final segments = <_NightSegment>[
       for (final night in nights)
@@ -289,47 +291,55 @@ class EnhancedBookingCalculationService {
               legacyDiscount: legacyDiscount,
               legacyDiscountStart: legacyDiscountStart,
             );
-      final finalRate = (baseRate + nightAdjustments.total).clamp(
-        0,
-        baseRate * 100,
-      );
+      // When no active adjustment source exists, the stored per-night
+      // adjustment is historical data from the synced night itself. Do not
+      // erase it during a pull-triggered refresh merely because its source
+      // record has not arrived (or is not modeled on this device).
+      final adjustmentTotal = hasCurrentAdjustmentSource
+          ? nightAdjustments.total
+          : night.adjustment.round();
+      final applied = hasCurrentAdjustmentSource
+          ? nightAdjustments.applied
+          : <AppliedAdjustment>[];
+      final finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 100);
       breakdown.add(
         NightlyBreakdown(
           hotelDayKey: night.hotelDayKey,
           nightStart: segment.start,
           nightEnd: segment.end,
           baseRate: baseRate,
-          adjustmentAmount: nightAdjustments.total,
+          adjustmentAmount: adjustmentTotal,
           finalRate: finalRate,
-          appliedAdjustments: nightAdjustments.applied,
+          appliedAdjustments: applied,
         ),
       );
 
       final unchanged =
           night.finalRate.round() == finalRate &&
           night.nightlyRate.round() == finalRate &&
-          night.adjustment.round() == nightAdjustments.total &&
+          night.adjustment.round() == adjustmentTotal &&
           night.baseRate.round() == baseRate;
       if (unchanged) {
         continue;
       }
-      final applied = nightAdjustments.applied;
       await (db.update(
         db.bookingNights,
       )..where((n) => n.id.equals(night.id))).write(
         BookingNightsCompanion(
           baseRate: d.Value(baseRate.toDouble()),
-          adjustment: d.Value(nightAdjustments.total.toDouble()),
+          adjustment: d.Value(adjustmentTotal.toDouble()),
           finalRate: d.Value(finalRate.toDouble()),
           nightlyRate: d.Value(finalRate.toDouble()),
-          appliedAdjustmentUuid: d.Value(
-            applied.length == 1 ? applied.first.uuid : null,
-          ),
-          appliedAdjustmentsJson: d.Value(
-            applied.isEmpty
-                ? null
-                : jsonEncode(applied.map((a) => a.toJson()).toList()),
-          ),
+          appliedAdjustmentUuid: hasCurrentAdjustmentSource
+              ? d.Value(applied.length == 1 ? applied.first.uuid : null)
+              : const d.Value.absent(),
+          appliedAdjustmentsJson: hasCurrentAdjustmentSource
+              ? d.Value(
+                  applied.isEmpty
+                      ? null
+                      : jsonEncode(applied.map((a) => a.toJson()).toList()),
+                )
+              : const d.Value.absent(),
           updatedAt: d.Value(stamp),
           updatedAtIso: d.Value(stampIso),
           // A pull-triggered refresh must not make derived rows look like
@@ -740,9 +750,9 @@ class EnhancedBookingCalculationService {
         if (breakdownDays.contains(night.hotelDayKey)) {
           continue;
         }
-        await (db.update(db.bookingNights)
-              ..where((n) => n.localUuid.equals(night.localUuid)))
-            .write(
+        await (db.update(
+          db.bookingNights,
+        )..where((n) => n.localUuid.equals(night.localUuid))).write(
           BookingNightsCompanion(
             deletedAt: d.Value(stamp),
             updatedAt: d.Value(stamp),
@@ -797,9 +807,9 @@ class EnhancedBookingCalculationService {
             }
             // ① تحديث في المكان — نفس المعرف والهوية وتاريخ الإنشاء الأصلي (مع إحياء إن كان محذوفاً ناعماً).
             // (خارج batch: تحديث مع شرط where يحتاج المسماة في drift)
-            await (db.update(db.bookingNights)
-                  ..where((n) => n.localUuid.equals(current.localUuid)))
-                .write(
+            await (db.update(
+              db.bookingNights,
+            )..where((n) => n.localUuid.equals(current.localUuid))).write(
               BookingNightsCompanion(
                 deletedAt: const d.Value(null),
                 deletedAtIso: const d.Value(null),

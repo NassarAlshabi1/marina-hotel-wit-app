@@ -59,7 +59,8 @@ void main() {
               // ✅ حجز نشط حديث (بلا مغادرة مسجلة) — المحرك الموحد هو
               // مصدر المستحق الوحيد ويحاسب النشط حتى اللحظة (عقيدة ديناميكية).
               checkinDate: Value(
-                DateTime.now().subtract(const Duration(days: 2, hours: 9))
+                DateTime.now()
+                    .subtract(const Duration(days: 2, hours: 9))
                     .toIso8601String(),
               ),
               status: const Value('نشط'),
@@ -75,10 +76,9 @@ void main() {
       final engine = EnhancedBookingCalculationService(database);
       final expectedDue = (await engine.calculateFinancials(
         await (database.select(
-              database.bookings,
-            )..where((b) => b.id.equals(bookingId))).getSingle(),
-      ))
-          .totalDue;
+          database.bookings,
+        )..where((b) => b.id.equals(bookingId))).getSingle(),
+      )).totalDue;
       expect(expectedDue, greaterThan(0));
       await database
           .into(database.payments)
@@ -122,8 +122,11 @@ void main() {
       final debt = await (database.select(
         database.debts,
       )..where((d) => d.localUuid.equals(debtUuid))).getSingle();
-      expect(debt.totalAmount, closeTo(expectedDue.toDouble(), 0.01),
-          reason: 'المستحق من المحرك الموحد — لا تقدير يدوي');
+      expect(
+        debt.totalAmount,
+        closeTo(expectedDue.toDouble(), 0.01),
+        reason: 'المستحق من المحرك الموحد — لا تقدير يدوي',
+      );
       expect(debt.paidAmount, closeTo(expectedDue.toDouble(), 0.01));
       expect(debt.remainingAmount, closeTo(0.0, 0.01));
       expect(debt.isSettled, equals(1));
@@ -526,7 +529,7 @@ void main() {
                 guestName: 'نزيل خروج مستقبلي',
                 guestPhone: '777',
                 guestNationality: 'يمني',
-                checkinDate: '2026-10-01T14:00:00',
+                checkinDate: '2026-10-01T15:00:00',
                 checkoutDate: const Value('2026-10-10T14:00:00'),
                 actualCheckout: const Value('2026-10-10T14:00:00'),
                 status: 'محجوزة',
@@ -540,7 +543,7 @@ void main() {
         )..where((b) => b.id.equals(futureCheckoutBookingId))).getSingle();
         final guestCalc = await GuestPaymentCalculationService(
           db,
-        ).calculateForBooking(futureBooking, now: DateTime(2026, 10, 3, 15));
+        ).calculateForBooking(futureBooking, now: DateTime(2026, 10, 3, 14));
         expect(
           guestCalc.actualDaysSpent,
           equals(2),

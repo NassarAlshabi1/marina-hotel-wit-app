@@ -474,7 +474,7 @@ void main() {
               guestName: 'نزيل المزامنة',
               guestPhone: '777000111',
               guestNationality: 'يمني',
-              checkinDate: '2026-11-01T14:00:00',
+              checkinDate: '2026-11-01T14:01:00',
               checkoutDate: const drift.Value('2026-11-03T14:00:00'),
               actualCheckout: const drift.Value('2026-11-03T14:00:00'),
               status: 'مكتمل',
@@ -520,7 +520,7 @@ void main() {
           'localUuid': 'void-sync-101',
           'originalPaymentId': 1,
           'originalPaymentUuid': 'payment-sync-101',
-          'amount': 15000.0,
+          'voidedAmount': 15000.0,
           'voidReason': 'إلغاء اختباري',
           'voidedBy': 'admin',
           'voidedAt': _kBaseEpochSec + 20,
@@ -555,6 +555,38 @@ void main() {
     () async {
       const dashedUuid = '621b28eb-87dd-429b-9f12-fe19c18f17df';
       const compactUuid = '621b28eb87dd429b9f12fe19c18f17df';
+      await db
+          .into(db.rooms)
+          .insert(
+            RoomsCompanion.insert(
+              localUuid: 'room-night-sync-102',
+              roomNumber: '102',
+              type: 'single',
+              price: 10000,
+              status: 'شغور',
+              createdAt: _kBaseEpochSec,
+              updatedAt: _kBaseEpochSec,
+              lastModified: _kBaseEpochSec,
+            ),
+          );
+      await db
+          .into(db.bookings)
+          .insert(
+            BookingsCompanion.insert(
+              localUuid: 'booking-night-sync-101',
+              roomNumber: '102',
+              guestName: 'نزيل دمج الليالي',
+              guestPhone: '777000112',
+              guestNationality: 'غير محدد',
+              checkinDate: '2026-11-01T15:00:00',
+              checkoutDate: const drift.Value('2026-11-02T14:00:00'),
+              actualCheckout: const drift.Value('2026-11-02T14:00:00'),
+              status: 'مكتمل',
+              createdAt: _kBaseEpochSec,
+              updatedAt: _kBaseEpochSec,
+              lastModified: _kBaseEpochSec,
+            ),
+          );
       final nightUuidA = IdGen.bookingNightUuid(dashedUuid, '2026-11-01');
       final nightUuidB = IdGen.bookingNightUuid(compactUuid, '2026-11-01');
       expect(
@@ -569,7 +601,7 @@ void main() {
         collectionId: 'booking_nights',
         data: {
           'localUuid': 'dup-night-newer',
-          'bookingUuidCache': 'booking-sync-101',
+          'bookingUuidCache': 'booking-night-sync-101',
           'hotelDayKey': '2026-11-01',
           'nightStart': '2026-11-01T14:00:00',
           'nightEnd': '2026-11-02T14:00:00',
@@ -589,7 +621,7 @@ void main() {
         collectionId: 'booking_nights',
         data: {
           'localUuid': 'dup-night-older',
-          'bookingUuidCache': 'booking-sync-101',
+          'bookingUuidCache': 'booking-night-sync-101',
           'hotelDayKey': '2026-11-01',
           'nightStart': '2026-11-01T14:00:00',
           'nightEnd': '2026-11-02T14:00:00',
@@ -609,6 +641,14 @@ void main() {
         newerNightDoc,
         olderNightDoc,
       ]);
+      final nightsAfterFirstBatch = await (db.select(
+        db.bookingNights,
+      )..where((n) => n.hotelDayKey.equals('2026-11-01'))).get();
+      expect(
+        nightsAfterFirstBatch.single.finalRate,
+        closeTo(8500.0, 0.01),
+        reason: 'عند وصول التكرارين معاً يجب أن يفوز lastModified الأحدث',
+      );
 
       // وحتى لو وصل المستند القديم بمعرّف مختلف في دورة سحب لاحقة منفصلة، لا يطغى على السجل المحلي الأحدث
       await manager.applyBookingNightsForTesting([olderNightDoc]);
@@ -624,7 +664,8 @@ void main() {
       expect(
         nightsForDay.first.finalRate,
         closeTo(8500.0, 0.01),
-        reason: 'المستند الأحدث زمنياً هو الذي يبقى ولا يطغى عليه المكرر الأقدم',
+        reason:
+            'المستند الأحدث زمنياً هو الذي يبقى ولا يطغى عليه المكرر الأقدم',
       );
     },
   );
