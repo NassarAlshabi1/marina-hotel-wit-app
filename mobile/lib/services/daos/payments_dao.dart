@@ -493,35 +493,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
 
       for (final paymentJson in data) {
         final payment = Payment.fromJson(paymentJson);
-        await into(payments).insertOnConflictUpdate(
-          PaymentsCompanion(
-            serverPaymentId: Value(payment.serverPaymentId),
-            bookingLocalId: Value(payment.bookingLocalId),
-            serverBookingId: Value(payment.serverBookingId),
-            roomNumber: Value(payment.roomNumber),
-            amount: Value(payment.amount),
-            paymentDate: Value(payment.paymentDate),
-            notes: Value(payment.notes),
-            paymentMethod: Value(payment.paymentMethod),
-            revenueType: Value(payment.revenueType),
-            hotelDayKey: Value(payment.hotelDayKey),
-            linkedDebtUuid: Value(payment.linkedDebtUuid),
-            bookingUuidCache: Value(payment.bookingUuidCache),
-            cashTransactionLocalId: Value(payment.cashTransactionLocalId),
-            cashTransactionServerId: Value(payment.cashTransactionServerId),
-            localUuid: Value(payment.localUuid),
-            serverId: Value(payment.serverId),
-            createdAt: Value(payment.createdAt),
-            updatedAt: Value(payment.updatedAt),
-            deletedAt: Value(payment.deletedAt),
-            lastModified: Value(payment.lastModified),
-            version: Value(payment.version),
-            origin: Value(payment.origin),
-            receivedByUserId: Value(payment.receivedByUserId),
-            receivedByName: Value(payment.receivedByName),
-            receivedSessionUuid: Value(payment.receivedSessionUuid),
-          ),
-        );
+        // ✅ (2026-11-23) استيراد كامل الحقول بدل قائمة مختارة:
+        // القائمة اليدوية كانت تُسقط أعمدة حرجة (isVoided/voidReason في المدفوعات،
+        // amount/status/dueDate/isSettled في الديون، id/cleaningStatus في الغرف…)
+        // فتعود النسخة الاحتياطية منقوصة: دفعات ملغاة تُحتسب مدفوعة، ديون بمبلغ
+        // صفر، وأبناء مربوطون بمعرّفات آباء أُعيد ترقيمها. toCompanion(false)
+        // يكتب كل الأعمدة كما هي (بما فيها id) فلا يُسقَط عمود جديد لاحقاً.
+        await into(payments).insertOnConflictUpdate(payment.toCompanion(false));
       }
     });
   }

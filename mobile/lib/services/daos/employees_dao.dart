@@ -323,26 +323,10 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
 
       for (final employeeJson in data) {
         final employee = Employee.fromJson(employeeJson);
-        await into(employees).insertOnConflictUpdate(
-          EmployeesCompanion(
-            name: Value(employee.name),
-            basicSalary: Value(employee.basicSalary),
-            position: Value(employee.position),
-            phone: Value(employee.phone),
-            hireDate: Value(employee.hireDate),
-            status: Value(employee.status),
-            terminationDate: Value(employee.terminationDate),
-            terminationReason: Value(employee.terminationReason),
-            localUuid: Value(employee.localUuid),
-            serverId: Value(employee.serverId),
-            createdAt: Value(employee.createdAt),
-            updatedAt: Value(employee.updatedAt),
-            deletedAt: Value(employee.deletedAt),
-            lastModified: Value(employee.lastModified),
-            version: Value(employee.version),
-            origin: Value(employee.origin),
-          ),
-        );
+        // ✅ (2026-11-23) استيراد كامل الحقول بدل قائمة مختارة:
+        // كان يُسقط expenseKind/employeeUuid/withdrawalUuid/hotelDayKey في المصروفات،
+        // وemployeeID في الموظفين، وid وiso/epoch في الكل — انظر تقرير §14.
+        await into(employees).insertOnConflictUpdate(employee.toCompanion(false));
       }
     });
   }

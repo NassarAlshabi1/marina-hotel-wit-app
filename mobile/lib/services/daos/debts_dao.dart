@@ -250,29 +250,13 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       }
       for (final json in data) {
         final entity = Debt.fromJson(json);
-        await into(debts).insertOnConflictUpdate(
-          DebtsCompanion(
-            bookingLocalId: Value(entity.bookingLocalId),
-            guestName: Value(entity.guestName),
-            checkinDate: Value(entity.checkinDate),
-            checkoutDate: Value(entity.checkoutDate),
-            totalAmount: Value(entity.totalAmount),
-            paidAmount: Value(entity.paidAmount),
-            remainingAmount: Value(entity.remainingAmount),
-            paymentDate: Value(entity.paymentDate),
-            pledge: Value(entity.pledge),
-            pledgeType: Value(entity.pledgeType),
-            note: Value(entity.note),
-            localUuid: Value(entity.localUuid),
-            serverId: Value(entity.serverId),
-            createdAt: Value(entity.createdAt),
-            updatedAt: Value(entity.updatedAt),
-            deletedAt: Value(entity.deletedAt),
-            lastModified: Value(entity.lastModified),
-            version: Value(entity.version),
-            origin: Value(entity.origin),
-          ),
-        );
+        // ✅ (2026-11-23) استيراد كامل الحقول بدل قائمة مختارة:
+        // القائمة اليدوية كانت تُسقط أعمدة حرجة (isVoided/voidReason في المدفوعات،
+        // amount/status/dueDate/isSettled في الديون، id/cleaningStatus في الغرف…)
+        // فتعود النسخة الاحتياطية منقوصة: دفعات ملغاة تُحتسب مدفوعة، ديون بمبلغ
+        // صفر، وأبناء مربوطون بمعرّفات آباء أُعيد ترقيمها. toCompanion(false)
+        // يكتب كل الأعمدة كما هي (بما فيها id) فلا يُسقَط عمود جديد لاحقاً.
+        await into(debts).insertOnConflictUpdate(entity.toCompanion(false));
       }
     });
   }

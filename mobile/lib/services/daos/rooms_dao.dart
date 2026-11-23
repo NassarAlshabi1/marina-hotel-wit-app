@@ -256,23 +256,13 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
 
     for (final roomJson in data) {
       final room = Room.fromJson(roomJson);
-      await into(rooms).insertOnConflictUpdate(
-        RoomsCompanion(
-          roomNumber: Value(room.roomNumber),
-          type: Value(room.type),
-          price: Value(room.price),
-          status: Value(room.status),
-          imageUrl: Value(room.imageUrl),
-          localUuid: Value(room.localUuid),
-          serverId: Value(room.serverId),
-          createdAt: Value(room.createdAt),
-          updatedAt: Value(room.updatedAt),
-          deletedAt: Value(room.deletedAt),
-          lastModified: Value(room.lastModified),
-          version: Value(room.version),
-          origin: Value(room.origin),
-        ),
-      );
+      // ✅ (2026-11-23) استيراد كامل الحقول بدل قائمة مختارة:
+        // القائمة اليدوية كانت تُسقط أعمدة حرجة (isVoided/voidReason في المدفوعات،
+        // amount/status/dueDate/isSettled في الديون، id/cleaningStatus في الغرف…)
+        // فتعود النسخة الاحتياطية منقوصة: دفعات ملغاة تُحتسب مدفوعة، ديون بمبلغ
+        // صفر، وأبناء مربوطون بمعرّفات آباء أُعيد ترقيمها. toCompanion(false)
+        // يكتب كل الأعمدة كما هي (بما فيها id) فلا يُسقَط عمود جديد لاحقاً.
+        await into(rooms).insertOnConflictUpdate(room.toCompanion(false));
     }
   }
 

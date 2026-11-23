@@ -248,23 +248,10 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
 
     for (final noteJson in data) {
       final note = BookingNote.fromJson(noteJson);
-      await into(bookingNotes).insertOnConflictUpdate(
-        BookingNotesCompanion(
-          bookingId: Value(note.bookingId),
-          noteText: Value(note.noteText),
-          alertType: Value(note.alertType),
-          alertUntil: Value(note.alertUntil),
-          isActive: Value(note.isActive),
-          localUuid: Value(note.localUuid),
-          serverId: Value(note.serverId),
-          createdAt: Value(note.createdAt),
-          updatedAt: Value(note.updatedAt),
-          deletedAt: Value(note.deletedAt),
-          lastModified: Value(note.lastModified),
-          version: Value(note.version),
-          origin: Value(note.origin),
-        ),
-      );
+      // ✅ (2026-11-23) استيراد كامل الحقول بدل قائمة مختارة:
+        // كان يُسقط expenseKind/employeeUuid/withdrawalUuid/hotelDayKey في المصروفات،
+        // وemployeeID في الموظفين، وid وiso/epoch في الكل — انظر تقرير §14.
+        await into(bookingNotes).insertOnConflictUpdate(note.toCompanion(false));
     }
   }
 

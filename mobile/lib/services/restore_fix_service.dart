@@ -435,7 +435,16 @@ class RestoreFixService {
                         BookingPaymentMatcher.uuidCandidates(booking.localUuid),
                       ),
                 )
-                ..where((p) => p.deletedAt.isNull()))
+                ..where((p) => p.deletedAt.isNull())
+                // ✅ (2026-11-23) القاعدة القانونية في التطبيق كله: الدفعة
+                // الملغاة (`isVoided`) وسجل «الرصيد المعلَّق»
+                // (`isPendingBalance`) ليسا مالاً محصّلاً — انظر
+                // `daos/payments_dao.dart:44` و`booking_computed_stream_service.dart:271`.
+                // هنا كانا يُجمعان في `totalPaid` ثم يُكتب الناتج في
+                // `bookings.totalPaidCached/remainingBalanceCached`، أي أن
+                // الإصلاح نفسه كان يُنقص رصيد الضيف المستحق.
+                ..where((p) => p.isVoided.equals(false))
+                ..where((p) => p.isPendingBalance.equals(false)))
               .get();
       final payments = rawPayments.where(
         (payment) => BookingPaymentMatcher.matches(payment, booking),
@@ -889,8 +898,10 @@ class RestoreFixService {
             createdAt: Value(match.createdAt),
             createdAtIso: Value(match.createdAtIso),
             createdAtEpoch: Value(match.createdAtEpoch),
-            deletedAt: const Value(null),
-            deletedAtIso: const Value(null),
+            // أنواع صريحة: `Value(null)` قد تُستنتج `Value<Null>` فترفضها
+            // دالة copyWith المتوقعة `Value<int?>`/`Value<String?>`.
+            deletedAt: const Value<int?>(null),
+            deletedAtIso: const Value<String?>(null),
           ),
           where: (t) => t.id.equals(match.id),
         );
@@ -1067,6 +1078,9 @@ class RestoreFixService {
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isPendingBalance.equals(false))
+              // ✅ (2026-11-23) كانت الدفعة الملغاة تُحتسب «مدفوعة» هنا،
+              // فيقلّ المتبقي ويزيد المحصّل في تقرير اليوم بعد الإصلاح.
+              ..where((p) => p.isVoided.equals(false))
               ..where(
                 (p) =>
                     p.revenueType.equals('room') |

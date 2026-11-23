@@ -540,24 +540,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
 
       for (final expenseJson in data) {
         final expense = Expense.fromJson(expenseJson);
-        await into(expenses).insertOnConflictUpdate(
-          ExpensesCompanion(
-            expenseType: Value(expense.expenseType),
-            relatedId: Value(expense.relatedId),
-            description: Value(expense.description),
-            amount: Value(expense.amount),
-            date: Value(expense.date),
-            cashTransactionId: Value(expense.cashTransactionId),
-            localUuid: Value(expense.localUuid),
-            serverId: Value(expense.serverId),
-            createdAt: Value(expense.createdAt),
-            updatedAt: Value(expense.updatedAt),
-            deletedAt: Value(expense.deletedAt),
-            lastModified: Value(expense.lastModified),
-            version: Value(expense.version),
-            origin: Value(expense.origin),
-          ),
-        );
+        // ✅ (2026-11-23) استيراد كامل الحقول بدل قائمة مختارة:
+        // كان يُسقط expenseKind/employeeUuid/withdrawalUuid/hotelDayKey في المصروفات،
+        // وemployeeID في الموظفين، وid وiso/epoch في الكل — انظر تقرير §14.
+        await into(expenses).insertOnConflictUpdate(expense.toCompanion(false));
       }
     });
   }

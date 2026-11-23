@@ -392,26 +392,10 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
 
       for (final transactionJson in data) {
         final transaction = CashTransaction.fromJson(transactionJson);
-        await into(cashTransactions).insertOnConflictUpdate(
-          CashTransactionsCompanion(
-            registerId: Value(transaction.registerId),
-            transactionType: Value(transaction.transactionType),
-            amount: Value(transaction.amount),
-            referenceType: Value(transaction.referenceType),
-            referenceId: Value(transaction.referenceId),
-            description: Value(transaction.description),
-            transactionTime: Value(transaction.transactionTime),
-            createdBy: Value(transaction.createdBy),
-            localUuid: Value(transaction.localUuid),
-            serverId: Value(transaction.serverId),
-            createdAt: Value(transaction.createdAt),
-            updatedAt: Value(transaction.updatedAt),
-            deletedAt: Value(transaction.deletedAt),
-            lastModified: Value(transaction.lastModified),
-            version: Value(transaction.version),
-            origin: Value(transaction.origin),
-          ),
-        );
+        // ✅ (2026-11-23) استيراد كامل الحقول بدل قائمة مختارة:
+        // كان يُسقط expenseKind/employeeUuid/withdrawalUuid/hotelDayKey في المصروفات،
+        // وemployeeID في الموظفين، وid وiso/epoch في الكل — انظر تقرير §14.
+        await into(cashTransactions).insertOnConflictUpdate(transaction.toCompanion(false));
       }
     });
   }
