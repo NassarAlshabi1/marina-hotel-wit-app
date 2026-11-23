@@ -160,8 +160,12 @@ void main() {
                 guestName: Value('ضيف ${i + 1}'),
                 guestPhone: const Value('0501111111'),
                 guestNationality: const Value('سعودي'),
-                checkinDate: Value(DateTime(2024, 9, 1, 14).toIso8601String()),
-                checkoutDate: Value(DateTime(2024, 9, 4, 18).toIso8601String()),
+                checkinDate: Value(
+                  DateTime.now()
+                      .subtract(const Duration(days: 3, hours: 9))
+                      .toIso8601String(),
+                ),
+                checkoutDate: Value(DateTime.now().toIso8601String()),
                 status: const Value('محجوزة'),
                 expectedNights: const Value(1),
                 calculatedNights: const Value(1),
