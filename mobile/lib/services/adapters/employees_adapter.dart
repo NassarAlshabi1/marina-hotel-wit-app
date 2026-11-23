@@ -116,9 +116,7 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       ),
       // ✅ (2026-11-23) عمود D1 هو employee_id. كان يُقرأ بـ
       // 'EmployeeID' + 'employee_i_d' فلا يُطابق أبداً ما يصل من D1.
-      employeeID:
-          _vStr(json, 'employeeId', src, altKey: 'employee_id') ??
-          _vStr(json, 'EmployeeID', src, altKey: 'employee_i_d'),
+      employeeID: _vStr(json, 'employeeId', src, altKey: 'employee_id'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }

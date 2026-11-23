@@ -472,7 +472,7 @@ class CloudflareSyncManager {
     _httpClient = httpClient;
     _token = token;
     _deviceId = deviceId ?? 'test-device';
-    setStaticDeviceId(_deviceId!);
+    setStaticDeviceId(_deviceId);
     _fullSyncCompleted = fullSyncCompleted;
     _timestampNormalizationDone = false;
     _lastPullCursor = lastPullCursor;
@@ -550,7 +550,7 @@ class CloudflareSyncManager {
       _deviceId = _generateDeviceId();
       await prefs.setString('cf_device_id', _deviceId!);
     }
-    setStaticDeviceId(_deviceId!);
+    setStaticDeviceId(_deviceId);
 
     // ✅ RemoteChangeNotifier: اضبط معرّف جهازنا الحالي لتمييز تغييراتنا
     // عن تغييرات الأجهزة الأخرى.

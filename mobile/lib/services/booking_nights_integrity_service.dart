@@ -118,7 +118,7 @@ class BookingNightsIntegrityService {
   Future<BookingNightsAudit> audit({int? bookingLocalId}) async {
     final where = bookingLocalId == null
         ? ''
-        : ' AND n.booking_local_id = ${bookingLocalId.toString()}';
+        : ' AND n.booking_local_id = $bookingLocalId';
 
     final liveRows = await _count(
       'SELECT COUNT(*) AS c FROM booking_nights n '
@@ -130,9 +130,8 @@ class BookingNightsIntegrityService {
       '  SELECT 1 FROM booking_nights n'
       '  WHERE n.deleted_at IS NULL'
       "    AND TRIM(COALESCE(n.booking_uuid_cache, '')) <> ''$where"
-      "  GROUP BY lower(replace(trim(n.booking_uuid_cache), '-', '')),"
-      '           n.hotel_day_key'
-      '  HAVING COUNT(*) > 1'
+      "  GROUP BY lower(replace(trim(n.booking_uuid_cache), '-', '')), "
+      '           n.hotel_day_key   HAVING COUNT(*) > 1 '
       ') t',
     );
 
@@ -142,7 +141,7 @@ class BookingNightsIntegrityService {
       '  WHERE n.deleted_at IS NULL'
       "    AND TRIM(COALESCE(n.booking_uuid_cache, '')) <> ''$where"
       "  GROUP BY lower(replace(trim(n.booking_uuid_cache), '-', '')),"
-      '           n.hotel_day_key'
+      '           n.hotel_day_key '
       ') t',
     );
 
@@ -276,9 +275,7 @@ class BookingNightsIntegrityService {
           bookingUuidCache: d.Value(ownerUuid),
           updatedAt: d.Value(stamp),
           updatedAtIso: d.Value(stampIso),
-          lastModified: enqueueOutbox
-              ? d.Value(stamp)
-              : const d.Value.absent(),
+          lastModified: enqueueOutbox ? d.Value(stamp) : const d.Value.absent(),
           lastModifiedEpoch: enqueueOutbox
               ? d.Value(stamp)
               : const d.Value.absent(),
@@ -346,22 +343,22 @@ class BookingNightsIntegrityService {
       // الفائز أولاً: الصف المرتبط فعلاً بحجز هويته (لا «معلّق» على حجز
       // آخر بسبب تصادم المعرّفات المحلية) — ثم المفتاح الحتمي — ثم الأحدث.
       members.sort((a, b) {
-        final aLinked =
-            a['owner_id'] != null && a['owner_id'] == a['link_id'];
-        final bLinked =
-            b['owner_id'] != null && b['owner_id'] == b['link_id'];
+        final aLinked = a['owner_id'] != null && a['owner_id'] == a['link_id'];
+        final bLinked = b['owner_id'] != null && b['owner_id'] == b['link_id'];
         if (aLinked != bLinked) return aLinked ? -1 : 1;
         final aDeterministic = _isDeterministic(a);
         final bDeterministic = _isDeterministic(b);
         if (aDeterministic != bDeterministic) return aDeterministic ? -1 : 1;
-        final byTime = (b['updated_at'] as int).compareTo(a['updated_at'] as int);
+        final byTime = (b['updated_at']! as int).compareTo(
+          a['updated_at']! as int,
+        );
         if (byTime != 0) return byTime;
-        return (b['id'] as int).compareTo(a['id'] as int);
+        return (b['id']! as int).compareTo(a['id']! as int);
       });
 
-      final winnerId = members.first['id'] as int;
+      final winnerId = members.first['id']! as int;
       for (final member in members) {
-        final id = member['id'] as int;
+        final id = member['id']! as int;
         if (id == winnerId) continue;
         final retired = await _retireNight(
           id: id,
@@ -437,9 +434,7 @@ class BookingNightsIntegrityService {
           bookingUuidCache: d.Value(ownerUuid),
           updatedAt: d.Value(stamp),
           updatedAtIso: d.Value(stampIso),
-          lastModified: enqueueOutbox
-              ? d.Value(stamp)
-              : const d.Value.absent(),
+          lastModified: enqueueOutbox ? d.Value(stamp) : const d.Value.absent(),
           lastModifiedEpoch: enqueueOutbox
               ? d.Value(stamp)
               : const d.Value.absent(),
@@ -476,9 +471,9 @@ class BookingNightsIntegrityService {
       companion.copyWith(version: d.Value(version + 1)),
     );
     if (!enqueueOutbox) return;
-    final fresh =
-        await (db.select(db.bookingNights)..where((n) => n.id.equals(id)))
-            .getSingleOrNull();
+    final fresh = await (db.select(
+      db.bookingNights,
+    )..where((n) => n.id.equals(id))).getSingleOrNull();
     if (fresh == null) return;
     await _payload.enqueue(
       outboxDao: _outboxDao,

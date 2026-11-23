@@ -77,9 +77,9 @@ class PaymentsRepository {
 
   String _hotelDayPaymentPredicate() =>
       "(hotel_day_key = ? OR ((hotel_day_key IS NULL OR TRIM(hotel_day_key) = '') "
-      "AND ((LENGTH(TRIM(payment_date)) <= 10 "
-      "AND SUBSTR(TRIM(payment_date), 1, 10) = ?) "
-      "OR (LENGTH(TRIM(payment_date)) > 10 "
+      'AND ((LENGTH(TRIM(payment_date)) <= 10 '
+      'AND SUBSTR(TRIM(payment_date), 1, 10) = ?) '
+      'OR (LENGTH(TRIM(payment_date)) > 10 '
       "AND datetime(replace(TRIM(payment_date), ' ', 'T')) >= datetime(?) "
       "AND datetime(replace(TRIM(payment_date), ' ', 'T')) < datetime(?)))))";
 

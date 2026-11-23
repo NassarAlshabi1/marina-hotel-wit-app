@@ -1459,9 +1459,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                 children: [
                   TextFormField(
                     controller: amountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: false,
-                    ),
+                    keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'قيمة التعديل',
                     ),

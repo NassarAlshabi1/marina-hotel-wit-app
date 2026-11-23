@@ -31,19 +31,27 @@ void main() {
   const booking = 'AAAAAAAA-1111-4111-8111-AAAAAAAAAAAA';
 
   group('BookingNightBatchDedupe.collapse', () {
-    test('same (booking, day) with two identities → newest updated_at wins', () {
-      final collapsed = BookingNightBatchDedupe.collapse([
-        _night('uuid-old', bookingUuid: booking, day: '2026-11-20', updatedAt: 100),
-        _night('uuid-new', bookingUuid: booking, day: '2026-11-20', updatedAt: 200),
-      ]);
+    test(
+      'same (booking, day) with two identities → newest updated_at wins',
+      () {
+        final collapsed = BookingNightBatchDedupe.collapse([
+          _night('uuid-old', bookingUuid: booking, day: '2026-11-20'),
+          _night(
+            'uuid-new',
+            bookingUuid: booking,
+            day: '2026-11-20',
+            updatedAt: 200,
+          ),
+        ]);
 
-      expect(collapsed, hasLength(1));
-      expect(collapsed.single.record['local_uuid'], 'uuid-new');
-    });
+        expect(collapsed, hasLength(1));
+        expect(collapsed.single.record['local_uuid'], 'uuid-new');
+      },
+    );
 
     test('version breaks ties when updated_at is equal', () {
       final collapsed = BookingNightBatchDedupe.collapse([
-        _night('uuid-a', bookingUuid: booking, day: '2026-11-20', version: 1),
+        _night('uuid-a', bookingUuid: booking, day: '2026-11-20'),
         _night('uuid-b', bookingUuid: booking, day: '2026-11-20', version: 4),
       ]);
 
@@ -135,7 +143,9 @@ void main() {
         hasLength(1),
       );
       expect(
-        collapsed.singleWhere((r) => r.entity == 'booking_nights').record['local_uuid'],
+        collapsed
+            .singleWhere((r) => r.entity == 'booking_nights')
+            .record['local_uuid'],
         'n2',
       );
     });

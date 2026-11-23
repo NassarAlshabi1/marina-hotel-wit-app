@@ -336,9 +336,7 @@ class StayBalanceCalculator {
         : 0;
     final int extraNightsBeyondManual = manualCheckout == null
         ? 0
-        : (totalCoveredNights - plannedNights)
-              .clamp(0, totalCoveredNights)
-              .toInt();
+        : (totalCoveredNights - plannedNights).clamp(0, totalCoveredNights);
     final bool isAutoExtended = extraNightsBeyondManual > 0;
 
     // ─── الفائض المالي بعد تغطية جميع الليالي ───

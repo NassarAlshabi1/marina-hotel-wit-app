@@ -476,10 +476,9 @@ class EnhancedBookingCalculationService {
       // ✅ (2026-11-23) لقطة صف كاملة من القرص بعد الكتابة — كانت الحمولة
       // رقيقة `{localUuid}` فيصل الحدث للخادم بلا أسعار ولا يوم ولا حجز.
       final changedIds = <int>{for (final night in changed) night.id};
-      final fresh =
-          await (db.select(db.bookingNights)
-                ..where((n) => n.id.isIn(changedIds)))
-              .get();
+      final fresh = await (db.select(
+        db.bookingNights,
+      )..where((n) => n.id.isIn(changedIds))).get();
       if (fresh.isNotEmpty) {
         await _outboxDao.mergeBatch([
           for (final row in fresh)
@@ -848,17 +847,19 @@ class EnhancedBookingCalculationService {
           createdAtIso: row == null
               ? d.Value(stampIso)
               : const d.Value.absent(),
-          createdAtEpoch: row == null
-              ? d.Value(stamp)
-              : const d.Value.absent(),
+          createdAtEpoch: row == null ? d.Value(stamp) : const d.Value.absent(),
           updatedAt: d.Value(stamp),
           updatedAtIso: d.Value(stampIso),
           lastModified: enqueueOutbox ? d.Value(stamp) : const d.Value.absent(),
           lastModifiedEpoch: enqueueOutbox
               ? d.Value(stamp)
               : const d.Value.absent(),
-          version: row == null ? const d.Value.absent() : d.Value(row.version + 1),
-          origin: row == null ? const d.Value('derived') : const d.Value.absent(),
+          version: row == null
+              ? const d.Value.absent()
+              : d.Value(row.version + 1),
+          origin: row == null
+              ? const d.Value('derived')
+              : const d.Value.absent(),
           bookingLocalId: d.Value(booking.id),
           bookingUuidCache: d.Value(booking.localUuid),
           hotelDayKey: d.Value(night.hotelDayKey),
@@ -872,8 +873,8 @@ class EnhancedBookingCalculationService {
           appliedAdjustmentsJson: d.Value(appliedJson),
           sequence: d.Value(sequenceOf(night)),
           isProcessedByAutoFix: const d.Value(false),
-          deletedAt: d.Value<int?>(null),
-          deletedAtIso: d.Value<String?>(null),
+          deletedAt: const d.Value<int?>(null),
+          deletedAtIso: const d.Value<String?>(null),
         );
       }
 
@@ -938,7 +939,9 @@ class EnhancedBookingCalculationService {
         final identity = deadIds.isEmpty ? deterministic : IdGen.uuid();
         await db
             .into(db.bookingNights)
-            .insert(companionFor(night, null).copyWith(localUuid: d.Value(identity)));
+            .insert(
+              companionFor(night, null).copyWith(localUuid: d.Value(identity)),
+            );
       }
 
       // ✅ (2026-11-23) الليالي كانت تُكتب محلياً بلا أي عنصر outbox في هذا

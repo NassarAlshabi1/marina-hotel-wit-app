@@ -5,15 +5,15 @@
 // مسار Cloudflare: هوية الجهاز تُوفَّر وتُخزَّن قبل أي كتابة محلية
 // حتى لو حدثت قبل initialize، وUUID الدفعة يوحَّد بالشكل القياسي.
 
-import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/cloudflare_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/payments_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

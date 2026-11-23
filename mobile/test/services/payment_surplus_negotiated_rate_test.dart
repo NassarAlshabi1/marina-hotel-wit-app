@@ -805,7 +805,6 @@ void main() {
           bookingLocalUuid: booking.localUuid,
           amount: 7000,
           type: AdjustmentType.surcharge,
-          mode: AdjustmentMode.perNight,
           effectiveHotelDay: '2026-09-30',
           reason: 'زيادة عادية من إدارة الضيوف',
           appliedBy: 'اختبار',

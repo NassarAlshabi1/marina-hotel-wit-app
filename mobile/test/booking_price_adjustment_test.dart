@@ -234,7 +234,6 @@ void main() {
           bookingLocalUuid: seed.bookingUuid,
           amount: 2000,
           type: AdjustmentType.discount,
-          mode: AdjustmentMode.perNight,
           effectiveHotelDay: effectiveDay,
           reason: 'تخفيض قابل للتعديل',
           appliedBy: 'المدير',
