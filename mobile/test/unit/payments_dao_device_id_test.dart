@@ -104,6 +104,7 @@ void main() {
               roomNumber: '101',
               guestName: 'نزيل الاختبار',
               guestPhone: '777',
+              guestNationality: 'يمني',
               checkinDate: '2026-11-20',
               status: 'نشط',
               createdAt: 1000,

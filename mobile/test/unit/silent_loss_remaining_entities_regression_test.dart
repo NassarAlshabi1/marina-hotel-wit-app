@@ -473,6 +473,7 @@ void main() {
               roomNumber: '101',
               guestName: 'نزيل المزامنة',
               guestPhone: '777000111',
+              guestNationality: 'يمني',
               checkinDate: '2026-11-01T14:00:00',
               checkoutDate: const drift.Value('2026-11-03T14:00:00'),
               actualCheckout: const drift.Value('2026-11-03T14:00:00'),
