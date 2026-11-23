@@ -1408,6 +1408,28 @@ export class Database {
         };
       }
 
+      // ✅ (2026-11-23) «لا ليالٍ مكررة» — هوية الليلة على D1:
+      //
+      // `booking_local_id` في حمولة العميل رقم AUTOINCREMENT خاص *بجهاز*
+      // المرسل: 7 على جهاز A هو حجز آخر على جهاز B. وبما أن booking_nights
+      // يحمل UNIQUE (booking_local_id, hotel_day_key) (schema.sql:433)،
+      // كانت ليلة الجهاز A تصطدم بليلة الجهاز B لنفس (رقم، يوم) فتُرفض أو
+      // يُكتب فوقها — أصل «1,975 صفاً عبر 115 معرّفاً متصادماً». نترجم
+      // الرابط إلى معرّف الحجز الخادمي من uuid الحجز، ونشتقّ هوية الصف
+      // القائم لحمولات التحديث الرقيقة (عملاء أقدم)، ونرفض ما لا يُحلّ
+      // بدل إنشاء صف يتيم بقيم 0/''.
+      if (op.entity === 'booking_nights' && op.operation !== 'delete') {
+        const normalized = await this.normalizeBookingNightIdentity(op.data, existing);
+        if (normalized === null) {
+          return {
+            kind: 'failed',
+            error:
+              'booking_nights: unresolved booking identity (booking_uuid_cache) — retried after the booking is pushed',
+          };
+        }
+        op = { ...op, data: normalized };
+      }
+
       // Op-level response payload (stored inside the claim row itself).
       let responsePayload: Record<string, unknown>;
       let statements: D1PreparedStatement[] = [];
@@ -1433,8 +1455,17 @@ export class Database {
           const row = await this.prepareInsertRow(table, op.data, deviceId, serverUpdatedAt, op.vectorClock);
           entityId = row.localUuid;
           responsePayload = { entity: op.entity, entityId, operation: 'create' };
+          // ✅ (2026-11-23) قيد الأمان لليالي: إن كان لهذا (الحجز، اليوم)
+          // صف حيّ بهوية أخرى — نسخة أخرى من جهاز آخر أو بقايا إعادة بناء
+          // قديمة — يُخفى القديم في **نفس الدفعة** قبل الإدراج، فلا يعود
+          // D1 يحمل ليلتين لنفس اليوم ولا يفشل الإدراج بـ UNIQUE.
+          const slotGuard = op.entity === 'booking_nights'
+            ? this.bookingNightSlotGuard(now, dataLocalUuid, op.data)
+            : null;
+
           statements = [
             this.claimStatement(op, entityId, responsePayload),
+            ...(slotGuard ? [slotGuard] : []),
             this.db
               .prepare(`INSERT INTO ${table} (${row.columns.join(', ')}) VALUES (${row.columns.map(() => '?').join(', ')})`)
               .bind(...row.values),
@@ -1590,6 +1621,122 @@ export class Database {
       console.error(`[SYNC/PUSH] atomic op failed (${op.idempotencyKey}):`, msg.slice(0, 300));
       return { kind: 'failed', error: msg };
     }
+  }
+
+  /**
+   * ✅ (2026-11-23) ترجمة هوية الليلة إلى مفتاح خادمي قبل أي كتابة.
+   *
+   * المصدر الوحيد للهوية: `booking_uuid_cache` (uuid الحجز العالمية).
+   * الناتج يضبط `booking_local_id = bookings.id` الخادمي، فيصير
+   * UNIQUE (booking_local_id, hotel_day_key) قيداً حقيقياً على الليلة.
+   *
+   * [existing] يجعل الحمولات الرقيقة (عميل أقدم يرسل {local_uuid, deletedAt})
+   * صالحة: الهوية تُشتقّ من الصف القائم بدل رفضها أو اختراع صف بقيم 0/''.
+   * إرجاع null = لا حجز معروف ⇒ العملية تفشل وتُعاد بعد رفع الحجز.
+   */
+  private async normalizeBookingNightIdentity(
+    data: Record<string, unknown>,
+    existing: SyncRecord | null = null
+  ): Promise<Record<string, unknown> | null> {
+    const asText = (value: unknown): string =>
+      typeof value === 'string' ? value.trim() : '';
+    const pick = (snake: string, camel: string): string =>
+      asText(data[snake]) || asText(data[camel]);
+    const fromExisting = (key: string): string =>
+      existing ? asText(existing[key]) : '';
+
+    const next: Record<string, unknown> = { ...data };
+
+    const dayKey =
+      pick('hotel_day_key', 'hotelDayKey') ||
+      pick('night_start', 'nightStart').slice(0, 10) ||
+      fromExisting('hotel_day_key');
+    if (!dayKey) return null;
+    next.hotel_day_key = dayKey;
+
+    const bookingUuid =
+      pick('booking_uuid_cache', 'bookingUuidCache') || fromExisting('booking_uuid_cache');
+
+    let bookingId: number | null = null;
+    let bookingUuidLocal: string | null = null;
+    if (bookingUuid) {
+      const booking = await this.db
+        .prepare(
+          `SELECT id, local_uuid FROM bookings
+            WHERE deleted_at IS NULL
+              AND (local_uuid = ?
+                OR lower(replace(local_uuid, '-', '')) = lower(replace(?, '-', '')))
+            LIMIT 1`
+        )
+        .bind(bookingUuid, bookingUuid)
+        .first<{ id: number; local_uuid: string }>();
+      if (booking) {
+        bookingId = Number(booking.id);
+        bookingUuidLocal = booking.local_uuid;
+      }
+    }
+
+    // مسار توافق: عميل قديم بلا uuid حجز — نحاول الرابط الرقمي كما هو
+    // (قد يكون معرّف حجز خادمي على نسخة أحدث) بدل رفض الليلة كلياً.
+    if (bookingId === null && !bookingUuid) {
+      const rawId = Number(data.booking_local_id ?? data.bookingLocalId ?? Number.NaN);
+      if (Number.isFinite(rawId) && rawId > 0) {
+        const legacyBooking = await this.db
+          .prepare(
+            `SELECT id, local_uuid FROM bookings WHERE id = ? AND deleted_at IS NULL LIMIT 1`
+          )
+          .bind(rawId)
+          .first<{ id: number; local_uuid: string }>();
+        if (legacyBooking) {
+          bookingId = Number(legacyBooking.id);
+          bookingUuidLocal = legacyBooking.local_uuid;
+        }
+      }
+    }
+
+    if (bookingId === null && existing) {
+      const inherited = Number(existing.booking_local_id);
+      if (Number.isFinite(inherited) && inherited > 0) {
+        return {
+          ...next,
+          booking_local_id: inherited,
+          booking_uuid_cache: bookingUuid || fromExisting('booking_uuid_cache'),
+        };
+      }
+    }
+
+    if (bookingId === null || bookingUuidLocal === null) return null;
+
+    next.booking_uuid_cache = bookingUuidLocal;
+    next.booking_local_id = bookingId;
+    next.server_booking_id = bookingId;
+    return next;
+  }
+
+  /**
+   * إخفاء أي صف حيّ آخر يشغل خانة (الحجز، اليوم) قبل إدراج الليلة —
+   * يُنفَّذ داخل دفعة الـ claim ليبقى الأثر ذرّياً.
+   */
+  private bookingNightSlotGuard(
+    now: number,
+    localUuid: string,
+    data: Record<string, unknown>
+  ): D1PreparedStatement | null {
+    const rawId = data.booking_local_id;
+    const bookingLocalId =
+      typeof rawId === 'number' ? rawId : Number(rawId ?? Number.NaN);
+    const dayKey = typeof data.hotel_day_key === 'string' ? data.hotel_day_key : '';
+    if (!Number.isFinite(bookingLocalId) || bookingLocalId <= 0 || !dayKey) {
+      return null;
+    }
+    return this.db
+      .prepare(
+        `UPDATE booking_nights
+            SET deleted_at = ?, updated_at = ?, version = version + 1
+          WHERE booking_local_id = ? AND hotel_day_key = ?
+            AND local_uuid <> ? AND deleted_at IS NULL`
+      )
+      .bind(now, now, bookingLocalId, dayKey, localUuid);
   }
 
   /** The claim row — plain INSERT so a duplicate key aborts the whole batch. */

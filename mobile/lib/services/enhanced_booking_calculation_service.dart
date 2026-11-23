@@ -11,6 +11,7 @@ import '../utils/time.dart';
 import 'daos/bookings_dao.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'sync/booking_night_payload.dart';
 
 class BookingCalculationResult {
   const BookingCalculationResult({
@@ -41,6 +42,10 @@ class EnhancedBookingCalculationService {
 
   final AppDatabase db;
   final OutboxDao _outboxDao;
+
+  /// باني حمولة الليلة (لقطة صف كاملة) — كل عنصر outbox لليالي يمرّ منه.
+  late final BookingNightPayloadBuilder _nightPayload =
+      BookingNightPayloadBuilder(db);
 
   Future<BookingCalculationResult> calculateForBooking(
     Booking booking, {
@@ -355,12 +360,18 @@ class EnhancedBookingCalculationService {
                 'entity': 'booking_nights',
                 'op': 'update',
                 'localUuid': night.localUuid,
+                // لقطة صف كاملة + الحقول الميتة — حمولة `{localUuid}`
+                // وحدها تُنتج على worker صفاً جديداً بقيم 0/'' (لأن
+                // update الغائب يُنفَّذ كـ create) فيولد شبح مكرر.
                 'payload': <String, dynamic>{
-                  'localUuid': night.localUuid,
+                  ..._nightPayload.build(night),
                   'deletedAt': cutStamp,
                   'deletedAtIso': cutStampIso,
+                  'updatedAt': cutStamp,
+                  'updatedAtIso': cutStampIso,
                   'lastModified': cutStamp,
                   'lastModifiedEpoch': cutStamp,
+                  'version': night.version + 1,
                 },
                 'clientTs': cutStamp,
               },
@@ -462,16 +473,25 @@ class EnhancedBookingCalculationService {
     }
 
     if (enqueueOutbox && changed.isNotEmpty) {
-      await _outboxDao.mergeBatch([
-        for (final night in changed)
-          <String, dynamic>{
-            'entity': 'booking_nights',
-            'op': 'update',
-            'localUuid': night.localUuid,
-            'payload': <String, dynamic>{'localUuid': night.localUuid},
-            'clientTs': stamp,
-          },
-      ]);
+      // ✅ (2026-11-23) لقطة صف كاملة من القرص بعد الكتابة — كانت الحمولة
+      // رقيقة `{localUuid}` فيصل الحدث للخادم بلا أسعار ولا يوم ولا حجز.
+      final changedIds = <int>{for (final night in changed) night.id};
+      final fresh =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.id.isIn(changedIds)))
+              .get();
+      if (fresh.isNotEmpty) {
+        await _outboxDao.mergeBatch([
+          for (final row in fresh)
+            <String, dynamic>{
+              'entity': 'booking_nights',
+              'op': 'update',
+              'localUuid': row.localUuid,
+              'payload': _nightPayload.build(row),
+              'clientTs': stamp,
+            },
+        ]);
+      }
     }
 
     return _buildFinancialSummary(
@@ -694,8 +714,12 @@ class EnhancedBookingCalculationService {
             shouldRebuild = true;
             break;
           }
-          if (current.localUuid != localUuidForNight(night) ||
-              current.bookingUuidCache != booking.localUuid) {
+          // ✅ (2026-11-23) لم نعد نطلب أن تكون هوية الصف مساوية للمفتاح
+          // الحتمي: تغيير localUuid لصف قائم = صف جديد على D1 + شبح للهوية
+          // القديمة (وسبب إعادة بناء لا نهائية للصفوف القديمة). التكرار
+          // يُمنع بالمفتاح الطبيعي (uuid الحجز + اليوم) لا بشكل الهوية.
+          if (current.bookingUuidCache != booking.localUuid ||
+              current.deletedAt != null) {
             shouldRebuild = true;
             break;
           }
@@ -723,57 +747,223 @@ class EnhancedBookingCalculationService {
     Future<void> doWrite() async {
       if (!shouldRebuild) return;
 
-      await (db.delete(db.bookingNights)..where(
-            (n) =>
-                n.bookingLocalId.equals(booking.id) |
-                n.bookingUuidCache.isIn(
-                  BookingPaymentMatcher.uuidCandidates(booking.localUuid),
-                ),
-          ))
-          .go();
+      final targetDays = <String>{for (final n in breakdown) n.hotelDayKey};
+      final existing =
+          await (db.select(db.bookingNights)..where(
+                (n) =>
+                    (n.bookingLocalId.equals(booking.id) |
+                        n.bookingUuidCache.isIn(
+                          BookingPaymentMatcher.uuidCandidates(
+                            booking.localUuid,
+                          ),
+                        )) &
+                    n.deletedAt.isNull(),
+              ))
+              .get();
 
-      int sequence = 0;
-      await db.batch((batch) {
-        for (final night in breakdown) {
-          sequence += 1;
-          final appliedJson = night.appliedAdjustments.isEmpty
-              ? null
-              : jsonEncode(
-                  night.appliedAdjustments.map((a) => a.toJson()).toList(),
-                );
-          final appliedUuid = night.appliedAdjustments.length == 1
-              ? night.appliedAdjustments.first.uuid
-              : null;
-
-          batch.insert(
-            db.bookingNights,
-            BookingNightsCompanion(
-              localUuid: d.Value(localUuidForNight(night)),
-              createdAt: d.Value(stamp),
-              updatedAt: d.Value(stamp),
-              lastModified: d.Value(stamp),
-              createdAtIso: d.Value(stampIso),
-              updatedAtIso: d.Value(stampIso),
-              createdAtEpoch: d.Value(stamp),
-              lastModifiedEpoch: d.Value(stamp),
-              origin: const d.Value('derived'),
-              bookingLocalId: d.Value(booking.id),
-              bookingUuidCache: d.Value(booking.localUuid),
-              hotelDayKey: d.Value(night.hotelDayKey),
-              nightStart: d.Value(night.nightStart.toIso8601String()),
-              nightEnd: d.Value(night.nightEnd.toIso8601String()),
-              nightlyRate: d.Value(night.finalRate.toDouble()),
-              baseRate: d.Value(night.baseRate.toDouble()),
-              adjustment: d.Value(night.adjustmentAmount.toDouble()),
-              finalRate: d.Value(night.finalRate.toDouble()),
-              appliedAdjustmentUuid: d.Value(appliedUuid),
-              appliedAdjustmentsJson: d.Value(appliedJson),
-              sequence: d.Value(sequence),
-              isProcessedByAutoFix: const d.Value(false),
-            ),
-          );
+      // صف واحد لكل يوم: نُفضّل صفّنا، وإلا صفاً «معلّقاً» بنفس UUID
+      // (يُعاد ربطه بحجزنا في مكانه بدل حذفه وإنشاء نسخة جديدة). الباقي زائد.
+      final keepers = <String, BookingNight>{};
+      final extras = <BookingNight>[];
+      for (final row in existing) {
+        final current = keepers[row.hotelDayKey];
+        if (current == null) {
+          keepers[row.hotelDayKey] = row;
+          continue;
         }
-      });
+        if (current.bookingLocalId != booking.id &&
+            row.bookingLocalId == booking.id) {
+          keepers[row.hotelDayKey] = row;
+          extras.add(current);
+        } else {
+          extras.add(row);
+        }
+      }
+
+      final retired = <BookingNight>[
+        ...extras,
+        for (final row in keepers.values)
+          if (!targetDays.contains(row.hotelDayKey)) row,
+      ];
+
+      // ✅ (2026-11-23) لا حذف صلب صامت: كل صف يُسقَط أو يُستبدل يُعلن موته
+      // على D1 بلقطة صف كاملة + deletedAt *قبل* حذفه محلياً. الحذف الصامت
+      // كان يترك أشباحاً على الخادم تعود بالسحب التالي — أحد جذور تضاعف
+      // الليالي (3,495 صفاً مقابل 356 حجزاً). الحمولة رقيقة `{localUuid}`
+      // كانت أسوأ: worker يعيد تنفيذ update الغائب كـ create بقيم 0/''.
+      if (enqueueOutbox && retired.isNotEmpty) {
+        await _outboxDao.mergeBatch([
+          for (final row in retired)
+            <String, dynamic>{
+              'entity': 'booking_nights',
+              'op': 'update',
+              'localUuid': row.localUuid,
+              'payload': <String, dynamic>{
+                ..._nightPayload.build(row),
+                'deletedAt': stamp,
+                'deletedAtIso': stampIso,
+                'updatedAt': stamp,
+                'updatedAtIso': stampIso,
+                'lastModified': stamp,
+                'lastModifiedEpoch': stamp,
+                'version': row.version + 1,
+              },
+              'clientTs': stamp,
+            },
+        ]);
+      }
+
+      if (retired.isNotEmpty) {
+        final retiredIds = <int>{for (final row in retired) row.id};
+        await (db.delete(
+          db.bookingNights,
+        )..where((n) => n.id.isIn(retiredIds))).go();
+      }
+
+      final order = <String, int>{
+        for (var i = 0; i < breakdown.length; i++)
+          breakdown[i].hotelDayKey: i + 1,
+      };
+      int sequenceOf(NightlyBreakdown night) => order[night.hotelDayKey] ?? 0;
+
+      BookingNightsCompanion companionFor(
+        NightlyBreakdown night,
+        BookingNight? row,
+      ) {
+        final appliedJson = night.appliedAdjustments.isEmpty
+            ? null
+            : jsonEncode(
+                night.appliedAdjustments.map((a) => a.toJson()).toList(),
+              );
+        final appliedUuid = night.appliedAdjustments.length == 1
+            ? night.appliedAdjustments.first.uuid
+            : null;
+        return BookingNightsCompanion(
+          // الهوية تُمنح عند الإدراج فقط — لا تُغيَّر هوية صف قائم أبداً
+          // (تغيير localUuid = صف جديد على D1 + شبح للهوية القديمة).
+          localUuid: row == null
+              ? d.Value(localUuidForNight(night))
+              : const d.Value.absent(),
+          createdAt: row == null ? d.Value(stamp) : const d.Value.absent(),
+          createdAtIso: row == null
+              ? d.Value(stampIso)
+              : const d.Value.absent(),
+          createdAtEpoch: row == null
+              ? d.Value(stamp)
+              : const d.Value.absent(),
+          updatedAt: d.Value(stamp),
+          updatedAtIso: d.Value(stampIso),
+          lastModified: enqueueOutbox ? d.Value(stamp) : const d.Value.absent(),
+          lastModifiedEpoch: enqueueOutbox
+              ? d.Value(stamp)
+              : const d.Value.absent(),
+          version: row == null ? const d.Value.absent() : d.Value(row.version + 1),
+          origin: row == null ? const d.Value('derived') : const d.Value.absent(),
+          bookingLocalId: d.Value(booking.id),
+          bookingUuidCache: d.Value(booking.localUuid),
+          hotelDayKey: d.Value(night.hotelDayKey),
+          nightStart: d.Value(night.nightStart.toIso8601String()),
+          nightEnd: d.Value(night.nightEnd.toIso8601String()),
+          nightlyRate: d.Value(night.finalRate.toDouble()),
+          baseRate: d.Value(night.baseRate.toDouble()),
+          adjustment: d.Value(night.adjustmentAmount.toDouble()),
+          finalRate: d.Value(night.finalRate.toDouble()),
+          appliedAdjustmentUuid: d.Value(appliedUuid),
+          appliedAdjustmentsJson: d.Value(appliedJson),
+          sequence: d.Value(sequenceOf(night)),
+          isProcessedByAutoFix: const d.Value(false),
+          deletedAt: d.Value<int?>(null),
+          deletedAtIso: d.Value<String?>(null),
+        );
+      }
+
+      // شواهد القبر المحلية تحجز خانة (حجز، يوم) في الفهرس الفريد المحلي،
+      // وهو ما كان يرمي SqliteException عند إدراج ليلة «أُعيدت» بعد تمديد
+      // الإقامة. نقرأها لتفادي التصادم.
+      final tombstones =
+          await (db.select(db.bookingNights)..where(
+                (n) =>
+                    n.bookingLocalId.equals(booking.id) &
+                    n.deletedAt.isNotNull(),
+              ))
+              .get();
+      final tombByDay = <String, BookingNight>{};
+      for (final row in tombstones) {
+        tombByDay.putIfAbsent(row.hotelDayKey, () => row);
+      }
+
+      for (final night in breakdown) {
+        final current = keepers[night.hotelDayKey];
+        if (current != null) {
+          await (db.update(
+            db.bookingNights,
+          )..where((n) => n.id.equals(current.id))).write(
+            companionFor(night, current),
+          );
+          continue;
+        }
+
+        final deterministic = localUuidForNight(night);
+        final clash =
+            await (db.select(db.bookingNights)
+                  ..where((n) => n.localUuid.equals(deterministic))
+                  ..limit(1))
+                .getSingleOrNull();
+
+        // صف حيّ بنفس الهوية الحتمية لكنه خارج مجموعتنا (حجز آخر/uuid
+        // مفقود) — نتبنّاه بتحديث مكانه، لا نُنشئ نسخة ثانية.
+        if (clash != null && clash.deletedAt == null) {
+          await (db.update(
+            db.bookingNights,
+          )..where((n) => n.id.equals(clash.id))).write(
+            companionFor(night, clash),
+          );
+          continue;
+        }
+
+        // الهوية الحتمية أو خانة اليوم محجوزة بشاهد قبر: worker يعامل
+        // «update على صف مخفي» بعقد tombstone-wins فيرفض الإنعاش، ولو
+        // أعدنا استخدام الهوية لدارت الحلقة (إدراج → رفض → حذف بالسحب).
+        // الحل: إزالة الشاهد محلياً ومنح الليلة هوية جديدة لا يعرفها الخادم.
+        final deadIds = <int>{
+          if (clash != null) clash.id,
+          if (tombByDay[night.hotelDayKey] != null)
+            tombByDay[night.hotelDayKey]!.id,
+        };
+        if (deadIds.isNotEmpty) {
+          await (db.delete(
+            db.bookingNights,
+          )..where((n) => n.id.isIn(deadIds))).go();
+        }
+        final identity = deadIds.isEmpty ? deterministic : IdGen.uuid();
+        await db
+            .into(db.bookingNights)
+            .insert(companionFor(night, null).copyWith(localUuid: d.Value(identity)));
+      }
+
+      // ✅ (2026-11-23) الليالي كانت تُكتب محلياً بلا أي عنصر outbox في هذا
+      // المسار (كان يُرسل صف الحجز وحده) — فتبقى نسخة D1 ناقصة/قديمة.
+      if (enqueueOutbox) {
+        final fresh =
+            await (db.select(db.bookingNights)..where(
+                  (n) =>
+                      n.bookingLocalId.equals(booking.id) &
+                      n.deletedAt.isNull(),
+                ))
+                .get();
+        if (fresh.isNotEmpty) {
+          await _outboxDao.mergeBatch([
+            for (final row in fresh)
+              <String, dynamic>{
+                'entity': 'booking_nights',
+                'op': 'update',
+                'localUuid': row.localUuid,
+                'payload': _nightPayload.build(row),
+                'clientTs': stamp,
+              },
+          ]);
+        }
+      }
     }
 
     Future<void> mergeBookingOutbox() async {

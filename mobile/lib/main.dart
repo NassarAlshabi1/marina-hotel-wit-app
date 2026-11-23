@@ -45,6 +45,7 @@ import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/blacklist_alert_service.dart';
 import 'services/booking_child_uuid_backfill_service.dart';
+import 'services/booking_nights_integrity_service.dart';
 import 'services/bootstrap_full_pull.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/cloudflare_config.dart';
@@ -449,6 +450,19 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // تعبئة bookingUuidCache على الليالي القديمة وإعادة رفعها، حتى
         // تحلّها الأجهزة الأخرى بقاعدة uuid-cache قبل ظلّ server_id.
         await BookingChildUuidBackfillService.instance.runIfNeeded(database);
+        // ✅ (2026-11-23) بوابة «لا ليالٍ مكررة»: قبل أي مزامنة أو حساب
+        // مالي، نطوي التكرار المحلي على مفتاح الهوية العالمية
+        // (uuid الحجز + اليوم) ونُعلن موت الزائد على D1، وإلا حُسبت الليلة
+        // مرتين في الإيراد المتوقع وعاد المكرر بالسحب التالي.
+        final nightsRepair = await BookingNightsIntegrityService(
+          database,
+        ).ensureNoDuplicates();
+        if (nightsRepair.tombstonedDuplicates > 0 ||
+            nightsRepair.relinked > 0 ||
+            nightsRepair.filledUuidCache > 0 ||
+            !nightsRepair.isClean) {
+          debugPrint('[nights-integrity] $nightsRepair');
+        }
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
         _startRealtimeSync();

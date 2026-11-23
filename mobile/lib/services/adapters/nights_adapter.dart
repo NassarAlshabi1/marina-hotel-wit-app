@@ -245,6 +245,12 @@ class NightsAdapter
       // Appwrite schema: string size=5000 (مُتحقّق منه).
       _k(src, 'appliedAdjustmentsJson', 'applied_adjustments_json'):
           model.appliedAdjustmentsJson,
+      // ✅ (2026-11-23) كان الـ toJson يُسقط هذين الحقلين — فلا يعرف الخادم
+      // (ولا الأجهزة الأخرى) لأي حجز تنتمي الليلة عالمياً، فتُحلّ على الجهاز
+      // الآخر بـ booking_local_id الرقمي المتصادم بين الأجهزة. الحقلان هما
+      // مفتاح «لا ليالٍ مكررة» على D1 (worker: normalizeBookingNightIdentity).
+      _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
+      _k(src, 'serverBookingId', 'server_booking_id'): model.serverBookingId,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
       _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,

@@ -116,6 +116,32 @@ function validatePushOperation(op: PushOperation): string | null {
   if (op.deviceId !== undefined && (typeof op.deviceId !== 'string' || op.deviceId.length > PUSH_FIELD_LIMITS.deviceId)) {
     return `deviceId must be a string of at most ${PUSH_FIELD_LIMITS.deviceId} chars`;
   }
+  // ✅ (2026-11-23) عقد الليلة الكامل على السلك: ليلة بلا (يوم) أو بلا
+  // (هوية حجز عالمية) تنتهي على D1 صفاً يتيماً بقيم 0/'' — أصل الـ 200 صف
+  // اليتيم وليالٍ مكررة تُحسب مرتين في الإيراد. الرفض هنا يمنع التوليد
+  // بدل إصلاحه لاحقاً؛ worker/src/database.ts يترجم الهوية بعد ذلك.
+  // الإنشاء فقط: التحديث يُعالَج في database.ts بهوية الصف القائم (توافق
+  // العملاء الأقدم)، وإعادة تنفيذ update الغائب كـ create تمرّ بهذا الفحص.
+  if (op.entity === 'booking_nights' && op.operation === 'create') {
+    const dayKey = op.data.hotel_day_key ?? op.data.hotelDayKey;
+    const bookingUuid = op.data.booking_uuid_cache ?? op.data.bookingUuidCache;
+    if (typeof dayKey !== 'string' || dayKey.trim().length === 0) {
+      return 'booking_nights requires hotel_day_key';
+    }
+    // هوية الحجز العالمية إلزامية فقط عند غياب رابط رقمي صالح — الحمولات
+    // القديمة التي تحمل booking_local_id وحده تبقى مقبولة (يترجمها
+    // database.ts best-effort) بدل قطع مزامنة نسخة قديمة من التطبيق.
+    const rawBookingId = Number(
+      op.data.booking_local_id ?? op.data.bookingLocalId ?? Number.NaN
+    );
+    const hasNumericLink = Number.isFinite(rawBookingId) && rawBookingId > 0;
+    if (
+      !hasNumericLink &&
+      (typeof bookingUuid !== 'string' || bookingUuid.trim().length === 0)
+    ) {
+      return 'booking_nights requires booking_uuid_cache';
+    }
+  }
   return null;
 }
 

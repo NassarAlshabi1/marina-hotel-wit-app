@@ -429,11 +429,26 @@ CREATE TABLE IF NOT EXISTS booking_nights (
   origin TEXT NOT NULL DEFAULT 'local',
   vector_clock TEXT NOT NULL DEFAULT '{}',
   device_id TEXT NOT NULL DEFAULT '',
-  idempotency_key TEXT,
-  UNIQUE (booking_local_id, hotel_day_key)
+  idempotency_key TEXT
+  -- ✅ (2026-11-23) حُذف UNIQUE (booking_local_id, hotel_day_key) القديم:
+  -- booking_local_id رقم محلي للجهاز المرسل، فكان القيد يرفض ليلة مشروعة
+  -- (أو يكتب فوقها) كلما تصادف رقمان بين جهازين — 1,975 صفاً عبر 115
+  -- معرّفاً. الهوية الحقيقية: فهرس فريد جزئي على (booking_uuid_cache,
+  -- hotel_day_key) حيث deleted_at IS NULL (انظر أسفل الجدول)، وهو ما
+  -- يسمح بإخفاء نسخة قديمة وإدراج البديل في نفس اليوم.
 );
 CREATE INDEX IF NOT EXISTS idx_booking_nights_updated ON booking_nights(updated_at);
 CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights(booking_local_id);
+-- ✅ (2026-11-23) «لا ليالٍ مكررة»: هوية الليلة الحيّة عالمية
+-- (uuid الحجز + اليوم)، لا booking_local_id المحلي للجهاز. الفهرس جزئي
+-- فالليالي المخفية (deleted_at) تبقى للأثر. طيّ الصفوف القائمة:
+-- migrations/0018_booking_nights_identity_dedupe.sql
+CREATE UNIQUE INDEX IF NOT EXISTS ux_booking_nights_booking_day_live
+  ON booking_nights(booking_uuid_cache, hotel_day_key)
+  WHERE deleted_at IS NULL AND booking_uuid_cache IS NOT NULL AND TRIM(booking_uuid_cache) <> '';
+CREATE INDEX IF NOT EXISTS idx_booking_nights_uuid_cache ON booking_nights(booking_uuid_cache);
+CREATE INDEX IF NOT EXISTS idx_booking_nights_slot
+  ON booking_nights(booking_local_id, hotel_day_key);
 
 -- ─── Booking Price Adjustments ────────────────────────────────
 CREATE TABLE IF NOT EXISTS booking_price_adjustments (
