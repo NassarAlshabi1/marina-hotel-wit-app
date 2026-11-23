@@ -17,6 +17,7 @@ import 'daos/payments_dao.dart';
 import 'daos/rooms_dao.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
+import 'sync/booking_night_payload.dart';
 
 /// استثناء يُرمى عند فشل التحقق من صحة بيانات النسخة الاحتياطية
 class RestoreValidationException implements Exception {
@@ -713,7 +714,37 @@ class RestoreFixService {
   }
 
   Future<_BookingStructuresResult> _handleEmptyBookings() async {
-    await db.delete(db.bookingNights).go();
+    // ✅ (2026-11-23) لا حذف صلب: الليالي تُخفى بشواهد قبور تُرفع إلى D1،
+    // وإلا عادت مع أول سحب (الحذف المحلي وحده لا يعني شيئاً للخادم).
+    final live =
+        await (db.select(db.bookingNights)
+              ..where((n) => n.deletedAt.isNull()))
+            .get();
+    if (live.isNotEmpty) {
+      final stamp = Time.nowEpoch();
+      final stampIso = DateTime.now().toUtc().toIso8601String();
+      await db.batch((batch) {
+        for (final row in live) {
+          batch.update(
+            db.bookingNights,
+            BookingNightsCompanion(
+              deletedAt: Value(stamp),
+              deletedAtIso: Value(stampIso),
+              updatedAt: Value(stamp),
+              updatedAtIso: Value(stampIso),
+              version: Value(row.version + 1),
+            ),
+            where: (t) => t.id.equals(row.id),
+          );
+        }
+      });
+      await _enqueueNightSync(
+        writtenUuids: <String>{},
+        retired: live,
+        stamp: stamp,
+        stampIso: stampIso,
+      );
+    }
     await db.delete(db.hotelDayLedger).go();
     return const _BookingStructuresResult(
       changes: [],
@@ -734,8 +765,11 @@ class RestoreFixService {
     int bookingNightCount = 0;
     int paymentsProcessed = 0;
 
-    await db.delete(db.bookingNights).go();
-
+    // ✅ (2026-11-23) لا حذف صلب لليالي قبل إعادة البناء: كان يمحو الهوية
+    // (localUuid/serverId/version) التي يعرفها D1، فيُرفض رفع الصف الجديد
+    // (تسجيل إصدار أقدم ⇒ lost_race) وتبقى على الخادم ليلة قديمة لكل ليلة
+    // محلية — تعود مع أول سحب. الكتابة الآن في المكان عبر
+    // `_applyNightRowsPreservingIdentity`.
     for (final booking in context.bookings) {
       final room = context.roomsByNumber[booking.roomNumber];
 
@@ -766,13 +800,7 @@ class RestoreFixService {
       }
     }
 
-    if (nightRows.isNotEmpty) {
-      await db.batch((batch) {
-        for (final row in nightRows) {
-          batch.insert(db.bookingNights, row);
-        }
-      });
-    }
+    await _applyNightRowsPreservingIdentity(nightRows);
 
     await _processExpenses(context, ledger);
 
@@ -785,6 +813,172 @@ class RestoreFixService {
       paymentsProcessed: paymentsProcessed,
     );
   }
+
+  /// ✅ (2026-11-23) كتابة ليالي إعادة البناء **في مكانها** بدل حذفها وإعادة
+  /// إنشائها.
+  ///
+  /// ما كان يحدث قبل هذا: `DELETE FROM booking_nights` ثم إدراج صفوف جديدة
+  /// بـ`version = 1` وبلا `serverId` ولا `createdAt`. النتيجة:
+  ///   1. هوية الصف على D1 تصبح «قديمة» (إصدار 1 مقابل إصدار أعلى على
+  ///      الخادم) ⇒ كل رفع يُرفض بـ `lost_race_optimistic_race`، والليلة
+  ///      لا تصل أبداً.
+  ///   2. الحذف محلي فقط (بلا شواهد قبور في outbox) ⇒ أول سحب يعيد كل
+  ///      الليالي المحذوفة، فتصبح ليلتان لكل يوم بعد إعادة البناء.
+  ///
+  /// السلوك الآن:
+  ///   • الصف المطابق يُحدَّث في مكانه: `localUuid` و`serverId` و`createdAt`
+  ///     تُحفظ، و`version = version + 1` (لا رجوع إلى 1).
+  ///   • الصف المحذوف ناعماً يُحيا (`deletedAt = null`) بنفس هويته.
+  ///   • تكرار محلي على نفس (الحجز، اليوم): يُكتب فوق الأحدث فقط، والباقي
+  ///     يُخفى (tombstone) لا يُحذف.
+  ///   • كل ما كُتب أو أُخفي يُدرَج في outbox بلقطة صف كاملة كي تتقارب D1.
+  Future<void> _applyNightRowsPreservingIdentity(
+    List<BookingNightsCompanion> rows,
+  ) async {
+    if (rows.isEmpty) {
+      return;
+    }
+
+    final existing = await db.select(db.bookingNights).get();
+    final byUuid = <String, BookingNight>{
+      for (final row in existing) row.localUuid: row,
+    };
+    final bySlot = <String, BookingNight>{};
+    for (final row in existing) {
+      final key = _nightSlotKey(row.bookingLocalId, row.hotelDayKey);
+      final current = bySlot[key];
+      if (current == null ||
+          row.lastModified > current.lastModified ||
+          (row.lastModified == current.lastModified && row.id > current.id)) {
+        bySlot[key] = row;
+      }
+    }
+
+    final stamp = Time.nowEpoch();
+    final stampIso = DateTime.now().toUtc().toIso8601String();
+    final keptIds = <int>{};
+    final writtenUuids = <String>{};
+    final retired = <BookingNight>[];
+
+    await db.batch((batch) {
+      for (final companion in rows) {
+        final computedUuid = companion.localUuid.present
+            ? companion.localUuid.value
+            : null;
+        final match =
+            (computedUuid == null ? null : byUuid[computedUuid]) ??
+            bySlot[_nightSlotKey(
+              companion.bookingLocalId.value,
+              companion.hotelDayKey.value,
+            )];
+
+        if (match == null) {
+          batch.insert(db.bookingNights, companion);
+          if (computedUuid != null) writtenUuids.add(computedUuid);
+          continue;
+        }
+
+        keptIds.add(match.id);
+        writtenUuids.add(match.localUuid);
+        batch.update(
+          db.bookingNights,
+          companion.copyWith(
+            localUuid: Value(match.localUuid),
+            serverId: Value(match.serverId),
+            version: Value(match.version + 1),
+            createdAt: Value(match.createdAt),
+            createdAtIso: Value(match.createdAtIso),
+            createdAtEpoch: Value(match.createdAtEpoch),
+            deletedAt: const Value(null),
+            deletedAtIso: const Value(null),
+          ),
+          where: (t) => t.id.equals(match.id),
+        );
+      }
+
+      for (final row in existing) {
+        if (row.deletedAt != null || keptIds.contains(row.id)) {
+          continue;
+        }
+        retired.add(row);
+        batch.update(
+          db.bookingNights,
+          BookingNightsCompanion(
+            deletedAt: Value(stamp),
+            deletedAtIso: Value(stampIso),
+            updatedAt: Value(stamp),
+            updatedAtIso: Value(stampIso),
+            version: Value(row.version + 1),
+          ),
+          where: (t) => t.id.equals(row.id),
+        );
+      }
+    });
+
+    await _enqueueNightSync(
+      writtenUuids: writtenUuids,
+      retired: retired,
+      stamp: stamp,
+      stampIso: stampIso,
+    );
+  }
+
+  /// إدراج الليالي المكتوبة/المخفية في outbox بلقطة صف كاملة، كي لا تبقى
+  /// نسخة D1 مختلفة عن النسخة المحلية بعد إعادة البناء.
+  Future<void> _enqueueNightSync({
+    required Set<String> writtenUuids,
+    required List<BookingNight> retired,
+    required int stamp,
+    required String stampIso,
+  }) async {
+    if (writtenUuids.isEmpty && retired.isEmpty) {
+      return;
+    }
+    final outboxDao = OutboxDao(db);
+    final payloads = BookingNightPayloadBuilder(db);
+    const chunkSize = 400;
+
+    final uuids = writtenUuids.toList(growable: false);
+    for (var i = 0; i < uuids.length; i += chunkSize) {
+      final chunk = uuids.sublist(
+        i,
+        i + chunkSize < uuids.length ? i + chunkSize : uuids.length,
+      );
+      final live =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.localUuid.isIn(chunk))
+                ..where((n) => n.deletedAt.isNull()))
+              .get();
+      if (live.isEmpty) {
+        continue;
+      }
+      await outboxDao.mergeBatch([
+        for (final row in live)
+          <String, dynamic>{
+            'entity': 'booking_nights',
+            'op': 'update',
+            'localUuid': row.localUuid,
+            'payload': payloads.build(row),
+            'clientTs': stamp,
+          },
+      ]);
+    }
+
+    for (final row in retired) {
+      await payloads.enqueue(
+        outboxDao: outboxDao,
+        row: row,
+        op: 'update',
+        clientTs: stamp,
+        tombstonedAt: stamp,
+        tombstonedAtIso: stampIso,
+      );
+    }
+  }
+
+  /// خانة الليلة: (الحجز المحلي، يوم الفندق) — مفتاح كشف التكرار.
+  String _nightSlotKey(int bookingLocalId, String hotelDayKey) =>
+      '$bookingLocalId|${hotelDayKey.trim()}';
 
   Future<_BookingProcessingResult> _processBookingForNights({
     required Booking booking,

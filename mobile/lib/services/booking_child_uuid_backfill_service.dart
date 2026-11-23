@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
 import '../utils/time.dart';
+import 'booking_nights_integrity_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
@@ -84,6 +85,11 @@ class BookingChildUuidBackfillService {
         ]);
       });
     }
+
+    // ✅ (2026-11-23) إعادة الربط تجعل صفّين (كانا معلّقين على جهازين)
+    // يشيران إلى نفس الحجز ونفس اليوم. نطوي التكرار فوراً بالأحدث بدل
+    // انتظار إصلاح بدء التشغيل التالي — والطيّ يُخرج شواهد قبور إلى D1.
+    await BookingNightsIntegrityService(db).ensureNoDuplicates();
     return rows.length;
   }
 

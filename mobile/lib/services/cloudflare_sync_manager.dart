@@ -28,6 +28,7 @@ import 'logging/log_models.dart' show LogLevel;
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
 import 'sync/app_open_pull_gate.dart';
+import 'sync/booking_night_batch_dedupe.dart';
 import 'sync/fk_rules.dart';
 import 'sync/payload_normalizer.dart';
 import 'sync/pull_apply_rules.dart';
@@ -3478,7 +3479,10 @@ class CloudflareSyncManager {
     var applied = 0;
     final touched = <String>{};
     final errors = <String>[];
-    var pending = List.of(records);
+    // ✅ (2026-11-23) طيّ تكرار الليالي داخل الصفحة قبل التطبيق:
+    // صف واحد لكل (حجز، يوم) بالأحدث زمنياً — انظر
+    // `sync/booking_night_batch_dedupe.dart` (دالة نقية + اختبارات وحدة).
+    var pending = BookingNightBatchDedupe.collapse(records);
 
     for (var pass = 0; pass < 3 && pending.isNotEmpty; pass++) {
       // رتّب كل محاولة، بما فيها الأولى، حتى لا يعتمد نجاح السحب على
