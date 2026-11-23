@@ -25,6 +25,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -42,12 +44,55 @@ jobs:
         run: dart fix --apply
 
       - name: Flutter Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/analyze.log 2>&1
+          EXIT_CODE=$?
+          cat /tmp/analyze.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            grep -E "error •|warning •" /tmp/analyze.log | head -n 30 | while IFS= read -r line; do
+              echo "::error title=Flutter Analyze::$line"
+            done
+            tail -n 15 /tmp/analyze.log | while IFS= read -r line; do
+              echo "::warning title=Analyze Tail::$line"
+            done
+            exit $EXIT_CODE
+          fi
 
       - name: Dart Format
-        run: dart format --set-exit-if-changed .
+        run: |
+          BASE_REF="${{ github.base_ref }}"
+          if [ -n "$BASE_REF" ] && git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            DIFF_RANGE="origin/$BASE_REF...HEAD"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            DIFF_RANGE="HEAD~1..HEAD"
+          else
+            DIFF_RANGE=""
+          fi
+          if [ -n "$DIFF_RANGE" ]; then
+            CHANGED_DART=$(git diff --name-only --diff-filter=ACMR $DIFF_RANGE -- '*.dart' | grep -vE '\.(g|freezed)\.dart$' | sed 's|^mobile/||' || true)
+          else
+            CHANGED_DART=""
+          fi
+          if [ -n "$CHANGED_DART" ]; then
+            echo "Checking formatting on changed Dart files:"
+            echo "$CHANGED_DART"
+            set +e
+            # shellcheck disable=SC2086
+            dart format --output=none --set-exit-if-changed $CHANGED_DART > /tmp/format.log 2>&1
+            FMT_EXIT=$?
+            cat /tmp/format.log
+            if [ $FMT_EXIT -ne 0 ]; then
+              cat /tmp/format.log | head -n 20 | while IFS= read -r line; do
+                echo "::error title=Dart Format::$line"
+              done
+              exit $FMT_EXIT
+            fi
+          else
+            echo "No changed non-generated Dart files in diff."
+          fi
         # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
-        # الكود غير المُنسّق يجب أن يُكسر الـ build للحفاظ على جودة الكود.
+        # الكود المُعدَّل غير المُنسّق يكسر الـ build دون التأثر بملفات build_runner المولّدة.
 
       # ═══════════════════════════════════════════════════════════
       #  اختبارات
@@ -60,7 +105,19 @@ jobs:
       #  test/flutter_test_config.dart يُهيِّئ sqfliteFfiInit() تلقائياً
       # ═══════════════════════════════════════════════════════════
       - name: Run tests
-        run: flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter compact
+        run: |
+          set +e
+          flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter expanded > /tmp/test.log 2>&1
+          TEST_EXIT=$?
+          tail -n 200 /tmp/test.log
+          SUMMARY_LINE=$(tail -n 5 /tmp/test.log | tr '\n' ' ')
+          echo "::notice title=Flutter Test Summary::$SUMMARY_LINE"
+          if [ $TEST_EXIT -ne 0 ]; then
+            grep -E "\[E\]|Expected:|Actual:|Failed to load|Error:" /tmp/test.log | tail -n 30 | while IFS= read -r line; do
+              echo "::error title=Flutter Test Failure::$line"
+            done
+            exit $TEST_EXIT
+          fi
         # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
         # فشل الاختبارات يجب أن يُكسر الـ build لمنع دفع كود مكسور للإنتاج.
 
