@@ -41,7 +41,13 @@ jobs:
         run: dart run build_runner build
 
       - name: Apply Dart fixes
-        run: dart fix --apply
+        run: |
+          dart fix --apply
+          CHANGED_DART=$(git diff --name-only --diff-filter=ACMR origin/guest-adjustment-edit-end...HEAD -- '*.dart' | grep -vE '\.(g|freezed)\.dart$' | sed 's|^mobile/||' || true)
+          if [ -n "$CHANGED_DART" ]; then
+            # shellcheck disable=SC2086
+            dart format $CHANGED_DART
+          fi
 
       - name: Flutter Analyze
         run: |

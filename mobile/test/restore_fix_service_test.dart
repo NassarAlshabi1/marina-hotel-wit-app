@@ -538,11 +538,9 @@ void main() {
         final futureBooking = await (db.select(
           db.bookings,
         )..where((b) => b.id.equals(futureCheckoutBookingId))).getSingle();
-        final guestCalc = await GuestPaymentCalculationService(db)
-            .calculateForBooking(
-              futureBooking,
-              now: DateTime(2026, 10, 3, 15),
-            );
+        final guestCalc = await GuestPaymentCalculationService(
+          db,
+        ).calculateForBooking(futureBooking, now: DateTime(2026, 10, 3, 15));
         expect(
           guestCalc.actualDaysSpent,
           equals(2),
