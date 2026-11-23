@@ -185,8 +185,13 @@ class PaymentsRepository {
       if (booking == null) {
         q.where((p) => p.bookingLocalId.equals(bookingLocalId));
       } else {
+        final compactUuid = booking.localUuid.replaceAll('-', '');
+        final uuidVariants = <String>{
+          booking.localUuid,
+          if (compactUuid.isNotEmpty) compactUuid,
+        }.toList(growable: false);
         final byLocalId = db.payments.bookingLocalId.equals(bookingLocalId);
-        final byUuid = db.payments.bookingUuidCache.equals(booking.localUuid);
+        final byUuid = db.payments.bookingUuidCache.isIn(uuidVariants);
         q.where((p) => byLocalId | byUuid);
       }
 
@@ -480,6 +485,12 @@ class PaymentsRepository {
             )
           : null;
 
+      final targetBooking = bookingLocalId != null
+          ? await (db.select(
+              db.bookings,
+            )..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull()
+          : null;
+
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
       final result = await db.transaction(() async {
         final updated = await dao.updateById(
@@ -487,6 +498,9 @@ class PaymentsRepository {
           PaymentsCompanion(
             bookingLocalId: bookingLocalId != null
                 ? d.Value(bookingLocalId)
+                : const d.Value.absent(),
+            bookingUuidCache: targetBooking != null
+                ? d.Value(targetBooking.localUuid)
                 : const d.Value.absent(),
             serverBookingId: serverBookingId != null
                 ? d.Value(serverBookingId)

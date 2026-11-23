@@ -349,13 +349,24 @@ class RestoreFixService {
     final List<String> changes = [];
 
     try {
-      // تحليل تواريخ الدخول والخروج
+      // تحليل تواريخ الدخول والخروج مع سقف زمن المغادرة الفعلي عند الوقت الحالي
       final checkinDate = DateTime.parse(booking.checkinDate);
-      final checkoutDate = booking.actualCheckout != null
-          ? DateTime.parse(booking.actualCheckout!)
-          : (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty
-                ? DateTime.parse(booking.checkoutDate!)
-                : now);
+      final actual =
+          (booking.actualCheckout != null &&
+              booking.actualCheckout!.trim().isNotEmpty)
+          ? DateTime.tryParse(booking.actualCheckout!)
+          : null;
+      final planned =
+          (booking.checkoutDate != null &&
+              booking.checkoutDate!.trim().isNotEmpty)
+          ? DateTime.tryParse(booking.checkoutDate!)
+          : null;
+      final DateTime checkoutDate;
+      if (actual != null) {
+        checkoutDate = actual.isAfter(now) ? now : actual;
+      } else {
+        checkoutDate = planned ?? now;
+      }
 
       // حساب الليالي باستخدام قاعدة الساعة 14:00
       final calculatedNights = Time.nightsWithCutoff(
@@ -426,13 +437,19 @@ class RestoreFixService {
   ) async {
     final changes = <String>[];
     try {
+      final compactUuid = booking.localUuid.replaceAll('-', '');
+      final uuidVariants = <String>{
+        booking.localUuid,
+        if (compactUuid.isNotEmpty) compactUuid,
+      }.toList(growable: false);
+
       final payments =
           await (db.select(db.payments)
-                // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
+                // الربط بـ UUID الثابت (مع صيغتيه) + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
                 ..where(
                   (p) =>
                       p.bookingLocalId.equals(booking.id) |
-                      p.bookingUuidCache.equals(booking.localUuid),
+                      p.bookingUuidCache.isIn(uuidVariants),
                 )
                 ..where((p) => p.deletedAt.isNull())
                 ..where((p) => p.isVoided.equals(false))
@@ -456,14 +473,18 @@ class RestoreFixService {
       if (room != null) {
         final nights =
             await (db.select(db.bookingNights)
-                  ..where((n) => n.bookingLocalId.equals(booking.id))
+                  ..where(
+                    (n) =>
+                        n.bookingLocalId.equals(booking.id) |
+                        n.bookingUuidCache.isIn(uuidVariants),
+                  )
                   ..where((n) => n.deletedAt.isNull()))
                 .get();
 
         if (nights.isNotEmpty) {
           expectedTotal = nights.fold<double>(
             0,
-            (sum, n) => sum + n.nightlyRate,
+            (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
           );
         } else {
           // ✅ استبدال التقدير اليدوي بالمحرك الموحد: يشمل تعديلات الأسعار
@@ -537,7 +558,11 @@ class RestoreFixService {
 
       final debts =
           await (db.select(db.debts)
-                ..where((d) => d.bookingLocalId.equals(booking.id))
+                ..where(
+                  (d) =>
+                      d.bookingLocalId.equals(booking.id) |
+                      d.bookingUuidCache.isIn(uuidVariants),
+                )
                 ..where((d) => d.deletedAt.isNull()))
               .get();
       if (debts.isNotEmpty && expectedTotal != null) {
@@ -728,6 +753,26 @@ class RestoreFixService {
     int bookingNightCount = 0;
     int paymentsProcessed = 0;
 
+    final existingNights = await db.select(db.bookingNights).get();
+    final existingNightByKey = <String, BookingNight>{};
+    for (final n in existingNights) {
+      existingNightByKey.putIfAbsent(
+        'id:${n.bookingLocalId}|${n.hotelDayKey}',
+        () => n,
+      );
+      final cachedUuid = (n.bookingUuidCache ?? '').trim().toLowerCase();
+      if (cachedUuid.isNotEmpty) {
+        existingNightByKey.putIfAbsent(
+          'uuid:$cachedUuid|${n.hotelDayKey}',
+          () => n,
+        );
+        existingNightByKey.putIfAbsent(
+          'uuid:${cachedUuid.replaceAll('-', '')}|${n.hotelDayKey}',
+          () => n,
+        );
+      }
+    }
+
     await db.delete(db.bookingNights).go();
 
     for (final booking in context.bookings) {
@@ -749,6 +794,7 @@ class RestoreFixService {
         room: room,
         restoreMoment: context.restoreMoment,
         ledger: ledger,
+        existingNightByKey: existingNightByKey,
       );
 
       nightRows.addAll(bookingResult.nightRows);
@@ -785,6 +831,7 @@ class RestoreFixService {
     required Room room,
     required DateTime restoreMoment,
     required Map<String, _LedgerAccumulator> ledger,
+    Map<String, BookingNight> existingNightByKey = const {},
   }) async {
     final calcService = EnhancedBookingCalculationService(db);
     final calculation = await calcService.calculateForBooking(
@@ -795,6 +842,7 @@ class RestoreFixService {
 
     final List<BookingNightsCompanion> nightRows = [];
     int sequence = 0;
+    final lowerUuid = booking.localUuid.trim().toLowerCase();
 
     for (final night in breakdown) {
       sequence++;
@@ -808,19 +856,32 @@ class RestoreFixService {
       final appliedUuid = night.appliedAdjustments.length == 1
           ? night.appliedAdjustments.first.uuid
           : null;
+      final compactLower = lowerUuid.replaceAll('-', '');
+      final existingNight =
+          existingNightByKey['id:${booking.id}|${night.hotelDayKey}'] ??
+          existingNightByKey['uuid:$lowerUuid|${night.hotelDayKey}'] ??
+          existingNightByKey['uuid:$compactLower|${night.hotelDayKey}'];
 
       nightRows.add(
         BookingNightsCompanion(
-          localUuid: Value(IdGen.uuid()),
-          createdAt: Value(rowEpoch),
+          localUuid: Value(
+            existingNight?.localUuid ??
+                IdGen.bookingNightUuid(booking.localUuid, night.hotelDayKey),
+          ),
+          serverId: existingNight?.serverId != null
+              ? Value(existingNight!.serverId)
+              : const Value.absent(),
+          createdAt: Value(existingNight?.createdAt ?? rowEpoch),
           updatedAt: Value(rowEpoch),
-          lastModified: Value(rowEpoch),
-          createdAtIso: Value(rowIso),
+          lastModified: Value(existingNight?.lastModified ?? rowEpoch),
+          createdAtIso: Value(existingNight?.createdAtIso ?? rowIso),
           updatedAtIso: Value(rowIso),
-          createdAtEpoch: Value(rowEpoch),
-          lastModifiedEpoch: Value(rowEpoch),
-          version: const Value(1),
-          origin: const Value('auto_fix'),
+          createdAtEpoch: Value(existingNight?.createdAtEpoch ?? rowEpoch),
+          lastModifiedEpoch: Value(
+            existingNight?.lastModifiedEpoch ?? rowEpoch,
+          ),
+          version: Value(existingNight?.version ?? 1),
+          origin: Value(existingNight?.origin ?? 'auto_fix'),
           bookingLocalId: Value(booking.id),
           bookingUuidCache: Value(booking.localUuid),
           hotelDayKey: Value(night.hotelDayKey),
@@ -854,12 +915,17 @@ class RestoreFixService {
     // الرصيد الفعلي (قاعدة موحدة مع EnhancedBookingCalculationService):
     // كل الدفعات المرتبطة بالحجز عدا المحذوفة/الملغاة/المعلّقة — بدون
     // فلتر نوع الإيراد (deposit/service أموال فعلية تُخصم من المتبقي).
+    final compactUuid = booking.localUuid.replaceAll('-', '');
+    final uuidVariants = <String>{
+      booking.localUuid,
+      if (compactUuid.isNotEmpty) compactUuid,
+    }.toList(growable: false);
     final paymentRows =
         await (db.select(db.payments)
               ..where(
                 (p) =>
                     (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
+                    p.bookingUuidCache.isIn(uuidVariants)),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))

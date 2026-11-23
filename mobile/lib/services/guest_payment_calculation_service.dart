@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:intl/intl.dart';
+import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 import 'enhanced_booking_calculation_service.dart';
@@ -116,14 +117,20 @@ class GuestPaymentCalculationService {
               ..where((r) => r.deletedAt.isNull()))
             .getSingleOrNull();
 
+    final compactUuid = booking.localUuid.replaceAll('-', '');
+    final uuidVariants = <String>{
+      booking.localUuid,
+      if (compactUuid.isNotEmpty) compactUuid,
+    }.toList(growable: false);
+
     // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة فقط)
     final payments =
         await (db.select(db.payments)
-              // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
+              // الربط بـ UUID الثابت (مع صيغتيه) + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
               ..where(
                 (p) =>
                     p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid),
+                    p.bookingUuidCache.isIn(uuidVariants),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
@@ -133,20 +140,30 @@ class GuestPaymentCalculationService {
               ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
             .get();
 
-    // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00
+    // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00 مع سقف زمن المغادرة الفعلي ومراعاة الحجوزات المغلقة
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
     final actualCheckout =
         booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
+    final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
+    final DateTime effectiveStayEnd;
+    if (actualCheckout != null) {
+      effectiveStayEnd = actualCheckout.isAfter(moment)
+          ? moment
+          : actualCheckout;
+    } else if (!StatusUtils.isActiveBooking(booking.status)) {
+      effectiveStayEnd = plannedCheckout ?? moment;
+    } else {
+      effectiveStayEnd = moment;
+    }
 
     final actualDaysSpent = Time.nightsWithCutoff(
       checkin,
-      checkout: actualCheckout ?? moment,
+      checkout: effectiveStayEnd,
     );
 
     // حساب الأيام المتبقية حتى موعد المغادرة المخطط
-    final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
     int plannedDaysRemaining = 0;
     if (plannedCheckout != null && !plannedCheckout.isBefore(moment)) {
       plannedDaysRemaining = Time.nightsWithCutoff(
@@ -174,7 +191,11 @@ class GuestPaymentCalculationService {
     // الحالي لإعادة تسعير ليالٍ تاريخية إذا كانت السجلات متوفرة.
     final storedNights =
         await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where(
+                (n) =>
+                    n.bookingLocalId.equals(booking.id) |
+                    n.bookingUuidCache.isIn(uuidVariants),
+              )
               ..where((n) => n.deletedAt.isNull())
               ..orderBy([(n) => d.OrderingTerm.asc(n.hotelDayKey)]))
             .get();

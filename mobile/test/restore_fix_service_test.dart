@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/delta_sync_service.dart';
 import 'package:marina_hotel_mobile/services/enhanced_booking_calculation_service.dart';
+import 'package:marina_hotel_mobile/services/guest_payment_calculation_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/restore_fix_service.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
@@ -442,5 +443,110 @@ void main() {
         isTrue,
       );
     });
+
+    test(
+      'RestoreFixService preserves booking_nights localUuid and clamps future actualCheckout',
+      () async {
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(db.close);
+        final now = Time.nowEpoch();
+        await db
+            .into(db.rooms)
+            .insert(
+              RoomsCompanion.insert(
+                localUuid: IdGen.uuid(),
+                roomNumber: '401',
+                type: 'single',
+                price: 10000,
+                status: 'محجوزة',
+                createdAt: now,
+                updatedAt: now,
+                lastModified: now,
+              ),
+            );
+        final bookingUuid = IdGen.uuid();
+        final bookingId = await db
+            .into(db.bookings)
+            .insert(
+              BookingsCompanion.insert(
+                localUuid: bookingUuid,
+                roomNumber: '401',
+                guestName: 'نزيل الحفاظ على الهوية',
+                guestPhone: '777',
+                checkinDate: '2026-10-01T14:00:00',
+                checkoutDate: const Value('2026-10-03T14:00:00'),
+                actualCheckout: const Value('2026-10-03T14:00:00'),
+                status: 'مكتمل',
+                createdAt: now,
+                updatedAt: now,
+                lastModified: now,
+              ),
+            );
+        const preservedNightUuid = 'night-preserved-uuid-1';
+        await db
+            .into(db.bookingNights)
+            .insert(
+              BookingNightsCompanion.insert(
+                localUuid: preservedNightUuid,
+                bookingLocalId: bookingId,
+                bookingUuidCache: Value(bookingUuid),
+                hotelDayKey: '2026-10-01',
+                nightStart: '2026-10-01T14:00:00',
+                nightEnd: '2026-10-02T14:00:00',
+                nightlyRate: 10000,
+                createdAt: now,
+                updatedAt: now,
+                lastModified: now,
+              ),
+            );
+
+        final fixService = RestoreFixService(db);
+        final report = await fixService.runAutoFixAfterRestore(
+          restoreTimestamp: DateTime(2026, 10, 5, 12),
+        );
+        expect(report.success, isTrue);
+
+        final nightsAfter = await (db.select(
+          db.bookingNights,
+        )..where((n) => n.hotelDayKey.equals('2026-10-01'))).getSingle();
+        expect(
+          nightsAfter.localUuid,
+          equals(preservedNightUuid),
+          reason: 'إعادة بناء الليالي يجب أن تحافظ على localUuid الموجود',
+        );
+
+        // التحقق من سقف actualCheckout المستقبلي في GuestPaymentCalculationService
+        final futureCheckoutBookingId = await db
+            .into(db.bookings)
+            .insert(
+              BookingsCompanion.insert(
+                localUuid: IdGen.uuid(),
+                roomNumber: '401',
+                guestName: 'نزيل خروج مستقبلي',
+                guestPhone: '777',
+                checkinDate: '2026-10-01T14:00:00',
+                checkoutDate: const Value('2026-10-10T14:00:00'),
+                actualCheckout: const Value('2026-10-10T14:00:00'),
+                status: 'محجوزة',
+                createdAt: now,
+                updatedAt: now,
+                lastModified: now,
+              ),
+            );
+        final futureBooking = await (db.select(
+          db.bookings,
+        )..where((b) => b.id.equals(futureCheckoutBookingId))).getSingle();
+        final guestCalc = await GuestPaymentCalculationService(db)
+            .calculateForBooking(
+              futureBooking,
+              now: DateTime(2026, 10, 3, 15),
+            );
+        expect(
+          guestCalc.actualDaysSpent,
+          equals(2),
+          reason: 'actualCheckout المستقبلي يُسقّف عند الوقت الحالي',
+        );
+      },
+    );
   });
 }

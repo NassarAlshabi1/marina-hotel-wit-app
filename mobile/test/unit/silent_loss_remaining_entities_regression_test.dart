@@ -32,6 +32,7 @@
 // ignore_for_file: lines_longer_than_80_chars
 
 import 'package:appwrite/models.dart' as models;
+import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,6 +41,7 @@ import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/utils/id.dart';
 
 const int _kBaseEpochSec = 1760000000;
 const String _kGoodUuid = 'good-uuid-1';
@@ -444,5 +446,185 @@ void main() {
                   .get())
               .isNotEmpty,
     ),
+  );
+
+  test(
+    'مزامنة الدفعات وإلغاءاتها تحدّث totalPaidCached وremainingBalanceCached وتعلّم الدفعة كمُلغاة',
+    () async {
+      await db
+          .into(db.rooms)
+          .insert(
+            RoomsCompanion.insert(
+              localUuid: 'room-sync-101',
+              roomNumber: '101',
+              type: 'single',
+              price: 10000,
+              status: 'شغور',
+              createdAt: _kBaseEpochSec,
+              updatedAt: _kBaseEpochSec,
+              lastModified: _kBaseEpochSec,
+            ),
+          );
+      final bookingId = await db
+          .into(db.bookings)
+          .insert(
+            BookingsCompanion.insert(
+              localUuid: 'booking-sync-101',
+              roomNumber: '101',
+              guestName: 'نزيل المزامنة',
+              guestPhone: '777000111',
+              checkinDate: '2026-11-01T14:00:00',
+              checkoutDate: const drift.Value('2026-11-03T14:00:00'),
+              actualCheckout: const drift.Value('2026-11-03T14:00:00'),
+              status: 'مكتمل',
+              createdAt: _kBaseEpochSec,
+              updatedAt: _kBaseEpochSec,
+              lastModified: _kBaseEpochSec,
+            ),
+          );
+
+      final paymentDoc = _doc(
+        id: 'payment-sync-101',
+        collectionId: 'payments',
+        data: {
+          'localUuid': 'payment-sync-101',
+          'bookingUuidCache': 'booking-sync-101',
+          'roomNumber': '101',
+          'amount': 15000.0,
+          'paymentDate': '2026-11-01T15:00:00',
+          'paymentMethod': 'نقدي',
+          'revenueType': 'room',
+          'hotelDayKey': '2026-11-01',
+          'createdAt': _kBaseEpochSec,
+          'updatedAt': _kBaseEpochSec + 10,
+          'lastModified': _kBaseEpochSec + 10,
+          'vectorClock': '{}',
+          'deviceId': 'device-A',
+        },
+      );
+
+      final syncedPayments = await manager.syncPaymentsForTesting([paymentDoc]);
+      expect(syncedPayments, 1);
+
+      final afterPaymentBooking = await (db.select(
+        db.bookings,
+      )..where((b) => b.id.equals(bookingId))).getSingle();
+      expect(afterPaymentBooking.totalPaidCached, closeTo(15000.0, 0.01));
+      expect(afterPaymentBooking.remainingBalanceCached, closeTo(5000.0, 0.01));
+
+      final voidDoc = _doc(
+        id: 'void-sync-101',
+        collectionId: 'payment_voids',
+        data: {
+          'localUuid': 'void-sync-101',
+          'originalPaymentId': 1,
+          'originalPaymentUuid': 'payment-sync-101',
+          'amount': 15000.0,
+          'voidReason': 'إلغاء اختباري',
+          'voidedBy': 'admin',
+          'voidedAt': _kBaseEpochSec + 20,
+          'hotelDayKey': '2026-11-01',
+          'createdAt': _kBaseEpochSec + 20,
+          'updatedAt': _kBaseEpochSec + 20,
+          'lastModified': _kBaseEpochSec + 20,
+          'vectorClock': '{}',
+          'deviceId': 'device-A',
+        },
+      );
+
+      final syncedVoids = await manager.syncPaymentVoidsForTesting([voidDoc]);
+      expect(syncedVoids, 1);
+
+      final voidedPayment = await (db.select(
+        db.payments,
+      )..where((p) => p.localUuid.equals('payment-sync-101'))).getSingle();
+      expect(voidedPayment.isVoided, isTrue);
+      expect(voidedPayment.isImmutable, isTrue);
+
+      final afterVoidBooking = await (db.select(
+        db.bookings,
+      )..where((b) => b.id.equals(bookingId))).getSingle();
+      expect(afterVoidBooking.totalPaidCached, closeTo(0.0, 0.01));
+      expect(afterVoidBooking.remainingBalanceCached, closeTo(20000.0, 0.01));
+    },
+  );
+
+  test(
+    'منع تكرار الليالي: UUID حتمي موحد عبر الأجهزة ودمج المستندات المكررة لنفس (booking, hotelDayKey) بالأحدث',
+    () async {
+      const dashedUuid = '621b28eb-87dd-429b-9f12-fe19c18f17df';
+      const compactUuid = '621b28eb87dd429b9f12fe19c18f17df';
+      final nightUuidA = IdGen.bookingNightUuid(dashedUuid, '2026-11-01');
+      final nightUuidB = IdGen.bookingNightUuid(compactUuid, '2026-11-01');
+      expect(
+        nightUuidA,
+        equals(nightUuidB),
+        reason: 'نفس الليلة لنفس الحجز تنتج نفس الـ UUID الحتمي على كل الأجهزة',
+      );
+
+      // إرسال مستندين مكررين لنفس الليلة (2026-11-01) بمعرّفين مختلفين: الأول أحدث (8500) والثاني أقدم (10000)
+      final newerNightDoc = _doc(
+        id: 'dup-night-newer',
+        collectionId: 'booking_nights',
+        data: {
+          'localUuid': 'dup-night-newer',
+          'bookingUuidCache': 'booking-sync-101',
+          'hotelDayKey': '2026-11-01',
+          'nightStart': '2026-11-01T14:00:00',
+          'nightEnd': '2026-11-02T14:00:00',
+          'nightlyRate': 8500.0,
+          'baseRate': 10000.0,
+          'adjustment': -1500.0,
+          'finalRate': 8500.0,
+          'sequence': 1,
+          'createdAt': _kBaseEpochSec,
+          'lastModified': _kBaseEpochSec + 500,
+          'vectorClock': '{}',
+          'deviceId': 'device-A',
+        },
+      );
+      final olderNightDoc = _doc(
+        id: 'dup-night-older',
+        collectionId: 'booking_nights',
+        data: {
+          'localUuid': 'dup-night-older',
+          'bookingUuidCache': 'booking-sync-101',
+          'hotelDayKey': '2026-11-01',
+          'nightStart': '2026-11-01T14:00:00',
+          'nightEnd': '2026-11-02T14:00:00',
+          'nightlyRate': 10000.0,
+          'baseRate': 10000.0,
+          'adjustment': 0.0,
+          'finalRate': 10000.0,
+          'sequence': 1,
+          'createdAt': _kBaseEpochSec,
+          'lastModified': _kBaseEpochSec + 100,
+          'vectorClock': '{}',
+          'deviceId': 'device-B',
+        },
+      );
+
+      await manager.applyBookingNightsForTesting([
+        newerNightDoc,
+        olderNightDoc,
+      ]);
+
+      // وحتى لو وصل المستند القديم بمعرّف مختلف في دورة سحب لاحقة منفصلة، لا يطغى على السجل المحلي الأحدث
+      await manager.applyBookingNightsForTesting([olderNightDoc]);
+
+      final nightsForDay = await (db.select(
+        db.bookingNights,
+      )..where((n) => n.hotelDayKey.equals('2026-11-01'))).get();
+      expect(
+        nightsForDay.length,
+        equals(1),
+        reason: 'لا يجوز وجود أكثر من سجل واحد لنفس اليوم الفندقي والحجز',
+      );
+      expect(
+        nightsForDay.first.finalRate,
+        closeTo(8500.0, 0.01),
+        reason: 'المستند الأحدث زمنياً هو الذي يبقى ولا يطغى عليه المكرر الأقدم',
+      );
+    },
   );
 }

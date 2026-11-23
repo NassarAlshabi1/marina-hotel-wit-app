@@ -695,7 +695,8 @@ class EnhancedBookingCalculationService {
               current.adjustment != night.adjustmentAmount.toDouble() ||
               current.finalRate != night.finalRate.toDouble() ||
               current.appliedAdjustmentUuid != appliedUuid ||
-              current.appliedAdjustmentsJson != appliedJson) {
+              current.appliedAdjustmentsJson != appliedJson ||
+              current.bookingUuidCache != booking.localUuid) {
             shouldRebuild = true;
             break;
           }
@@ -719,12 +720,19 @@ class EnhancedBookingCalculationService {
       //      مُزامَن عبر outbox (op=delete — آلية tombstone القائمة في
       //      _processBookingNightEntry) بدل الحذف الجذري الصامت الذي لا
       //      تعرف السحابة بحدوثه إطلاقاً.
-      final existing =
-          await (db.select(db.bookingNights)
-                ..where((n) => n.bookingLocalId.equals(booking.id))
-                ..where((n) => n.deletedAt.isNull()))
-              .get();
-      final existingByDay = {for (final n in existing) n.hotelDayKey: n};
+      final allExisting = await (db.select(
+        db.bookingNights,
+      )..where((n) => n.bookingLocalId.equals(booking.id))).get();
+      final existing = allExisting
+          .where((n) => n.deletedAt == null)
+          .toList(growable: false);
+      final existingByDay = <String, BookingNight>{};
+      for (final n in allExisting) {
+        final prev = existingByDay[n.hotelDayKey];
+        if (prev == null || (prev.deletedAt != null && n.deletedAt == null)) {
+          existingByDay[n.hotelDayKey] = n;
+        }
+      }
       final breakdownDays = breakdown.map((n) => n.hotelDayKey).toSet();
 
       // ③ الليالي الزائدة → حذف ناعم + قبر مُزامَن
@@ -738,19 +746,25 @@ class EnhancedBookingCalculationService {
           BookingNightsCompanion(
             deletedAt: d.Value(stamp),
             updatedAt: d.Value(stamp),
-            // lastModified يُحدَّث ليتنامَن القبر عبر delta sync وoutbox
-            lastModified: d.Value(stamp),
-            lastModifiedEpoch: d.Value(stamp),
+            // lastModified يُحدَّث فقط عند التعديل المحلي (enqueueOutbox)
+            lastModified: enqueueOutbox
+                ? d.Value(stamp)
+                : const d.Value.absent(),
+            lastModifiedEpoch: enqueueOutbox
+                ? d.Value(stamp)
+                : const d.Value.absent(),
           ),
         );
-        await _outboxDao.merge(
-          entity: 'booking_nights',
-          op: 'delete',
-          localUuid: night.localUuid,
-          serverId: night.serverId,
-          payload: night.toJson(),
-          clientTs: stamp,
-        );
+        if (enqueueOutbox) {
+          await _outboxDao.merge(
+            entity: 'booking_nights',
+            op: 'delete',
+            localUuid: night.localUuid,
+            serverId: night.serverId,
+            payload: night.toJson(),
+            clientTs: stamp,
+          );
+        }
       }
 
       int sequence = 0;
@@ -768,16 +782,36 @@ class EnhancedBookingCalculationService {
 
           final current = existingByDay[night.hotelDayKey];
           if (current != null) {
-            // ① تحديث في المكان — نفس المعرف والهوية وتاريخ الإنشاء الأصلي.
+            final unchanged =
+                current.deletedAt == null &&
+                current.nightlyRate == night.finalRate.toDouble() &&
+                current.baseRate == night.baseRate.toDouble() &&
+                current.adjustment == night.adjustmentAmount.toDouble() &&
+                current.finalRate == night.finalRate.toDouble() &&
+                current.appliedAdjustmentUuid == appliedUuid &&
+                current.appliedAdjustmentsJson == appliedJson &&
+                current.sequence == sequence &&
+                current.bookingUuidCache == booking.localUuid;
+            if (unchanged) {
+              continue;
+            }
+            // ① تحديث في المكان — نفس المعرف والهوية وتاريخ الإنشاء الأصلي (مع إحياء إن كان محذوفاً ناعماً).
             // (خارج batch: تحديث مع شرط where يحتاج المسماة في drift)
             await (db.update(db.bookingNights)
                   ..where((n) => n.localUuid.equals(current.localUuid)))
                 .write(
               BookingNightsCompanion(
+                deletedAt: const d.Value(null),
+                deletedAtIso: const d.Value(null),
                 updatedAt: d.Value(stamp),
                 updatedAtIso: d.Value(stampIso),
-                lastModified: d.Value(stamp),
-                lastModifiedEpoch: d.Value(stamp),
+                lastModified: enqueueOutbox
+                    ? d.Value(stamp)
+                    : const d.Value.absent(),
+                lastModifiedEpoch: enqueueOutbox
+                    ? d.Value(stamp)
+                    : const d.Value.absent(),
+                bookingUuidCache: d.Value(booking.localUuid),
                 nightlyRate: d.Value(night.finalRate.toDouble()),
                 baseRate: d.Value(night.baseRate.toDouble()),
                 adjustment: d.Value(night.adjustmentAmount.toDouble()),
@@ -788,18 +822,20 @@ class EnhancedBookingCalculationService {
               ),
             );
           } else {
-            // ② ليلة جديدة — إدراج بمعرف جديد
+            // ② ليلة جديدة — إدراج بمعرف UUID حتمي مشتق من (booking.localUuid, night.hotelDayKey)
             batch.insert(
               db.bookingNights,
               BookingNightsCompanion(
-                localUuid: d.Value(IdGen.uuid()),
+                localUuid: d.Value(
+                  IdGen.bookingNightUuid(booking.localUuid, night.hotelDayKey),
+                ),
                 createdAt: d.Value(stamp),
                 updatedAt: d.Value(stamp),
-                lastModified: d.Value(stamp),
+                lastModified: d.Value(enqueueOutbox ? stamp : 0),
                 createdAtIso: d.Value(stampIso),
                 updatedAtIso: d.Value(stampIso),
                 createdAtEpoch: d.Value(stamp),
-                lastModifiedEpoch: d.Value(stamp),
+                lastModifiedEpoch: d.Value(enqueueOutbox ? stamp : 0),
                 origin: const d.Value('derived'),
                 bookingLocalId: d.Value(booking.id),
                 bookingUuidCache: d.Value(booking.localUuid),

@@ -25,6 +25,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 
+  List<String> _bookingUuidVariants(String? rawUuid) {
+    final trimmed = (rawUuid ?? '').trim();
+    if (trimmed.isEmpty) return const [];
+    final compact = trimmed.replaceAll('-', '');
+    return <String>{
+      trimmed,
+      if (compact.isNotEmpty) compact,
+    }.toList(growable: false);
+  }
+
   Future<List<Payment>> list({
     int? bookingLocalId,
     String? from,
@@ -47,7 +57,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.isPendingBalance.equals(false));
     }
     if (bookingLocalId != null) {
-      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+      final booking = await (db.select(
+        db.bookings,
+      )..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
+      final variants = _bookingUuidVariants(booking?.localUuid);
+      q.where(
+        (t) => variants.isEmpty
+            ? t.bookingLocalId.equals(bookingLocalId)
+            : (t.bookingLocalId.equals(bookingLocalId) |
+                  t.bookingUuidCache.isIn(variants)),
+      );
     }
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
@@ -111,12 +130,37 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     int? limit,
     int offset = 0,
   }) {
+    if (bookingLocalId != null) {
+      final bookingStream = (db.select(
+        db.bookings,
+      )..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
+      return bookingStream.asyncExpand((booking) {
+        final scopedQuery = select(payments);
+        if (!includeDeleted) {
+          scopedQuery.where((t) => t.deletedAt.isNull());
+        }
+        final variants = _bookingUuidVariants(booking?.localUuid);
+        scopedQuery.where(
+          (t) => variants.isEmpty
+              ? t.bookingLocalId.equals(bookingLocalId)
+              : (t.bookingLocalId.equals(bookingLocalId) |
+                    t.bookingUuidCache.isIn(variants)),
+        );
+        scopedQuery.orderBy([
+          (t) =>
+              OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+          (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+        ]);
+        if (limit != null) {
+          scopedQuery.limit(limit, offset: offset);
+        }
+        return scopedQuery.watch();
+      });
+    }
+
     final q = select(payments);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
-    }
-    if (bookingLocalId != null) {
-      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
     }
     // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT لمنع تذبذب الصفحات
     // عبر التحديثات. id كـ tie-breaker يضمن استقرار الترتيب.
@@ -326,6 +370,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       origin: Value(originIsServer ? 'server' : 'local'),
       deviceId: originIsServer
           ? const Value.absent()
+          : (data.deviceId.present && data.deviceId.value.trim().isNotEmpty)
+          ? Value(data.deviceId.value)
           : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       serverId: data.serverPaymentId.present
           ? Value(data.serverPaymentId.value)
@@ -519,20 +565,35 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             paymentMethod: Value(payment.paymentMethod),
             revenueType: Value(payment.revenueType),
             hotelDayKey: Value(payment.hotelDayKey),
+            isVoided: Value(payment.isVoided),
+            voidedAt: Value(payment.voidedAt),
+            voidedBy: Value(payment.voidedBy),
+            voidReason: Value(payment.voidReason),
+            isPendingBalance: Value(payment.isPendingBalance),
             linkedDebtUuid: Value(payment.linkedDebtUuid),
             bookingUuidCache: Value(payment.bookingUuidCache),
             cashTransactionLocalId: Value(payment.cashTransactionLocalId),
             cashTransactionServerId: Value(payment.cashTransactionServerId),
-            localUuid: Value(payment.localUuid),
+            isImmutable: Value(payment.isImmutable),
+            localUuid: Value(_canonicalPaymentUuid(payment.localUuid)),
             serverId: Value(payment.serverId),
             createdAt: Value(payment.createdAt),
             updatedAt: Value(payment.updatedAt),
             deletedAt: Value(payment.deletedAt),
             lastModified: Value(payment.lastModified),
+            createdAtIso: Value(payment.createdAtIso),
+            updatedAtIso: Value(payment.updatedAtIso),
+            deletedAtIso: Value(payment.deletedAtIso),
+            createdAtEpoch: Value(payment.createdAtEpoch),
+            lastModifiedEpoch: Value(payment.lastModifiedEpoch),
             version: Value(payment.version),
             origin: Value(payment.origin),
+            deviceId: Value(payment.deviceId),
+            vectorClock: Value(payment.vectorClock),
+            idempotencyKey: Value(payment.idempotencyKey),
             receivedByUserId: Value(payment.receivedByUserId),
             receivedByName: Value(payment.receivedByName),
+            receivedByCloudId: Value(payment.receivedByCloudId),
             receivedSessionUuid: Value(payment.receivedSessionUuid),
           ),
         );

@@ -654,4 +654,79 @@ void main() {
       expect(secondEmission.length, equals(1));
     });
   });
+
+  group('UUID fallback & No-Free-Nights floor in preview/reports', () {
+    test(
+      'previewAdjustment يطبق حد 0.01 الأدنى ويدعم المطابقة عبر bookingUuidCache',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '115',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'ضيف المعاينة',
+          nightCount: 2,
+          nightlyRate: 10000,
+          roomPrice: 10000,
+        );
+
+        final preview = await adjustmentService.previewAdjustment(
+          bookingId: seed.booking.id,
+          amount: 10000,
+          type: AdjustmentType.discount,
+          effectiveHotelDay: _hotelDayKey(_dayFromNow(-1)),
+        );
+
+        expect(preview.nightsAffected, greaterThanOrEqualTo(1));
+        for (final row in preview.nightlyBreakdown) {
+          expect(
+            row.finalRate,
+            greaterThanOrEqualTo(0.01),
+            reason: 'معاينة التعديل لا يجوز أن تعرض ليلة بسعر 0.0',
+          );
+        }
+      },
+    );
+
+    test(
+      'transferAdjustmentsToRoom يدعم الربط عبر bookingLocalUuid عند اختلاف bookingLocalId',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '116',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'ضيف النقل عبر UUID',
+          nightCount: 3,
+          nightlyRate: 15000,
+          roomPrice: 15000,
+        );
+
+        final adj = await adjustmentService.applyTemporaryAdjustment(
+          bookingLocalUuid: seed.bookingUuid,
+          amount: 2000,
+          type: AdjustmentType.discount,
+          effectiveHotelDay: _hotelDayKey(_dayFromNow(-2)),
+          reason: 'خصم عبر UUID',
+          appliedBy: 'المدير',
+        );
+
+        // محاكاة فك ارتباط bookingLocalId المحلي مع بقاء bookingLocalUuid
+        await (db.update(
+          db.bookingPriceAdjustments,
+        )..where((a) => a.localUuid.equals(adj.localUuid))).write(
+          const BookingPriceAdjustmentsCompanion(bookingLocalId: Value(null)),
+        );
+
+        await adjustmentService.transferAdjustmentsToRoom(
+          bookingId: seed.booking.id,
+          newRoomNumber: '117',
+        );
+
+        final updatedAdj = await (db.select(
+          db.bookingPriceAdjustments,
+        )..where((a) => a.localUuid.equals(adj.localUuid))).getSingle();
+        expect(updatedAdj.roomNumber, equals('117'));
+        expect(updatedAdj.bookingLocalId, equals(seed.booking.id));
+      },
+    );
+  });
 }

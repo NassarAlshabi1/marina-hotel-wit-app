@@ -678,5 +678,157 @@ void main() {
       expect(totals.withdrawalCount, 1);
       expect(totals.withdrawalAmount, 40);
     });
+
+    test(
+      '13. relinkAll يصلح روابط الحجوزات في الجداول التابعة عبر UUID بلا outbox',
+      () async {
+        final db = _db();
+        addTearDown(db.close);
+
+        await db
+            .into(db.rooms)
+            .insert(
+              RoomsCompanion.insert(
+                localUuid: 'room-relink-1',
+                roomNumber: '101',
+                type: 'single',
+                price: 10000,
+                status: 'شغور',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+              ),
+            );
+        await db
+            .into(db.bookings)
+            .insert(
+              BookingsCompanion.insert(
+                localUuid: 'booking-dummy-1',
+                roomNumber: '101',
+                guestName: 'حجز أول',
+                guestPhone: '777',
+                checkinDate: '2026-10-01',
+                status: 'مكتمل',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+              ),
+            );
+        const canonicalBookingUuid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+        final realBookingId = await db
+            .into(db.bookings)
+            .insert(
+              BookingsCompanion.insert(
+                localUuid: canonicalBookingUuid,
+                roomNumber: '101',
+                guestName: 'الحجز الفعلي',
+                guestPhone: '777',
+                checkinDate: '2026-10-05',
+                status: 'نشط',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+              ),
+            );
+
+        // إدراج سجلات مرتبطة بالحجز الخاطئ (id=1) لكنها تحمل UUID الحجز الصحيح (أو الصيغة بدون شرطات)
+        await db
+            .into(db.payments)
+            .insert(
+              PaymentsCompanion.insert(
+                localUuid: 'pay-relink-1',
+                bookingLocalId: const d.Value(1),
+                bookingUuidCache: const d.Value(
+                  'aaaaaaaabbbbccccddddeeeeeeeeeeee',
+                ),
+                amount: 5000,
+                paymentDate: '2026-10-05T15:00:00',
+                paymentMethod: 'نقدي',
+                revenueType: 'room',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+              ),
+            );
+        await db
+            .into(db.debts)
+            .insert(
+              DebtsCompanion.insert(
+                localUuid: 'debt-relink-1',
+                bookingLocalId: const d.Value(1),
+                bookingUuidCache: const d.Value(canonicalBookingUuid),
+                guestName: 'الحجز الفعلي',
+                checkinDate: '2026-10-05',
+                checkoutDate: '2026-10-06',
+                dateRecorded: '2026-10-05',
+                debtReason: 'إقامة',
+                totalAmount: 10000,
+                paidAmount: 5000,
+                remainingAmount: 5000,
+                paymentDate: '2026-10-05',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+              ),
+            );
+        await db
+            .into(db.bookingPriceAdjustments)
+            .insert(
+              BookingPriceAdjustmentsCompanion.insert(
+                localUuid: 'adj-relink-1',
+                bookingLocalUuid: canonicalBookingUuid,
+                bookingLocalId: const d.Value(1),
+                roomNumber: '101',
+                amount: 1000,
+                effectiveHotelDay: '2026-10-05',
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+              ),
+            );
+        await db
+            .into(db.bookingNights)
+            .insert(
+              BookingNightsCompanion.insert(
+                localUuid: 'night-relink-1',
+                bookingLocalId: 1,
+                bookingUuidCache: const d.Value(canonicalBookingUuid),
+                hotelDayKey: '2026-10-05',
+                nightStart: '2026-10-05T14:00:00',
+                nightEnd: '2026-10-06T14:00:00',
+                nightlyRate: 9000,
+                createdAt: _now,
+                updatedAt: _now,
+                lastModified: _now,
+              ),
+            );
+
+        final report = await FinancialLinkRelinkService(db).relinkAll();
+        expect(report.bookingPaymentsFixed, 1);
+        expect(report.bookingDebtsFixed, 1);
+        expect(report.bookingPriceAdjustmentsFixed, 1);
+        expect(report.bookingNightsFixed, 1);
+
+        final pay = await (db.select(
+          db.payments,
+        )..where((t) => t.localUuid.equals('pay-relink-1'))).getSingle();
+        final debt = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-relink-1'))).getSingle();
+        final adj = await (db.select(
+          db.bookingPriceAdjustments,
+        )..where((t) => t.localUuid.equals('adj-relink-1'))).getSingle();
+        final night = await (db.select(
+          db.bookingNights,
+        )..where((t) => t.localUuid.equals('night-relink-1'))).getSingle();
+
+        expect(pay.bookingLocalId, realBookingId);
+        expect(debt.bookingLocalId, realBookingId);
+        expect(adj.bookingLocalId, realBookingId);
+        expect(night.bookingLocalId, realBookingId);
+        expect(pay.lastModified, _now);
+        expect(await db.select(db.outbox).get(), isEmpty);
+      },
+    );
   });
 }

@@ -799,7 +799,7 @@ void main() {
     test('انتهاك FK على salary_withdrawals → السجل يبقى ويُسجَّل', () async {
       await addEmployee(uuid: 'uuid-x', name: 'أحمد');
 
-      // إنشاء انتهاك مقصود: موظف غير موجود (999).
+      // إنشاء انتهاك مقصود: موظف غير موجود (999) + دفعة ودين يشيران لحجز غير موجود (999).
       await db.customStatement('PRAGMA foreign_keys = OFF');
       await db
           .into(db.salaryWithdrawals)
@@ -810,6 +810,43 @@ void main() {
               withdrawDate: d.Value('2026-10-03'),
               reason: d.Value('exp_999'),
               localUuid: d.Value('sw-orphan-fk'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+            ),
+          );
+      await db
+          .into(db.payments)
+          .insert(
+            const PaymentsCompanion(
+              localUuid: d.Value('pay-orphan-fk'),
+              bookingLocalId: d.Value(999),
+              bookingUuidCache: d.Value('booking-future-uuid'),
+              amount: d.Value(15000),
+              paymentDate: d.Value('2026-10-03T12:00:00'),
+              paymentMethod: d.Value('نقدي'),
+              revenueType: d.Value('room'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+            ),
+          );
+      await db
+          .into(db.debts)
+          .insert(
+            const DebtsCompanion(
+              localUuid: d.Value('debt-orphan-fk'),
+              bookingLocalId: d.Value(999),
+              bookingUuidCache: d.Value('booking-future-uuid'),
+              guestName: d.Value('نزيل يتيم'),
+              checkinDate: d.Value('2026-10-01'),
+              checkoutDate: d.Value('2026-10-03'),
+              dateRecorded: d.Value('2026-10-03'),
+              debtReason: d.Value('إقامة'),
+              totalAmount: d.Value(15000),
+              paidAmount: d.Value(0),
+              remainingAmount: d.Value(15000),
+              paymentDate: d.Value('2026-10-03'),
               createdAt: d.Value(1000),
               updatedAt: d.Value(1000),
               lastModified: d.Value(1000),
@@ -830,6 +867,34 @@ void main() {
       );
       expect(row!.employeeId, 999);
       expect(row.amount, 777);
+
+      final orphanPayment = await (db.select(
+        db.payments,
+      )..where((p) => p.localUuid.equals('pay-orphan-fk'))).getSingleOrNull();
+      expect(orphanPayment, isNotNull);
+      expect(
+        orphanPayment!.deletedAt,
+        isNull,
+        reason: 'الدفعة اليتيمة لا يجوز حذفها ناعماً عند انتهاك FK',
+      );
+      expect(orphanPayment.bookingLocalId, isNull);
+      expect(
+        orphanPayment.bookingUuidCache,
+        'booking-future-uuid',
+        reason: 'bookingUuidCache يجب أن يبقى محفوظاً لإعادة الربط اللاحق',
+      );
+
+      final orphanDebt = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-orphan-fk'))).getSingleOrNull();
+      expect(orphanDebt, isNotNull);
+      expect(
+        orphanDebt!.deletedAt,
+        isNull,
+        reason: 'الدين اليتيم لا يجوز حذفه ناعماً عند انتهاك FK',
+      );
+      expect(orphanDebt.bookingLocalId, isNull);
+      expect(orphanDebt.bookingUuidCache, 'booking-future-uuid');
     });
   });
 }

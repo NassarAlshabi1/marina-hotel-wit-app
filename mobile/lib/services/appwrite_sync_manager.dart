@@ -462,7 +462,6 @@ class AppwriteSyncManager {
     final prefs = await SharedPreferences.getInstance();
     // قراءة الإعدادات المحفوظة (بدون تغييرها)
     _currentDeviceId = prefs.getString('appwrite_device_id');
-    AppwriteSyncManager.updateStaticDeviceId(_currentDeviceId);
 
     final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
     _lastSyncTime = lastSyncEpoch != null
@@ -470,6 +469,13 @@ class AppwriteSyncManager {
         : null;
 
     _deviceLocalUuid = prefs.getString('appwrite_device_local_uuid');
+    if (_deviceLocalUuid == null || _deviceLocalUuid!.trim().isEmpty) {
+      _deviceLocalUuid = IdGen.uuid();
+      await prefs.setString('appwrite_device_local_uuid', _deviceLocalUuid!);
+    }
+    AppwriteSyncManager.updateStaticDeviceId(
+      _currentDeviceId ?? _deviceLocalUuid,
+    );
     // ✅ propagate the real deviceId now that it is known
     _pullService?.setAncestorCacheDao(
       _ancestorCacheDao,
@@ -2708,6 +2714,10 @@ class AppwriteSyncManager {
   Future<int> syncPaymentVoidsForTesting(List<models.Document> documents) =>
       _syncPaymentVoids(documents);
 
+  @visibleForTesting
+  Future<int> syncPaymentsForTesting(List<models.Document> documents) =>
+      _syncPayments(documents);
+
   /// ✅ إعادة حساب حالة إشغال غرفة واحدة بناءً على الحجوزات النشطة
   /// يستخدم RoomsRepository لضمان تحديث version و lastModified
   Future<void> _refreshSingleRoomOccupancy(String roomNumber) async {
@@ -2960,6 +2970,7 @@ class AppwriteSyncManager {
     final deferred = <models.Document>[];
     // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
     final failed = <String>[];
+    final affectedBookingIds = <int>{};
 
     // المرحلة الأولى: معالجة الدفعات
     for (final doc in documents) {
@@ -3047,10 +3058,18 @@ class AppwriteSyncManager {
           continue;
         }
 
+        if (existingPayment?.bookingLocalId != null) {
+          affectedBookingIds.add(existingPayment!.bookingLocalId!);
+        }
+        if (refs.bookingLocalId != null) {
+          affectedBookingIds.add(refs.bookingLocalId!);
+        }
+
         await _adapterRegistry.payments.upsertFromJson(
           data,
           src: Source.appwrite,
         );
+        await _reconcilePaymentWithLocalVoids(localUuid);
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'payments',
@@ -3109,14 +3128,19 @@ class AppwriteSyncManager {
             );
             continue;
           }
+          if (refs.bookingLocalId != null) {
+            affectedBookingIds.add(refs.bookingLocalId!);
+          }
+          final localUuid = (data['localUuid'] as String?) ?? '';
           await _adapterRegistry.payments.upsertFromJson(
             data,
             src: Source.appwrite,
           );
+          await _reconcilePaymentWithLocalVoids(localUuid);
           // ✅ Wave 7: notify remote change from another device
           await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
             entity: 'payments',
-            localUuid: (data['localUuid'] as String?) ?? '',
+            localUuid: localUuid,
             remoteDeviceId: (data['deviceId'] as String?) ?? '',
             currentDeviceId: _currentDeviceId,
             lastModified: _asIntNullable(data['lastModified']),
@@ -3129,6 +3153,20 @@ class AppwriteSyncManager {
           );
           failed.add('${doc.$id}: $e');
         }
+      }
+    }
+
+    for (final bookingId in affectedBookingIds) {
+      try {
+        await _bookingsRepository.derivedFields.refreshForBookingId(
+          bookingId,
+          enqueueOutbox: false,
+        );
+      } catch (e) {
+        _logger.warning(
+          'Failed to refresh derived fields for booking $bookingId after payment sync: $e',
+          tag: 'SYNC',
+        );
       }
     }
 
@@ -6743,7 +6781,33 @@ class AppwriteSyncManager {
           queries: plan.queries,
           useCache: false,
         ),
-        apply: (docs) => _syncBookings(docs),
+        apply: (docs) async {
+          final synced = await _syncBookings(docs);
+          try {
+            await _relinkOrphanedPayments();
+            await _relinkOrphanedDebts();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkOrphanedPayments/_relinkOrphanedDebts فشل بعد سحب الحجوزات — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
+          try {
+            await _retryPendingFinancialLinks();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _retryPendingFinancialLinks فشلت بعد سحب الحجوزات — '
+              'تعاد في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_PENDING',
+            );
+          }
+          return synced;
+        },
       ),
       CollectionPullTask(
         name: 'cash_transactions',
@@ -9413,14 +9477,79 @@ class AppwriteSyncManager {
     final failed = <String>[];
     var processed = 0;
     try {
-      // ── المرحلة 3: تصنيف + بناء companions في الذاكرة ──────────────────
+      // إذا كانت بعض المستندات لا تطابق local_uuid موجوداً محلياً، نحمّل فهرس
+      // (bookingLocalId, hotelDayKey) باستعلام مجمّع واحد للحجوزات المعنية،
+      // لمنع طغيان مستند بعيد قديم بمعرّف مختلف على ليلة محلية أحدث لنفس اليوم الفندقي.
+      final localByComposite = <String, BookingNight>{};
+      if (localState.length < documents.length) {
+        final unmatchedBookingIds = <int>{};
+        for (final doc in documents) {
+          final u = (doc.data['localUuid'] as String?) ?? doc.$id;
+          if (u.isEmpty || localState.containsKey(u)) continue;
+          final bUuid =
+              (doc.data['bookingUuidCache'] ??
+                      doc.data['booking_uuid_cache'] ??
+                      doc.data['booking_uuid'])
+                  ?.toString();
+          final bServerId =
+              _asIntNullable(doc.data['serverBookingId']) ??
+              _asIntNullable(doc.data['booking_id']);
+          final bLocalId =
+              _asIntNullable(doc.data['bookingLocalId']) ??
+              _asIntNullable(doc.data['booking_local_id']);
+          final resolvedBId = await resolver.resolveBooking(
+            localId: bLocalId,
+            serverId: bServerId,
+            uuid: bUuid,
+            fromRemote: true,
+          );
+          if (resolvedBId != null) {
+            unmatchedBookingIds.add(resolvedBId);
+          }
+        }
+        if (unmatchedBookingIds.isNotEmpty) {
+          final existingForBookings = await (database.select(
+            database.bookingNights,
+          )..where((t) => t.bookingLocalId.isIn(unmatchedBookingIds))).get();
+          for (final row in existingForBookings) {
+            localByComposite['${row.bookingLocalId}|${row.hotelDayKey}'] = row;
+          }
+        }
+      }
+
+      // ── المرحلة 3: تصنيف + بناء companions في الذاكرة (مع منع تكرار نفس الليلة في الدفعة) ──
       final batchEntries = <_NightUpsertEntry>[];
+      final batchIndexByComposite = <String, int>{};
       for (final doc in documents) {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
         final localUuid = (data['localUuid'] as String?) ?? '';
         if (localUuid.isEmpty) continue;
-        final existing = localState[localUuid];
+        var existing = localState[localUuid];
+        if (existing == null && localByComposite.isNotEmpty) {
+          final bUuid =
+              (data['bookingUuidCache'] ??
+                      data['booking_uuid_cache'] ??
+                      data['booking_uuid'])
+                  ?.toString();
+          final bServerId =
+              _asIntNullable(data['serverBookingId']) ??
+              _asIntNullable(data['booking_id']);
+          final bLocalId =
+              _asIntNullable(data['bookingLocalId']) ??
+              _asIntNullable(data['booking_local_id']);
+          final resolvedBId = await resolver.resolveBooking(
+            localId: bLocalId,
+            serverId: bServerId,
+            uuid: bUuid,
+            fromRemote: true,
+          );
+          final hDay =
+              (data['hotelDayKey'] ?? data['hotel_day_key'])?.toString() ?? '';
+          if (resolvedBId != null && hDay.isNotEmpty) {
+            existing = localByComposite['$resolvedBId|$hDay'];
+          }
+        }
 
         // ✅ نفس منطق BaseRepository.upsertFromJson لإزالة/تعيين id:
         // id هو autoIncrement محلي — تمرير id البعيد يسبب تصادم UNIQUE
@@ -9473,9 +9602,10 @@ class AppwriteSyncManager {
             src: Source.appwrite,
           );
           if (refs.shouldSkip) {
-            // الحجز المرجعي غير موجود → تأجيل (نفس منطق القديم: FK/NOT NULL
-            // يُحل غالباً بعد سحب bookings في نفس الدورة أو التالية).
-            deferred.add(doc);
+            // الفهرس في الذاكرة يحوي كل الحجوزات الحالية بالفعل؛ المستندات
+            // التراثية التي بلا bookingUuidCache/serverBookingId أو التي لا
+            // يوجد حجزها محلياً لن تُحل في المرحلة 6 ضمن نفس الدفعة، فتُتخطّى
+            // هنا مباشرة دون استعلامات إضافية أو إشعارات كاذبة.
             continue;
           }
           final comp = _adapterRegistry.nights.adapter.fromJson(
@@ -9483,14 +9613,40 @@ class AppwriteSyncManager {
             src: Source.appwrite,
             refs: refs,
           );
-          batchEntries.add(
-            _NightUpsertEntry(
-              localUuid: localUuid,
-              companion: comp,
-              existingId: existing?.id,
-              remoteData: data,
-            ),
+          final entry = _NightUpsertEntry(
+            localUuid: localUuid,
+            companion: comp,
+            existingId: existing?.id,
+            remoteData: data,
           );
+          final hotelDayKey =
+              (data['hotelDayKey'] ?? data['hotel_day_key'])?.toString() ?? '';
+          final compositeKey =
+              (refs.bookingLocalId != null && hotelDayKey.isNotEmpty)
+              ? '${refs.bookingLocalId}|$hotelDayKey'
+              : '';
+          if (compositeKey.isNotEmpty &&
+              batchIndexByComposite.containsKey(compositeKey)) {
+            final prevIdx = batchIndexByComposite[compositeKey]!;
+            final prevEntry = batchEntries[prevIdx];
+            final prevLastMod =
+                _asIntNullable(prevEntry.remoteData['lastModified']) ??
+                _asIntNullable(prevEntry.remoteData['last_modified']) ??
+                0;
+            final newLastMod =
+                _asIntNullable(data['lastModified']) ??
+                _asIntNullable(data['last_modified']) ??
+                _extractUpdatedAtSec(doc) ??
+                0;
+            if (newLastMod >= prevLastMod) {
+              batchEntries[prevIdx] = entry;
+            }
+          } else {
+            if (compositeKey.isNotEmpty) {
+              batchIndexByComposite[compositeKey] = batchEntries.length;
+            }
+            batchEntries.add(entry);
+          }
           appliedNotifications.add(
             RemoteRecordApplied(
               entity: 'booking_nights',
@@ -9551,19 +9707,22 @@ class AppwriteSyncManager {
         try {
           final data = Map<String, dynamic>.from(doc.data);
           data['localUuid'] ??= doc.$id;
-          await _adapterRegistry.nights.upsertFromJson(
+          final upsertedId = await _adapterRegistry.nights.upsertFromJson(
             data,
             src: Source.appwrite,
           );
-          // ✅ Wave 7 tighten: notify remote change from another device
-          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-            entity: 'booking_nights',
-            localUuid: (data['localUuid'] as String?) ?? '',
-            remoteDeviceId: (data['deviceId'] as String?) ?? '',
-            currentDeviceId: _currentDeviceId,
-            lastModified: _asIntNullable(data['lastModified']),
-          );
-          processed++;
+          if (upsertedId != -1) {
+            // ✅ Wave 7 tighten: notify remote change from another device
+            await RemoteChangeNotificationService.instance
+                .onRemoteRecordApplied(
+                  entity: 'booking_nights',
+                  localUuid: (data['localUuid'] as String?) ?? '',
+                  remoteDeviceId: (data['deviceId'] as String?) ?? '',
+                  currentDeviceId: _currentDeviceId,
+                  lastModified: _asIntNullable(data['lastModified']),
+                );
+            processed++;
+          }
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred booking night ${doc.$id} after retry: $e',
@@ -10735,11 +10894,103 @@ class AppwriteSyncManager {
     return processed;
   }
 
+  Future<Set<int>> _applyVoidToLocalPayment(
+    Map<String, dynamic> voidData,
+  ) async {
+    final affectedBookings = <int>{};
+    final rawOrig =
+        (voidData['originalPaymentUuid'] as String?) ??
+        (voidData['original_payment_uuid'] as String?) ??
+        '';
+    final trimmed = rawOrig.trim();
+    if (trimmed.isEmpty) return affectedBookings;
+
+    final normalized = IdResolver.normalizeUuid(trimmed);
+    final compact = IdResolver.stripDashes(trimmed);
+    final variants = <String>{
+      trimmed,
+      if (normalized.isNotEmpty) normalized,
+      if (compact.isNotEmpty) compact,
+    }.toList(growable: false);
+
+    final matchingPayments = await (database.select(
+      database.payments,
+    )..where((p) => p.localUuid.isIn(variants))).get();
+    if (matchingPayments.isEmpty) return affectedBookings;
+
+    final voidedAtVal =
+        _asIntNullable(voidData['voidedAt']) ??
+        _asIntNullable(voidData['voided_at']) ??
+        Time.nowEpoch();
+    final voidedByVal =
+        (voidData['voidedBy'] as String?) ?? (voidData['voided_by'] as String?);
+    final voidReasonVal =
+        (voidData['voidReason'] as String?) ??
+        (voidData['void_reason'] as String?);
+
+    for (final p in matchingPayments) {
+      if (!p.isVoided || !p.isImmutable) {
+        await (database.update(
+          database.payments,
+        )..where((t) => t.id.equals(p.id))).write(
+          PaymentsCompanion(
+            isVoided: const drift.Value(true),
+            voidedAt: drift.Value(voidedAtVal),
+            voidedBy: voidedByVal != null
+                ? drift.Value(voidedByVal)
+                : const drift.Value.absent(),
+            voidReason: voidReasonVal != null
+                ? drift.Value(voidReasonVal)
+                : const drift.Value.absent(),
+            isImmutable: const drift.Value(true),
+          ),
+        );
+      }
+      if (p.bookingLocalId != null) {
+        affectedBookings.add(p.bookingLocalId!);
+      }
+    }
+    return affectedBookings;
+  }
+
+  Future<void> _reconcilePaymentWithLocalVoids(String paymentUuid) async {
+    final trimmed = paymentUuid.trim();
+    if (trimmed.isEmpty) return;
+    final normalized = IdResolver.normalizeUuid(trimmed);
+    final compact = IdResolver.stripDashes(trimmed);
+    final variants = <String>{
+      trimmed,
+      if (normalized.isNotEmpty) normalized,
+      if (compact.isNotEmpty) compact,
+    }.toList(growable: false);
+
+    final voidRecord =
+        await (database.select(database.paymentVoids)
+              ..where((v) => v.deletedAt.isNull())
+              ..where((v) => v.originalPaymentUuid.isIn(variants))
+              ..limit(1))
+            .getSingleOrNull();
+    if (voidRecord == null) return;
+
+    await (database.update(
+      database.payments,
+    )..where((p) => p.localUuid.isIn(variants))).write(
+      PaymentsCompanion(
+        isVoided: const drift.Value(true),
+        voidedAt: drift.Value(voidRecord.voidedAt),
+        voidedBy: drift.Value(voidRecord.voidedBy),
+        voidReason: drift.Value(voidRecord.voidReason),
+        isImmutable: const drift.Value(true),
+      ),
+    );
+  }
+
   Future<int> _syncPaymentVoids(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
     // ✅ (2026-11-03) درع فقدان صامت — انظر الرمي قبل return أدناه.
     final failed = <String>[];
+    final affectedBookingIds = <int>{};
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -10763,6 +11014,8 @@ class AppwriteSyncManager {
           // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
           localData: existing?.toJson(),
         )).shouldApplyRemote) {
+          final reconciledIds = await _applyVoidToLocalPayment(data);
+          affectedBookingIds.addAll(reconciledIds);
           continue;
         }
 
@@ -10770,6 +11023,8 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        final reconciledIds = await _applyVoidToLocalPayment(data);
+        affectedBookingIds.addAll(reconciledIds);
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'payment_voids',
@@ -10785,6 +11040,20 @@ class AppwriteSyncManager {
           tag: 'SYNC',
         );
         failed.add('${doc.$id}: $e');
+      }
+    }
+
+    for (final bookingId in affectedBookingIds) {
+      try {
+        await _bookingsRepository.derivedFields.refreshForBookingId(
+          bookingId,
+          enqueueOutbox: false,
+        );
+      } catch (e) {
+        _logger.warning(
+          'Failed to refresh derived fields for booking $bookingId after payment void sync: $e',
+          tag: 'SYNC',
+        );
       }
     }
 
@@ -11023,13 +11292,13 @@ class AppwriteSyncManager {
                 tag: 'SYNC_INTEGRITY',
               );
             } else if (table == 'payments' && parent == 'bookings') {
-              // دفعة تشير لحجز غير موجود - إزالة FK فقط (لأن bookingLocalId nullable)
+              // دفعة تشير لحجز غير موجود - إزالة FK الرقمي فقط مع الحفاظ على booking_uuid_cache لإعادة الربط
               await database.customStatement(
-                'UPDATE payments SET booking_local_id = NULL, booking_uuid_cache = NULL WHERE rowid = ?',
+                'UPDATE payments SET booking_local_id = NULL WHERE rowid = ?',
                 [int.tryParse(rowId)],
               );
               _logger.info(
-                '🧹 تم إزالة ربط الدفعة اليتيمة بالحجز (rowid=$rowId)',
+                '🧹 تم إزالة ربط الدفعة اليتيمة بالحجز مع الاحتفاظ بـ booking_uuid_cache (rowid=$rowId)',
                 tag: 'SYNC_INTEGRITY',
               );
             } else if (table == 'debts' && parent == 'bookings') {
@@ -11060,9 +11329,8 @@ class AppwriteSyncManager {
           context: {'violations_count': violations.length.toString()},
         );
 
-        // ✅ إصلاح تلقائي: حذف السجلات التي تشير إلى آباء غير موجودين
-        // هذه سجلات أيتيمة نتجت عن حجوزات محذوفة على أجهزة أخرى
-        // نستخدم soft delete (تعيين deletedAt) بدلاً من الحذف الفعلي
+        // ✅ إصلاح تلقائي: حذف السجلات غير المالية التي تشير إلى آباء غير موجودين
+        // الدفعات والديون المالية لا تُحذف (تُحفظ مع booking_uuid_cache لإعادة الربط)
         try {
           for (final row in violations) {
             final table = row.data['table']?.toString();
@@ -11070,11 +11338,9 @@ class AppwriteSyncManager {
 
             if (table == null || rowId == null) continue;
 
-            // الجداول المالية (salary_*) لا تُعالَج هنا إطلاقاً — حُرِّص
-            // أعلاه على حفظها (P0.1). السطور التالية للحجوزات فقط.
-            if (table != 'payments' &&
-                table != 'debts' &&
-                table != 'booking_nights' &&
+            // الجداول المالية (salary_*, payments, debts) لا تُحذف هنا إطلاقاً —
+            // تُحفظ مع مفاتيح UUID الخاصة بها لإعادة الربط اللاحق.
+            if (table != 'booking_nights' &&
                 table != 'booking_price_adjustments') {
               continue;
             }
@@ -11086,15 +11352,7 @@ class AppwriteSyncManager {
 
             try {
               final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-              if (table == 'payments') {
-                await (database.update(database.payments)
-                      ..where((t) => t.id.equals(rowId as int)))
-                    .write(PaymentsCompanion(deletedAt: drift.Value(nowEpoch)));
-              } else if (table == 'debts') {
-                await (database.update(database.debts)
-                      ..where((t) => t.id.equals(rowId as int)))
-                    .write(DebtsCompanion(deletedAt: drift.Value(nowEpoch)));
-              } else if (table == 'booking_nights') {
+              if (table == 'booking_nights') {
                 await (database.update(
                   database.bookingNights,
                 )..where((t) => t.id.equals(rowId as int))).write(
@@ -11124,12 +11382,15 @@ class AppwriteSyncManager {
         }
       }
 
-      // 2. التحقق من السجلات اليتيمة - باستخدام JOIN بدل الأعمدة غير الموجودة
-      // ✅ إصلاح: استخدام LEFT JOIN للتحقق من وجود الحجز بدلاً من booking_uuid_cache
+      // 2. التحقق من السجلات اليتيمة - يشمل booking_local_id غير الصالح أو NULL مع وجود booking_uuid_cache
       final orphanPayments = await database.customSelect('''
         SELECT COUNT(*) as count FROM payments p
         LEFT JOIN bookings b ON p.booking_local_id = b.id
-        WHERE p.booking_local_id IS NOT NULL AND b.id IS NULL AND p.deleted_at IS NULL
+        WHERE p.deleted_at IS NULL
+          AND (
+            (p.booking_local_id IS NOT NULL AND b.id IS NULL)
+            OR (p.booking_local_id IS NULL AND p.booking_uuid_cache IS NOT NULL AND p.booking_uuid_cache != '')
+          )
       ''').getSingle();
 
       final orphanPayCount = orphanPayments.read<int>('count');
@@ -11143,15 +11404,15 @@ class AppwriteSyncManager {
         await _relinkOrphanedPayments();
       }
 
-      // 2ب. ✅ إصلاح (مطابق للدفعات): الديون اليتيمة — booking_uuid_cache
-      // موجود فعلاً في جدول debts (Wave 6، local_db.dart:379) بالضبط كما في
-      // payments، لذا تخضع لنفس فحص واتجاه إعادة الربط التلقائي — قبل هذا
-      // الإصلاح كانت الديون التي تفشل في ربطها داخل دورة السحب (الحجز لم
-      // يُسحب بعد من جهاز آخر) تبقى غير مربوطة إلى الأبد بلا أي محاولة لاحقة.
+      // 2ب. ✅ إصلاح (مطابق للدفعات): الديون اليتيمة — يشمل booking_local_id غير الصالح أو NULL مع booking_uuid_cache
       final orphanDebts = await database.customSelect('''
         SELECT COUNT(*) as count FROM debts d
         LEFT JOIN bookings b ON d.booking_local_id = b.id
-        WHERE d.booking_local_id IS NOT NULL AND b.id IS NULL AND d.deleted_at IS NULL
+        WHERE d.deleted_at IS NULL
+          AND (
+            (d.booking_local_id IS NOT NULL AND b.id IS NULL)
+            OR (d.booking_local_id IS NULL AND d.booking_uuid_cache IS NOT NULL AND d.booking_uuid_cache != '')
+          )
       ''').getSingle();
 
       final orphanDebtCount = orphanDebts.read<int>('count');
