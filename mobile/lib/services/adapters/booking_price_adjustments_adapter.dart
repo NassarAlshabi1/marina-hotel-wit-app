@@ -224,6 +224,11 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,
       _k(src, 'isActive', 'is_active'): model.isActive,
       _k(src, 'reason', 'reason'): model.reason,
+      // ✅ (2026-11-23) السحب كان يقرأ applied_at/booking_uuid والرفع لا
+      // يُرسلهما إطلاقاً — فتصل التسوية لباقي الأجهزة بلا وقت التطبيق
+      // وبلا هوية الحجز العالمية. صار الرفع يطابق السحب.
+      _k(src, 'appliedAt', 'applied_at'): model.appliedAt,
+      _k(src, 'bookingUuid', 'booking_uuid'): model.bookingUuid,
       _k(src, 'appliedBy', 'applied_by'): model.appliedBy,
       _k(src, 'cancelledAt', 'cancelled_at'): model.cancelledAt,
       _k(src, 'cancelledBy', 'cancelled_by'): model.cancelledBy,

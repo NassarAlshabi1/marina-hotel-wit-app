@@ -1448,6 +1448,20 @@ export class Database {
         op = { ...op, data: await this.normalizeEmployeeLink(op.data) };
       }
 
+      // ✅ (2026-11-23) تسويات السعر: توحيد أسماء «يوم السريان» الثلاثة
+      // + ربط الحجز بحسب uuid. الأسماء القديمة (hotel_day_key/applied_date)
+      // كانت تُسقطها فلترة الأعمدة، فتصل التسوية بلا يوم فتُستبعد من حساب
+      // الليلة — وتُحسب الليلة بأعلى سعر (تضارب مالي صامت).
+      if (
+        op.operation !== 'delete' &&
+        op.entity === 'booking_price_adjustments'
+      ) {
+        op = {
+          ...op,
+          data: await this.normalizeBookingPriceAdjustment(op.data),
+        };
+      }
+
       // Op-level response payload (stored inside the claim row itself).
       let responsePayload: Record<string, unknown>;
       let statements: D1PreparedStatement[] = [];
@@ -1793,6 +1807,63 @@ export class Database {
 
     next.employee_uuid = employee.local_uuid;
     next.related_id = employee.id;
+    return next;
+  }
+
+  /**
+   * ✅ (2026-11-23) تسوية سعر: اسم واحد للقيمة (يوم السريان) على السلك.
+   *
+   * العميل يرسل ثلاثة أسماء لنفس اليوم (effective_hotel_day القانوني،
+   * وhotel_day_key/applied_date القديمان). نملأ الثلاثة دائماً من أول
+   * قيمة موجودة، فلا يمكن أن تصل تسوية بلا يوم، ولا أن تتباعد القيم
+   * الثلاث في صف واحد. ونربط `booking_local_uuid`/`booking_local_id`
+   * بهوية الحجز العالمية بدل رقم الجهاز.
+   */
+  private async normalizeBookingPriceAdjustment(
+    data: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const asText = (value: unknown): string =>
+      typeof value === 'string' ? value.trim() : '';
+    const pick = (snake: string, camel: string): string =>
+      asText(data[snake]) || asText(data[camel]);
+
+    const next: Record<string, unknown> = { ...data };
+
+    const day =
+      pick('effective_hotel_day', 'effectiveHotelDay') ||
+      pick('hotel_day_key', 'hotelDayKey') ||
+      pick('applied_date', 'appliedDate');
+    if (day) {
+      next.effective_hotel_day = day;
+      next.hotel_day_key = day;
+      next.applied_date = day;
+    }
+
+    const bookingUuid =
+      pick('booking_uuid', 'bookingUuid') ||
+      pick('booking_local_uuid', 'bookingLocalUuid');
+    if (bookingUuid) {
+      const booking = await this.db
+        .prepare(
+          `SELECT id, local_uuid FROM bookings
+            WHERE deleted_at IS NULL
+              AND (local_uuid = ?
+                OR lower(replace(local_uuid, '-', '')) = lower(replace(?, '-', '')))
+            LIMIT 1`
+        )
+        .bind(bookingUuid, bookingUuid)
+        .first<{ id: number; local_uuid: string }>();
+      if (booking) {
+        next.booking_uuid = booking.local_uuid;
+        next.booking_local_uuid = booking.local_uuid;
+        next.booking_local_id = booking.id;
+      } else if (!asText(next.booking_local_uuid)) {
+        // لا حجز معروف بعد: نُبقي الهوية العالمية كما هي كي يحلّها السحب،
+        // بدل كتابة '' في عمود NOT NULL.
+        next.booking_local_uuid = bookingUuid;
+      }
+    }
+
     return next;
   }
 

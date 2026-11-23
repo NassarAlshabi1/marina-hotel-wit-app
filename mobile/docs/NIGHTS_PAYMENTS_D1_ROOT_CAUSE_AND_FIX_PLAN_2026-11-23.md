@@ -25,6 +25,7 @@
 8. [الملاحق](#8-الملاحق)
 9. [الإصلاحات المنفَّذة فعلياً: دليل «لا ليالٍ مكررة»](#9-الإصلاحات-المنفَّذة-فعلياً-دليل-لا-ليالٍ-مكررة)
 10. [Snake case وهوية موحّدة: bookings · booking_nights · payments · debts · employees · expenses](#10-snake-case-وهوية-موحّدة-bookings--booking_nights--payments--debts--employees--expenses)
+11. [أعمدة `booking_price_adjustments` على D1 (طلب 2026-11-23)](#11-أعمدة-booking_price_adjustments-على-d1-طلب-2026-11-23)
 
 ---
 
@@ -1106,3 +1107,62 @@ git diff --stat HEAD FETCH_HEAD -- mobile worker   # نطاق التقرير ت�
 2. **`bookings.financial_frozen_at` / `financial_hash`** عمودان لا يُرسلان ولا يقرأهما كود فعّال اليوم (`grep` يجد تعريفهما فقط) — تركتهما دون تغيير بدل نقل دلالة مالية غير مستخدمة.
 3. **نقطة التطبيع تبقى عند الدفع** (`PayloadNormalizer` داخل `buildPushOperation`) وليست عند تخزين outbox: اختبارات قائمة تقرأ `payload['deletedAt']` من صف outbox، ونقل التطبيع إلى ما قبل التخزين كان سيكسر عقداً مختبَراً بلا فائدة إضافية — الحارس أعلاه يضمن التهجئة عند المصدر.
 4. **لم تُشغَّل اختبارات Dart** (لا سلسلة أدوات في هذه البيئة). قبل الدمج: `flutter analyze` + `flutter test test/services/ test/unit/payload_normalizer_test.dart`.
+
+---
+
+## 11. أعمدة `booking_price_adjustments` على D1 (طلب 2026-11-23)
+
+### 11.1 المشكلة المحدّدة
+
+`toJson` في `mobile/lib/services/adapters/booking_price_adjustments_adapter.dart` كان يُصدر **ثلاثة أسماء لنفس القيمة** (يوم السريان):
+
+| الاسم على السلك | عمود D1؟ | النتيجة قبل الإصلاح |
+|---|---|---|
+| `effective_hotel_day` | ✓ موجود | يُحفظ |
+| `hotel_day_key` | ✗ غير موجود | **يُسقَط صمتاً** (فلترة أعمدة `prepareInsertRow`) |
+| `applied_date` | ✗ غير موجود | **يُسقَط صمتاً** |
+
+وبالوقت نفسه كان الـ adapter **لا يُرسل** عمودين موجودين على D1 ويقرأهما السحب بالفعل:
+
+| العمود | قبل الإصلاح |
+|---|---|
+| `applied_at` | يُقرأ في السحب (`:196`) ولا يُرسل في الرفع → يبقى فارغاً على D1 |
+| `booking_uuid` | يُقرأ في السحب (`:197`) ولا يُرسل → هوية الحجز العالمية لا تصل |
+
+الأثر المالي: عميل يرسل يوماً واحداً بأحد الاسمين القديمين (نسخة أقدم، أو عميل Android) تصل تسويته بلا يوم سريان، فتُستبعد من `_fetchActiveAdjustments` أو تُطبَّق على مقطع ليالٍ خاطئ — **فيتغيّر سعر الليلة على جهاز دون آخر**.
+
+### 11.2 ما نُفِّذ
+
+| الطبقة | التغيير | الملف |
+|---|---|---|
+| D1 | إضافة `hotel_day_key TEXT` و`applied_date TEXT` + فهرس `idx_bpa_booking_uuid(booking_uuid, effective_hotel_day)` | `worker/schema.sql` |
+| ترحيل | `0019_booking_price_adjustments_columns.sql`: ALTER ×2 + تعبئة الصفوف القائمة من `effective_hotel_day` + الفهرس | `worker/migrations/0019…sql` |
+| خادم | `normalizeBookingPriceAdjustment`: يملأ الأسماء الثلاثة من أول قيمة موجودة (فلا تسوية بلا يوم ولا تباعد بينها)، ويترجم `booking_uuid`/`booking_local_uuid` إلى `booking_local_id` الخادمي، ويُبقي الهوية العالمية إن لم يُحلّ الحجز بدل كتابة `''` في عمود NOT NULL | `worker/src/database.ts` |
+| عميل | إرسال `applied_at` و`booking_uuid` (كان السحب يقرأهما فقط) — الأعمدة الثلاثة لليوم تبقى كما هي للتوافق | `booking_price_adjustments_adapter.dart` |
+| حارس | إضافة الجدول إلى `STRICT_ENTITIES` في `check:wire` مع هوية إلزامية (`local_uuid`, `booking_uuid`, `effective_hotel_day`) | `worker/scripts/check-wire-contract.mjs` |
+
+**الاسم القانوني يبقى `effective_hotel_day`**؛ العمودان الجديدان ليسا مصدر حقيقة ثانياً: يكتبهما الخادم متزامنين معه في كل push، ونفس الشيء تفعله هجرة `0019` للصفوف القائمة.
+
+### 11.3 الأدلة
+
+| # | الفحص | النتيجة |
+|---|---|---|
+| 1 | `check:wire` | `booking_price_adjustments 34/34` (كان 32/32 مع إسقاط اسمين) |
+| 2 | `npx tsc --noEmit` | نظيف |
+| 3 | `npx vitest run` | **29 ملف / 335 اختباراً — كلها ناجحة**، منها 3 جديدة في `test/sync.push.booking_price_adjustments.test.ts`: حفظ الأسماء الثلاثة + ربط الحجز بالمعرّف الخادمي، قبول عميل قديم يرسل `applied_date` وحده، والحفاظ على هوية الحجز العالمية حين لا يكون الحجز على D1 بعد |
+| 4 | تجربة `0019` على SQLite بصف قديم | `('2026-11-20','2026-11-20','2026-11-20')` وفهرس `idx_bpa_booking_uuid` أُنشئ |
+
+### 11.4 التنفيذ والتراجع
+
+```bash
+cd worker
+npx wrangler d1 export marina-hotel-db --remote --output backup-before-0019.sql
+npm run db:migrate:bpa-columns:remote
+npm run deploy
+```
+
+التراجع: الأعمدة مضافة (لا محذوفة ولا مُعاد تسميتها)، فإسقاطها يحتاج إعادة بناء جدول — والحل الآمن هو `git revert` للشيفرة مع إبقاء الأعمدة (لا تؤثر على أي مسار قديم). SQLite لا يدعم `ADD COLUMN IF NOT EXISTS`، لذا نفّذ `0019` **مرة واحدة**.
+
+### 11.5 ملاحظة أمنية تشغيلية
+
+لا تُستخدم مفاتيح Cloudflare API داخل شات أو مستودع. أي مفتاح أُلصق في محادثة يجب اعتباره مكشوفاً ويُلغى/يُدوَّر من لوحة Cloudflare، ويُنفَّذ الترحيل بـ `wrangler login` أو بمفتاح في متغيّر بيئة محلي غير متعقَّب (`CLOUDFLARE_API_TOKEN`)، لا في الشيفرة ولا في التقرير.

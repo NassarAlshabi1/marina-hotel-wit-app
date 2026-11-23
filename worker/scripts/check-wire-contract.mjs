@@ -41,6 +41,7 @@ const STRICT_ENTITIES = [
   'debts',
   'employees',
   'expenses',
+  'booking_price_adjustments',
 ];
 
 /** أعمدة هوية يجب أن تُرسل دائماً لكل كيان (عالمية، لا رقمية جهازية). */
@@ -51,6 +52,8 @@ const REQUIRED_IDENTITY = {
   debts: ['local_uuid', 'booking_uuid_cache'],
   employees: ['local_uuid', 'employee_id'],
   expenses: ['local_uuid', 'employee_uuid', 'withdrawal_uuid'],
+  // التسويات: يوم السريان (ثلاثة أسماء متزامنة) + هوية الحجز العالمية.
+  booking_price_adjustments: ['local_uuid', 'booking_uuid', 'effective_hotel_day'],
 };
 
 /** نفس قاعدة `PayloadNormalizer.toSnakeCase`: حدّ بين صغير/رقم وكبير. */

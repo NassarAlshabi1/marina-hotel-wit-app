@@ -469,6 +469,13 @@ CREATE TABLE IF NOT EXISTS booking_price_adjustments (
   -- ✅ Parity (2026-09-05): Drift BookingPriceAdjustments
   booking_uuid TEXT,
   applied_at INTEGER,
+  -- ✅ (2026-11-23) أعمدة توافق السلك: عميل Flutter يُرسل appliedDate
+  -- وhotelDayKey (أسماء عقد Appwrite القديم) إلى جانب effective_hotel_day.
+  -- بلا هذين العمودين كان الـworker يفلترهما صمتاً (ليست أعمدة) فتُفقد
+  -- «تاريخ السريان» التي تُحسب عليها التسوية. تُزامَن قيمتهما مع
+  -- effective_hotel_day عند كل كتابة (normalizeBookingPriceAdjustment).
+  hotel_day_key TEXT,
+  applied_date TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -489,6 +496,11 @@ CREATE TABLE IF NOT EXISTS booking_price_adjustments (
 CREATE INDEX IF NOT EXISTS idx_bpa_updated ON booking_price_adjustments(updated_at);
 CREATE INDEX IF NOT EXISTS idx_bpa_booking ON booking_price_adjustments(booking_local_uuid, is_active);
 CREATE INDEX IF NOT EXISTS idx_bpa_dates ON booking_price_adjustments(effective_hotel_day, end_hotel_day);
+-- ✅ هوية الحجز + اليوم: مفتاح البحث الذي تستخدمه كل تسوية عند إعادة الحساب
+-- (كان يُسقَط مع الأعمدة أعلاه). ملاحظة: لا قيد فريد هنا — قد تتعدد
+-- التسويات المشروعة لنفس اليوم (تعديل يلي تعديلاً) وتُطوى بالسجل المالي.
+CREATE INDEX IF NOT EXISTS idx_bpa_booking_uuid
+  ON booking_price_adjustments(booking_uuid, effective_hotel_day);
 
 -- ─── Payments ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS payments (
