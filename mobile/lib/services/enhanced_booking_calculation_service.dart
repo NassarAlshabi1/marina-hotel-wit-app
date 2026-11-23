@@ -245,9 +245,17 @@ class EnhancedBookingCalculationService {
     Booking booking, {
     bool enqueueOutbox = true,
   }) async {
+    final compactBookingUuid = booking.localUuid.replaceAll('-', '');
     final nights =
         await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(booking.id))
+              ..where(
+                (n) =>
+                    n.bookingUuidCache.equals(booking.localUuid) |
+                    n.bookingUuidCache.equals(compactBookingUuid) |
+                    (n.bookingLocalId.equals(booking.id) &
+                        (n.bookingUuidCache.isNull() |
+                            n.bookingUuidCache.equals(''))),
+              )
               ..where((n) => n.deletedAt.isNull())
               ..orderBy([(n) => d.OrderingTerm.asc(n.hotelDayKey)]))
             .get();
@@ -598,12 +606,16 @@ class EnhancedBookingCalculationService {
   /// Kept public so completed-booking refreshes can update balances without
   /// recalculating historical nightly rates.
   Future<int> totalPaymentsForBooking(Booking booking) async {
+    final compactUuid = booking.localUuid.replaceAll('-', '');
     final payments =
         await (db.select(db.payments)
               ..where(
                 (p) =>
-                    (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid)),
+                    p.bookingUuidCache.equals(booking.localUuid) |
+                    p.bookingUuidCache.equals(compactUuid) |
+                    (p.bookingLocalId.equals(booking.id) &
+                        (p.bookingUuidCache.isNull() |
+                            p.bookingUuidCache.equals(''))),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
@@ -616,12 +628,15 @@ class EnhancedBookingCalculationService {
   Future<List<BookingPriceAdjustment>> _fetchActiveAdjustments(
     Booking booking,
   ) async {
+    final compactUuid = booking.localUuid.replaceAll('-', '');
     final raw =
         await (db.select(db.bookingPriceAdjustments)
               ..where(
                 (a) =>
-                    (a.bookingLocalId.equals(booking.id) |
-                    a.bookingLocalUuid.equals(booking.localUuid)),
+                    a.bookingLocalUuid.equals(booking.localUuid) |
+                    a.bookingLocalUuid.equals(compactUuid) |
+                    (a.bookingLocalId.equals(booking.id) &
+                        a.bookingLocalUuid.equals('')),
               )
               ..where((a) => a.isActive.equals(true))
               ..where((a) => a.deletedAt.isNull()))
@@ -682,9 +697,11 @@ class EnhancedBookingCalculationService {
           await (db.select(db.bookingNights)
                 ..where(
                   (n) =>
-                      n.bookingLocalId.equals(booking.id) |
                       n.bookingUuidCache.equals(booking.localUuid) |
-                      n.bookingUuidCache.equals(compactBookingUuid),
+                      n.bookingUuidCache.equals(compactBookingUuid) |
+                      (n.bookingLocalId.equals(booking.id) &
+                          (n.bookingUuidCache.isNull() |
+                              n.bookingUuidCache.equals(''))),
                 )
                 ..where((n) => n.deletedAt.isNull()))
               .get();
@@ -744,25 +761,33 @@ class EnhancedBookingCalculationService {
       final allExisting =
           await (db.select(db.bookingNights)..where(
                 (n) =>
-                    n.bookingLocalId.equals(booking.id) |
                     n.bookingUuidCache.equals(booking.localUuid) |
-                    n.bookingUuidCache.equals(compactBookingUuid),
+                    n.bookingUuidCache.equals(compactBookingUuid) |
+                    (n.bookingLocalId.equals(booking.id) &
+                        (n.bookingUuidCache.isNull() |
+                            n.bookingUuidCache.equals(''))),
               ))
               .get();
       final existingByDay = <String, BookingNight>{};
       final duplicateLoserIds = <int>[];
+      bool hasBookingUuid(BookingNight n) {
+        final u = (n.bookingUuidCache ?? '').trim();
+        return u == booking.localUuid || u == compactBookingUuid;
+      }
+
       for (final n in allExisting) {
         final prev = existingByDay[n.hotelDayKey];
         if (prev == null) {
           existingByDay[n.hotelDayKey] = n;
           continue;
         }
+        final prevHasUuid = hasBookingUuid(prev);
+        final newHasUuid = hasBookingUuid(n);
         final preferNew =
             (prev.deletedAt != null && n.deletedAt == null) ||
             (prev.deletedAt == n.deletedAt &&
-                ((n.bookingLocalId == booking.id &&
-                        prev.bookingLocalId != booking.id) ||
-                    (n.bookingLocalId == prev.bookingLocalId &&
+                ((newHasUuid && !prevHasUuid) ||
+                    (newHasUuid == prevHasUuid &&
                         n.lastModified > prev.lastModified)));
         if (preferNew) {
           duplicateLoserIds.add(prev.id);

@@ -233,13 +233,14 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
 
       // ✅ إزالة الفلترة المكررة: نثق أن قاعدة البيانات أرجعَت دفعات ضمن النطاق
 
-      // ✅ الحل بالهوية العابرة: المحلي أولاً ثم UUID (بصيغتيه) — لا تذويب.
-      final booking = bookingMap[payment.bookingLocalId] ??
-          (payment.bookingUuidCache != null &&
-                  payment.bookingUuidCache!.trim().isNotEmpty
-              ? bookingByUuid[payment.bookingUuidCache] ??
-                  bookingByUuid[payment.bookingUuidCache!.replaceAll('-', '')]
-              : null);
+      // ✅ الحل بالهوية العابرة: UUID أولاً (بصيغتيه) ولا يُستخدَم المعرف المحلي إلا عند غياب UUID — لا تذويب ولا اختطاف.
+      final hasPaymentUuid =
+          payment.bookingUuidCache != null &&
+          payment.bookingUuidCache!.trim().isNotEmpty;
+      final booking = hasPaymentUuid
+          ? (bookingByUuid[payment.bookingUuidCache] ??
+                bookingByUuid[payment.bookingUuidCache!.replaceAll('-', '')])
+          : bookingMap[payment.bookingLocalId];
       if (booking == null) {
         // دفعة غير منسوبة لأي حجز معروف — تُحصى في تقرير الاستثناءات
         // بدل أن تذوب بلا نزيل/غرفة (قاعدة المرحلة 2.3 من خطة الإصلاح).

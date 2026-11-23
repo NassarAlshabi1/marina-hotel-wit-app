@@ -126,11 +126,13 @@ class GuestPaymentCalculationService {
     // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة فقط)
     final payments =
         await (db.select(db.payments)
-              // الربط بـ UUID الثابت (مع صيغتيه) + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
+              // ✅ هوية UUID أولاً (بصيغتيه) ولا يُستخدَم bookingLocalId إلا عند غياب UUID
               ..where(
                 (p) =>
-                    p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.isIn(uuidVariants),
+                    p.bookingUuidCache.isIn(uuidVariants) |
+                    (p.bookingLocalId.equals(booking.id) &
+                        (p.bookingUuidCache.isNull() |
+                            p.bookingUuidCache.equals(''))),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
@@ -193,8 +195,10 @@ class GuestPaymentCalculationService {
         await (db.select(db.bookingNights)
               ..where(
                 (n) =>
-                    n.bookingLocalId.equals(booking.id) |
-                    n.bookingUuidCache.isIn(uuidVariants),
+                    n.bookingUuidCache.isIn(uuidVariants) |
+                    (n.bookingLocalId.equals(booking.id) &
+                        (n.bookingUuidCache.isNull() |
+                            n.bookingUuidCache.equals(''))),
               )
               ..where((n) => n.deletedAt.isNull())
               ..orderBy([(n) => d.OrderingTerm.asc(n.hotelDayKey)]))

@@ -693,6 +693,42 @@ void main() {
         allNightsAfterFixAndRebuild.single.hotelDayKey,
         equals('2026-11-01'),
       );
+      expect(
+        allNightsAfterFixAndRebuild.single.localUuid,
+        equals('dup-night-newer'),
+        reason:
+            'هوية UUID لليلة تبقى محفوظة عند إعادة البناء ولا تُستبدل بمعرّف جديد',
+      );
+
+      // التحقق من أولوية هوية UUID على bookingLocalId:
+      // دفعة من جهاز آخر تحمل نفس bookingLocalId بالصدفة ولكن bookingUuidCache لحجز آخر
+      await db
+          .into(db.payments)
+          .insert(
+            PaymentsCompanion.insert(
+              localUuid: 'foreign-payment-uuid',
+              bookingLocalId: drift.Value(nightBooking.id),
+              bookingUuidCache: const drift.Value('different-booking-uuid-999'),
+              roomNumber: const drift.Value('102'),
+              amount: 77777.0,
+              paymentDate: '2026-11-01T16:00:00',
+              paymentMethod: 'نقدي',
+              revenueType: 'room',
+              hotelDayKey: const drift.Value('2026-11-01'),
+              createdAt: _kBaseEpochSec,
+              updatedAt: _kBaseEpochSec,
+              lastModified: _kBaseEpochSec,
+            ),
+          );
+      final paidForNightBooking = await EnhancedBookingCalculationService(
+        db,
+      ).totalPaymentsForBooking(nightBooking);
+      expect(
+        paidForNightBooking,
+        equals(0),
+        reason:
+            'لا يجوز احتساب دفعة تحمل bookingUuidCache لحجز آخر حتى لو تصادم bookingLocalId',
+      );
     },
   );
 }

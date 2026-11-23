@@ -71,7 +71,17 @@
 - **`mobile/lib/services/booking_price_adjustment_service.dart`**:
   - مطابقة الحجز عبر `bookingLocalUuid` (بصيغتيه) أو `bookingLocalId` في جميع استعلامات وعمليات التعديلات السعرية.
 
-### ثالثاً: درع الفقدان الصامت وتحديث الخزائن المشتقة وإصلاح الاستعادة
+### ثالثاً: سيادة وأولوية هوية `UUID` المطلقة وحماية حدود اليوم الفندقي (`14:00:00`)
+- **`mobile/lib/services/hotel_day_key_fix_service.dart` (`_fixBookingNights`)**:
+  - حماية الليالي التراثية المولّدة على الحد القديم (`T14:00:00` أو `T00:00:00`) عندما يطابق تاريخ `nightStart` مفتاح `hotelDayKey` المخزّن، فلا تُزاح خطأً إلى اليوم السابق ولا تولّد ليالٍ مكررة عند إعادة الحساب.
+  - عند تصحيح `hotelDayKey` الفاسد، التحقق أولاً من عدم وجود سجل يشغل `(bookingLocalId, correctKey)` وحذف السجل الزائد عند التصادم.
+- **أولوية `UUID` المطلقة على `bookingLocalId` عبر المحركات والتقارير والاستعادة**:
+  - **`EnhancedBookingCalculationService`**: جعل المطابقة عبر `bookingUuidCache` / `bookingLocalUuid` (بصيغتيه القياسية والمطبّعة) هي الأساس في `_replaceBookingNights` و`refreshCompletedStay` و`totalPaymentsForBooking` و`_fetchActiveAdjustments`، وقصر مطابقة `bookingLocalId` على السجلات المحلية الخالية من `UUID`، مع الحفاظ التام على `localUuid` لليلة الفائزة.
+  - **`RestoreFixService`**: فهرسة واسترجاع الليالي في `_rebuildBookingNights` عبر `uuid:` أولاً قبل `id:` (مع قصر `id:` على السجلات الخالية من `bookingUuidCache`)، وتطبيق شرط `UUID` المهيمن في `_recalculateBookingFinancials` (`payments`, `booking_nights`, `debts`) و`_processBookingForNights`.
+  - **`GuestPaymentCalculationService` و`BookingPriceAdjustmentService` و`PaymentsRepository`**: إعطاء الأولوية المطلقة للـ `UUID` في جميع استعلامات `payments` و`booking_nights` و`booking_price_adjustments` وفي `calculateLostRevenue` و`transferAdjustmentsToRoom`.
+  - **`PaymentsReportScreen` و`GuestPaymentsDetailReportScreen` و`GuestEditScreen`**: ربط الدفعات والتعديلات بالحجز عبر `UUID` أولاً قبل أي رجوع احتياطي إلى `bookingLocalId` عند غياب `UUID`.
+
+### رابعاً: درع الفقدان الصامت وتحديث الخزائن المشتقة وإصلاح الاستعادة
 - **`mobile/lib/services/appwrite_sync_manager.dart`**:
   - تطبيق درع الفقدان الصامت (`failedDocIds` + `throw StateError`) في `_syncInventoryItems`, `_syncCashTransactions`, `_syncPriceAdjustments`, و`_syncPaymentVoids`.
   - تحديث `totalPaidCached` و`remainingBalanceCached` وعلم `isVoided` تلقائياً بعد سحب الدفعات وإلغاءاتها، وحماية `actualCheckout` المحلي من المسح بقيمة سحابية فارغة أقدم.

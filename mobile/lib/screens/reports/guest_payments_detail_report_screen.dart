@@ -255,18 +255,17 @@ class _GuestPaymentsDetailReportScreenState
 
       final grouped = <int, List<BookingPriceAdjustment>>{};
       for (final adj in allAdjustments) {
-        var targetBookingId = adj.bookingLocalId;
-        if (targetBookingId == null ||
-            !validBookingIds.contains(targetBookingId)) {
-          final rawUuid = adj.bookingLocalUuid.trim().isNotEmpty
-              ? adj.bookingLocalUuid
-              : (adj.bookingUuid ?? '');
-          final key = rawUuid.trim().toLowerCase();
-          if (key.isNotEmpty) {
-            targetBookingId =
-                bookingIdByUuid[key] ??
-                bookingIdByUuid[key.replaceAll('-', '')];
-          }
+        final rawUuid = adj.bookingLocalUuid.trim().isNotEmpty
+            ? adj.bookingLocalUuid
+            : (adj.bookingUuid ?? '');
+        final key = rawUuid.trim().toLowerCase();
+        int? targetBookingId;
+        if (key.isNotEmpty) {
+          targetBookingId =
+              bookingIdByUuid[key] ?? bookingIdByUuid[key.replaceAll('-', '')];
+        } else if (adj.bookingLocalId != null &&
+            validBookingIds.contains(adj.bookingLocalId)) {
+          targetBookingId = adj.bookingLocalId;
         }
         if (targetBookingId == null) {
           continue;

@@ -190,9 +190,12 @@ class PaymentsRepository {
           booking.localUuid,
           if (compactUuid.isNotEmpty) compactUuid,
         }.toList(growable: false);
-        final byLocalId = db.payments.bookingLocalId.equals(bookingLocalId);
+        final byLocalIdWithoutUuid =
+            db.payments.bookingLocalId.equals(bookingLocalId) &
+            (db.payments.bookingUuidCache.isNull() |
+                db.payments.bookingUuidCache.equals(''));
         final byUuid = db.payments.bookingUuidCache.isIn(uuidVariants);
-        q.where((p) => byLocalId | byUuid);
+        q.where((p) => byUuid | byLocalIdWithoutUuid);
       }
 
       q.orderBy([(p) => d.OrderingTerm.desc(p.paymentDate)]);

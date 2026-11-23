@@ -299,10 +299,26 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required int bookingId,
     required String newRoomNumber,
   }) async {
-    // 1. نقل المدفوعات — تحديث roomNumber في كل دفعة مرتبطة بالحجز
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final compactUuid = (booking?.localUuid ?? '').replaceAll('-', '');
+    final uuidVariants = <String>{
+      if (booking != null && booking.localUuid.isNotEmpty) booking.localUuid,
+      if (compactUuid.isNotEmpty) compactUuid,
+    }.toList(growable: false);
+
+    // 1. نقل المدفوعات — تحديث roomNumber في كل دفعة مرتبطة بالحجز (هوية UUID أولاً)
     final payments =
         await (db.select(db.payments)
-              ..where((tbl) => tbl.bookingLocalId.equals(bookingId))
+              ..where(
+                (tbl) => uuidVariants.isEmpty
+                    ? tbl.bookingLocalId.equals(bookingId)
+                    : (tbl.bookingUuidCache.isIn(uuidVariants) |
+                          (tbl.bookingLocalId.equals(bookingId) &
+                              (tbl.bookingUuidCache.isNull() |
+                                  tbl.bookingUuidCache.equals('')))),
+              )
               ..where((tbl) => tbl.deletedAt.isNull()))
             .get();
 
@@ -377,23 +393,35 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
 
       changedRooms.add({'old': oldRoom, 'new': newRoom});
 
-      // عد التعديلات النشطة
+      final compactUuid = booking.localUuid.replaceAll('-', '');
+      final uuidVariants = <String>{
+        booking.localUuid,
+        if (compactUuid.isNotEmpty) compactUuid,
+      }.toList(growable: false);
+
+      // عد التعديلات النشطة (هوية UUID أولاً)
       final adjustments =
           await (db.select(db.bookingPriceAdjustments)
-                ..where((a) => a.bookingLocalId.equals(booking.id))
+                ..where(
+                  (a) =>
+                      a.bookingLocalUuid.isIn(uuidVariants) |
+                      (a.bookingLocalId.equals(booking.id) &
+                          a.bookingLocalUuid.equals('')),
+                )
                 ..where((a) => a.isActive.equals(true))
                 ..where((a) => a.deletedAt.isNull()))
               .get();
       totalAdjustments += adjustments.length;
 
-      // عد المدفوعات
+      // عد المدفوعات (هوية UUID أولاً)
       final payments =
           await (db.select(db.payments)
-                // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
                 ..where(
                   (p) =>
-                      p.bookingLocalId.equals(booking.id) |
-                      p.bookingUuidCache.equals(booking.localUuid),
+                      p.bookingUuidCache.isIn(uuidVariants) |
+                      (p.bookingLocalId.equals(booking.id) &
+                          (p.bookingUuidCache.isNull() |
+                              p.bookingUuidCache.equals(''))),
                 )
                 ..where((p) => p.deletedAt.isNull()))
               .get();

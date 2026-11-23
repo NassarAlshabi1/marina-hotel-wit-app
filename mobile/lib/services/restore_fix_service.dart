@@ -445,11 +445,13 @@ class RestoreFixService {
 
       final payments =
           await (db.select(db.payments)
-                // الربط بـ UUID الثابت (مع صيغتيه) + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
+                // ✅ هوية UUID أولاً (بصيغتيه) ولا يُستخدَم bookingLocalId إلا عند غياب UUID
                 ..where(
                   (p) =>
-                      p.bookingLocalId.equals(booking.id) |
-                      p.bookingUuidCache.isIn(uuidVariants),
+                      p.bookingUuidCache.isIn(uuidVariants) |
+                      (p.bookingLocalId.equals(booking.id) &
+                          (p.bookingUuidCache.isNull() |
+                              p.bookingUuidCache.equals(''))),
                 )
                 ..where((p) => p.deletedAt.isNull())
                 ..where((p) => p.isVoided.equals(false))
@@ -475,8 +477,10 @@ class RestoreFixService {
             await (db.select(db.bookingNights)
                   ..where(
                     (n) =>
-                        n.bookingLocalId.equals(booking.id) |
-                        n.bookingUuidCache.isIn(uuidVariants),
+                        n.bookingUuidCache.isIn(uuidVariants) |
+                        (n.bookingLocalId.equals(booking.id) &
+                            (n.bookingUuidCache.isNull() |
+                                n.bookingUuidCache.equals(''))),
                   )
                   ..where((n) => n.deletedAt.isNull()))
                 .get();
@@ -560,8 +564,10 @@ class RestoreFixService {
           await (db.select(db.debts)
                 ..where(
                   (d) =>
-                      d.bookingLocalId.equals(booking.id) |
-                      d.bookingUuidCache.isIn(uuidVariants),
+                      d.bookingUuidCache.isIn(uuidVariants) |
+                      (d.bookingLocalId.equals(booking.id) &
+                          (d.bookingUuidCache.isNull() |
+                              d.bookingUuidCache.equals(''))),
                 )
                 ..where((d) => d.deletedAt.isNull()))
               .get();
@@ -755,21 +761,30 @@ class RestoreFixService {
 
     final existingNights = await db.select(db.bookingNights).get();
     final existingNightByKey = <String, BookingNight>{};
+    bool preferNight(BookingNight current, BookingNight candidate) {
+      if (current.deletedAt != null && candidate.deletedAt == null) return true;
+      if (current.deletedAt == null && candidate.deletedAt != null) {
+        return false;
+      }
+      return candidate.lastModified > current.lastModified;
+    }
+
+    void putNight(String key, BookingNight candidate) {
+      final prev = existingNightByKey[key];
+      if (prev == null || preferNight(prev, candidate)) {
+        existingNightByKey[key] = candidate;
+      }
+    }
+
     for (final n in existingNights) {
-      existingNightByKey.putIfAbsent(
-        'id:${n.bookingLocalId}|${n.hotelDayKey}',
-        () => n,
-      );
       final cachedUuid = (n.bookingUuidCache ?? '').trim().toLowerCase();
       if (cachedUuid.isNotEmpty) {
-        existingNightByKey.putIfAbsent(
-          'uuid:$cachedUuid|${n.hotelDayKey}',
-          () => n,
-        );
-        existingNightByKey.putIfAbsent(
-          'uuid:${cachedUuid.replaceAll('-', '')}|${n.hotelDayKey}',
-          () => n,
-        );
+        putNight('uuid:$cachedUuid|${n.hotelDayKey}', n);
+        putNight('uuid:${cachedUuid.replaceAll('-', '')}|${n.hotelDayKey}', n);
+      } else {
+        // فقط عند غياب bookingUuidCache نسمح بالرجوع الاحتياطي إلى bookingLocalId
+        // لمنع اختطاف هوية ليلة تخص حجزاً آخر يحمل UUID مختلفاً.
+        putNight('id:${n.bookingLocalId}|${n.hotelDayKey}', n);
       }
     }
 
@@ -857,10 +872,12 @@ class RestoreFixService {
           ? night.appliedAdjustments.first.uuid
           : null;
       final compactLower = lowerUuid.replaceAll('-', '');
+      // ✅ هوية UUID أولاً: البحث بـ bookingUuidCache (بصيغتيه) له الأولوية المطلقة،
+      // ولا يُستخدم bookingLocalId إلا كاحتياطي للسجلات المحلية التراثية الخالية من UUID.
       final existingNight =
-          existingNightByKey['id:${booking.id}|${night.hotelDayKey}'] ??
           existingNightByKey['uuid:$lowerUuid|${night.hotelDayKey}'] ??
-          existingNightByKey['uuid:$compactLower|${night.hotelDayKey}'];
+          existingNightByKey['uuid:$compactLower|${night.hotelDayKey}'] ??
+          existingNightByKey['id:${booking.id}|${night.hotelDayKey}'];
 
       nightRows.add(
         BookingNightsCompanion(
@@ -924,8 +941,10 @@ class RestoreFixService {
         await (db.select(db.payments)
               ..where(
                 (p) =>
-                    (p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.isIn(uuidVariants)),
+                    p.bookingUuidCache.isIn(uuidVariants) |
+                    (p.bookingLocalId.equals(booking.id) &
+                        (p.bookingUuidCache.isNull() |
+                            p.bookingUuidCache.equals(''))),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
