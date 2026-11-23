@@ -503,7 +503,7 @@ void main() {
 
         final fixService = RestoreFixService(db);
         final report = await fixService.runAutoFixAfterRestore(
-          restoreTimestamp: DateTime(2026, 10, 5, 12),
+          backupTimestamp: DateTime(2026, 10, 5, 12),
         );
         expect(report.success, isTrue);
 
