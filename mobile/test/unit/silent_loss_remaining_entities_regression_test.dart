@@ -40,6 +40,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_sync_manager.dart';
+import 'package:marina_hotel_mobile/services/enhanced_booking_calculation_service.dart';
+import 'package:marina_hotel_mobile/services/hotel_day_key_fix_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
 
@@ -666,6 +668,30 @@ void main() {
         closeTo(8500.0, 0.01),
         reason:
             'المستند الأحدث زمنياً هو الذي يبقى ولا يطغى عليه المكرر الأقدم',
+      );
+
+      // التحقق من أن HotelDayKeyFixService لا يزيح الليالي ذات الحد القديم (14:00:00)
+      // لليوم السابق (2026-10-31) ولا يولّد ليالٍ مكررة عند إعادة الحساب
+      await HotelDayKeyFixService.instance.runIfNeeded(db);
+      final nightBooking = await (db.select(
+        db.bookings,
+      )..where((b) => b.localUuid.equals('booking-night-sync-101'))).getSingle();
+      await EnhancedBookingCalculationService(db).updateNightlyRecords(
+        nightBooking,
+        forceRebuild: true,
+        enqueueOutbox: false,
+      );
+      final allNightsAfterFixAndRebuild = await (db.select(
+        db.bookingNights,
+      )..where((n) => n.bookingLocalId.equals(nightBooking.id))).get();
+      expect(
+        allNightsAfterFixAndRebuild.length,
+        equals(1),
+        reason: 'لا ليالي مكررة بعد تشغيل HotelDayKeyFixService وإعادة الحساب',
+      );
+      expect(
+        allNightsAfterFixAndRebuild.single.hotelDayKey,
+        equals('2026-11-01'),
       );
     },
   );

@@ -676,39 +676,50 @@ class EnhancedBookingCalculationService {
     final stampIso = nowUtc.toIso8601String();
 
     var shouldRebuild = forceRebuild;
+    final compactBookingUuid = booking.localUuid.replaceAll('-', '');
     if (!shouldRebuild) {
       final existing =
           await (db.select(db.bookingNights)
-                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where(
+                  (n) =>
+                      n.bookingLocalId.equals(booking.id) |
+                      n.bookingUuidCache.equals(booking.localUuid) |
+                      n.bookingUuidCache.equals(compactBookingUuid),
+                )
                 ..where((n) => n.deletedAt.isNull()))
               .get();
       if (existing.length != breakdown.length) {
         shouldRebuild = true;
       } else {
         final byDay = {for (final night in existing) night.hotelDayKey: night};
-        for (final night in breakdown) {
-          final current = byDay[night.hotelDayKey];
-          if (current == null) {
-            shouldRebuild = true;
-            break;
-          }
-          final appliedJson = night.appliedAdjustments.isEmpty
-              ? null
-              : jsonEncode(
-                  night.appliedAdjustments.map((a) => a.toJson()).toList(),
-                );
-          final appliedUuid = night.appliedAdjustments.length == 1
-              ? night.appliedAdjustments.first.uuid
-              : null;
-          if (current.nightlyRate != night.finalRate.toDouble() ||
-              current.baseRate != night.baseRate.toDouble() ||
-              current.adjustment != night.adjustmentAmount.toDouble() ||
-              current.finalRate != night.finalRate.toDouble() ||
-              current.appliedAdjustmentUuid != appliedUuid ||
-              current.appliedAdjustmentsJson != appliedJson ||
-              current.bookingUuidCache != booking.localUuid) {
-            shouldRebuild = true;
-            break;
+        if (byDay.length != existing.length) {
+          shouldRebuild = true;
+        } else {
+          for (final night in breakdown) {
+            final current = byDay[night.hotelDayKey];
+            if (current == null) {
+              shouldRebuild = true;
+              break;
+            }
+            final appliedJson = night.appliedAdjustments.isEmpty
+                ? null
+                : jsonEncode(
+                    night.appliedAdjustments.map((a) => a.toJson()).toList(),
+                  );
+            final appliedUuid = night.appliedAdjustments.length == 1
+                ? night.appliedAdjustments.first.uuid
+                : null;
+            if (current.bookingLocalId != booking.id ||
+                current.nightlyRate != night.finalRate.toDouble() ||
+                current.baseRate != night.baseRate.toDouble() ||
+                current.adjustment != night.adjustmentAmount.toDouble() ||
+                current.finalRate != night.finalRate.toDouble() ||
+                current.appliedAdjustmentUuid != appliedUuid ||
+                current.appliedAdjustmentsJson != appliedJson ||
+                current.bookingUuidCache != booking.localUuid) {
+              shouldRebuild = true;
+              break;
+            }
           }
         }
       }
@@ -730,19 +741,44 @@ class EnhancedBookingCalculationService {
       //      مُزامَن عبر outbox (op=delete — آلية tombstone القائمة في
       //      _processBookingNightEntry) بدل الحذف الجذري الصامت الذي لا
       //      تعرف السحابة بحدوثه إطلاقاً.
-      final allExisting = await (db.select(
-        db.bookingNights,
-      )..where((n) => n.bookingLocalId.equals(booking.id))).get();
-      final existing = allExisting
-          .where((n) => n.deletedAt == null)
-          .toList(growable: false);
+      final allExisting =
+          await (db.select(db.bookingNights)..where(
+                (n) =>
+                    n.bookingLocalId.equals(booking.id) |
+                    n.bookingUuidCache.equals(booking.localUuid) |
+                    n.bookingUuidCache.equals(compactBookingUuid),
+              ))
+              .get();
       final existingByDay = <String, BookingNight>{};
+      final duplicateLoserIds = <int>[];
       for (final n in allExisting) {
         final prev = existingByDay[n.hotelDayKey];
-        if (prev == null || (prev.deletedAt != null && n.deletedAt == null)) {
+        if (prev == null) {
           existingByDay[n.hotelDayKey] = n;
+          continue;
+        }
+        final preferNew =
+            (prev.deletedAt != null && n.deletedAt == null) ||
+            (prev.deletedAt == n.deletedAt &&
+                ((n.bookingLocalId == booking.id &&
+                        prev.bookingLocalId != booking.id) ||
+                    (n.bookingLocalId == prev.bookingLocalId &&
+                        n.lastModified > prev.lastModified)));
+        if (preferNew) {
+          duplicateLoserIds.add(prev.id);
+          existingByDay[n.hotelDayKey] = n;
+        } else {
+          duplicateLoserIds.add(n.id);
         }
       }
+      if (duplicateLoserIds.isNotEmpty) {
+        await (db.delete(
+          db.bookingNights,
+        )..where((n) => n.id.isIn(duplicateLoserIds))).go();
+      }
+      final existing = existingByDay.values
+          .where((n) => n.deletedAt == null)
+          .toList(growable: false);
       final breakdownDays = breakdown.map((n) => n.hotelDayKey).toSet();
 
       // ③ الليالي الزائدة → حذف ناعم + قبر مُزامَن
@@ -794,6 +830,7 @@ class EnhancedBookingCalculationService {
           if (current != null) {
             final unchanged =
                 current.deletedAt == null &&
+                current.bookingLocalId == booking.id &&
                 current.nightlyRate == night.finalRate.toDouble() &&
                 current.baseRate == night.baseRate.toDouble() &&
                 current.adjustment == night.adjustmentAmount.toDouble() &&
@@ -821,6 +858,7 @@ class EnhancedBookingCalculationService {
                 lastModifiedEpoch: enqueueOutbox
                     ? d.Value(stamp)
                     : const d.Value.absent(),
+                bookingLocalId: d.Value(booking.id),
                 bookingUuidCache: d.Value(booking.localUuid),
                 nightlyRate: d.Value(night.finalRate.toDouble()),
                 baseRate: d.Value(night.baseRate.toDouble()),

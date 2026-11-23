@@ -568,17 +568,47 @@ class HotelDayKeyFixService {
   }
 
   /// إصلاح booking_nights
-  /// ✅ تحسين أداء: batch + mergeBatch
+  /// ✅ تحسين أداء: batch + mergeBatch + حماية ليالي الحد القديم (14:00 / 00:00)
+  /// ومنع تصادم UNIQUE(booking_local_id, hotel_day_key) أو توليد ليالٍ مكررة.
   Future<int> _fixBookingNights(AppDatabase db) async {
     try {
       final rows = await db.select(db.bookingNights).get();
+      final occupiedKeys = <String>{
+        for (final r in rows) '${r.bookingLocalId}|${r.hotelDayKey}',
+      };
       final toFix =
           <({int id, String localUuid, String correctKey, int version})>[];
+      final duplicateIdsToRemove = <int>[];
+
       for (final row in rows) {
         if (row.nightStart.isEmpty) continue;
+        final trimmedDayKey = row.hotelDayKey.trim();
+        final startDatePart = _extractDatePart(row.nightStart);
+        final normalizedStart = row.nightStart.trim().replaceFirst(' ', 'T');
+
+        // الليالي المُنشأة بالحد القديم (YYYY-MM-DDT14:00:00 أو YYYY-MM-DDT00:00:00)
+        // والتي يحمل hotelDayKey فيها نفس التاريخ التقويمي (YYYY-MM-DD) هي مقاطع
+        // إقامة لليوم YYYY-MM-DD نفسه — لا يجوز إزاحتها لليوم السابق (YYYY-MM-(DD-1))
+        // لأن ذلك يسبب تصادماً مع الليلة السابقة أو يولّد ليلة مكررة عند إعادة الحساب.
+        if (trimmedDayKey.length == 10 &&
+            startDatePart == trimmedDayKey &&
+            (normalizedStart.contains('T14:00:00') ||
+                normalizedStart.contains('T00:00:00'))) {
+          continue;
+        }
+
         final correctKey = _tryComputeCorrectHotelDayKey(row.nightStart);
         if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
+          final targetComposite = '${row.bookingLocalId}|$correctKey';
+          if (occupiedKeys.contains(targetComposite)) {
+            // يوجد سجل آخر لنفس الحجز ونفس اليوم الفندقي المصحح — نحذف المكرر
+            // بدلاً من كسر قيد UNIQUE(booking_local_id, hotel_day_key).
+            duplicateIdsToRemove.add(row.id);
+            continue;
+          }
+          occupiedKeys.remove('${row.bookingLocalId}|${row.hotelDayKey}');
+          occupiedKeys.add(targetComposite);
           toFix.add((
             id: row.id,
             localUuid: row.localUuid,
@@ -587,9 +617,14 @@ class HotelDayKeyFixService {
           ));
         }
       }
-      if (toFix.isEmpty) return 0;
+      if (toFix.isEmpty && duplicateIdsToRemove.isEmpty) return 0;
 
       await db.transaction(() async {
+        if (duplicateIdsToRemove.isNotEmpty) {
+          await (db.delete(
+            db.bookingNights,
+          )..where((t) => t.id.isIn(duplicateIdsToRemove))).go();
+        }
         for (final item in toFix) {
           await (db.update(
             db.bookingNights,
@@ -601,21 +636,25 @@ class HotelDayKeyFixService {
           );
         }
 
-        final outboxDao = OutboxDao(db);
-        final now = Time.nowEpoch();
-        await outboxDao.mergeBatch(
-          toFix
-              .map(
-                (item) => <String, dynamic>{
-                  'entity': 'booking_nights',
-                  'op': 'update',
-                  'localUuid': item.localUuid,
-                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                  'clientTs': now,
-                },
-              )
-              .toList(),
-        );
+        if (toFix.isNotEmpty) {
+          final outboxDao = OutboxDao(db);
+          final now = Time.nowEpoch();
+          await outboxDao.mergeBatch(
+            toFix
+                .map(
+                  (item) => <String, dynamic>{
+                    'entity': 'booking_nights',
+                    'op': 'update',
+                    'localUuid': item.localUuid,
+                    'payload': <String, dynamic>{
+                      'hotelDayKey': item.correctKey,
+                    },
+                    'clientTs': now,
+                  },
+                )
+                .toList(),
+          );
+        }
       });
 
       dlog(() => '  📋 booking_nights: تم إصلاح ${toFix.length} سجل');
