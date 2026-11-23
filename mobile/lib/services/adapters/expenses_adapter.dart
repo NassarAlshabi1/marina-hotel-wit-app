@@ -228,8 +228,9 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
-      'idempotencyKey': model.idempotencyKey,
-      'employeeUuid': model.employeeUuid,
+      _k(src, 'idempotencyKey', 'idempotency_key'): model.idempotencyKey,
+      // ✅ (2026-11-23) هوية الموظف العالمية على السلك: snake_case صريح.
+      _k(src, 'employeeUuid', 'employee_uuid'): model.employeeUuid,
       _k(src, 'withdrawalUuid', 'withdrawal_uuid'): model.withdrawalUuid,
       // Parity unification: emit `expense_kind` + `employee_link_cleared`
       // on the wire so the B3 worker (which validates `expense_kind`)
@@ -241,7 +242,7 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
       _k(src, 'expenseKind', 'expense_kind'): model.expenseKind,
       _k(src, 'employeeLinkCleared', 'employee_link_cleared'):
           model.employeeLinkCleared,
-      'deviceId': model.deviceId,
+      _k(src, 'deviceId', 'device_id'): model.deviceId,
     };
 
     // ✅ إضافة employeeUuid لمصروفات الرواتب عند المزامنة مع Appwrite

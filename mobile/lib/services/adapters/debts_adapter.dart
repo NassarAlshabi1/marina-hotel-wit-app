@@ -206,6 +206,11 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       // انظر appwrite_schema_verifier.dart:299-300 (Cloud) و
       // appwrite_sync_utils.dart:381,401 (whitelist) و
       // local_db.dart:314-315 (Drift columns).
+      // ✅ (2026-11-23): guestPhone و description عمودان على D1 ومحلياً
+      // وكانا يُسقَطان في الرفع وفي السحب معاً — فيصير الدين سجلاً بلا
+      // هاتف ولا وصف على كل الأجهزة، ويُقرأ ناقصاً في التقارير.
+      guestPhone: _vStr(json, 'guestPhone', src, altKey: 'guest_phone'),
+      description: _vStr(json, 'description', src),
       dueDate: _vStr(json, 'dueDate', src, altKey: 'due_date'),
       status: _vStr(json, 'status', src),
     );
@@ -235,6 +240,13 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'pledge', 'pledge'): model.pledge,
       _k(src, 'pledgeType', 'pledge_type'): model.pledgeType,
       _k(src, 'note', 'note'): model.note,
+      // ✅ (2026-11-23) أعمدة موجودة على D1 ومحلياً وكانت تُسقَط عند الرفع:
+      // فيصل الدين بلا هاتف/وصف/حالة/استحقاق — ويُقرأ بعدها كسجل ناقص
+      // يُصنّف «غير مسدَّد» خطأً في التقارير المالية.
+      _k(src, 'guestPhone', 'guest_phone'): model.guestPhone,
+      _k(src, 'description', 'description'): model.description,
+      _k(src, 'status', 'status'): model.status,
+      _k(src, 'dueDate', 'due_date'): model.dueDate,
       _k(src, 'debtUuid', 'debt_uuid'): model.debtUuid,
       _k(src, 'hotelDayOpened', 'hotel_day_opened'): model.hotelDayOpened,
       _k(src, 'hotelDayClosed', 'hotel_day_closed'): model.hotelDayClosed,
@@ -254,8 +266,8 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
-      'idempotencyKey': model.idempotencyKey,
-      'deviceId': model.deviceId,
+      _k(src, 'idempotencyKey', 'idempotency_key'): model.idempotencyKey,
+      _k(src, 'deviceId', 'device_id'): model.deviceId,
       // ✅ Wave 6 (2026-08-12): حقول إضافية لـ Drive sync (نفس حقول Appwrite Cloud).
       _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
       _k(src, 'debtorName', 'debtor_name'): model.debtorName,

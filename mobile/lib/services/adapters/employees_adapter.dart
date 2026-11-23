@@ -114,7 +114,11 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
         src,
         altKey: 'idempotency_key',
       ),
-      employeeID: _vStr(json, 'EmployeeID', src, altKey: 'employee_i_d'),
+      // ✅ (2026-11-23) عمود D1 هو employee_id. كان يُقرأ بـ
+      // 'EmployeeID' + 'employee_i_d' فلا يُطابق أبداً ما يصل من D1.
+      employeeID:
+          _vStr(json, 'employeeId', src, altKey: 'employee_id') ??
+          _vStr(json, 'EmployeeID', src, altKey: 'employee_i_d'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -147,9 +151,11 @@ class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
-      'idempotencyKey': model.idempotencyKey,
-      'EmployeeID': model.employeeID,
-      'deviceId': model.deviceId,
+      _k(src, 'idempotencyKey', 'idempotency_key'): model.idempotencyKey,
+      // ✅ (2026-11-23) مفتاح صريح snake_case بدل 'EmployeeID' (كان يعتمد
+      // على محوّل تلقائي، وأي مسار لا يطبّقه يخزّن العمود باسم خاطئ).
+      _k(src, 'employeeId', 'employee_id'): model.employeeID,
+      _k(src, 'deviceId', 'device_id'): model.deviceId,
     };
   }
 }

@@ -232,10 +232,14 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'serverPaymentId', 'payment_id'): model.serverPaymentId,
+      // ✅ (2026-11-23) أسماء D1 الحقيقية: server_payment_id /
+      // server_booking_id / cash_transaction_server_id. الأسماء القديمة
+      // (payment_id, booking_id, cash_transaction_id) ليست أعمدة فيُسقطها
+      // worker عند الفلترة → لا يصل للأجهزة الأخرى أي ظلّ هوية للدفعة.
+      _k(src, 'serverPaymentId', 'server_payment_id'): model.serverPaymentId,
       _k(src, 'bookingLocalId', 'booking_local_id'): model.bookingLocalId,
       _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
-      _k(src, 'serverBookingId', 'booking_id'): model.serverBookingId,
+      _k(src, 'serverBookingId', 'server_booking_id'): model.serverBookingId,
       _k(src, 'roomNumber', 'room_number'): model.roomNumber,
       _k(src, 'amount', 'amount'): model.amount,
       _k(src, 'paymentDate', 'payment_date'): model.paymentDate,
@@ -244,7 +248,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'revenueType', 'revenue_type'): model.revenueType,
       _k(src, 'cashTransactionLocalId', 'cash_transaction_local_id'):
           model.cashTransactionLocalId,
-      _k(src, 'cashTransactionServerId', 'cash_transaction_id'):
+      _k(src, 'cashTransactionServerId', 'cash_transaction_server_id'):
           model.cashTransactionServerId,
       _k(src, 'referenceNumber', 'reference_number'): model.referenceNumber,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
@@ -263,8 +267,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
-      'idempotencyKey': model.idempotencyKey,
-      'deviceId': model.deviceId,
+      _k(src, 'idempotencyKey', 'idempotency_key'): model.idempotencyKey,
+      _k(src, 'deviceId', 'device_id'): model.deviceId,
       // ✅ تم إضافة الحقول التالية إلى Appwrite Cloud (2026-05-15)
       _k(src, 'discountAmount', 'discount_amount'): model.discountAmount,
       // ⚠️ discountStartDate على Cloud هو datetime — نرسل ISO string وهو متوافق

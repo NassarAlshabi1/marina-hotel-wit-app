@@ -264,8 +264,8 @@ class NightsAdapter
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
-      'idempotencyKey': model.idempotencyKey,
-      'deviceId': model.deviceId,
+      _k(src, 'idempotencyKey', 'idempotency_key'): model.idempotencyKey,
+      _k(src, 'deviceId', 'device_id'): model.deviceId,
     };
   }
 }

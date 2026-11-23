@@ -265,7 +265,10 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'serverBookingId', 'booking_id'): model.serverBookingId,
+      // ✅ (2026-11-23) اسم العمود على D1 هو server_booking_id؛ الاسم
+      // القديم booking_id ليس عموداً فيجدوله worker يُسقطه صمتاً — فيفقد
+      // كل ظلّ هوية للحجز على بقية الأجهزة (نفس عطل ليالٍ/مدفوعات).
+      _k(src, 'serverBookingId', 'server_booking_id'): model.serverBookingId,
       _k(src, 'roomNumber', 'room_number'): model.roomNumber,
       _k(src, 'guestName', 'guest_name'): model.guestName,
       _k(src, 'guestPhone', 'guest_phone'): model.guestPhone,
@@ -316,8 +319,8 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
-      'idempotencyKey': model.idempotencyKey,
-      'deviceId': model.deviceId,
+      _k(src, 'idempotencyKey', 'idempotency_key'): model.idempotencyKey,
+      _k(src, 'deviceId', 'device_id'): model.deviceId,
     };
   }
 }

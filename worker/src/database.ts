@@ -1430,6 +1430,24 @@ export class Database {
         op = { ...op, data: normalized };
       }
 
+      // ✅ (2026-11-23) هوية موحّدة للأبناء الماليين: المدفوعات والدين
+      // تحمل `booking_uuid_cache` (uuid الحجز العالمية) ونربطها هنا بمعرّف
+      // الحجز الخادمي بدل رقم الجهاز المحلي. بدون ذلك تُقرأ الدفعة على جهاز
+      // آخر على حجز آخر (تصادم أرقام) فتُختل التسوية بين الليالي والمدفوع.
+      // الرابط يبقى nullptr/كما هو عند غياب الحجز (دفعة بلا حجز مشروعة).
+      if (
+        op.operation !== 'delete' &&
+        (op.entity === 'payments' || op.entity === 'debts')
+      ) {
+        op = { ...op, data: await this.normalizeBookingLink(op.data) };
+      }
+
+      // ✅ نفس المبدأ للمصروفات: `employee_uuid` هوية عالمية؛ نترجم
+      // `related_id` إلى معرّف الموظف الخادمي (نظير `employee_uuid`).
+      if (op.operation !== 'delete' && op.entity === 'expenses') {
+        op = { ...op, data: await this.normalizeEmployeeLink(op.data) };
+      }
+
       // Op-level response payload (stored inside the claim row itself).
       let responsePayload: Record<string, unknown>;
       let statements: D1PreparedStatement[] = [];
@@ -1710,6 +1728,71 @@ export class Database {
     next.booking_uuid_cache = bookingUuidLocal;
     next.booking_local_id = bookingId;
     next.server_booking_id = bookingId;
+    return next;
+  }
+
+  /**
+   * ✅ (2026-11-23) ربط الحجز للأبناء (payments/debts) من uuid الحجز.
+   *
+   * `booking_local_id` الوارد رقم AUTOINCREMENT محلي لجهاز المرسل؛ تخزينه
+   * على D1 يعني أن جهازاً آخر يقرأ الدفعة على حجز آخر (تصادم معرّفات) —
+   * وهو تضارب مالي مباشر مع ليالي الحجز. إن لم يُحلّ الحجز نُبقي الحمولة
+   * كما هي (بيانات لا تُفقد) لأن السحب يحلّ عبر `booking_uuid_cache` أولاً.
+   */
+  private async normalizeBookingLink(
+    data: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const next: Record<string, unknown> = { ...data };
+    const cache = String(
+      next.booking_uuid_cache ?? next.bookingUuidCache ?? ''
+    ).trim();
+    if (!cache) return next;
+
+    const booking = await this.db
+      .prepare(
+        `SELECT id, local_uuid FROM bookings
+          WHERE deleted_at IS NULL
+            AND (local_uuid = ?
+              OR lower(replace(local_uuid, '-', '')) = lower(replace(?, '-', '')))
+          LIMIT 1`
+      )
+      .bind(cache, cache)
+      .first<{ id: number; local_uuid: string }>();
+    if (!booking) return next;
+
+    next.booking_uuid_cache = booking.local_uuid;
+    next.booking_local_id = booking.id;
+    next.server_booking_id = booking.id;
+    return next;
+  }
+
+  /**
+   * ✅ (2026-11-23) ربط المصروف بالموظف من `employee_uuid`.
+   * `related_id` عمود D1 الذي يحمل معرّف الموظف الخادمي (ما يقرأه السحب
+   * ويترجمه إلى الموظف المحلي) — كان يبقى رقماً جهازياً فينسب المصروف
+   * لموظف آخر على جهاز ثانٍ.
+   */
+  private async normalizeEmployeeLink(
+    data: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    const next: Record<string, unknown> = { ...data };
+    const uuid = String(next.employee_uuid ?? next.employeeUuid ?? '').trim();
+    if (!uuid) return next;
+
+    const employee = await this.db
+      .prepare(
+        `SELECT id, local_uuid FROM employees
+          WHERE deleted_at IS NULL
+            AND (local_uuid = ?
+              OR lower(replace(local_uuid, '-', '')) = lower(replace(?, '-', '')))
+          LIMIT 1`
+      )
+      .bind(uuid, uuid)
+      .first<{ id: number; local_uuid: string }>();
+    if (!employee) return next;
+
+    next.employee_uuid = employee.local_uuid;
+    next.related_id = employee.id;
     return next;
   }
 
