@@ -1,6 +1,6 @@
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 name: CI
 permissions:
@@ -110,12 +110,40 @@ jobs:
       #  --timeout=60s: timeout قصير لمنع التعليق
       #  test/flutter_test_config.dart يُهيِّئ sqfliteFfiInit() تلقائياً
       # ═══════════════════════════════════════════════════════════
+      - name: Run targeted verification tests
+        run: |
+          set +e
+          flutter test --concurrency=4 --timeout=120s \
+            test/restore_fix_service_test.dart \
+            test/booking_price_adjustment_test.dart \
+            test/services/phase0_data_integrity_test.dart \
+            test/unit/silent_loss_remaining_entities_regression_test.dart \
+            test/unit/link_relink_and_pending_links_test.dart \
+            test/unit/payments_dao_device_id_test.dart \
+            test/services/booking_nights_identity_test.dart \
+            test/services/hotel_day_sql_dart_parity_test.dart \
+            test/services/no_free_nights_test.dart \
+            test/services/payments_uuid_query_backfill_test.dart \
+            test/services/restore_fix_no_clamp_test.dart \
+            test/services/payment_actual_balance_verification_test.dart \
+            --reporter compact > /tmp/targeted_test.log 2>&1
+          TARGET_EXIT=$?
+          cat /tmp/targeted_test.log
+          TARGET_SUMMARY=$(tail -n 3 /tmp/targeted_test.log | tr '\n' ' ')
+          echo "::notice title=Targeted Verification Tests::$TARGET_SUMMARY"
+          if [ $TARGET_EXIT -ne 0 ]; then
+            grep -E "\[E\]|Expected:|Actual:|Failed to load|Error:" /tmp/targeted_test.log | tail -n 30 | while IFS= read -r line; do
+              echo "::error title=Targeted Test Failure::$line"
+            done
+            exit $TARGET_EXIT
+          fi
+
       - name: Run tests
         run: |
           set +e
-          flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter expanded > /tmp/test.log 2>&1
+          flutter test --coverage --concurrency=4 --timeout=180s --exclude-tags integration,performance,slow --reporter compact > /tmp/test.log 2>&1
           TEST_EXIT=$?
-          tail -n 200 /tmp/test.log
+          tail -n 100 /tmp/test.log
           SUMMARY_LINE=$(tail -n 5 /tmp/test.log | tr '\n' ' ')
           echo "::notice title=Flutter Test Summary::$SUMMARY_LINE"
           if [ $TEST_EXIT -ne 0 ]; then
