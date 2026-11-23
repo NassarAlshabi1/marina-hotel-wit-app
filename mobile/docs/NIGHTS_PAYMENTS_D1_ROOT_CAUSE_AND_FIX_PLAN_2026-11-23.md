@@ -27,6 +27,7 @@
 10. [Snake case وهوية موحّدة: bookings · booking_nights · payments · debts · employees · expenses](#10-snake-case-وهوية-موحّدة-bookings--booking_nights--payments--debts--employees--expenses)
 11. [أعمدة `booking_price_adjustments` على D1 (طلب 2026-11-23)](#11-أعمدة-booking_price_adjustments-على-d1-طلب-2026-11-23)
 12. [تقوية هوية الليالي: مراجعة البنود الخمسة](#12-تقوية-هوية-الليالي-مراجعة-البنود-الخمسة)
+13. [فحص Cloudflare D1 (2026-11-23)](#13-فحص-cloudflare-d1-2026-11-23)
 
 ---
 
@@ -1236,3 +1237,18 @@ flutter test test/restore_fix_service_test.dart
 ```
 
 وبعد الترقية على جهاز حقيقي: تنفيذ «إصلاح النسخ الاحتياطية» مرتين متتاليتين ثم سحب كامل — يجب أن يبقى عدد الليالي ثابتاً (لا يزيد)، وأن تكون `version` تصاعدية لا تعود إلى 1.
+
+---
+
+## 13. فحص Cloudflare D1 (2026-11-23)
+
+تقرير الفحص الكامل في **`worker/docs/D1_AUDIT_2026-11-23.md`**. الخلاصة:
+
+| البند | النتيجة |
+|---|---|
+| الوصول إلى القاعدة الحقيقية | غير ممكن من بيئة العمل (`api.cloudflare.com` محجوب) — الفحص على D1 محلي مبني من `schema.sql` + شيفرة الخادم + خطط الاستعلامات |
+| انحراف بين الهجرات و`schema.sql` | **1**: `idx_salary_withdrawals_employee_uuid` (هجرة 0006) لم يكن في `schema.sql` → التثبيت الجديد يفتقده. أُصلح + حارس `npm run check:schema` |
+| كيانات المزامنة (24) | كلها: جدول موجود، `UNIQUE(local_uuid)`، فهرس `updated_at` — لا full scan في السحب التفاضلي |
+| خطط الاستعلامات الساخنة | 8/8 تستخدم فهارس (`EXPLAIN QUERY PLAN`) |
+| قيود FOREIGN KEY | **لا توجد** في D1 — اليتامى تُمنع بالكود لا بالمخطط، لذا أُضيف فحص دوري |
+| أداة الفحص الحقيقي | `worker/scripts/audit-d1.sql` — 29 فحصاً للقراءة فقط، تُشغَّل بـ`npm run audit:d1:remote`، ومُتحقَّق أنها تكشف 10 عيوب مزروعة |

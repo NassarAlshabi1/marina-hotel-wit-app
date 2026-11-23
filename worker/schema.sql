@@ -728,6 +728,11 @@ CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_updated ON salary_withdrawals(
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee ON salary_withdrawals(employee_id);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals(expense_id);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense_uuid ON salary_withdrawals(expense_uuid);
+-- ✅ (2026-11-23) هجرة 0006 أنشأت هذا الفهرس ولم يكن منسوخاً في schema.sql،
+-- فالتثبيت الجديد (db:init) يفتقده → بحث كامل في كل استعلام بالسحب مقابل
+-- employee_uuid. أُضيف هنا ليتساوى مسار التثبيت الجديد مع مسار الترقية.
+CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_employee_uuid
+  ON salary_withdrawals(employee_uuid);
 CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_hotel_day ON salary_withdrawals(hotel_day_key);
 
 -- ─── Salary Carry-Over Logs ───────────────────────────────────
