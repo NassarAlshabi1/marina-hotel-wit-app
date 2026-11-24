@@ -8,10 +8,12 @@
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values, unused_local_variable, unnecessary_parenthesis
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
@@ -90,6 +92,45 @@ void main() {
       expect(all.length, 1);
       expect(all.first.payload, contains('999'));
     });
+
+    test(
+      'يبقي payload المركب كاملاً في Outbox بعد تصفية نسخة الإرسال',
+      () async {
+        final notes = List<String>.generate(
+          40,
+          (index) => 'note-$index ${'ن' * 40}',
+        );
+        await outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: 'booking-001',
+          payload: {'notes': notes},
+          clientTs: 3000,
+          source: 'local',
+        );
+
+        final saved = await (db.select(db.outbox)).getSingle();
+        final savedPayload = jsonDecode(saved.payload) as Map<String, dynamic>;
+        final rawOutboxPayload = saved.payload;
+        expect(savedPayload['notes'], notes);
+
+        expect(
+          () => AppwriteSyncUtils.filterPayloadForCollection(
+            'bookings',
+            savedPayload,
+          ),
+          throwsArgumentError,
+        );
+
+        final savedAfterFiltering = await (db.select(db.outbox)).getSingle();
+        expect(savedAfterFiltering.payload, rawOutboxPayload);
+        expect(
+          (jsonDecode(savedAfterFiltering.payload)
+              as Map<String, dynamic>)['notes'],
+          notes,
+        );
+      },
+    );
 
     test(
       'merge يحافظ على op=delete عندما يكون السجل موجوداً كـ delete',

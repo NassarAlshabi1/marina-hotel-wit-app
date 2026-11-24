@@ -1490,9 +1490,10 @@ class AppwriteSyncUtils {
     'blacklist': {
       'localUuid': 'string',
       'serverId': 'integer',
-      'createdAt': 'string',
-      'updatedAt': 'string',
-      'deletedAt': 'string',
+      // Appwrite stores these timestamps as epoch-second integers.
+      'createdAt': 'integer',
+      'updatedAt': 'integer',
+      'deletedAt': 'integer',
       'lastModified': 'integer',
       'createdAtIso': 'string',
       'updatedAtIso': 'string',
@@ -1726,6 +1727,11 @@ class AppwriteSyncUtils {
     },
   };
 
+  /// حدود string المؤكدة من لقطة Appwrite؛ لا نخمّن حدود بقية الحقول.
+  static const Map<String, Map<String, int>> maxStringLengthPerCollection = {
+    'bookings': {'notes': 1000},
+  };
+
   /// يضمن تمثيل vectorClock كسلسلة JSON صالحة ضمن حد Appwrite (1000 حرف).
   ///
   /// قد تصل القيمة كـ Map بعد دمج التعارضات، أو كنص تالف من سجل قديم. لا
@@ -1799,10 +1805,15 @@ class AppwriteSyncUtils {
 
     final normalizedPayload = normalizeVectorClockInPayload(payload);
     final result = <String, dynamic>{};
+    final stringLimits = maxStringLengthPerCollection[collectionId] ?? const {};
     for (final entry in normalizedPayload.entries) {
       final fieldSchema = schema[entry.key];
       if (fieldSchema != null) {
-        result[entry.key] = _coerceToType(entry.value, fieldSchema);
+        result[entry.key] = _coerceToType(
+          entry.value,
+          fieldSchema,
+          maxLength: stringLimits[entry.key],
+        );
       }
     }
     return result;
@@ -1813,7 +1824,7 @@ class AppwriteSyncUtils {
   /// - double: يبقى كما هو أو يُقرَب
   /// - boolean: bool, num, String ("true", "1", "false", "0") → bool
   /// - string: أي قيمة → toString()
-  static dynamic _coerceToType(dynamic value, String type) {
+  static dynamic _coerceToType(dynamic value, String type, {int? maxLength}) {
     if (value == null) return null;
 
     switch (type) {
@@ -1847,10 +1858,29 @@ class AppwriteSyncUtils {
       case 'string':
         // Appwrite string attributes لا تقبل Map/List مباشرة. الساعات المتجهة
         // والحقول JSON قد تصل كمركبات بعد دمج OCC، فتُسلسل بدلاً من Map.toString().
-        if (value is Map || value is Iterable) return jsonEncode(value);
-        return value.toString();
+        if (value is Map || value is Iterable) {
+          return _encodeJsonWithLimitCheck(value, maxLength);
+        }
+        final stringValue = value.toString();
+        _ensureStringLengthWithinLimit(stringValue.length, maxLength);
+        return stringValue;
       default:
         return value;
+    }
+  }
+
+  /// يسلسل القيمة المركبة كاملة ويرفضها إذا تجاوزت حد Appwrite، دون إسقاط عناصرها.
+  static String _encodeJsonWithLimitCheck(dynamic value, int? maxLength) {
+    final encoded = jsonEncode(value);
+    _ensureStringLengthWithinLimit(encoded.length, maxLength);
+    return encoded;
+  }
+
+  static void _ensureStringLengthWithinLimit(int actualLength, int? maxLength) {
+    if (maxLength != null && actualLength > maxLength) {
+      throw ArgumentError(
+        'Appwrite string length $actualLength exceeds the configured limit $maxLength; payload data was not truncated.',
+      );
     }
   }
 
