@@ -1728,9 +1728,30 @@ class AppwriteSyncUtils {
   };
 
   /// حدود string المعتمدة في مخطط الإنشاء المحلي؛ لا نخمّن بقية الحقول.
+  ///
+  /// ✅ 2026-11-24: حُدّثت من التحقق الحي للقراءة فقط من Appwrite Cloud
+  /// (GET /attributes). أي حقل يتجاوز حده يُرفض محليًا بـ ArgumentError
+  /// (بدل رفض 400 من السحابة) وتُحفظ الحمولة في Outbox كما هي — نفس
+  /// فلسفة إصلاحَي 32bef426 و 44251d80.
   static const Map<String, Map<String, int>> maxStringLengthPerCollection = {
     'bookings': {'notes': 1000, 'deviceId': 100},
     'payments': {'deviceId': 100},
+    'booking_notes': {'noteText': 255},
+    'expenses': {'employeeUuid': 36},
+    'cash_transactions': {'localUuid': 36, 'referenceType': 50},
+    'debts': {'debtUuid': 50},
+    'blacklist': {'reason': 255},
+    'audit_logs': {'newState': 500, 'deviceId': 64},
+    'payment_voids': {
+      'localUuid': 36,
+      'hotelDayKey': 20,
+      'reversalPaymentUuid': 36,
+      'paymentUuid': 36,
+    },
+    'booking_price_adjustments': {'localUuid': 36, 'cancelledAt': 30},
+    'salary_withdrawals': {'localUuid': 36},
+    'guest_infos': {'localUuid': 36},
+    'salary_carry_over_logs': {'localUuid': 36},
   };
 
   /// يضمن تمثيل vectorClock كسلسلة JSON صالحة ضمن حد Appwrite (1000 حرف).
