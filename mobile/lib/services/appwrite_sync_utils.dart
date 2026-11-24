@@ -1727,9 +1727,10 @@ class AppwriteSyncUtils {
     },
   };
 
-  /// حدود string المؤكدة من لقطة Appwrite؛ لا نخمّن حدود بقية الحقول.
+  /// حدود string المعتمدة في مخطط الإنشاء المحلي؛ لا نخمّن بقية الحقول.
   static const Map<String, Map<String, int>> maxStringLengthPerCollection = {
-    'bookings': {'notes': 1000},
+    'bookings': {'notes': 1000, 'deviceId': 100},
+    'payments': {'deviceId': 100},
   };
 
   /// يضمن تمثيل vectorClock كسلسلة JSON صالحة ضمن حد Appwrite (1000 حرف).

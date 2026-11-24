@@ -93,6 +93,19 @@ void main() {
       }
     });
 
+    test('يرفض deviceId الأطول من 100 في الحجوزات والمدفوعات دون قصّه', () {
+      final deviceId = 'd' * 101;
+      for (final collectionId in ['bookings', 'payments']) {
+        expect(
+          () => AppwriteSyncUtils.filterPayloadForCollection(collectionId, {
+            'deviceId': deviceId,
+          }),
+          throwsArgumentError,
+        );
+        expect(deviceId, 'd' * 101);
+      }
+    });
+
     test('يسمح بـ bookings.notes عند حد المخطط البالغ 1000 حرف', () {
       final notes = 'ن' * 1000;
       final payload = AppwriteSyncUtils.filterPayloadForCollection('bookings', {

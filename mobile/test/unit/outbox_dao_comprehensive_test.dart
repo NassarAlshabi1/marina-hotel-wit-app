@@ -132,6 +132,38 @@ void main() {
       },
     );
 
+    test('يبقي deviceId الأطول من حد المخطط محفوظاً خاماً في Outbox', () async {
+      final deviceId = 'd' * 101;
+      await outboxDao.merge(
+        entity: 'bookings',
+        op: 'update',
+        localUuid: 'booking-device-id-001',
+        payload: {'deviceId': deviceId},
+        clientTs: 4000,
+        source: 'local',
+      );
+
+      final saved = await (db.select(db.outbox)).getSingle();
+      final rawOutboxPayload = saved.payload;
+      final savedPayload = jsonDecode(saved.payload) as Map<String, dynamic>;
+      expect(savedPayload['deviceId'], deviceId);
+      expect(
+        () => AppwriteSyncUtils.filterPayloadForCollection(
+          'bookings',
+          savedPayload,
+        ),
+        throwsArgumentError,
+      );
+
+      final savedAfterFiltering = await (db.select(db.outbox)).getSingle();
+      expect(savedAfterFiltering.payload, rawOutboxPayload);
+      expect(
+        (jsonDecode(savedAfterFiltering.payload)
+            as Map<String, dynamic>)['deviceId'],
+        deviceId,
+      );
+    });
+
     test(
       'merge يحافظ على op=delete عندما يكون السجل موجوداً كـ delete',
       () async {
