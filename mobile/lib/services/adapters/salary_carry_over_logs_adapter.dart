@@ -113,6 +113,11 @@ class SalaryCarryOverLogsAdapter
             '',
       ),
       reason: d.Value(_asString(json, 'reason', src) ?? ''),
+      // ✅ (2026-11-25) حقول كانت منسية في الاتجاهين — موجودة في Drift
+      // وفي السحابة (string 64/64/512) انظر cloud_gap_analysis.
+      carryDate: _vStr(json, 'carryDate', src, altKey: 'carry_date'),
+      performedBy: _vStr(json, 'performedBy', src, altKey: 'performed_by'),
+      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       carriedAt: d.Value(_asInt(json, 'carriedAt', src) ?? now),
       createdAt: d.Value(_asInt(json, 'createdAt', src) ?? now),
       updatedAt: d.Value(_asInt(json, 'updatedAt', src) ?? now),
@@ -162,6 +167,10 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'newCycleStart', 'new_cycle_start'): model.newCycleStart,
       _k(src, 'newCycleEnd', 'new_cycle_end'): model.newCycleEnd,
       _k(src, 'reason', 'reason'): model.reason,
+      // ✅ (2026-11-25) حقول كانت منسية — انظر fromJson أعلاه.
+      _k(src, 'carryDate', 'carry_date'): model.carryDate,
+      _k(src, 'performedBy', 'performed_by'): model.performedBy,
+      _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'carriedAt', 'carried_at'): model.carriedAt,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
