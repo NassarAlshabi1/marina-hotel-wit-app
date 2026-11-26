@@ -14,6 +14,7 @@ import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
 import 'appwrite_sync_utils.dart';
 import 'secondary_appwrite_config.dart';
+import 'sync/blacklist_timestamp_compat.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
@@ -50,7 +51,7 @@ class AppwriteService {
     return _secondaryDatabases!;
   }
 
-  /// Invalidate the cached secondary client so it is re-created on next access.
+  /// Invalidate the cached secondary client so that it is re-created on next access.
   /// Call this when the secondary configuration changes at runtime.
   void invalidateSecondaryClient() {
     _secondaryClient = null;
@@ -496,7 +497,6 @@ class AppwriteService {
     List<String>? queries,
   }) async {
     await _ensureInitialized();
-
     try {
       final documents = await listAllDocuments(
         collectionId: collectionId,
@@ -1429,11 +1429,19 @@ class AppwriteService {
     bool useCache = true,
   }) async {
     await _ensureInitialized();
-    return _listAllDocumentsInternal(
+    final docs = await _listAllDocumentsInternal(
       collectionId: AppwriteConfig.blacklistCollectionId,
       queries: queries ?? [],
       useCache: useCache,
     );
+    // ✅ (2026-11-26) توصيل طبقة التطبيع التي أنشأها c37431a — كانت
+    // مُعرَّفة وغير مُستدعاة أبداً (تحذير Kilo على PR #694) فكانت الطوابع
+    // الرقمية من السحابة ترمي TypeError داخل _syncBlacklist
+    // (`data['createdAt'] as String?`) ويُبتلع الاستثناء بدرع الفقدان
+    // فتفشل دفعة blacklist كاملة عند كل سحب. التطبيع هنا (خط الجلب) يغطي
+    // كل مستهلكي listBlacklist — سحب الإنتاج والتحقق — قبل وصول العقد
+    // القديم للمدير.
+    return BlacklistTimestampCompat.normalizeDocs(docs);
   }
 
   Future<models.Document> upsertBlacklist(
@@ -1859,10 +1867,10 @@ class AppwriteService {
         operation: () =>
             // ignore: deprecated_member_use
             _databases.getDocument(
-          databaseId: AppwriteConfigManager.databaseId,
-          collectionId: collectionId,
-          documentId: documentId,
-        ),
+              databaseId: AppwriteConfigManager.databaseId,
+              collectionId: collectionId,
+              documentId: documentId,
+            ),
         operationName: 'getRow($collectionId/$documentId)',
       );
       _logger.info(
