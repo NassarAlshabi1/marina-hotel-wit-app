@@ -43,7 +43,24 @@ jobs:
       - name: Apply Dart fixes
         run: |
           dart fix --apply
-          CHANGED_DART=$(git diff --name-only --diff-filter=ACMR origin/guest-adjustment-edit-end...HEAD -- '*.dart' | grep -vE '\.(g|freezed)\.dart$' | sed 's|^mobile/||' || true)
+          # ✅ (2026-11-26) إصلاح Kilo: كان النطاق مثبتاً على فرع
+          # origin/guest-adjustment-edit-end — فرع قد لا يكون موجوداً
+          # في الفروع/الأجهزة المستقبلية فيصبح diff فارغاً وتفلت ملفات
+          # غير منسّقة. نفس نمط خطوة «Dart Format» أدناه:
+          # github.base_ref عند PR، وإلا تراجع HEAD~1..HEAD عند push.
+          BASE_REF="${{ github.base_ref }}"
+          if [ -n "$BASE_REF" ] && git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            DIFF_RANGE="origin/$BASE_REF...HEAD"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            DIFF_RANGE="HEAD~1..HEAD"
+          else
+            DIFF_RANGE=""
+          fi
+          if [ -n "$DIFF_RANGE" ]; then
+            CHANGED_DART=$(git diff --name-only --diff-filter=ACMR $DIFF_RANGE -- '*.dart' | grep -vE '\.(g|freezed)\.dart$' | sed 's|^mobile/||' || true)
+          else
+            CHANGED_DART=""
+          fi
           if [ -n "$CHANGED_DART" ]; then
             # shellcheck disable=SC2086
             dart format $CHANGED_DART
