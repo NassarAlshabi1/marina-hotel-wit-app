@@ -732,6 +732,9 @@ class RestoreFixService {
   }
 
   Future<_BookingStructuresResult> _handleEmptyBookings() async {
+    // ✅ (2026-11-26) حذف محلي فقط — بقرار المالك «لا حذف من السحابة»:
+    // لا يُدفع أي tombstone/outbox لهذا المسار؛ السحابة لا تُحذف أبداً من
+    // هنا. مسار إعادة البناء أدناه يحمل نفس السياسة.
     await db.delete(db.bookingNights).go();
     await db.delete(db.hotelDayLedger).go();
     return const _BookingStructuresResult(
@@ -773,6 +776,11 @@ class RestoreFixService {
       }
     }
 
+    // ✅ (2026-11-26) حذف محلي فقط — بقرار المالك «لا حذف من السحابة»:
+    // لا نُدخل عناصر outbox delete ولا tombstone للليالي التي اختفت من
+    // الناتج؛ نسخ السحابة تبقى (قد تعود عند السحب التالي — مُفاضَل مقبولة).
+    // الليالي الباقية في الناتج تحافظ على localUuid (existingNightByKey)
+    // فالرفع يحدّث مستند السحابة نفسه بدل تكراره.
     await db.delete(db.bookingNights).go();
 
     for (final booking in context.bookings) {

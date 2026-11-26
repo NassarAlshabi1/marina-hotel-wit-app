@@ -845,7 +845,7 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'hotelDayKey', withdrawal.hotelDayKey);
     putIfStringNotEmpty(data, 'withdrawalType', withdrawal.withdrawalType);
     putIfStringNotEmpty(data, 'description', withdrawal.description);
-    // ✅ (2026-11-02): expenseId الرقمي أُزيل من الرفع — نفس علة أعلاه؛
+    // ✅ (2026-11-02): expenseId الرقمي أُزيل من الرفع — نفس العلة أعلاه؛
     // expenseUuid (migration 68) هو الرابط الدائم.
     // ✅ (migration 68) uuid المرآة الدائم — الرابط الذي ينجو من إعادة
     // ترقيم المعرفات عبر الأجهزة (نفس عائلة employeeUuid).
@@ -984,7 +984,7 @@ class PayloadMapper {
     // السلفة عبر مسار حل الـ UUID في resolveRefs/رفع employeeUuid، فيصل
     // relatedId البعيد الخام ويربط السلفة بموظف خاطئ على جهاز آخر.
     // القائمة تظل أوسع عمداً من المُصنّف النقدي (تشمل الخصوم والسلف)
-    // لأن استخدامها صيد اليتامى والربط أثناء المزامنة — لا تجميع نقدي.
+    // لأن استخدامها صيد اليتائم والربط أثناء المزامنة — لا تجميع نقدي.
     const salaryKeywords = [
       'رواتب',
       'سحب راتب',

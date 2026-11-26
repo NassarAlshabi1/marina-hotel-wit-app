@@ -51,7 +51,7 @@ class AppwriteService {
     return _secondaryDatabases!;
   }
 
-  /// Invalidate the cached secondary client so that it is re-created on next access.
+  /// Invalidate the cached secondary client so it is re-created on next access.
   /// Call this when the secondary configuration changes at runtime.
   void invalidateSecondaryClient() {
     _secondaryClient = null;
@@ -497,6 +497,7 @@ class AppwriteService {
     List<String>? queries,
   }) async {
     await _ensureInitialized();
+
     try {
       final documents = await listAllDocuments(
         collectionId: collectionId,
