@@ -752,6 +752,10 @@ class AppwriteSyncUtils {
     'salary_carry_over_logs': {
       'amount',
       'carriedAt',
+      // ✅ (2026-11-26) إكمال الاتجاهين: كانت الحقول الثلاثة موجودة في
+      // المُحوّل (fromJson) لكن مفقودة هنا فكان filterPayloadForCollection
+      // يطردها من الرفع.
+      'carryDate',
       'createdAt',
       'createdAtEpoch',
       'createdAtIso',
@@ -761,6 +765,7 @@ class AppwriteSyncUtils {
       'employeeId',
       'employeeLocalUuid',
       'employeeUuid',
+      'hotelDayKey',
       'idempotencyKey',
       'lastModified',
       'lastModifiedEpoch',
@@ -768,6 +773,7 @@ class AppwriteSyncUtils {
       'newCycleEnd',
       'newCycleStart',
       'origin',
+      'performedBy',
       'previousCycleEnd',
       'previousCycleStart',
       'reason',
@@ -1486,6 +1492,11 @@ class AppwriteSyncUtils {
       'newCycleEnd': 'string',
       'reason': 'string',
       'carriedAt': 'integer',
+      // ✅ (2026-11-26) حقول السحابة الحية (تدقيق 2026-11-24: string
+      // 64/64/512) — مطابقة للأعمدة المحلية ومحول السحب.
+      'carryDate': 'string',
+      'hotelDayKey': 'string',
+      'performedBy': 'string',
     },
     'blacklist': {
       'localUuid': 'string',
@@ -1751,7 +1762,16 @@ class AppwriteSyncUtils {
     'booking_price_adjustments': {'localUuid': 36, 'cancelledAt': 30},
     'salary_withdrawals': {'localUuid': 36},
     'guest_infos': {'localUuid': 36},
-    'salary_carry_over_logs': {'localUuid': 36},
+    // ✅ (2026-11-26) حدود السحابة الحية لحقول الترحيل الجديدة المرفوعة
+    // (تدقيق cloud_gap_analysis 2026-11-24): carryDate 64 / hotelDayKey 64 /
+    // performedBy 512 — حمولة أكبر تفشل محلياً بـ ArgumentError مع بقاء
+    // الـ outbox بدل 400 من السحابة.
+    'salary_carry_over_logs': {
+      'localUuid': 36,
+      'carryDate': 64,
+      'hotelDayKey': 64,
+      'performedBy': 512,
+    },
   };
 
   /// يضمن تمثيل vectorClock كسلسلة JSON صالحة ضمن حد Appwrite (1000 حرف).
