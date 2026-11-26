@@ -1,0 +1,40 @@
+fix(mobile): activate blacklist timestamp compat at fetch, complete carry-over push, unhardcode CI base ref
+
+Part 2 of the PR #694 Kilo-review fix batch.
+
+1. Blacklist pull compat actually wired (Kilo WARNING: normalizeDocs
+   defined but never invoked): BlacklistTimestampCompat.normalizeDocs
+   is now applied in AppwriteService.listBlacklist — the single
+   blacklist fetch path feeding _syncBlacklist — so integer epoch
+   timestamps from the live cloud are normalized to ISO before the
+   legacy `as String?` contract in the manager. This is the wiring
+   c37431a intended (its compat layer was created but never called).
+
+2. salary_carry_over_logs push direction completed (Kilo WARNING:
+   newly mapped fields dropped on push): carryDate existed in
+   salaryCarryOverLogToRemote but hotelDayKey/performedBy were
+   missing from the payload, and all three were missing from
+   validFieldsPerCollection/collectionSchema, so
+   filterPayloadForCollection silently stripped them before upload.
+   All three added to mapper + both maps, with live cloud limits
+   (64/64/512, cloud_gap_analysis 2026-11-24) added to
+   maxStringLengthPerCollection. Regression test asserts the fields
+   survive the push filter.
+
+3. ci.yml hardcoded base ref (Kilo WARNING): 'Apply Dart fixes'
+   diffed against origin/guest-adjustment-edit-end literally
+   (PR #694's base only); any other branch/PR made the diff fail
+   silently and format nothing. Now uses github.base_ref with
+   HEAD~1 fallback — same logic as the 'Dart Format' step below.
+
+4. booking_nights rebuild deletes stay LOCAL-ONLY by owner decision
+   (no deletion from the cloud): no tombstone/outbox push for nights
+   dropped by RestoreFixService rebuild; cloud copies remain (they
+   may re-arrive on next pull — accepted trade-off). Surviving
+   nights keep their localUuid so pushes update the same cloud
+   document. Documented in code at both delete sites.
+
+Verified on Flutter 3.44.6 (Dart 3.12.2):
+- dart format: clean (0 changed)
+- flutter analyze: No issues found
+- targeted schema/payload/blacklist/restore test files: all pass
