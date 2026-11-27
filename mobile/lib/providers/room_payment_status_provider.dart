@@ -116,7 +116,13 @@ final roomsWithPaymentStatusProvider =
     StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
       // استخدام الـ repositories مباشرة للحصول على Streams حقيقية
       final roomsStream = ref.watch(roomsRepoProvider).watchAll();
-      final bookingsStream = ref.watch(bookingsRepoProvider).watch();
+      // Dashboard needs only active bookings to determine room occupancy and
+      // remaining balances. Filtering in SQLite avoids loading the complete
+      // booking history and prevents every historical booking from being
+      // rebuilt into the room-status map on each database change.
+      final bookingsStream = ref.watch(bookingsRepoProvider).watch(
+        statuses: StatusUtils.activeBookingStatuses,
+      );
 
       // دمج الستريمان — أي تغيير في غرف، حجوزات، أو الوقت يُعيد حساب الحالات
       final controller = StreamController<List<RoomWithPaymentStatus>>();
