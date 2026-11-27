@@ -2710,6 +2710,15 @@ class AppwriteSyncManager {
   Future<int> syncBookingsForTesting(List<models.Document> documents) =>
       _syncBookings(documents);
 
+  /// يختبر غلاف السحب الإنتاجي الذي يعزل السجلات القديمة بلا localUuid قبل
+  /// تمريرها إلى محول الكيان. لا يستخدم `$id` كهوية ولا يغيّر payload.
+  @visibleForTesting
+  Future<int> applyPullDocumentsWithIdentityGuardForTesting({
+    required String entity,
+    required List<models.Document> documents,
+    required Future<int> Function(List<models.Document>) apply,
+  }) => _applyPullDocumentsWithIdentityGuard(entity, apply, documents);
+
   /// ✅ (2026-11-03) جسور اختبارية — نفس نمط [syncBookingsForTesting]:
   /// الكود الإنتاجي نفسه بلا محاكاة، لاختبار عقد «فشل تطبيق المستند لا
   /// يتخطاه المؤشر» المعمَّم على بقية الكيانات (انظر
@@ -6800,6 +6809,68 @@ class AppwriteSyncManager {
   ///            payments.bookingLocalId, debts.bookingLocalId
   /// cash_transactions ← payments.cashTransactionLocalId
   /// salary_cycles ← salary_payments.cycleId
+  ///
+  /// السجلات التاريخية التي لا تحمل localUuid لا يمكن إدخالها بأمان: لا يجوز
+  /// تحويل `$id` البعيد إلى هوية محلية. تُحجر هذه السجلات في
+  /// `orphan_quarantine` قبل استدعاء الـ adapter، حتى لا توقف السحب الأولي
+  /// ولا تختفي بصمت، بينما تبقى قابلة للمراجعة وإعادة المعالجة اليدوية.
+  Future<int> _applyPullDocumentsWithIdentityGuard(
+    String entity,
+    Future<int> Function(List<models.Document>) apply,
+    List<models.Document> documents,
+  ) async {
+    if (documents.isEmpty) return 0;
+
+    final eligible = <models.Document>[];
+    var quarantined = 0;
+    for (final doc in documents) {
+      final rawUuid = doc.data['localUuid'];
+      final localUuid = rawUuid?.toString().trim();
+      if (localUuid != null && localUuid.isNotEmpty) {
+        eligible.add(doc);
+        continue;
+      }
+
+      // $id محفوظ داخل الغلاف كمرجع تشخيصي فقط، وليس localUuid ولا مفتاحاً
+      // لإدخال السجل. payload الأصلي يبقى دون أي تعديل أو UUID مخترع.
+      final quarantinePayload = jsonEncode(<String, dynamic>{
+        'remoteDocumentId': doc.$id,
+        'collectionId': doc.$collectionId,
+        'payload': doc.data,
+      });
+      final alreadyQuarantined =
+          await (database.select(database.orphanQuarantine)..where(
+                (row) =>
+                    row.entity.equals(entity) &
+                    row.payloadJson.equals(quarantinePayload),
+              ))
+              .getSingleOrNull();
+      if (alreadyQuarantined == null) {
+        await database
+            .into(database.orphanQuarantine)
+            .insert(
+              OrphanQuarantineCompanion.insert(
+                entity: entity,
+                localUuid: const drift.Value(null),
+                payloadJson: quarantinePayload,
+                reason: 'missing localUuid; remote document was not applied',
+                quarantinedAt: Time.nowEpoch(),
+              ),
+            );
+        quarantined++;
+      }
+    }
+
+    if (quarantined > 0) {
+      _logger.warning(
+        '⚠️ تم حجر $quarantined سجل(سجلات) بلا localUuid في $entity؛ '
+        'استمر تطبيق بقية السجلات دون اختراع هوية',
+        tag: 'SYNC_QUARANTINE',
+      );
+    }
+    return eligible.isEmpty ? 0 : apply(eligible);
+  }
+
   List<CollectionPullTask> _buildPullTasks() {
     final tasks = <CollectionPullTask>[
       CollectionPullTask(
@@ -7150,7 +7221,25 @@ class AppwriteSyncManager {
         tag: 'SYNC',
       );
     }
-    return scoped;
+    // طبّق حارس الهوية على كل مهام السحب، بما فيها السحب الكامل التدفقي.
+    // هذا الغلاف يخص السحب فقط؛ مسارات الاختبار/الرفع المباشرة تبقى حازمة
+    // تجاه أخطاء التطبيق الأخرى ولا تُخفى أي فشل غير متعلق بغياب UUID.
+    return scoped
+        .map(
+          (task) => CollectionPullTask(
+            name: task.name,
+            fetch: task.fetch,
+            fetchPage: task.fetchPage,
+            streamFullSync: task.streamFullSync,
+            critical: task.critical,
+            apply: (docs) => _applyPullDocumentsWithIdentityGuard(
+              task.name,
+              task.apply,
+              docs,
+            ),
+          ),
+        )
+        .toList(growable: false);
   }
 
   /// سحب التغييرات من Appwrite
