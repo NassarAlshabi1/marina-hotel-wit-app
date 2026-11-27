@@ -737,12 +737,11 @@ class PayloadMapper {
       'reportedBy': item.reportedBy,
 
       'localUuid': item.localUuid,
-      // ✅ blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)
-      // وليس integer (epoch) مثل باقي الكيانات — نرسل ISO string لتجنب
-      // خطأ "createdAt has invalid type. Value must be a valid string"
-      'createdAt': createdAtIso,
+      // عقد blacklist في Appwrite يستخدم epoch seconds للحقول الأساسية.
+      // تُرسل حقول ISO المنفصلة للتوافق والعرض فقط.
+      'createdAt': item.createdAt,
       'createdAtIso': createdAtIso,
-      'updatedAt': updatedAtIso,
+      'updatedAt': item.updatedAt,
       'updatedAtIso': updatedAtIso,
       'lastModified': item.lastModified,
       'version': item.version,
