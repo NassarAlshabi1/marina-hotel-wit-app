@@ -2,8 +2,7 @@
 #
 # This workflow is triggered on pull requests affecting files in the 'mobile/' directory,
 # or manually via the 'workflow_dispatch' event.
-name: Build Flutter Release APK
-
+name: marina-hotel-wit-Apk
 on:
   push:
     branches:
