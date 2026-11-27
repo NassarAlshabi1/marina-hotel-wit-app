@@ -1,0 +1,402 @@
+// test/unit/sync_pull_service_pushed_to_remote_test.dart
+//
+// ✅ Sync Safety Wave 3 (2026-08-10): اختبار Conflict Resolution End-to-End
+//
+// يتحقق هذا الملف من أن SyncPullService.checkAndResolveConflict() يضع
+// pushedToRemote=true عند إنتاج بيانات مدمجة (3-way merge) لتعارض متزامن.
+// AppwriteSyncManager._isRemoteDataNewer يستهلك هذه القيمة ويُنشئ outbox
+// entry لإعادة رفع النتيجة للسحابة.
+//
+// السيناريوهات المغطاة:
+//  1. تعارض متزامن (concurrent) مع 3-way merge ناجح → pushedToRemote=true
+//  2. تعارض متزامن بدون ancestor → fallback LWW → pushedToRemote=false
+//  3. لا تعارض (remote newer) → pushedToRemote=false
+//  4. لا تعارض (local newer) → shouldApplyRemote=false
+//  5. سجل محذوف محلياً → soft delete protection → shouldApplyRemote=false
+//  6. سجل جديد محلياً → shouldApplyRemote=true
+
+// ignore_for_file: lines_longer_than_80_chars
+
+import 'dart:convert';
+
+import 'package:drift/drift.dart' hide isNull;
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/appwrite_service.dart';
+import 'package:marina_hotel_mobile/services/daos/ancestor_cache_dao.dart';
+import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
+import 'package:marina_hotel_mobile/services/local_db.dart';
+import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late AppDatabase db;
+  late OutboxDao outboxDao;
+  late AncestorCacheDao ancestorCacheDao;
+  late SyncPullService pullService;
+
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    outboxDao = OutboxDao(db);
+    ancestorCacheDao = AncestorCacheDao(db);
+    // ✅ نستخدم AppwriteService() singleton — checkAndResolveConflict لا
+    // يستدعي أي methods عليه (فقط isRemoteEpochMillis يفعل، وليست في scope
+    // اختباراتنا). هذا يُجنّبنا الحاجة لـ mock معقد.
+    pullService = SyncPullService(
+      appwriteService: AppwriteService(),
+      database: db,
+      outboxDao: outboxDao,
+    );
+    pullService.setAncestorCacheDao(ancestorCacheDao, deviceId: 'device-A');
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  group('SyncPullService — pushedToRemote behavior', () {
+    test('25. تعارض متزامن → حفظ الطرفين وتعليق Outbox للمراجعة', () async {
+      // تعارض سببي متزامن: لا نختار فائزاً ولا نُسقط النسخة المحلية.
+      const localUuid = 'booking-001';
+      const entity = 'bookings';
+
+      // محلي: غيّر status من device-A (مع تعديل معلّق في outbox)
+      final localData = {
+        'localUuid': localUuid,
+        'status': 'checked_in', // ← تغيير محلي متعارض
+        'roomNumber': '101',
+        'lastModified': 2000,
+        'vectorClock': '{"device-A": 2, "device-B": 1}',
+      };
+      await outboxDao.merge(
+        entity: entity,
+        op: 'update',
+        localUuid: localUuid,
+        payload: {'status': 'checked_in'},
+        clientTs: 2000,
+      );
+
+      // بعيد: غيّر roomNumber من device-B (في نفس الوقت — concurrent)
+      final remoteData = {
+        'localUuid': localUuid,
+        'status': 'confirmed',
+        'roomNumber': '102', // ← تغيير بعيد
+        'lastModified': 2000,
+        'vectorClock': '{"device-A": 1, "device-B": 2}',
+      };
+
+      // تنفيذ
+      final result = await pullService.checkAndResolveConflict(
+        remoteData,
+        2000, // localLastModified
+        remoteUpdatedAtSec: 2000,
+        localVectorClock: '{"device-A": 2, "device-B": 1}',
+        entityName: entity,
+        localUuid: localUuid,
+        localData: localData,
+      );
+
+      // لا يكتب الساحب فوق أي طرف قبل مراجعة التعارض.
+      expect(
+        result.shouldApplyRemote,
+        isFalse,
+        reason: 'التعارض المعلّق لا يطبّق النسخة البعيدة',
+      );
+      expect(result.mergedData, isNull, reason: 'لا ننتج حمولة مدمجة تخمينية');
+      expect(
+        result.pushedToRemote,
+        isFalse,
+        reason: 'لا يُرفع شيء حتى يختار المستخدم حلاً',
+      );
+      // تُحتفظ بالعملية بدلاً من إسقاطها، لكنها لا تدخل دفعة الرفع.
+      final op = await (db.select(
+        db.outbox,
+      )..where((o) => o.localUuid.equals(localUuid))).getSingle();
+      expect(op.processingStatus, 'conflict_pending_review');
+
+      final conflict =
+          await (db.select(db.syncConflicts)..where(
+                (c) => c.targetTable.equals(entity) & c.uuid.equals(localUuid),
+              ))
+              .getSingle();
+      expect(conflict.resolution, isEmpty);
+      expect(jsonDecode(conflict.localPayload)['localUuid'], localUuid);
+      expect(jsonDecode(conflict.localPayload)['status'], 'checked_in');
+      expect(jsonDecode(conflict.remotePayload)['localUuid'], localUuid);
+      expect(jsonDecode(conflict.remotePayload)['roomNumber'], '102');
+    });
+
+    test('26. ancestor + تعديلات مستقلة → دمج محافظ ورفع لاحق', () async {
+      const localUuid = 'booking-merge-001';
+      const entity = 'bookings';
+      await ancestorCacheDao.saveAncestor(
+        entity: entity,
+        localUuid: localUuid,
+        data: {
+          'localUuid': localUuid,
+          'status': 'confirmed',
+          'roomNumber': '101',
+          'guestName': 'Guest',
+        },
+      );
+      final local = {
+        'localUuid': localUuid,
+        'status': 'checked_in',
+        'roomNumber': '101',
+        'guestName': 'Guest',
+        'vectorClock': '{"device-A":2,"device-B":1}',
+      };
+      final remote = <String, dynamic>{
+        'localUuid': localUuid,
+        'status': 'confirmed',
+        'roomNumber': '102',
+        'guestName': 'Guest',
+        'vectorClock': '{"device-A":1,"device-B":2}',
+      };
+
+      final result = await pullService.checkAndResolveConflict(
+        remote,
+        2000,
+        remoteUpdatedAtSec: 2000,
+        localVectorClock: '{"device-A":2,"device-B":1}',
+        entityName: entity,
+        localUuid: localUuid,
+        localData: local,
+      );
+
+      expect(result.shouldApplyRemote, isTrue);
+      expect(result.pushedToRemote, isTrue);
+      expect(result.mergedData?['status'], 'checked_in');
+      expect(result.mergedData?['roomNumber'], '102');
+      expect(result.mergedData?['localUuid'], localUuid);
+      final conflict =
+          await (db.select(db.syncConflicts)..where(
+                (c) => c.targetTable.equals(entity) & c.uuid.equals(localUuid),
+              ))
+              .getSingle();
+      expect(
+        jsonDecode(conflict.resolution)['type'],
+        'automatic_three_way_merge',
+      );
+    });
+
+    test('27. تعارض متزامن بدون localData → fail closed دون الكتابة', () async {
+      const localUuid = 'booking-002';
+
+      // لا يمكن حفظ طرفي التعارض بأمان دون snapshot محلي كامل.
+      final remoteData = {
+        'localUuid': localUuid,
+        'status': 'confirmed',
+        'lastModified': 2000,
+        'vectorClock': '{"device-A": 1, "device-B": 2}',
+      };
+
+      await expectLater(
+        pullService.checkAndResolveConflict(
+          remoteData,
+          2000,
+          remoteUpdatedAtSec: 2000,
+          localVectorClock: '{"device-A": 2, "device-B": 1}',
+          entityName: 'bookings',
+          localUuid: localUuid,
+          localData: null,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('27. remote newer (no conflict) → pushedToRemote=false', () async {
+      const localUuid = 'booking-003';
+      final remoteData = {
+        'localUuid': localUuid,
+        'status': 'checked_in',
+        'lastModified': 3000,
+        'vectorClock': '{"device-A": 1, "device-B": 3}',
+      };
+
+      final result = await pullService.checkAndResolveConflict(
+        remoteData,
+        1000, // local older
+        remoteUpdatedAtSec: 3000,
+        localVectorClock: '{"device-A": 1, "device-B": 1}',
+        entityName: 'bookings',
+        localUuid: localUuid,
+        localData: {
+          'localUuid': localUuid,
+          'status': 'confirmed',
+          'lastModified': 1000,
+          'vectorClock': '{"device-A": 1, "device-B": 1}',
+        },
+      );
+
+      expect(result.shouldApplyRemote, isTrue, reason: 'البعيد أحدث');
+      expect(
+        result.pushedToRemote,
+        isFalse,
+        reason: 'لا تعارض → لا حاجة للرفع للسحابة',
+      );
+      expect(result.mergedData, isNull);
+    });
+
+    test('28. local newer (no conflict) → shouldApplyRemote=false', () async {
+      const localUuid = 'booking-004';
+      final remoteData = {
+        'localUuid': localUuid,
+        'status': 'confirmed',
+        'lastModified': 1000,
+        'vectorClock': '{"device-A": 1, "device-B": 1}',
+      };
+
+      final result = await pullService.checkAndResolveConflict(
+        remoteData,
+        3000, // local newer
+        remoteUpdatedAtSec: 1000,
+        localVectorClock: '{"device-A": 3, "device-B": 1}',
+        entityName: 'bookings',
+        localUuid: localUuid,
+        localData: {
+          'localUuid': localUuid,
+          'status': 'checked_in',
+          'lastModified': 3000,
+          'vectorClock': '{"device-A": 3, "device-B": 1}',
+        },
+      );
+
+      expect(
+        result.shouldApplyRemote,
+        isFalse,
+        reason: 'المحلي أحدث — لا نطبّق البعيد',
+      );
+      expect(result.pushedToRemote, isFalse);
+      expect(result.mergedData, isNull);
+    });
+
+    test('29. soft delete محلي محمي — shouldApplyRemote=false', () async {
+      const localUuid = 'booking-005';
+      final remoteData = {
+        'localUuid': localUuid,
+        'status': 'confirmed',
+        'lastModified': 2000,
+        // لا deletedAt في البعيد → السجل ما زال حياً في السحابة
+      };
+
+      final result = await pullService.checkAndResolveConflict(
+        remoteData,
+        1000,
+        localDeletedAt: 2000, // محذوف محلياً
+        remoteUpdatedAtSec: 2000,
+        localVectorClock: '{"device-A": 2}',
+        entityName: 'bookings',
+        localUuid: localUuid,
+        localData: null,
+      );
+
+      expect(
+        result.shouldApplyRemote,
+        isFalse,
+        reason: 'soft delete المحلي محمي — لا نُحيي السجل من السحابة',
+      );
+      expect(result.pushedToRemote, isFalse);
+    });
+
+    test(
+      '30. سجل جديد محلياً (آخر تعديل null) → shouldApplyRemote=true',
+      () async {
+        const localUuid = 'booking-006';
+        final remoteData = {
+          'localUuid': localUuid,
+          'status': 'confirmed',
+          'lastModified': 2000,
+        };
+
+        final result = await pullService.checkAndResolveConflict(
+          remoteData,
+          null, // لا يوجد محلياً → جديد
+          remoteUpdatedAtSec: 2000,
+          entityName: 'bookings',
+          localUuid: localUuid,
+          localData: null,
+        );
+
+        expect(
+          result.shouldApplyRemote,
+          isTrue,
+          reason: 'السجل غير موجود محلياً → يجب إضافته',
+        );
+        expect(
+          result.pushedToRemote,
+          isFalse,
+          reason: 'لا تعارض → لا حاجة للرفع',
+        );
+      },
+    );
+  });
+
+  group('VectorClockComparator — حالات التعارض', () {
+    test(
+      '31. VCs متساوية مع محتوى مختلف → shouldApplyRemote=true (apply remote)',
+      () async {
+        const localUuid = 'booking-007';
+
+        final result = await pullService.checkAndResolveConflict(
+          {
+            'localUuid': localUuid,
+            'status': 'checked_in', // ← مختلف
+            'lastModified': 2000,
+            'vectorClock': '{"device-A": 1, "device-B": 1}',
+          },
+          2000,
+          remoteUpdatedAtSec: 2000,
+          localVectorClock: '{"device-A": 1, "device-B": 1}',
+          entityName: 'bookings',
+          localUuid: localUuid,
+          localData: {
+            'localUuid': localUuid,
+            'status': 'confirmed', // ← مختلف
+            'lastModified': 2000,
+            'vectorClock': '{"device-A": 1, "device-B": 1}',
+          },
+        );
+
+        expect(
+          result.shouldApplyRemote,
+          isTrue,
+          reason:
+              'VC متطابق لكن المحتوى مختلف → البعيد أحدث (appwrite لم '
+              'يزد الـ VC تلقائياً)',
+        );
+      },
+    );
+
+    test('32. VCs متساوية مع محتوى متطابق → shouldApplyRemote=false', () async {
+      const localUuid = 'booking-008';
+
+      final result = await pullService.checkAndResolveConflict(
+        {
+          'localUuid': localUuid,
+          'status': 'confirmed',
+          'lastModified': 2000,
+          'vectorClock': '{"device-A": 1, "device-B": 1}',
+        },
+        2000,
+        remoteUpdatedAtSec: 2000,
+        localVectorClock: '{"device-A": 1, "device-B": 1}',
+        entityName: 'bookings',
+        localUuid: localUuid,
+        localData: {
+          'localUuid': localUuid,
+          'status': 'confirmed', // ← متطابق
+          'lastModified': 2000,
+          'vectorClock': '{"device-A": 1, "device-B": 1}',
+        },
+      );
+
+      expect(
+        result.shouldApplyRemote,
+        isFalse,
+        reason: 'VC + محتوى متطابق → لا تحديث',
+      );
+    });
+  });
+}
