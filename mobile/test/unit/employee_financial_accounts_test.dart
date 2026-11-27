@@ -8,8 +8,8 @@
 // - التسديد من الراتب يخفّض الرصيدين بالمبلغ نفسه دون ازدواجية.
 // - السلفة لا تُخصم مباشرة من الراتب (تسجيل + ربط بسجل السلفة فقط).
 // - المرايا المرتبطة بمصروف مقروء لا تُحتسب مرتين (§16.3).
-// - Cloud Wins: تعارض متزامن → نسخة السحابة تُطبَّق وعمليات Outbox
-//   المحلية المتعارضة تُعلَّم superseded_by_cloud (§7.5).
+// - Concurrent conflict safety: عند تعارض متزامن تُحفظ نسختا السحابة والمحلي
+//   للمراجعة، وتُوقف عملية Outbox المتعارضة حتى قرار صريح (§7.5).
 // - حارس Tombstone: Outbox قديم لا يُحيي سجلاً حذفته السحابة (§8.2).
 import 'package:drift/drift.dart' as d;
 import 'package:flutter_test/flutter_test.dart';
@@ -484,9 +484,9 @@ void main() {
     );
   });
 
-  group('Cloud Wins وحارس Tombstone (§7.5/§8.2)', () {
+  group('حل التعارض وحارس Tombstone (§7.5/§8.2)', () {
     test(
-      '10. تعارض متزامن: السحابة تفوز وعمليات Outbox تُعلَّم superseded_by_cloud',
+      '10. تعارض متزامن: حفظ النسختين وإيقاف Outbox للمراجعة',
       () async {
         final db = _db();
         addTearDown(db.close);
@@ -523,14 +523,15 @@ void main() {
           localData: {'amount': 999, 'vectorClock': '{"devA":2}'},
         );
 
-        // ✅ Cloud Wins: نسخة السحابة تُطبَّق دائماً
-        expect(result.shouldApplyRemote, isTrue);
+        // ✅ لا نطبّق أي طرف تلقائياً عند تعارض متزامن؛ نحفظ النسختين
+        // ونطلب قراراً صريحاً لتجنب فقدان تعديل أحد الجهازين.
+        expect(result.shouldApplyRemote, isFalse);
 
-        // ✅ وعمليات Outbox المتعارضة عُلّمت superseded_by_cloud
+        // ✅ عملية Outbox المتعارضة متوقفة للمراجعة، وليست مرفوضة بصمت.
         final op = await (db.select(
           db.outbox,
         )..where((o) => o.localUuid.equals('exp-conflict'))).getSingle();
-        expect(op.processingStatus, 'superseded_by_cloud');
+        expect(op.processingStatus, 'conflict_pending_review');
       },
     );
 
