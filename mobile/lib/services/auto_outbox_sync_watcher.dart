@@ -120,6 +120,12 @@ class AutoOutboxSyncWatcher {
     _debounceTimer = Timer(SyncConstants.outboxDebounceWindow, _doPush);
   }
 
+  void _scheduleRetryAfterContention() {
+    if (!_started || !_isOnline) return;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 5), _doPush);
+  }
+
   Future<void> _doPush() async {
     // ✅ Offline check: don't attempt push if no internet
     if (!_isOnline) {
@@ -129,6 +135,7 @@ class AutoOutboxSyncWatcher {
 
     if (_pushing) {
       dlog('⏭️ AutoSync: push already in progress');
+      _scheduleRetryAfterContention();
       return;
     }
 
@@ -138,6 +145,7 @@ class AutoOutboxSyncWatcher {
       dlog(
         '⏸️ AutoSync skipped — another sync active (${SyncGuard.activeLabel})',
       );
+      _scheduleRetryAfterContention();
       return;
     }
 
