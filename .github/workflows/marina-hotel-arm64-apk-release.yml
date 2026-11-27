@@ -12,13 +12,13 @@ on:
       - 'arena/**'
     paths:
       - 'mobile/**'
-      - '.github/workflows/flutter-apk-release.yml'
+      - '.github/workflows/marina-hotel-arm64-apk-release.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'mobile/**'
-      - '.github/workflows/flutter-apk-release.yml'
+      - '.github/workflows/marina-hotel-arm64-apk-release.yml'
   # Allows manual triggering of the workflow from the GitHub Actions tab
   workflow_dispatch:
 
