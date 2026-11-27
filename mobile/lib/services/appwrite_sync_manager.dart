@@ -7529,8 +7529,27 @@ class AppwriteSyncManager {
 
       // رفع ليالي الحجوزات
       final bookingNights = await database.select(database.bookingNights).get();
+      final nightPairCounts = <String, int>{};
+      for (final night in bookingNights) {
+        final key = '${night.bookingLocalId}|${night.hotelDayKey}';
+        nightPairCounts.update(key, (count) => count + 1, ifAbsent: () => 1);
+      }
+      final duplicateNightPairs = nightPairCounts.entries
+          .where((entry) => entry.value > 1)
+          .map((entry) => entry.key)
+          .toSet();
       for (final night in bookingNights) {
         if (skipDeleted && night.deletedAt != null) continue;
+        final pair = '${night.bookingLocalId}|${night.hotelDayKey}';
+        if (duplicateNightPairs.contains(pair)) {
+          _logger.warning(
+            'رفع ليلة الحجوزات متوقف لهذا الزوج لوجود سجلات محلية مكررة: '
+            'booking/day=$pair uuid=${night.localUuid}',
+            tag: 'SYNC',
+          );
+          stats['errors'] = (stats['errors'] ?? 0) + 1;
+          continue;
+        }
         try {
           final payload = await _withBookingUuid(
             _bookingNightToRemote(night),
@@ -8898,6 +8917,21 @@ class AppwriteSyncManager {
             appwriteService.deleteBookingNight(entry.localUuid),
       );
     }
+    final competingNights =
+        await (database.select(database.bookingNights)..where(
+              (n) =>
+                  n.bookingLocalId.equals(item.bookingLocalId) &
+                  n.hotelDayKey.equals(item.hotelDayKey) &
+                  n.localUuid.isNotValue(item.localUuid),
+            ))
+            .get();
+    if (competingNights.isNotEmpty) {
+      throw StateError(
+        'booking_nights upload paused: duplicate booking/day pair '
+        '${item.bookingLocalId}/${item.hotelDayKey}; preserve both UUIDs '
+        'and resolve locally before retrying',
+      );
+    }
     final payload = await _withBookingUuid(
       _payloadMapper.bookingNightToRemote(item),
       item.bookingLocalId,
@@ -9546,9 +9580,10 @@ class AppwriteSyncManager {
       for (final doc in documents) {
         final data = Map<String, dynamic>.from(doc.data);
         data['localUuid'] ??= doc.$id;
-        final localUuid = (data['localUuid'] as String?) ?? '';
+        var localUuid = (data['localUuid'] as String?) ?? '';
         if (localUuid.isEmpty) continue;
         var existing = localState[localUuid];
+        var matchedByComposite = false;
         if (existing == null && localByComposite.isNotEmpty) {
           final bUuid =
               (data['bookingUuidCache'] ??
@@ -9571,7 +9606,15 @@ class AppwriteSyncManager {
               (data['hotelDayKey'] ?? data['hotel_day_key'])?.toString() ?? '';
           if (resolvedBId != null && hDay.isNotEmpty) {
             existing = localByComposite['$resolvedBId|$hDay'];
+            matchedByComposite = existing != null;
           }
+        }
+
+        // إذا وصل مستند قديم بمعرّف مختلف لكنه يمثل الحجز/اليوم نفسيهما،
+        // لا تستبدل UUID المحلي المستقر بالمُعرّف المستعار القادم من السحابة.
+        if (matchedByComposite && existing != null) {
+          localUuid = existing.localUuid;
+          data['localUuid'] = localUuid;
         }
 
         // ✅ نفس منطق BaseRepository.upsertFromJson لإزالة/تعيين id:
@@ -9588,21 +9631,9 @@ class AppwriteSyncManager {
         // المسار القديم — localData يُبناء فقط عند احتمال تعارض VC فعلي).
         Map<String, dynamic>? localData;
         if (existing != null) {
-          // vectorClock عمود NOT NULL (withDefault '{}') — لا حاجة لـ ??.
-          final localVc = existing.vectorClock;
-          final remoteVc =
-              (data['vectorClock'] as String?) ??
-              (data['vector_clock'] as String?) ??
-              '{}';
-          final bothNonTrivial =
-              localVc.isNotEmpty &&
-              localVc != '{}' &&
-              remoteVc.isNotEmpty &&
-              remoteVc != '{}';
-          if (bothNonTrivial) {
-            // فقط هنا يحتاج SmartConflictResolver نسخة محلية (3-way merge).
-            localData = existing.toJson();
-          }
+          // سياسة التعارض الجديدة تحتاج snapshot محلياً كاملاً أيضاً عندما
+          // تكون ساعات أحد الطرفين غائبة؛ لا نسمح بتطبيق/تعليق بلا هوية وبيانات.
+          localData = existing.toJson();
         }
         if (!(await _isRemoteDataNewer(
           data,

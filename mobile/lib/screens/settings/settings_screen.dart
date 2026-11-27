@@ -28,7 +28,6 @@ import 'sync/unified_sync_settings_screen.dart';
 import 'sync_health/sync_health_screen.dart';
 import 'telegram_settings_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
-import 'whatsapp_settings_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -307,18 +306,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const LatePaymentWhatsAppScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
-            title: 'ربط وقوالب WhatsApp',
-            subtitle: 'إعداد الاتصال وتخصيص نص رسالة الدفع',
-            icon: Icons.message,
-            color: Colors.green,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const WhatsAppSettingsScreen(),
               ),
             ),
           ),
