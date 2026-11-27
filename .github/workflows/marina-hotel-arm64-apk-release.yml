@@ -94,6 +94,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Remove unused imports
+        # Apply only the analyzer fix for imports that are not referenced.
+        run: dart fix --apply --code=unused_import
+
       - name: Analyze Dart and Flutter code
         # Unused imports are reported by flutter analyze as warnings.
         # Fatal warnings prevent the APK build from starting when they exist.
