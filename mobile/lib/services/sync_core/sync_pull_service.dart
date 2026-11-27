@@ -227,84 +227,262 @@ class SyncPullService {
         return const RemoteCheckResult(shouldApplyRemote: false);
 
       case VectorClockComparison.concurrent:
-        // ⚠️ تعارض متزامن! كلا الجهازين عدّلا نفس السجل بشكل مستقل.
-        //
-        // ✅ (2026-11-04 — وثيقة الربط والمزامنة الموحدة §7.5) **Cloud Wins**:
-        // نسخة Appwrite هي المرجع والفائزة دائماً عند تعارض الأجهزة:
-        // - تُطبَّق النسخة السحابية **كاملة** — لا دمج حقول (3-way merge)
-        //   ولا ترجيح بساعة الجهاز (LWW) — «Cloud Wins يعني اعتماد السجل
-        //   السحابي كاملاً».
-        // - عمليات Outbox المحلية المتعارضة للسجل نفسه تُعلَّم
-        //   `superseded_by_cloud` ولا يُعاد رفعها فوق السحابة.
-        // - `VectorClock` أداة كشف/تشخيص فقط — لا يختار الفائز.
+        // كلا الجهازين عدّلا السجل باستقلال. لا نختار فائزاً ولا نمسح
+        // Outbox: نحفظ الطرفين ذرياً، ونوقف الرفع/التطبيق حتى المراجعة.
+        // نرمي الخطأ عند فشل الحفظ كي لا يعتبر المستدعي الوثيقة معالجة.
+        if (entityName == null ||
+            entityName.isEmpty ||
+            localUuid == null ||
+            localUuid.isEmpty ||
+            localData == null) {
+          throw StateError(
+            'Concurrent conflict lacks a complete local snapshot identity: '
+            'entity=$entityName uuid=$localUuid localData=${localData != null}',
+          );
+        }
+
         _logger.warning(
-          '⚠️ CONCURRENT CONFLICT (Cloud Wins): entity=$entityName, '
+          'CONCURRENT CONFLICT (preserve both / manual review): entity=$entityName, '
           'uuid=$localUuid, localVectorClock=$localVectorClock, '
           'cloudVectorClock=$remoteVcStr, '
-          'localLastModified=$localLastModified, '
-          'cloudLastModified=$effectiveRemoteTs — '
-          'تُطبَّق نسخة Appwrite كاملة وتُعلَّم عمليات Outbox المحلية '
-          'superseded_by_cloud (وثيقة §7.5).',
+          'localLastModified=$localLastModified, cloudLastModified=$effectiveRemoteTs',
           tag: 'CONFLICT',
         );
 
-        await _supersedeLocalOutboxOps(entityName, localUuid);
+        final ancestor = await _ancestorCacheDao?.getAncestor(
+          entityName,
+          localUuid,
+        );
+        final merged = ancestor == null
+            ? null
+            : _tryMergeIndependentFields(
+                ancestor: ancestor,
+                local: localData,
+                remote: remoteData,
+                entity: entityName,
+              );
 
-        return const RemoteCheckResult(shouldApplyRemote: true);
+        if (merged != null) {
+          await _persistConflictAndHoldOutbox(
+            entity: entityName,
+            uuid: localUuid,
+            localData: localData,
+            remoteData: remoteData,
+            resolution: <String, dynamic>{
+              'type': 'automatic_three_way_merge',
+              'mergedPayload': merged,
+              'resolvedAt': DateTime.now().toIso8601String(),
+            },
+            holdOutbox: false,
+          );
+          remoteData
+            ..clear()
+            ..addAll(merged);
+          return RemoteCheckResult(
+            shouldApplyRemote: true,
+            mergedData: merged,
+            pushedToRemote: true,
+          );
+        }
+
+        await _persistConflictAndHoldOutbox(
+          entity: entityName,
+          uuid: localUuid,
+          localData: localData,
+          remoteData: remoteData,
+        );
+
+        // لا تطبيق للبعيد أو المحلي ولا enqueue تلقائي قبل قرار صريح.
+        return const RemoteCheckResult(shouldApplyRemote: false);
     }
   }
 
-  /// ✅ (وثيقة §7.5) تعليم عمليات Outbox المحلية المعلّقة للسجل المتعارض
-  /// بحالة `superseded_by_cloud` — لا يُعاد رفعها فوق نسخة السحابة الفائزة.
-  ///
-  /// القواعد:
-  /// - تُعلَّم عمليات هذا السجل فقط (entity + localUuid) — لا تُمس عمليات
-  ///   سجلات أخرى أو عمليات غير متعارضة (§7.5).
-  /// - الحالة تُبقي السجل في outbox كأثر تشخيصي (lastError يوضح السبب)
-  ///   وهو غير قابل للإعادة: takeBatch يلتقط pending/failed فقط، وإعادة
-  ///   الاستئناف (retryStale) تعالج processing/failed فقط.
-  Future<void> _supersedeLocalOutboxOps(
-    String? entityName,
-    String? localUuid,
-  ) async {
-    if (entityName == null || entityName.isEmpty) return;
-    if (localUuid == null || localUuid.isEmpty) return;
-    try {
-      final marked =
-          await (database.update(database.outbox)..where(
-                (t) =>
-                    t.entity.equals(entityName) &
-                    t.localUuid.equals(localUuid) &
-                    t.processingStatus.isIn(const [
-                      'pending',
-                      'processing',
-                      'failed',
-                    ]),
-              ))
-              .write(
-                const OutboxCompanion(
-                  processingStatus: drift.Value('superseded_by_cloud'),
-                  lastError: drift.Value(
-                    'superseded_by_cloud: Appwrite Cloud Wins — تعارض متزامن '
-                    'حُسم لصالح نسخة السحابة (وثيقة §7.5)؛ لا يُعاد الرفع',
-                  ),
+  /// يحفظ الطرفين ويوقف فقط عمليات UUID المتعارض داخل معاملة واحدة.
+  /// لا تُحذف أو تُستبدل بيانات Outbox؛ حالة المراجعة ليست ضمن takeBatch.
+  Future<void> _persistConflictAndHoldOutbox({
+    required String entity,
+    required String uuid,
+    required Map<String, dynamic> localData,
+    required Map<String, dynamic> remoteData,
+    Map<String, dynamic>? resolution,
+    bool holdOutbox = true,
+  }) async {
+    final localSnapshot = Map<String, dynamic>.from(localData)
+      ..putIfAbsent('localUuid', () => uuid);
+    final remoteSnapshot = Map<String, dynamic>.from(remoteData)
+      ..putIfAbsent('localUuid', () => uuid);
+    final now = DateTime.now().toIso8601String();
+
+    await database.transaction(() async {
+      final existing =
+          await (database.select(database.syncConflicts)
+                ..where(
+                  (c) =>
+                      c.targetTable.equals(entity) &
+                      c.uuid.equals(uuid) &
+                      c.resolution.equals(''),
+                )
+                ..orderBy([(c) => drift.OrderingTerm.desc(c.id)])
+                ..limit(1))
+              .getSingleOrNull();
+
+      if (existing == null) {
+        var latestLog =
+            await (database.select(database.syncLog)
+                  ..orderBy([(l) => drift.OrderingTerm.desc(l.id)])
+                  ..limit(1))
+                .getSingleOrNull();
+        if (latestLog == null) {
+          final logId = await database
+              .into(database.syncLog)
+              .insert(
+                SyncLogCompanion.insert(
+                  syncId:
+                      '${entity}_${uuid}_${DateTime.now().microsecondsSinceEpoch}',
+                  direction: 'conflict',
+                  deviceId: _currentDeviceId ?? 'unknown',
+                  metadata: jsonEncode({'entity': entity, 'uuid': uuid}),
+                  status: const drift.Value('conflict_pending_review'),
+                  createdAt: now,
                 ),
               );
-      if (marked > 0) {
-        _logger.info(
-          '🏷️ تم تعليم $marked عملية Outbox المحلية للمتعارض '
-          '$entityName/$localUuid بحالة superseded_by_cloud',
-          tag: 'CONFLICT',
+          latestLog = await (database.select(
+            database.syncLog,
+          )..where((l) => l.id.equals(logId))).getSingle();
+        }
+        await database
+            .into(database.syncConflicts)
+            .insert(
+              SyncConflictsCompanion.insert(
+                logId: latestLog.id,
+                targetTable: entity,
+                uuid: uuid,
+                localPayload: jsonEncode(localSnapshot),
+                remotePayload: jsonEncode(remoteSnapshot),
+                resolution: resolution == null ? '' : jsonEncode(resolution),
+                createdAt: now,
+              ),
+            );
+      } else {
+        await (database.update(
+          database.syncConflicts,
+        )..where((c) => c.id.equals(existing.id))).write(
+          SyncConflictsCompanion(
+            localPayload: drift.Value(jsonEncode(localSnapshot)),
+            remotePayload: drift.Value(jsonEncode(remoteSnapshot)),
+            resolution: resolution == null
+                ? const drift.Value.absent()
+                : drift.Value(jsonEncode(resolution)),
+          ),
         );
       }
-    } catch (e) {
-      // فشل التعليم لا يمنع تطبيق نسخة السحابة (الأهم)، ويُسجل للتشخيص.
-      _logger.warning(
-        '⚠️ فشل تعليم عمليات Outbox بحالة superseded_by_cloud '
-        '$entityName/$localUuid: $e',
-        tag: 'CONFLICT',
-      );
+
+      if (holdOutbox) {
+        await (database.update(database.outbox)..where(
+              (o) =>
+                  o.entity.equals(entity) &
+                  o.localUuid.equals(uuid) &
+                  o.processingStatus.isIn(const [
+                    'pending',
+                    'processing',
+                    'failed',
+                  ]),
+            ))
+            .write(
+              const OutboxCompanion(
+                processingStatus: drift.Value('conflict_pending_review'),
+                processingStartedAt: drift.Value(null),
+                processingWorker: drift.Value(null),
+                processingPayloadVersion: drift.Value(null),
+                lastError: drift.Value(
+                  'conflict_pending_review: both local and remote snapshots preserved; '
+                  'manual resolution required',
+                ),
+              ),
+            );
+      }
+    });
+  }
+
+  /// Field-wise 3-way merge. A result is returned only when every changed
+  /// field has a single unambiguous value and no financial field changed.
+  /// Device-local identifiers and sync metadata remain from the remote record.
+  Map<String, dynamic>? _tryMergeIndependentFields({
+    required Map<String, dynamic> ancestor,
+    required Map<String, dynamic> local,
+    required Map<String, dynamic> remote,
+    required String entity,
+  }) {
+    const metadata = <String>{
+      'id',
+      'serverId',
+      'server_id',
+      'localId',
+      'local_id',
+      'lastModified',
+      'last_modified',
+      'lastModifiedEpoch',
+      'createdAt',
+      'created_at',
+      'updatedAt',
+      'updated_at',
+      'deletedAt',
+      'deleted_at',
+      'version',
+      'vectorClock',
+      'vector_clock',
+      'deviceId',
+      'syncTimestamp',
+      'sync_origin',
+      r'$id',
+      r'$createdAt',
+      r'$updatedAt',
+      r'$permissions',
+    };
+    final keys = <String>{...ancestor.keys, ...local.keys, ...remote.keys}
+      ..removeAll(metadata);
+    const equality = DeepCollectionEquality();
+    final result = Map<String, dynamic>.from(remote);
+    for (final key in keys) {
+      final base = ancestor[key];
+      final localValue = local[key];
+      final remoteValue = remote[key];
+      final localChanged = !equality.equals(base, localValue);
+      final remoteChanged = !equality.equals(base, remoteValue);
+      if (!localChanged) continue;
+      if (remoteChanged && !equality.equals(localValue, remoteValue)) {
+        return null;
+      }
+      if (_isFinancialConflictField(entity, key)) return null;
+      if (local.containsKey(key)) {
+        result[key] = localValue;
+      } else {
+        result.remove(key);
+      }
     }
+    return result;
+  }
+
+  bool _isFinancialConflictField(String entity, String field) {
+    const financialEntities = <String>{
+      'payments',
+      'expenses',
+      'debts',
+      'cash_transactions',
+      'payment_voids',
+      'salary_cycles',
+      'salary_payments',
+      'salary_withdrawals',
+      'salary_carry_over_logs',
+      'price_adjustments',
+      'booking_price_adjustments',
+      'inventory_transactions',
+    };
+    if (financialEntities.contains(entity)) return true;
+    return RegExp(
+      r'(amount|price|paid|balance|total|discount|salary|cost|revenue|financial|payment|debt)',
+      caseSensitive: false,
+    ).hasMatch(field);
   }
 
   // ── Helper Methods ─────────────────────────────────────────────────────

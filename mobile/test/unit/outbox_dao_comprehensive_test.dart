@@ -32,6 +32,57 @@ void main() {
     await db.close();
   });
 
+  group('OutboxDao — failed primary entries', () {
+    test(
+      'counts and resets only selected undelivered source entries',
+      () async {
+        Future<int> addEntry(String uuid, {String source = 'local'}) {
+          return outboxDao.merge(
+            entity: 'rooms',
+            op: 'update',
+            localUuid: uuid,
+            payload: const {},
+            clientTs: uuid.hashCode,
+            source: source,
+          );
+        }
+
+        final localId = await addEntry('local-failed');
+        final restoreId = await addEntry('restore-failed', source: 'restore');
+        final deliveredId = await addEntry('local-delivered');
+        await (db.update(
+          db.outbox,
+        )..where((t) => t.id.isIn([localId, restoreId, deliveredId]))).write(
+          const OutboxCompanion(processingStatus: drift.Value('failed')),
+        );
+        await (db.update(
+          db.outbox,
+        )..where((t) => t.id.equals(deliveredId))).write(
+          const OutboxCompanion(deliveredToPrimary: drift.Value(true)),
+        );
+
+        expect(
+          await outboxDao.countFailedUndeliveredToPrimary(
+            sources: const ['local'],
+          ),
+          1,
+        );
+        expect(await outboxDao.countFailedUndeliveredToPrimary(), 2);
+
+        await outboxDao.resetErrors(
+          sources: const ['local'],
+          undeliveredToPrimaryOnly: true,
+        );
+
+        final rows = await db.select(db.outbox).get();
+        final byId = {for (final row in rows) row.id: row};
+        expect(byId[localId]!.processingStatus, 'pending');
+        expect(byId[restoreId]!.processingStatus, 'failed');
+        expect(byId[deliveredId]!.processingStatus, 'failed');
+      },
+    );
+  });
+
   group('OutboxDao — merge / idempotency', () {
     test('merge يُنشئ سجلاً جديداً ويُعيد id', () async {
       final id = await outboxDao.merge(
@@ -287,6 +338,78 @@ void main() {
       expect(batch.length, 1);
       expect(batch.first.source, 'local');
     });
+  });
+
+  group('OutboxDao — stale worker ownership', () {
+    test(
+      'يرفض ACK وفشل العامل القديم بعد تحديث الحمولة والتقاط العامل الجديد',
+      () async {
+        final id = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'room-worker-race',
+          payload: const {'roomNumber': '101'},
+          clientTs: 100,
+          source: 'local',
+        );
+        final workerA = (await outboxDao.takeBatch(
+          1,
+          workerId: 'worker-A',
+        )).single;
+
+        await outboxDao.mergeBatch([
+          {
+            'entity': 'rooms',
+            'op': 'update',
+            'localUuid': 'room-worker-race',
+            'payload': const {'roomNumber': '102'},
+            'clientTs': 200,
+            'source': 'local',
+          },
+        ]);
+        final workerB = (await outboxDao.takeBatch(
+          1,
+          workerId: 'worker-B',
+        )).single;
+
+        expect(workerB.id, id);
+        expect(workerA.processingPayloadVersion, isNot(workerB.processingPayloadVersion));
+        expect(workerB.processingWorker, 'worker-B');
+
+        await outboxDao.markDeliveredToPrimary(
+          workerA.id,
+          workerId: workerA.processingWorker,
+          processingPayloadVersion: workerA.processingPayloadVersion,
+        );
+        await outboxDao.setError(
+          workerA.id,
+          'late failure from worker A',
+          workerA.attempts + 1,
+          workerId: workerA.processingWorker,
+          processingPayloadVersion: workerA.processingPayloadVersion,
+        );
+
+        final afterStaleWorker = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(afterStaleWorker.processingStatus, 'processing');
+        expect(afterStaleWorker.processingWorker, 'worker-B');
+        expect(
+          afterStaleWorker.processingPayloadVersion,
+          workerB.processingPayloadVersion,
+        );
+        expect(afterStaleWorker.payload, workerB.payload);
+        expect(afterStaleWorker.deliveredToPrimary, isFalse);
+        expect(afterStaleWorker.lastError, isNull);
+
+        await outboxDao.markDeliveredToPrimary(
+          workerB.id,
+          workerId: workerB.processingWorker,
+          processingPayloadVersion: workerB.processingPayloadVersion,
+        );
+        expect(await db.select(db.outbox).get(), isEmpty);
+      },
+    );
   });
 
   group('OutboxDao — dual-delivery lifecycle', () {

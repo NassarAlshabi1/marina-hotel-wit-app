@@ -1849,8 +1849,6 @@ class AppwriteSyncManager {
           serverId: _asIntSafe(result.mergedData!, 'id'),
         );
       } catch (e, st) {
-        // لا نُفشل المزامنة بأكملها بسبب فشل enqueue — السجل المدمج محلياً
-        // صحيح، وستلتقطه دورة push اللاحقة عبر local watcher عند أول تعديل.
         _logger.warning(
           '⚠️ Failed to enqueue merged data for cloud push: '
           'entity=$entityName, uuid=$localUuid, error=$e',
@@ -1858,6 +1856,9 @@ class AppwriteSyncManager {
           error: e,
           stackTrace: st,
         );
+        // Fail closed: لا نسمح للمستدعي بتطبيق merge محلياً إذا لم يُسجّل
+        // Outbox payload، وإلا ستتباعد الأجهزة دون مسار إعادة رفع موثوق.
+        rethrow;
       }
     }
 
@@ -3462,7 +3463,11 @@ class AppwriteSyncManager {
           if (success) {
             // ✅ Dual-delivery: نضع علامة "مُسلّم للرئيسي" بدلاً من الحذف.
             // السجل يُحذف تلقائياً فقط إذا كان مُسلّماً للثانوي أيضاً.
-            await outboxDao.markDeliveredToPrimary(entry.id);
+            await outboxDao.markDeliveredToPrimary(
+              entry.id,
+              workerId: entry.processingWorker,
+              processingPayloadVersion: entry.processingPayloadVersion,
+            );
             processedInBatch++;
           }
         } catch (e) {
@@ -3486,11 +3491,23 @@ class AppwriteSyncManager {
             final message =
                 'Timeout processing entry ${entry.id} after ${entryTimeout.inSeconds}s';
             _logger.warning('⏱️ $message', tag: 'SYNC');
-            await outboxDao.setError(entry.id, message, entry.attempts + 1);
+            await outboxDao.setError(
+              entry.id,
+              message,
+              entry.attempts + 1,
+              workerId: entry.processingWorker,
+              processingPayloadVersion: entry.processingPayloadVersion,
+            );
           } else {
             final message = 'Unexpected push error for entry ${entry.id}: $e';
             _logger.warning('⚠️ $message', tag: 'SYNC');
-            await outboxDao.setError(entry.id, message, entry.attempts + 1);
+            await outboxDao.setError(
+              entry.id,
+              message,
+              entry.attempts + 1,
+              workerId: entry.processingWorker,
+              processingPayloadVersion: entry.processingPayloadVersion,
+            );
           }
         }
       }
@@ -3657,7 +3674,13 @@ class AppwriteSyncManager {
         context: 'push:${entry.entity}:${entry.op}',
         stackTrace: stackTrace,
       );
-      await outboxDao.setError(entry.id, parsed.message, entry.attempts + 1);
+      await outboxDao.setError(
+        entry.id,
+        parsed.message,
+        entry.attempts + 1,
+        workerId: entry.processingWorker,
+        processingPayloadVersion: entry.processingPayloadVersion,
+      );
       await outboxDao.markFailed([entry.id]);
       return false;
     }

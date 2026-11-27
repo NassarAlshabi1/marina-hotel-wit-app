@@ -11,6 +11,7 @@ import '../services/appwrite_health_checker.dart';
 import '../services/appwrite_sync_manager.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
+import '../services/auto_outbox_sync_watcher.dart';
 // ✅ Wave 5 (2026-08-12): secondary_sync_provider.dart و secondary_sync_manager.dart
 // أُزيلا بالكامل — Appwrite primary هو authority الوحيد.
 import '../services/sync/sync_gate.dart';
@@ -33,11 +34,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   bool _waitingToPush = false;
   bool _appwriteEnabled = true;
   Timer? _pendingChangesTimer;
+  Timer? _autoPushTimer;
   StreamSubscription<int>? _pendingChangesSubscription;
   late AnimationController _pullAnimationController;
   late AnimationController _pushAnimationController;
   int _pendingChangesCount = 0;
   DateTime? _lastSyncTime;
+  bool _autoPushAttempted = false;
 
   @override
   void initState() {
@@ -66,6 +69,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   @override
   void dispose() {
     _pendingChangesTimer?.cancel();
+    _autoPushTimer?.cancel();
     _pendingChangesSubscription?.cancel();
     _pullAnimationController.dispose();
     _pushAnimationController.dispose();
@@ -104,6 +108,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             (count) {
               if (!mounted || count == _pendingChangesCount) return;
               setState(() => _pendingChangesCount = count);
+              if (count == 0) {
+                _autoPushTimer?.cancel();
+                _autoPushTimer = null;
+                _autoPushAttempted = false;
+              } else {
+                _scheduleAutoPush();
+              }
             },
             onError: (Object error, StackTrace stackTrace) {
               dlog(() => '❌ خطأ في مراقبة سجلات Outbox: $error');
@@ -111,6 +122,44 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           );
     } catch (e) {
       dlog(() => '❌ تعذر بدء مراقبة سجلات Outbox: $e');
+    }
+  }
+
+  void _scheduleAutoPush() {
+    if (_pendingChangesCount == 0 ||
+        _autoPushAttempted ||
+        _autoPushTimer != null) {
+      return;
+    }
+    _autoPushTimer = Timer(const Duration(seconds: 2), () {
+      _autoPushTimer = null;
+      unawaited(_autoPushPendingChanges());
+    });
+  }
+
+  Future<void> _autoPushPendingChanges() async {
+    if (!mounted || _pendingChangesCount == 0 || _isPushing || _waitingToPush) {
+      return;
+    }
+
+    final enabled = await _isAppwriteSyncEnabled();
+    if (!mounted || !enabled) return;
+
+    _autoPushAttempted = true;
+    setState(() => _isPushing = true);
+    unawaited(_pushAnimationController.repeat());
+    try {
+      // نفس مسار الرفع المركزي، مع الإبقاء على زر الرفع اليدوي لإعادة
+      // المحاولة أو الرفع عند الطلب.
+      await AutoOutboxSyncWatcher.instance.pushNow();
+      await _loadPendingChangesCount();
+    } catch (e) {
+      dlog(() => '⚠️ فشل الرفع التلقائي من Dashboard: $e');
+    } finally {
+      _safeStopAnimation(_pushAnimationController);
+      if (mounted) {
+        setState(() => _isPushing = false);
+      }
     }
   }
 
@@ -122,10 +171,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   Future<void> _loadAppwriteEnabled() async {
     try {
       final enabled = await _isAppwriteSyncEnabled();
+      final wasEnabled = _appwriteEnabled;
       if (mounted) {
         setState(() => _appwriteEnabled = enabled);
       } else {
         _appwriteEnabled = enabled;
+      }
+      if (enabled && !wasEnabled && _pendingChangesCount > 0) {
+        _scheduleAutoPush();
       }
     } catch (e) {
       dlog(() => '❌ خطأ في تحميل حالة Appwrite: $e');
@@ -476,6 +529,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   Future<void> _pushChanges(BuildContext context) async {
     if (_isPushing || _waitingToPush) return;
 
+    _autoPushTimer?.cancel();
+    _autoPushTimer = null;
+    _autoPushAttempted = true;
     _waitingToPush = true;
     if (mounted) setState(() {});
 
