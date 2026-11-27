@@ -1752,6 +1752,58 @@ class AppwriteSyncManager {
     }
   }
 
+  /// Collapses duplicate cloud documents that claim the same stable UUID.
+  /// Financial entities intentionally use UUID only: amount/date/booking are
+  /// not safe natural keys because separate legitimate transactions can match.
+  List<models.Document> _collapseDuplicateRemoteDocuments(
+    List<models.Document> documents, {
+    required String entity,
+  }) {
+    final byUuid = <String, models.Document>{};
+    final unkeyedDocuments = <models.Document>[];
+    var duplicates = 0;
+    for (final doc in documents) {
+      // Keep the pull checkpoint inclusive of every fetched copy, including
+      // aliases that are collapsed below.
+      _extractUpdatedAtSec(doc);
+      final candidateUuid = doc.data['localUuid']?.toString().trim();
+      final rawUuid = candidateUuid == null || candidateUuid.isEmpty
+          ? doc.$id
+          : candidateUuid;
+      final key = _canonicalDedupKey(rawUuid);
+      if (key.isEmpty) {
+        // Do not silently discard records that lack identity; let the entity
+        // adapter fail visibly so its checkpoint remains unadvanced.
+        unkeyedDocuments.add(doc);
+        continue;
+      }
+      final previous = byUuid[key];
+      if (previous == null) {
+        byUuid[key] = doc;
+        continue;
+      }
+
+      duplicates++;
+      final previousIsCanonical =
+          previous.$id == key || _canonicalDedupKey(previous.$id) == key;
+      final currentIsCanonical =
+          doc.$id == key || _canonicalDedupKey(doc.$id) == key;
+      if ((currentIsCanonical && !previousIsCanonical) ||
+          (currentIsCanonical == previousIsCanonical &&
+              _docRecency(doc) > _docRecency(previous))) {
+        byUuid[key] = doc;
+      }
+    }
+    if (duplicates > 0) {
+      _logger.warning(
+        'Collapsed $duplicates duplicate $entity cloud document(s) by localUuid; '
+        'canonical UUID document or newest copy retained',
+        tag: 'SYNC',
+      );
+    }
+    return <models.Document>[...byUuid.values, ...unkeyedDocuments];
+  }
+
   /// $updatedAt هو حقل نظام في Appwrite يتوفر دائماً في كل مستند ويُحدَّث
   /// تلقائياً عند أي تعديل. نستخدمه كمرجع زمني موثوق لفحص التعارضات عندما
   /// يكون lastModified البعيد مفقوداً (وهو ما يحدث في بعض المجموعات مثل
@@ -2848,6 +2900,11 @@ class AppwriteSyncManager {
 
   Future<int> _syncExpenses(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
+    documents = _collapseDuplicateRemoteDocuments(
+      documents,
+      entity: 'expenses',
+    );
+    if (documents.isEmpty) return 0;
     var processed = 0;
 
     // ✅ تحسين أداء: batch lookup
@@ -2966,6 +3023,11 @@ class AppwriteSyncManager {
   }
 
   Future<int> _syncPayments(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    documents = _collapseDuplicateRemoteDocuments(
+      documents,
+      entity: 'payments',
+    );
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <models.Document>[];
@@ -3185,6 +3247,8 @@ class AppwriteSyncManager {
   }
 
   Future<int> _syncDebts(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    documents = _collapseDuplicateRemoteDocuments(documents, entity: 'debts');
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <models.Document>[];
@@ -4682,6 +4746,9 @@ class AppwriteSyncManager {
     final docsByUuid = <String, models.Document>{};
     var dupCollapsed = 0;
     for (final doc in documents) {
+      // Duplicate copies are filtered before the apply loop, but still count
+      // toward the server watermark so the checkpoint never falls behind.
+      _extractUpdatedAtSec(doc);
       final rawKey = (doc.data['localUuid']?.toString() ?? doc.$id);
       final key = _canonicalDedupKey(rawKey);
       final prev = docsByUuid[key];
@@ -10006,6 +10073,11 @@ class AppwriteSyncManager {
 
   Future<int> _syncSalaryCycles(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
+    documents = _collapseDuplicateRemoteDocuments(
+      documents,
+      entity: 'salary_cycles',
+    );
+    if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
     // ✅ (2026-11-03) درع فقدان صامت — اليتيم هنا بلا طابور دائم (بعكس
@@ -10211,6 +10283,11 @@ class AppwriteSyncManager {
   }
 
   Future<int> _syncSalaryPayments(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    documents = _collapseDuplicateRemoteDocuments(
+      documents,
+      entity: 'salary_payments',
+    );
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
