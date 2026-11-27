@@ -7,6 +7,7 @@ import '../services/local_db.dart';
 import '../services/repositories/payments_repository.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
+import '../utils/dashboard_provider_timing.dart';
 import 'repository_providers.dart';
 
 /// مفتاح اليوم الفندقي الحالي؛ يُعاد احتسابه تلقائيًا عند حد 14:01.
@@ -24,9 +25,14 @@ final currentHotelDayKeyProvider = Provider.autoDispose<String>((ref) {
 final latestRoomReceiptsProvider =
     StreamProvider.autoDispose<List<LatestRoomReceipt>>((ref) {
       final hotelDayKey = ref.watch(currentHotelDayKeyProvider);
-      return ref
+      final source = ref
           .watch(paymentsRepoProvider)
           .watchLatestRoomReceiptsByRoom(hotelDayKey);
+      return measureDashboardProvider(
+        'latestRoomReceiptsProvider',
+        source,
+        itemCount: (items) => items.length,
+      );
     });
 
 /// ✅ مقارنة قائمتين من RoomWithPaymentStatus لمنع إعادة الإرسال غير الضرورية
@@ -229,7 +235,11 @@ final roomsWithPaymentStatusProvider =
         controller.close();
       });
 
-      return controller.stream;
+      return measureDashboardProvider(
+        'roomsWithPaymentStatusProvider',
+        controller.stream,
+        itemCount: (items) => items.length,
+      );
     });
 // ══════════════════════════════════════════════════════════════════════════
 //  ✅ P0: Riverpod .select() — مشتقات فائقة السرعة للهواتف الضعيفة
