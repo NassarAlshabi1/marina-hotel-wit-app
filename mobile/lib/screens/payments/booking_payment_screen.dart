@@ -22,6 +22,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
+import '../../services/enhanced_booking_calculation_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../services/payment_session_context.dart';
 import '../../services/stay_balance_calculator.dart';
@@ -562,7 +563,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     // آخر مبلغ مدفوع: أحدث دفعة غير ملغاة لهذا الحجز
     db.Payment? lastPaidPayment;
-    final activeDbPayments = dbPayments.where((p) => !p.isVoided).toList();
+    final activeDbPayments = dbPayments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .toList();
     if (activeDbPayments.isNotEmpty) {
       activeDbPayments.sort((a, b) {
         final dateA = DateTime.tryParse(a.paymentDate);
@@ -585,13 +588,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           (p) =>
               !p.isVoided &&
               !p.isPendingBalance &&
-              (p.hotelDayKey == hotelDay ||
-                  (p.hotelDayKey == null &&
-                      p.paymentDate.startsWith(hotelDay))),
+              HotelTimeEngine.paymentBelongsToHotelDay(
+                storedHotelDayKey: p.hotelDayKey,
+                paymentDate: p.paymentDate,
+                hotelDayKey: hotelDay,
+              ),
         )
         .fold<double>(0, (s, p) => s + p.amount);
-    double remainingAmount = totalAmount - paidAmount;
-    if (remainingAmount < 0) remainingAmount = 0;
+    // الرصيد السالب يعني رصيداً دائناً للنزيل، وليس متبقياً صفراً.
+    final remainingAmount = totalAmount - paidAmount;
     _remainingAmount = remainingAmount;
     final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
     final summary = BookingPaymentSummary(
@@ -893,20 +898,31 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     double roomRate = 0,
   }) {
     if (summary.isFullyPaid) {
-      return const Center(
+      final hasGuestCredit = summary.remainingAmount < 0;
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, size: 80, color: Colors.green),
-            SizedBox(height: 16),
-            Text(
-              'تم سداد المبلغ كاملاً',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            Icon(
+              hasGuestCredit
+                  ? Icons.account_balance_wallet
+                  : Icons.check_circle,
+              size: 80,
+              color: hasGuestCredit ? Colors.orange : Colors.green,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
-              'يمكنك الآن تسجيل مغادرة العميل',
-              style: TextStyle(color: Colors.grey),
+              hasGuestCredit
+                  ? 'للنزيل رصيد دائن: ${_currencyFmt.format(-summary.remainingAmount)}'
+                  : 'تم سداد المبلغ كاملاً',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              hasGuestCredit
+                  ? 'لا تُنشئ دفعة عكسية تلقائياً؛ راجع التسوية المالية.'
+                  : 'يمكنك الآن تسجيل مغادرة العميل',
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),
@@ -1565,7 +1581,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       serverBookingId: widget.booking.serverBookingId,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
-      paymentDate: Time.nowIso(),
+      paymentDate: Time.nowPaymentIso(),
       notes: notes.isEmpty
           ? 'دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية'
           : notes,
@@ -1586,17 +1602,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final double roomRate = room?.price ?? 0;
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final now = DateTime.now();
-    final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
-    final currentTotal = currentNights * roomRate;
+    final actualCheckout = widget.booking.actualCheckout == null
+        ? null
+        : DateTime.tryParse(widget.booking.actualCheckout!);
+    final database = ref.read(databaseProvider);
+    final storedNights =
+        await (database.select(database.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([(n) => OrderingTerm.asc(n.hotelDayKey)]))
+            .get();
+    final stayCalculation = _calculateStay(
+      checkin: checkin,
+      actualCheckout: actualCheckout,
+      nights: storedNights,
+      roomRate: roomRate,
+      discount: widget.booking.discount,
+      discountType: widget.booking.discountType,
+      discountStartDate: _parseDateTime(widget.booking.discountStartDate),
+    );
+    final currentTotal = stayCalculation.totalAmount;
     final allPayments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
-    double newRemaining = currentTotal - totalPaid;
-    if (newRemaining < 0) {
-      newRemaining = 0;
-    }
+    final totalPaid = allPayments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .fold<double>(0, (s, p) => s + p.amount);
+    // Keep negative balances: they represent a credit/overpayment owed to the guest.
+    final double newRemaining = currentTotal - totalPaid;
 
     // إرسال رسالة واتساب
     final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
@@ -1722,10 +1755,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paidAmount = payments
         .where((p) => !p.isVoided && !p.isPendingBalance)
         .fold<double>(0, (s, p) => s + p.amount);
-    double remainingAmount = stayCalc.totalAmount - paidAmount;
-    if (remainingAmount < 0) {
-      remainingAmount = 0;
-    }
+    final remainingAmount = stayCalc.totalAmount - paidAmount;
 
     return _PaymentTotals(stayCalc.totalAmount, remainingAmount);
   }
@@ -1998,7 +2028,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           serverBookingId: widget.booking.serverBookingId,
           roomNumber: widget.booking.roomNumber,
           amount: amount,
-          paymentDate: Time.nowIso(),
+          paymentDate: Time.nowPaymentIso(),
           notes: notes.isEmpty ? null : notes,
           paymentMethod: _mapUiMethodToDb(method),
           revenueType: 'room',
@@ -2668,20 +2698,38 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ? nights[i].finalRate
             : nights[i].nightlyRate;
       }
-    } else if (nights.isNotEmpty) {
-      // Nights exist but failed validation — fallback to calculated nights
-      final roomsRepo = ref.read(roomsRepoProvider);
-      final room = await roomsRepo
-          .watchByNumber(widget.booking.roomNumber)
-          .first;
-      actualNightsCost = actualNights * (room?.price ?? 0);
     } else {
-      // بديل: سعر الغرفة × الليالي الفعلية
-      final roomsRepo = ref.read(roomsRepoProvider);
-      final room = await roomsRepo
-          .watchByNumber(widget.booking.roomNumber)
-          .first;
-      actualNightsCost = actualNights * (room?.price ?? 0);
+      try {
+        final room =
+            await (dbInstance.select(dbInstance.rooms)
+                  ..where((r) => r.roomNumber.equals(widget.booking.roomNumber))
+                  ..where((r) => r.deletedAt.isNull()))
+                .getSingleOrNull();
+        if (room == null || room.price <= 0 || actualNights <= 0) {
+          throw StateError('Room pricing is unavailable');
+        }
+        actualNightsCost =
+            (await EnhancedBookingCalculationService(
+                  dbInstance,
+                ).calculateActualStayCost(
+                  widget.booking,
+                  actualCheckout: now,
+                  actualNights: actualNights,
+                ))
+                .toDouble();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'تعذر حساب تكلفة المغادرة بدقة — لم يتم تسجيل المردود',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
     }
 
     final totalPaid = summary.paidAmount;
@@ -2904,7 +2952,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         serverBookingId: widget.booking.serverBookingId,
         roomNumber: widget.booking.roomNumber,
         amount: refundAmount.toDouble() * -1,
-        paymentDate: nowIso,
+        paymentDate: Time.nowPaymentIso(),
         notes:
             'مردود مغادرة مبكرة - $unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'} غير مستخدمة',
         paymentMethod: 'نقدي',
@@ -3513,9 +3561,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               .where(
                 (p) =>
                     !p.isVoided &&
-                    (p.hotelDayKey == hotelDay ||
-                        (p.hotelDayKey == null &&
-                            p.paymentDate.startsWith(hotelDay))),
+                    !p.isPendingBalance &&
+                    HotelTimeEngine.paymentBelongsToHotelDay(
+                      storedHotelDayKey: p.hotelDayKey,
+                      paymentDate: p.paymentDate,
+                      hotelDayKey: hotelDay,
+                    ),
               )
               .toList();
 
@@ -4723,13 +4774,28 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final currentCheckout = widget.booking.checkoutDate != null
           ? DateTime.tryParse(widget.booking.checkoutDate!)
           : DateTime.now().add(const Duration(days: 1));
-
-      final newCheckout = (currentCheckout ?? DateTime.now()).add(
-        Duration(days: additionalNights),
-      );
+      final extensionStart = currentCheckout ?? DateTime.now();
+      final newCheckout = extensionStart.add(Duration(days: additionalNights));
 
       final newExpectedNights =
           widget.booking.expectedNights + additionalNights;
+
+      final dbInstance = ref.read(databaseProvider);
+      final room =
+          await (dbInstance.select(dbInstance.rooms)
+                ..where((r) => r.roomNumber.equals(widget.booking.roomNumber))
+                ..where((r) => r.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (room == null || room.price <= 0) {
+        throw StateError('سعر الغرفة غير متوفر لحساب التمديد');
+      }
+      final calculation = EnhancedBookingCalculationService(dbInstance);
+      final amount = (await calculation.calculateManualExtensionCharge(
+        widget.booking,
+        currentCheckout: extensionStart,
+        newCheckout: newCheckout,
+        additionalNights: additionalNights,
+      )).toDouble();
 
       // تحديث الحجز
       await bookingsRepo.update(
@@ -4742,13 +4808,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
 
       // تسجيل دفعة الليالي الإضافية
-      final double amount = additionalNights * roomRate;
       await paymentsRepo.create(
         bookingLocalId: widget.booking.id,
         serverBookingId: widget.booking.serverBookingId,
         roomNumber: widget.booking.roomNumber,
         amount: amount,
-        paymentDate: Time.nowIso(),
+        paymentDate: Time.nowPaymentIso(),
         notes: notes.isEmpty
             ? 'تمديد $additionalNights ${additionalNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
             : notes,

@@ -4,8 +4,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/local_db.dart';
+import '../services/repositories/payments_repository.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
+import '../utils/dashboard_provider_timing.dart';
 import 'repository_providers.dart';
+
+/// مفتاح اليوم الفندقي الحالي؛ يُعاد احتسابه تلقائيًا عند حد 14:01.
+final currentHotelDayKeyProvider = Provider.autoDispose<String>((ref) {
+  final hotelDayKey = HotelTimeEngine.getHotelDayKey();
+  final timer = Timer(
+    HotelTimeEngine.timeUntilNextHotelDay(),
+    () => ref.invalidateSelf(),
+  );
+  ref.onDispose(timer.cancel);
+  return hotelDayKey;
+});
+
+/// أحدث دفعة فعلية مسجلة لكل غرفة، وتُحدّث تلقائيًا عند تغير المدفوعات.
+final latestRoomReceiptsProvider =
+    StreamProvider.autoDispose<List<LatestRoomReceipt>>((ref) {
+      final hotelDayKey = ref.watch(currentHotelDayKeyProvider);
+      final source = ref
+          .watch(paymentsRepoProvider)
+          .watchLatestRoomReceiptsByRoom(hotelDayKey);
+      return measureDashboardProvider(
+        'latestRoomReceiptsProvider',
+        source,
+        itemCount: (items) => items.length,
+      );
+    });
 
 /// ✅ مقارنة قائمتين من RoomWithPaymentStatus لمنع إعادة الإرسال غير الضرورية
 /// هذا يمنع وميض الشاشة (flickering) عند عدم تغيير البيانات فعلياً
@@ -94,7 +122,13 @@ final roomsWithPaymentStatusProvider =
     StreamProvider.autoDispose<List<RoomWithPaymentStatus>>((ref) {
       // استخدام الـ repositories مباشرة للحصول على Streams حقيقية
       final roomsStream = ref.watch(roomsRepoProvider).watchAll();
-      final bookingsStream = ref.watch(bookingsRepoProvider).watch();
+      // Dashboard needs only active bookings to determine room occupancy and
+      // remaining balances. Filtering in SQLite avoids loading the complete
+      // booking history and prevents every historical booking from being
+      // rebuilt into the room-status map on each database change.
+      final bookingsStream = ref.watch(bookingsRepoProvider).watch(
+        statuses: StatusUtils.activeBookingStatuses,
+      );
 
       // دمج الستريمان — أي تغيير في غرف، حجوزات، أو الوقت يُعيد حساب الحالات
       final controller = StreamController<List<RoomWithPaymentStatus>>();
@@ -201,7 +235,11 @@ final roomsWithPaymentStatusProvider =
         controller.close();
       });
 
-      return controller.stream;
+      return measureDashboardProvider(
+        'roomsWithPaymentStatusProvider',
+        controller.stream,
+        itemCount: (items) => items.length,
+      );
     });
 // ══════════════════════════════════════════════════════════════════════════
 //  ✅ P0: Riverpod .select() — مشتقات فائقة السرعة للهواتف الضعيفة

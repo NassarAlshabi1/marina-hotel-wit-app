@@ -6,6 +6,7 @@ import '../models/financial_models.dart';
 import 'daos/outbox_dao.dart';
 import 'daos/bookings_dao.dart';
 import '../utils/hotel_time_engine.dart';
+import '../utils/hotel_timezone.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
@@ -98,6 +99,78 @@ class EnhancedBookingCalculationService {
     );
   }
 
+  /// Prices a manual extension as the difference between the same booking's
+  /// canonical totals before and after adding nights. This keeps discounts and
+  /// dated price adjustments consistent with the stay ledger.
+  Future<int> calculateManualExtensionCharge(
+    Booking booking, {
+    required DateTime currentCheckout,
+    required DateTime newCheckout,
+    required int additionalNights,
+  }) async {
+    if (additionalNights <= 0 || !newCheckout.isAfter(currentCheckout)) {
+      throw ArgumentError('Invalid manual extension date range');
+    }
+    final baselineBooking = booking.copyWith(
+      status: 'مكتمل',
+      checkoutDate: d.Value(currentCheckout.toIso8601String()),
+      actualCheckout: const d.Value(null),
+    );
+    final extendedBooking = booking.copyWith(
+      status: 'مكتمل',
+      checkoutDate: d.Value(newCheckout.toIso8601String()),
+      actualCheckout: const d.Value(null),
+    );
+    final baseline = await calculateFinancials(
+      baselineBooking,
+      now: newCheckout,
+    );
+    final extended = await calculateFinancials(
+      extendedBooking,
+      now: newCheckout,
+    );
+    final charge = extended.totalDue - baseline.totalDue;
+    if (baseline.totalNights <= 0 ||
+        extended.totalNights - baseline.totalNights != additionalNights ||
+        charge <= 0) {
+      throw StateError(
+        'Unable to calculate a positive, exact extension charge',
+      );
+    }
+    return charge;
+  }
+
+  /// Calculates the consumed stay cost using canonical nightly rates and
+  /// discounts, including the fallback path when persisted booking-night rows
+  /// are absent or fail integrity validation.
+  Future<int> calculateActualStayCost(
+    Booking booking, {
+    required DateTime actualCheckout,
+    required int actualNights,
+  }) async {
+    if (actualNights <= 0) {
+      throw ArgumentError.value(actualNights, 'actualNights');
+    }
+    final completedBooking = booking.copyWith(
+      status: 'مكتمل',
+      actualCheckout: d.Value(actualCheckout.toIso8601String()),
+    );
+    final breakdown = await calculateNightlyBreakdown(
+      completedBooking,
+      now: actualCheckout,
+    );
+    if (breakdown.length != actualNights ||
+        breakdown.any((night) => night.baseRate <= 0 || night.finalRate < 0)) {
+      throw StateError('Unable to calculate exact actual stay pricing');
+    }
+    final financials = await calculateFinancials(
+      completedBooking,
+      now: actualCheckout,
+      breakdown: breakdown,
+    );
+    return financials.totalDue;
+  }
+
   Future<void> updateNightlyRecords(
     Booking booking, {
     DateTime? now,
@@ -186,6 +259,8 @@ class EnhancedBookingCalculationService {
     final legacyDiscount = booking.discountType == 'total'
         ? 0
         : _asInt(booking.discount);
+    final hasCurrentAdjustmentSource =
+        adjustments.isNotEmpty || legacyDiscount > 0;
     final legacyDiscountStart = _parseDateTime(booking.discountStartDate);
     final segments = <_NightSegment>[
       for (final night in nights)
@@ -216,47 +291,55 @@ class EnhancedBookingCalculationService {
               legacyDiscount: legacyDiscount,
               legacyDiscountStart: legacyDiscountStart,
             );
-      final finalRate = (baseRate + nightAdjustments.total).clamp(
-        0,
-        baseRate * 100,
-      );
+      // When no active adjustment source exists, the stored per-night
+      // adjustment is historical data from the synced night itself. Do not
+      // erase it during a pull-triggered refresh merely because its source
+      // record has not arrived (or is not modeled on this device).
+      final adjustmentTotal = hasCurrentAdjustmentSource
+          ? nightAdjustments.total
+          : night.adjustment.round();
+      final applied = hasCurrentAdjustmentSource
+          ? nightAdjustments.applied
+          : <AppliedAdjustment>[];
+      final finalRate = (baseRate + adjustmentTotal).clamp(0, baseRate * 100);
       breakdown.add(
         NightlyBreakdown(
           hotelDayKey: night.hotelDayKey,
           nightStart: segment.start,
           nightEnd: segment.end,
           baseRate: baseRate,
-          adjustmentAmount: nightAdjustments.total,
+          adjustmentAmount: adjustmentTotal,
           finalRate: finalRate,
-          appliedAdjustments: nightAdjustments.applied,
+          appliedAdjustments: applied,
         ),
       );
 
       final unchanged =
           night.finalRate.round() == finalRate &&
           night.nightlyRate.round() == finalRate &&
-          night.adjustment.round() == nightAdjustments.total &&
+          night.adjustment.round() == adjustmentTotal &&
           night.baseRate.round() == baseRate;
       if (unchanged) {
         continue;
       }
-      final applied = nightAdjustments.applied;
       await (db.update(
         db.bookingNights,
       )..where((n) => n.id.equals(night.id))).write(
         BookingNightsCompanion(
           baseRate: d.Value(baseRate.toDouble()),
-          adjustment: d.Value(nightAdjustments.total.toDouble()),
+          adjustment: d.Value(adjustmentTotal.toDouble()),
           finalRate: d.Value(finalRate.toDouble()),
           nightlyRate: d.Value(finalRate.toDouble()),
-          appliedAdjustmentUuid: d.Value(
-            applied.length == 1 ? applied.first.uuid : null,
-          ),
-          appliedAdjustmentsJson: d.Value(
-            applied.isEmpty
-                ? null
-                : jsonEncode(applied.map((a) => a.toJson()).toList()),
-          ),
+          appliedAdjustmentUuid: hasCurrentAdjustmentSource
+              ? d.Value(applied.length == 1 ? applied.first.uuid : null)
+              : const d.Value.absent(),
+          appliedAdjustmentsJson: hasCurrentAdjustmentSource
+              ? d.Value(
+                  applied.isEmpty
+                      ? null
+                      : jsonEncode(applied.map((a) => a.toJson()).toList()),
+                )
+              : const d.Value.absent(),
           updatedAt: d.Value(stamp),
           updatedAtIso: d.Value(stampIso),
           // A pull-triggered refresh must not make derived rows look like
@@ -489,7 +572,9 @@ class EnhancedBookingCalculationService {
     }
 
     final totalPaid = await totalPaymentsForBooking(booking);
-    final remaining = (totalDue - totalPaid).clamp(0, totalDue);
+    // Keep negative balances: they represent money owed back to the guest / credit.
+    // Clamping to zero silently discarded overpayments from reports and cached balances.
+    final remaining = totalDue - totalPaid;
 
     return FinancialSummary(
       subtotal: subtotal,
@@ -620,7 +705,8 @@ class EnhancedBookingCalculationService {
               current.adjustment != night.adjustmentAmount.toDouble() ||
               current.finalRate != night.finalRate.toDouble() ||
               current.appliedAdjustmentUuid != appliedUuid ||
-              current.appliedAdjustmentsJson != appliedJson) {
+              current.appliedAdjustmentsJson != appliedJson ||
+              current.bookingUuidCache != booking.localUuid) {
             shouldRebuild = true;
             break;
           }
@@ -629,14 +715,72 @@ class EnhancedBookingCalculationService {
     }
 
     Future<void> doWrite() async {
-      if (shouldRebuild) {
-        await (db.delete(
+      if (!shouldRebuild) {
+        // ✅ لا فرق بين المخزون والناتج — لا كتابة إطلاقاً. (الكود القديم
+        // كان يعيد الإدراج بمعرفات UUID جديدة حتى دون أي تغيير — ثقلُ
+        // مزامنة واضطرابُ هوية بلا داعٍ.)
+        return;
+      }
+      // ✅ استقرار هوية الليالي (بند 3.3 من التدقيق): لا حذف جذري وإعادة
+      // إدراج بمعرفات UUID جديدة عند كل إعادة حساب. المنطق الجديد:
+      //   ① ليلة موجودة بنفس اليوم الفندقي → تحديث في المكان محافظاً على
+      //      localUuid/origin/createdAt (نفس نمط refreshCompletedStay)
+      //   ② ليلة جديدة في الناتج → إدراج بمعرف جديد (origin: derived)
+      //   ③ ليلة زائدة لم تعد في الناتج → حذف ناعم (deletedAt) + قبر
+      //      مُزامَن عبر outbox (op=delete — آلية tombstone القائمة في
+      //      _processBookingNightEntry) بدل الحذف الجذري الصامت الذي لا
+      //      تعرف السحابة بحدوثه إطلاقاً.
+      final allExisting = await (db.select(
+        db.bookingNights,
+      )..where((n) => n.bookingLocalId.equals(booking.id))).get();
+      final existing = allExisting
+          .where((n) => n.deletedAt == null)
+          .toList(growable: false);
+      final existingByDay = <String, BookingNight>{};
+      for (final n in allExisting) {
+        final prev = existingByDay[n.hotelDayKey];
+        if (prev == null || (prev.deletedAt != null && n.deletedAt == null)) {
+          existingByDay[n.hotelDayKey] = n;
+        }
+      }
+      final breakdownDays = breakdown.map((n) => n.hotelDayKey).toSet();
+
+      // ③ الليالي الزائدة → حذف ناعم + قبر مُزامَن
+      for (final night in existing) {
+        final chosenForDay = existingByDay[night.hotelDayKey];
+        final isChosenForKeptDay = chosenForDay?.localUuid == night.localUuid;
+        if (breakdownDays.contains(night.hotelDayKey) && isChosenForKeptDay) {
+          continue;
+        }
+        await (db.update(
           db.bookingNights,
-        )..where((n) => n.bookingLocalId.equals(booking.id))).go();
+        )..where((n) => n.localUuid.equals(night.localUuid))).write(
+          BookingNightsCompanion(
+            deletedAt: d.Value(stamp),
+            updatedAt: d.Value(stamp),
+            // lastModified يُحدَّث فقط عند التعديل المحلي (enqueueOutbox)
+            lastModified: enqueueOutbox
+                ? d.Value(stamp)
+                : const d.Value.absent(),
+            lastModifiedEpoch: enqueueOutbox
+                ? d.Value(stamp)
+                : const d.Value.absent(),
+          ),
+        );
+        if (enqueueOutbox) {
+          await _outboxDao.merge(
+            entity: 'booking_nights',
+            op: 'delete',
+            localUuid: night.localUuid,
+            serverId: night.serverId,
+            payload: night.toJson(),
+            clientTs: stamp,
+          );
+        }
       }
 
       int sequence = 0;
-      await db.batch((batch) {
+      await db.batch((batch) async {
         for (final night in breakdown) {
           sequence += 1;
           final appliedJson = night.appliedAdjustments.isEmpty
@@ -648,34 +792,80 @@ class EnhancedBookingCalculationService {
               ? night.appliedAdjustments.first.uuid
               : null;
 
-          batch.insert(
-            db.bookingNights,
-            BookingNightsCompanion(
-              localUuid: d.Value(IdGen.uuid()),
-              createdAt: d.Value(stamp),
-              updatedAt: d.Value(stamp),
-              lastModified: d.Value(stamp),
-              createdAtIso: d.Value(stampIso),
-              updatedAtIso: d.Value(stampIso),
-              createdAtEpoch: d.Value(stamp),
-              lastModifiedEpoch: d.Value(stamp),
-              origin: const d.Value('derived'),
-              bookingLocalId: d.Value(booking.id),
-              bookingUuidCache: d.Value(booking.localUuid),
-              hotelDayKey: d.Value(night.hotelDayKey),
-              nightStart: d.Value(night.nightStart.toIso8601String()),
-              nightEnd: d.Value(night.nightEnd.toIso8601String()),
-              nightlyRate: d.Value(night.finalRate.toDouble()),
-              baseRate: d.Value(night.baseRate.toDouble()),
-              adjustment: d.Value(night.adjustmentAmount.toDouble()),
-              finalRate: d.Value(night.finalRate.toDouble()),
-              appliedAdjustmentUuid: d.Value(appliedUuid),
-              appliedAdjustmentsJson: d.Value(appliedJson),
-              sequence: d.Value(sequence),
-              isProcessedByAutoFix: const d.Value(false),
-            ),
-            mode: d.InsertMode.insertOrReplace,
-          );
+          final current = existingByDay[night.hotelDayKey];
+          if (current != null) {
+            final unchanged =
+                current.deletedAt == null &&
+                current.nightlyRate == night.finalRate.toDouble() &&
+                current.baseRate == night.baseRate.toDouble() &&
+                current.adjustment == night.adjustmentAmount.toDouble() &&
+                current.finalRate == night.finalRate.toDouble() &&
+                current.appliedAdjustmentUuid == appliedUuid &&
+                current.appliedAdjustmentsJson == appliedJson &&
+                current.sequence == sequence &&
+                current.bookingUuidCache == booking.localUuid;
+            if (unchanged) {
+              continue;
+            }
+            // ① تحديث في المكان — نفس المعرف والهوية وتاريخ الإنشاء الأصلي (مع إحياء إن كان محذوفاً ناعماً).
+            // (خارج batch: تحديث مع شرط where يحتاج المسماة في drift)
+            await (db.update(
+              db.bookingNights,
+            )..where((n) => n.localUuid.equals(current.localUuid))).write(
+              BookingNightsCompanion(
+                deletedAt: const d.Value(null),
+                deletedAtIso: const d.Value(null),
+                updatedAt: d.Value(stamp),
+                updatedAtIso: d.Value(stampIso),
+                lastModified: enqueueOutbox
+                    ? d.Value(stamp)
+                    : const d.Value.absent(),
+                lastModifiedEpoch: enqueueOutbox
+                    ? d.Value(stamp)
+                    : const d.Value.absent(),
+                bookingUuidCache: d.Value(booking.localUuid),
+                nightlyRate: d.Value(night.finalRate.toDouble()),
+                baseRate: d.Value(night.baseRate.toDouble()),
+                adjustment: d.Value(night.adjustmentAmount.toDouble()),
+                finalRate: d.Value(night.finalRate.toDouble()),
+                appliedAdjustmentUuid: d.Value(appliedUuid),
+                appliedAdjustmentsJson: d.Value(appliedJson),
+                sequence: d.Value(sequence),
+              ),
+            );
+          } else {
+            // ② ليلة جديدة — إدراج بمعرف UUID حتمي مشتق من (booking.localUuid, night.hotelDayKey)
+            batch.insert(
+              db.bookingNights,
+              BookingNightsCompanion(
+                localUuid: d.Value(
+                  IdGen.bookingNightUuid(booking.localUuid, night.hotelDayKey),
+                ),
+                createdAt: d.Value(stamp),
+                updatedAt: d.Value(stamp),
+                lastModified: d.Value(enqueueOutbox ? stamp : 0),
+                createdAtIso: d.Value(stampIso),
+                updatedAtIso: d.Value(stampIso),
+                createdAtEpoch: d.Value(stamp),
+                lastModifiedEpoch: d.Value(enqueueOutbox ? stamp : 0),
+                origin: const d.Value('derived'),
+                bookingLocalId: d.Value(booking.id),
+                bookingUuidCache: d.Value(booking.localUuid),
+                hotelDayKey: d.Value(night.hotelDayKey),
+                nightStart: d.Value(night.nightStart.toIso8601String()),
+                nightEnd: d.Value(night.nightEnd.toIso8601String()),
+                nightlyRate: d.Value(night.finalRate.toDouble()),
+                baseRate: d.Value(night.baseRate.toDouble()),
+                adjustment: d.Value(night.adjustmentAmount.toDouble()),
+                finalRate: d.Value(night.finalRate.toDouble()),
+                appliedAdjustmentUuid: d.Value(appliedUuid),
+                appliedAdjustmentsJson: d.Value(appliedJson),
+                sequence: d.Value(sequence),
+                isProcessedByAutoFix: const d.Value(false),
+              ),
+              mode: d.InsertMode.insertOrReplace,
+            );
+          }
         }
       });
     }
@@ -816,7 +1006,22 @@ class EnhancedBookingCalculationService {
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
-      return DateTime.parse(withSeconds);
+      // Keep the business meaning (hotel wall-clock time) but do not leak
+      // timezone.TZDateTime through the public calculation result.  A
+      // TZDateTime is a DateTime subtype, yet Dart equality also considers
+      // the runtime type; callers and tests reasonably expect a plain
+      // DateTime contract here.
+      final hotelTime = HotelTimezone.parseHotelDateTime(withSeconds);
+      return DateTime(
+        hotelTime.year,
+        hotelTime.month,
+        hotelTime.day,
+        hotelTime.hour,
+        hotelTime.minute,
+        hotelTime.second,
+        hotelTime.millisecond,
+        hotelTime.microsecond,
+      );
     } catch (_) {
       return null;
     }
@@ -845,24 +1050,26 @@ class EnhancedBookingCalculationService {
     int cutoffMinute = Time.hotelDayBoundaryMinute,
   }) {
     final segments = <_NightSegment>[];
+    final hotelCheckin = HotelTimezone.toHotelDateTime(checkin);
+    final hotelCheckout = HotelTimezone.toHotelDateTime(checkout);
 
     // استخدام حد اليوم الفندقي الموحد 14:01.
     final int totalNights = Time.nightsWithCutoff(
-      checkin,
-      checkout: checkout,
+      hotelCheckin,
+      checkout: hotelCheckout,
       cutoffHour: cutoffHour,
       cutoffMinute: cutoffMinute,
     );
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
+    DateTime startOfCheckinHotelDay = HotelTimezone.atHotelTime(
+      hotelCheckin.year,
+      hotelCheckin.month,
+      hotelCheckin.day,
       cutoffHour,
       cutoffMinute,
     );
-    if (checkin.isBefore(startOfCheckinHotelDay)) {
+    if (hotelCheckin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
         const Duration(days: 1),
       );
@@ -873,13 +1080,13 @@ class EnhancedBookingCalculationService {
       final dayKey = Time.dateToString(dayDate);
 
       // بداية الشريحة: وقت الوصول الفعلي لأول شريحة، أو بداية يوم الفندق للشرائح التالية
-      final segStart = i == 0 ? checkin : dayDate;
+      final segStart = i == 0 ? hotelCheckin : dayDate;
 
       // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
       final nextHotelDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == totalNights - 1
-          ? (checkout.isAfter(segStart)
-                ? checkout
+          ? (hotelCheckout.isAfter(segStart)
+                ? hotelCheckout
                 : segStart.add(const Duration(minutes: 1)))
           : nextHotelDay;
 

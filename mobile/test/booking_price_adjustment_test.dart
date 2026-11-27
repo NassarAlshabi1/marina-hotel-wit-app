@@ -215,6 +215,67 @@ void main() {
     });
   });
 
+  group('تعديل سجل تخفيض/زيادة نشط (updateAdjustment)', () {
+    test(
+      'يحدّث التخفيض الحالي في مكانه ويعيد احتساب الحجز دون إنشاء سجل مكرر',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '102-A',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'ضيف تعديل التخفيض',
+          nightCount: 5,
+          nightlyRate: 15000,
+        );
+        final effectiveDay = _hotelDayKey(_dayFromNow(-2));
+        final adjustment = await adjustmentService.applyTemporaryAdjustment(
+          bookingLocalUuid: seed.bookingUuid,
+          amount: 2000,
+          type: AdjustmentType.discount,
+          mode: AdjustmentMode.perNight,
+          effectiveHotelDay: effectiveDay,
+          reason: 'تخفيض قابل للتعديل',
+          appliedBy: 'المدير',
+        );
+        final bookingBeforeEdit = await (db.select(
+          db.bookings,
+        )..where((b) => b.localUuid.equals(seed.bookingUuid))).getSingle();
+
+        await adjustmentService.updateAdjustment(
+          adjustmentUuid: adjustment.localUuid,
+          amount: 1000,
+          mode: AdjustmentMode.perNight,
+          effectiveHotelDay: effectiveDay,
+          updatedBy: 'المدير',
+        );
+
+        final adjustments = await adjustmentService.getAllAdjustments(
+          seed.bookingUuid,
+        );
+        final active = await adjustmentService.getActiveAdjustments(
+          seed.bookingUuid,
+        );
+        final bookingAfterEdit = await (db.select(
+          db.bookings,
+        )..where((b) => b.localUuid.equals(seed.bookingUuid))).getSingle();
+
+        expect(adjustments, hasLength(1));
+        expect(adjustments.single.localUuid, adjustment.localUuid);
+        expect(adjustments.single.amount, 1000);
+        expect(adjustments.single.isActive, isTrue);
+        expect(adjustments.single.version, adjustment.version + 1);
+        expect(active, hasLength(1));
+        expect(active.single.localUuid, adjustment.localUuid);
+        expect(
+          bookingAfterEdit.totalDueCached,
+          greaterThan(bookingBeforeEdit.totalDueCached),
+          reason:
+              'تقليل قيمة التخفيض يجب أن يرفع إجمالي المستحق بعد إعادة الحساب',
+        );
+      },
+    );
+  });
+
   group('السيناريو 2: زيادة سعر (surcharge)', () {
     test(
       'تطبيق surcharge 3000 ر.ي يُسجَّل في تقرير الإيرادات الإضافية',
@@ -592,5 +653,80 @@ void main() {
       final secondEmission = await stream.first;
       expect(secondEmission.length, equals(1));
     });
+  });
+
+  group('UUID fallback & No-Free-Nights floor in preview/reports', () {
+    test(
+      'previewAdjustment يطبق حد 0.01 الأدنى ويدعم المطابقة عبر bookingUuidCache',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '115',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'ضيف المعاينة',
+          nightCount: 2,
+          nightlyRate: 10000,
+          roomPrice: 10000,
+        );
+
+        final preview = await adjustmentService.previewAdjustment(
+          bookingId: seed.booking.id,
+          amount: 10000,
+          type: AdjustmentType.discount,
+          effectiveHotelDay: _hotelDayKey(_dayFromNow(-1)),
+        );
+
+        expect(preview.nightsAffected, greaterThanOrEqualTo(1));
+        for (final row in preview.nightlyBreakdown) {
+          expect(
+            row.finalRate,
+            greaterThanOrEqualTo(0.01),
+            reason: 'معاينة التعديل لا يجوز أن تعرض ليلة بسعر 0.0',
+          );
+        }
+      },
+    );
+
+    test(
+      'transferAdjustmentsToRoom يدعم الربط عبر bookingLocalUuid عند اختلاف bookingLocalId',
+      () async {
+        final seed = await seedBookingWithNights(
+          roomNumber: '116',
+          roomUuid: IdGen.uuid(),
+          bookingUuid: IdGen.uuid(),
+          guestName: 'ضيف النقل عبر UUID',
+          nightCount: 3,
+          nightlyRate: 15000,
+          roomPrice: 15000,
+        );
+
+        final adj = await adjustmentService.applyTemporaryAdjustment(
+          bookingLocalUuid: seed.bookingUuid,
+          amount: 2000,
+          type: AdjustmentType.discount,
+          effectiveHotelDay: _hotelDayKey(_dayFromNow(-2)),
+          reason: 'خصم عبر UUID',
+          appliedBy: 'المدير',
+        );
+
+        // محاكاة فك ارتباط bookingLocalId المحلي مع بقاء bookingLocalUuid
+        await (db.update(
+          db.bookingPriceAdjustments,
+        )..where((a) => a.localUuid.equals(adj.localUuid))).write(
+          const BookingPriceAdjustmentsCompanion(bookingLocalId: Value(null)),
+        );
+
+        await adjustmentService.transferAdjustmentsToRoom(
+          bookingId: seed.booking.id,
+          newRoomNumber: '117',
+        );
+
+        final updatedAdj = await (db.select(
+          db.bookingPriceAdjustments,
+        )..where((a) => a.localUuid.equals(adj.localUuid))).getSingle();
+        expect(updatedAdj.roomNumber, equals('117'));
+        expect(updatedAdj.bookingLocalId, equals(seed.booking.id));
+      },
+    );
   });
 }

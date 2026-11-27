@@ -40,6 +40,7 @@ import '../services/sync_guardian.dart';
 import '../services/whatsapp_service.dart';
 import '../utils/env.dart';
 import '../utils/debug_log.dart';
+import '../utils/dashboard_provider_timing.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import '../utils/stream_helpers.dart';
@@ -393,7 +394,10 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
-  return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
+      return measureDashboardProvider(
+        'todayPaymentsProvider',
+        paymentsRepo.watchTotalByHotelDayKey(hotelDay),
+      );
 });
 
 /// إجمالي ما استلمه المستخدم الحالي منذ بداية جلسة تسجيل الدخول
@@ -538,7 +542,11 @@ final cloudEmployeeShiftPaymentSummariesProvider =
         unawaited(controller.close());
       });
 
-      return controller.stream;
+      return measureDashboardProvider(
+        'cloudEmployeeShiftPaymentSummariesProvider',
+        controller.stream,
+        itemCount: (items) => items.length,
+      );
     });
 
 /// ✅ ربط البطاقة بـ Outbox: عدد دفعات هذا الجهاز التي لم تُرفع إلى
@@ -546,10 +554,13 @@ final cloudEmployeeShiftPaymentSummariesProvider =
 ///
 /// يتحدّث لحظياً عبر drift stream — يظهر على البطاقة كمؤشر «بانتظار
 /// الرفع التلقائي» ويختفي بمجرد أن يستلم AutoOutboxSyncWatcher الرفع
-/// (debounce 3 ثوانٍ + إعادة محاولة فورية عند عودة الشبكة).
+/// (debounce ثانيتين + إعادة محاولة فورية عند عودة الشبكة).
 final paymentsOutboxPendingProvider = StreamProvider.autoDispose<int>((ref) {
   final repo = ref.watch(paymentsRepoProvider);
-  return repo.outbox.watchEntityCount('payments');
+  return measureDashboardProvider(
+    'paymentsOutboxPendingProvider',
+    repo.outbox.watchEntityCount('payments'),
+  );
 });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
@@ -561,7 +572,10 @@ final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   // ✅ SQL SUM() على مستوى قاعدة البيانات بدلاً من تحميل جميع المصروفات
   // وجمعها في Dart. أداء أفضل بشكل ملحوظ خاصةً مع نمو البيانات.
-  return expensesRepo.watchTotalByHotelDayKey(hotelDay);
+  return measureDashboardProvider(
+    'todayExpensesProvider',
+    expensesRepo.watchTotalByHotelDayKey(hotelDay),
+  );
 });
 
 final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {

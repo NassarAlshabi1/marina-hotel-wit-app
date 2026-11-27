@@ -1,0 +1,254 @@
+# Name: Build Flutter Release APK
+#
+# This workflow is triggered on pull requests affecting files in the 'mobile/' directory,
+# or manually via the 'workflow_dispatch' event.
+name: marina-hotel-wit-Apk
+on:
+  push:
+    branches:
+      - main
+      - 'marina'
+      - 'arena/**'
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/marina-hotel-arm64-apk-release.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/marina-hotel-arm64-apk-release.yml'
+  # Allows manual triggering of the workflow from the GitHub Actions tab
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-release-apk:
+    # Runs the job on the latest Ubuntu runner
+    runs-on: ubuntu-latest
+    # Increase job timeout to allow build_runner and pub get more time
+    timeout-minutes: 30
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    defaults:
+      run:
+        # All commands will execute from the 'mobile' directory
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.6'
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Cache pub cache
+        uses: actions/cache@v6
+        with:
+          path: /home/runner/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install Android SDK components (API 35)
+        run: |
+          echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          echo "Installing Android SDK Platform 35, Build-Tools, NDK, and CMake..."
+          sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.0.12077973" \
+            "cmake;3.22.1"
+          ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --list | head -n 50
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+
+      - name: Verify Android Signing Files
+        # Local keystore and key.properties are committed to repo
+        # No secrets or base64 decoding needed
+        run: |
+          echo "Verifying local signing files..."
+          ls -la android/app/release.keystore
+          ls -la android/key.properties
+          echo "Local signing files verified successfully."
+
+      - name: Clean build artifacts
+        run: flutter clean
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Remove unused imports
+        # Apply only the analyzer fix for imports that are not referenced.
+        run: dart fix --apply --code=unused_import
+
+      - name: Analyze Dart and Flutter code
+        # Unused imports are reported by flutter analyze as warnings.
+        # Fatal warnings prevent the APK build from starting when they exist.
+        run: flutter analyze --no-pub --fatal-warnings --fatal-infos
+
+      - name: Determine dynamic build version
+        id: version
+        run: |
+          BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          BUILD_NUMBER=${GITHUB_RUN_NUMBER}
+          BUILD_NAME="${BASE_VERSION}.${BUILD_NUMBER}"
+          SAFE_BRANCH=$(printf '%s' "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "artifact_suffix=${SAFE_BRANCH}-run-${BUILD_NUMBER}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Build runner - clean generated files
+        run: flutter pub run build_runner clean
+
+      - name: Generate code (e.g., using Freezed, json_serializable)
+        # Use delete-conflicting-outputs and verbose logging to avoid conflicts and aid debugging
+        run: flutter pub run build_runner build --verbose
+
+      - name: Re-analyze generated Dart code
+        # Check generated sources too before the release build.
+        run: flutter analyze --no-pub --fatal-warnings --fatal-infos
+
+      - name: Build release APK
+        # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
+        # Build only for arm64-v8a architecture (modern 64-bit Android devices)
+        # ✅ SECURITY: --obfuscate + --split-debug-info for code protection
+        run: >
+          flutter build apk --release
+          --target-platform android-arm64
+          --build-name ${{ steps.version.outputs.build_name }}
+          --build-number ${{ steps.version.outputs.build_number }}
+          --obfuscate
+          --split-debug-info=./debug-info
+          --dart-define=BASE_API_URL=https://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
+          --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
+          --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
+          --dart-define=APPWRITE_API_KEY=${{ secrets.APPWRITE_API_KEY }}
+          --dart-define=SECONDARY_APPWRITE_API_KEY=${{ secrets.SECONDARY_APPWRITE_API_KEY }}
+
+      - name: Write build metadata and stage diagnostics
+        env:
+          BUILD_NAME: ${{ steps.version.outputs.build_name }}
+          BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          ARTIFACT_SUFFIX: ${{ steps.version.outputs.artifact_suffix }}
+        run: |
+          mkdir -p build/release/diagnostics/dart-symbols
+          export FLUTTER_VERSION_JSON="$(flutter --version --machine)"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for block in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(block)
+              return digest.hexdigest()
+
+          apk = Path("build/app/outputs/flutter-apk/app-release.apk")
+          mapping = Path("build/app/outputs/mapping/release/mapping.txt")
+          symbols = sorted(Path("debug-info").rglob("*.symbols")) if Path("debug-info").exists() else []
+          if not apk.is_file():
+              sys.exit("::error::Release APK was not found; refusing to create incomplete metadata.")
+          if not mapping.is_file():
+              sys.exit("::error::R8 mapping.txt was not generated; check minifyEnabled and the Gradle release build.")
+          if not symbols:
+              sys.exit("::error::Dart obfuscation symbols were not generated in mobile/debug-info.")
+
+          flutter = json.loads(os.environ["FLUTTER_VERSION_JSON"])
+          diagnostic_dir = Path("build/release/diagnostics")
+          shutil.copy2(mapping, diagnostic_dir / "mapping.txt")
+          for symbol in symbols:
+              shutil.copy2(symbol, diagnostic_dir / "dart-symbols" / symbol.name)
+
+          files = {
+              "apk": {"path": apk.as_posix(), "sha256": sha256(apk)},
+              "r8_mapping": {"path": mapping.as_posix(), "sha256": sha256(mapping)},
+              "dart_symbols": [
+                  {"path": symbol.as_posix(), "sha256": sha256(symbol)}
+                  for symbol in symbols
+              ],
+          }
+          metadata = {
+              "schema_version": 1,
+              "created_at_utc": datetime.now(timezone.utc).isoformat(),
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "commit_sha": os.environ["GITHUB_SHA"],
+              "workflow": os.environ["GITHUB_WORKFLOW"],
+              "workflow_run": {
+                  "id": int(os.environ["GITHUB_RUN_ID"]),
+                  "number": int(os.environ["GITHUB_RUN_NUMBER"]),
+                  "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "url": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              },
+              "artifact_name": f"marina-hotel-release-{os.environ['ARTIFACT_SUFFIX']}",
+              "build_name": os.environ["BUILD_NAME"],
+              "build_number": int(os.environ["BUILD_NUMBER"]),
+              "flutter": flutter,
+              "source_file_sha256": {
+                  "pubspec.lock": sha256(Path("pubspec.lock")),
+                  "android/app/build.gradle": sha256(Path("android/app/build.gradle")),
+              },
+              "files": files,
+          }
+          metadata_path = Path("build/release/release-metadata.json")
+          metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
+          shutil.copy2(metadata_path, diagnostic_dir / metadata_path.name)
+
+          checksum_lines = [f"{files['apk']['sha256']}  {apk.as_posix()}"]
+          checksum_lines.extend(f"{item['sha256']}  {item['path']}" for item in files["dart_symbols"])
+          checksum_lines.append(f"{files['r8_mapping']['sha256']}  {files['r8_mapping']['path']}")
+          checksums = Path("build/release/SHA256SUMS.txt")
+          checksums.write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+          shutil.copy2(checksums, diagnostic_dir / checksums.name)
+          print(f"Prepared metadata and {len(symbols)} Dart symbol file(s) with the R8 mapping.")
+
+      - name: Upload release APK and metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: 'marina-hotel-release-${{ steps.version.outputs.artifact_suffix }}'
+          path: |
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+            mobile/build/release/release-metadata.json
+            mobile/build/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload crash diagnostics
+        uses: actions/upload-artifact@v7
+        with:
+          name: 'marina-hotel-diagnostics-${{ steps.version.outputs.artifact_suffix }}'
+          path: mobile/build/release/diagnostics/
+          if-no-files-found: error
+          retention-days: 90
+
+      # Signing files preserved for debugging/reuse
+      # - name: Clean signing files
+      #   if: ${{ always() }}
+      #   run: |
+      #     echo "Cleaning up sensitive signing files..."
+      #     rm -f android/app/release.keystore
+      #     rm -f android/key.properties

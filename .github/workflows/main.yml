@@ -129,8 +129,9 @@ jobs:
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
         env:
+          # Keep the R8 heap scoped to Gradle; JAVA_TOOL_OPTIONS applies to every
+          # Java process and can multiply memory pressure from child processes.
           GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
-          JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
 
       # ─── عرض معلومات الـ APKs المبنية ────────────────────
       - name: Inspect APK info

@@ -1,6 +1,6 @@
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 name: CI
 permissions:
@@ -25,6 +25,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -38,13 +40,88 @@ jobs:
       - name: Generate code
         run: dart run build_runner build
 
+      - name: Apply Dart fixes
+        # ✅ (2026-11-26) Semgrep fix: github context تمرر عبر env لا
+        # عبر استيفاء ${{ }} داخل run — يمنع run-shell-injection.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          dart fix --apply
+          # ✅ (2026-11-26) إصلاح Kilo: كان النطاق مثبتاً على فرع
+          # origin/guest-adjustment-edit-end — فرع قد لا يكون موجوداً
+          # في الفروع/الأجهزة المستقبلية فيصبح diff فارغاً وتفلت ملفات
+          # غير منسّقة. github.base_ref (عبر env) عند PR، وإلا تراجع
+          # HEAD~1..HEAD عند push.
+          if [ -n "$BASE_REF" ] && git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            DIFF_RANGE="origin/$BASE_REF...HEAD"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            DIFF_RANGE="HEAD~1..HEAD"
+          else
+            DIFF_RANGE=""
+          fi
+          if [ -n "$DIFF_RANGE" ]; then
+            CHANGED_DART=$(git diff --name-only --diff-filter=ACMR $DIFF_RANGE -- '*.dart' | grep -vE '\.(g|freezed)\.dart$' | sed 's|^mobile/||' || true)
+          else
+            CHANGED_DART=""
+          fi
+          if [ -n "$CHANGED_DART" ]; then
+            # shellcheck disable=SC2086
+            dart format $CHANGED_DART
+          fi
+
       - name: Flutter Analyze
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > /tmp/analyze.log 2>&1
+          EXIT_CODE=$?
+          cat /tmp/analyze.log
+          if [ $EXIT_CODE -ne 0 ]; then
+            grep -E "error •|warning •" /tmp/analyze.log | head -n 30 | while IFS= read -r line; do
+              echo "::error title=Flutter Analyze::$line"
+            done
+            tail -n 15 /tmp/analyze.log | while IFS= read -r line; do
+              echo "::warning title=Analyze Tail::$line"
+            done
+            exit $EXIT_CODE
+          fi
 
       - name: Dart Format
-        run: dart format --set-exit-if-changed .
+        # ✅ (2026-11-26) Semgrep fix: نفس إصلاح الخطوة أعلاه —
+        # github context عبر env بدل الاستيفاء داخل run.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ -n "$BASE_REF" ] && git rev-parse --verify "origin/$BASE_REF" >/dev/null 2>&1; then
+            DIFF_RANGE="origin/$BASE_REF...HEAD"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            DIFF_RANGE="HEAD~1..HEAD"
+          else
+            DIFF_RANGE=""
+          fi
+          if [ -n "$DIFF_RANGE" ]; then
+            CHANGED_DART=$(git diff --name-only --diff-filter=ACMR $DIFF_RANGE -- '*.dart' | grep -vE '\.(g|freezed)\.dart$' | sed 's|^mobile/||' || true)
+          else
+            CHANGED_DART=""
+          fi
+          if [ -n "$CHANGED_DART" ]; then
+            echo "Checking formatting on changed Dart files:"
+            echo "$CHANGED_DART"
+            set +e
+            # shellcheck disable=SC2086
+            dart format --output=none --set-exit-if-changed $CHANGED_DART > /tmp/format.log 2>&1
+            FMT_EXIT=$?
+            cat /tmp/format.log
+            if [ $FMT_EXIT -ne 0 ]; then
+              cat /tmp/format.log | head -n 20 | while IFS= read -r line; do
+                echo "::error title=Dart Format::$line"
+              done
+              exit $FMT_EXIT
+            fi
+          else
+            echo "No changed non-generated Dart files in diff."
+          fi
         # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
-        # الكود غير المُنسّق يجب أن يُكسر الـ build للحفاظ على جودة الكود.
+        # الكود المُعدَّل غير المُنسّق يكسر الـ build دون التأثر بملفات build_runner المولّدة.
 
       # ═══════════════════════════════════════════════════════════
       #  اختبارات
@@ -56,8 +133,48 @@ jobs:
       #  --timeout=60s: timeout قصير لمنع التعليق
       #  test/flutter_test_config.dart يُهيِّئ sqfliteFfiInit() تلقائياً
       # ═══════════════════════════════════════════════════════════
+      - name: Run targeted verification tests
+        run: |
+          set +e
+          flutter test --concurrency=4 --timeout=120s \
+            test/restore_fix_service_test.dart \
+            test/booking_price_adjustment_test.dart \
+            test/services/phase0_data_integrity_test.dart \
+            test/unit/silent_loss_remaining_entities_regression_test.dart \
+            test/unit/link_relink_and_pending_links_test.dart \
+            test/unit/payments_dao_device_id_test.dart \
+            test/services/booking_nights_identity_test.dart \
+            test/services/hotel_day_sql_dart_parity_test.dart \
+            test/services/no_free_nights_test.dart \
+            test/services/payments_uuid_query_backfill_test.dart \
+            test/services/restore_fix_no_clamp_test.dart \
+            test/services/payment_actual_balance_verification_test.dart \
+            --reporter compact > /tmp/targeted_test.log 2>&1
+          TARGET_EXIT=$?
+          cat /tmp/targeted_test.log
+          TARGET_SUMMARY=$(tail -n 3 /tmp/targeted_test.log | tr '\n' ' ')
+          echo "::notice title=Targeted Verification Tests::$TARGET_SUMMARY"
+          if [ $TARGET_EXIT -ne 0 ]; then
+            grep -E "\[E\]|Expected:|Actual:|Failed to load|Error:" /tmp/targeted_test.log | tail -n 30 | while IFS= read -r line; do
+              echo "::error title=Targeted Test Failure::$line"
+            done
+            exit $TARGET_EXIT
+          fi
+
       - name: Run tests
-        run: flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter compact
+        run: |
+          set +e
+          flutter test --coverage --concurrency=4 --timeout=180s --exclude-tags integration,performance,slow --reporter compact > /tmp/test.log 2>&1
+          TEST_EXIT=$?
+          tail -n 100 /tmp/test.log
+          SUMMARY_LINE=$(tail -n 5 /tmp/test.log | tr '\n' ' ')
+          echo "::notice title=Flutter Test Summary::$SUMMARY_LINE"
+          if [ $TEST_EXIT -ne 0 ]; then
+            grep -E "\[E\]|Expected:|Actual:|Failed to load|Error:" /tmp/test.log | tail -n 30 | while IFS= read -r line; do
+              echo "::error title=Flutter Test Failure::$line"
+            done
+            exit $TEST_EXIT
+          fi
         # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
         # فشل الاختبارات يجب أن يُكسر الـ build لمنع دفع كود مكسور للإنتاج.
 

@@ -752,6 +752,10 @@ class AppwriteSyncUtils {
     'salary_carry_over_logs': {
       'amount',
       'carriedAt',
+      // ✅ (2026-11-26) إكمال الاتجاهين: كانت الحقول الثلاثة موجودة في
+      // المُحوّل (fromJson) لكن مفقودة هنا فكان filterPayloadForCollection
+      // يطردها من الرفع.
+      'carryDate',
       'createdAt',
       'createdAtEpoch',
       'createdAtIso',
@@ -761,6 +765,7 @@ class AppwriteSyncUtils {
       'employeeId',
       'employeeLocalUuid',
       'employeeUuid',
+      'hotelDayKey',
       'idempotencyKey',
       'lastModified',
       'lastModifiedEpoch',
@@ -768,6 +773,7 @@ class AppwriteSyncUtils {
       'newCycleEnd',
       'newCycleStart',
       'origin',
+      'performedBy',
       'previousCycleEnd',
       'previousCycleStart',
       'reason',
@@ -1486,13 +1492,19 @@ class AppwriteSyncUtils {
       'newCycleEnd': 'string',
       'reason': 'string',
       'carriedAt': 'integer',
+      // ✅ (2026-11-26) حقول السحابة الحية (تدقيق 2026-11-24: string
+      // 64/64/512) — مطابقة للأعمدة المحلية ومحول السحب.
+      'carryDate': 'string',
+      'hotelDayKey': 'string',
+      'performedBy': 'string',
     },
     'blacklist': {
       'localUuid': 'string',
       'serverId': 'integer',
-      'createdAt': 'string',
-      'updatedAt': 'string',
-      'deletedAt': 'string',
+      // Appwrite stores these timestamps as epoch-second integers.
+      'createdAt': 'integer',
+      'updatedAt': 'integer',
+      'deletedAt': 'integer',
       'lastModified': 'integer',
       'createdAtIso': 'string',
       'updatedAtIso': 'string',
@@ -1726,6 +1738,42 @@ class AppwriteSyncUtils {
     },
   };
 
+  /// حدود string المعتمدة في مخطط الإنشاء المحلي؛ لا نخمّن بقية الحقول.
+  ///
+  /// ✅ 2026-11-24: حُدّثت من التحقق الحي للقراءة فقط من Appwrite Cloud
+  /// (GET /attributes). أي حقل يتجاوز حده يُرفض محليًا بـ ArgumentError
+  /// (بدل رفض 400 من السحابة) وتُحفظ الحمولة في Outbox كما هي — نفس
+  /// فلسفة إصلاحَي 32bef426 و 44251d80.
+  static const Map<String, Map<String, int>> maxStringLengthPerCollection = {
+    'bookings': {'notes': 1000, 'deviceId': 100},
+    'payments': {'deviceId': 100},
+    'booking_notes': {'noteText': 255},
+    'expenses': {'employeeUuid': 36},
+    'cash_transactions': {'localUuid': 36, 'referenceType': 50},
+    'debts': {'debtUuid': 50},
+    'blacklist': {'reason': 255},
+    'audit_logs': {'newState': 500, 'deviceId': 64},
+    'payment_voids': {
+      'localUuid': 36,
+      'hotelDayKey': 20,
+      'reversalPaymentUuid': 36,
+      'paymentUuid': 36,
+    },
+    'booking_price_adjustments': {'localUuid': 36, 'cancelledAt': 30},
+    'salary_withdrawals': {'localUuid': 36},
+    'guest_infos': {'localUuid': 36},
+    // ✅ (2026-11-26) حدود السحابة الحية لحقول الترحيل الجديدة المرفوعة
+    // (تدقيق cloud_gap_analysis 2026-11-24): carryDate 64 / hotelDayKey 64 /
+    // performedBy 512 — حمولة أكبر تفشل محلياً بـ ArgumentError مع بقاء
+    // الـ outbox بدل 400 من السحابة.
+    'salary_carry_over_logs': {
+      'localUuid': 36,
+      'carryDate': 64,
+      'hotelDayKey': 64,
+      'performedBy': 512,
+    },
+  };
+
   /// يضمن تمثيل vectorClock كسلسلة JSON صالحة ضمن حد Appwrite (1000 حرف).
   ///
   /// قد تصل القيمة كـ Map بعد دمج التعارضات، أو كنص تالف من سجل قديم. لا
@@ -1799,10 +1847,15 @@ class AppwriteSyncUtils {
 
     final normalizedPayload = normalizeVectorClockInPayload(payload);
     final result = <String, dynamic>{};
+    final stringLimits = maxStringLengthPerCollection[collectionId] ?? const {};
     for (final entry in normalizedPayload.entries) {
       final fieldSchema = schema[entry.key];
       if (fieldSchema != null) {
-        result[entry.key] = _coerceToType(entry.value, fieldSchema);
+        result[entry.key] = _coerceToType(
+          entry.value,
+          fieldSchema,
+          maxLength: stringLimits[entry.key],
+        );
       }
     }
     return result;
@@ -1813,7 +1866,7 @@ class AppwriteSyncUtils {
   /// - double: يبقى كما هو أو يُقرَب
   /// - boolean: bool, num, String ("true", "1", "false", "0") → bool
   /// - string: أي قيمة → toString()
-  static dynamic _coerceToType(dynamic value, String type) {
+  static dynamic _coerceToType(dynamic value, String type, {int? maxLength}) {
     if (value == null) return null;
 
     switch (type) {
@@ -1847,10 +1900,29 @@ class AppwriteSyncUtils {
       case 'string':
         // Appwrite string attributes لا تقبل Map/List مباشرة. الساعات المتجهة
         // والحقول JSON قد تصل كمركبات بعد دمج OCC، فتُسلسل بدلاً من Map.toString().
-        if (value is Map || value is Iterable) return jsonEncode(value);
-        return value.toString();
+        if (value is Map || value is Iterable) {
+          return _encodeJsonWithLimitCheck(value, maxLength);
+        }
+        final stringValue = value.toString();
+        _ensureStringLengthWithinLimit(stringValue.length, maxLength);
+        return stringValue;
       default:
         return value;
+    }
+  }
+
+  /// يسلسل القيمة المركبة كاملة ويرفضها إذا تجاوزت حد Appwrite، دون إسقاط عناصرها.
+  static String _encodeJsonWithLimitCheck(dynamic value, int? maxLength) {
+    final encoded = jsonEncode(value);
+    _ensureStringLengthWithinLimit(encoded.length, maxLength);
+    return encoded;
+  }
+
+  static void _ensureStringLengthWithinLimit(int actualLength, int? maxLength) {
+    if (maxLength != null && actualLength > maxLength) {
+      throw ArgumentError(
+        'Appwrite string length $actualLength exceeds the configured limit $maxLength; payload data was not truncated.',
+      );
     }
   }
 

@@ -214,7 +214,7 @@ class PayloadMapper {
       'paymentDate': payment.paymentDate,
       'paymentMethod': payment.paymentMethod,
       'revenueType': payment.revenueType,
-      'localUuid': payment.localUuid,
+      'localUuid': _normalizeUuid(payment.localUuid),
       'createdAt': payment.createdAt,
       'updatedAt': payment.updatedAt,
       'lastModified': payment.lastModified,
@@ -737,12 +737,11 @@ class PayloadMapper {
       'reportedBy': item.reportedBy,
 
       'localUuid': item.localUuid,
-      // ✅ blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)
-      // وليس integer (epoch) مثل باقي الكيانات — نرسل ISO string لتجنب
-      // خطأ "createdAt has invalid type. Value must be a valid string"
-      'createdAt': createdAtIso,
+      // عقد blacklist في Appwrite يستخدم epoch seconds للحقول الأساسية.
+      // تُرسل حقول ISO المنفصلة للتوافق والعرض فقط.
+      'createdAt': item.createdAt,
       'createdAtIso': createdAtIso,
-      'updatedAt': updatedAtIso,
+      'updatedAt': item.updatedAt,
       'updatedAtIso': updatedAtIso,
       'lastModified': item.lastModified,
       'version': item.version,
@@ -783,6 +782,11 @@ class PayloadMapper {
       'nationality': info.nationality,
       'idNumber': info.idNumber,
       'idType': info.idType,
+      // صرّح بالقيم null كي يمسح Appwrite القيم السابقة للحقول الاختيارية.
+      'issueDate': info.issueDate,
+      'issuePlace': info.issuePlace,
+      'governorate': info.governorate,
+      'notes': info.notes,
     };
 
     putIfStringNotEmpty(data, 'idempotencyKey', info.idempotencyKey);
@@ -793,10 +797,6 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'createdAtIso', info.createdAtIso);
     putIfStringNotEmpty(data, 'updatedAtIso', info.updatedAtIso);
     putIfStringNotEmpty(data, 'deletedAtIso', info.deletedAtIso);
-    putIfStringNotEmpty(data, 'issueDate', info.issueDate);
-    putIfStringNotEmpty(data, 'issuePlace', info.issuePlace);
-    putIfStringNotEmpty(data, 'governorate', info.governorate);
-    putIfStringNotEmpty(data, 'notes', info.notes);
     return data;
   }
 
@@ -954,6 +954,11 @@ class PayloadMapper {
       'newCycleEnd': log.newCycleEnd,
       'carriedAt': log.carriedAt,
       'carryDate': log.carryDate,
+      // ✅ (2026-11-26) إكمال الاتجاهين بعد إصلاح السحب: هذه الأعمدة
+      // موجودة في جدول Drift وفي السحابة (string 64/64/512) لكنها كانت
+      // مفقودة من حمولة الرفع فتُسقطها filterPayloadForCollection.
+      'hotelDayKey': log.hotelDayKey,
+      'performedBy': log.performedBy,
     };
 
     putIfStringNotEmpty(data, 'idempotencyKey', log.idempotencyKey);

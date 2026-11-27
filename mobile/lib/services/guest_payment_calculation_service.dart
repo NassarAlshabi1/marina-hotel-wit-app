@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart' as d;
 import 'package:intl/intl.dart';
+import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
+import 'enhanced_booking_calculation_service.dart';
 
 /// نموذج تفصيلي لحسابات المدفوعات والأيام للنزيل الواحد
 class GuestPaymentCalculation {
@@ -115,14 +117,20 @@ class GuestPaymentCalculationService {
               ..where((r) => r.deletedAt.isNull()))
             .getSingleOrNull();
 
+    final compactUuid = booking.localUuid.replaceAll('-', '');
+    final uuidVariants = <String>{
+      booking.localUuid,
+      if (compactUuid.isNotEmpty) compactUuid,
+    }.toList(growable: false);
+
     // جلب المدفوعات الفعلية للحجز (استبعاد الملغاة والمعلّقة فقط)
     final payments =
         await (db.select(db.payments)
-              // الربط بـ UUID الثابت + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
+              // الربط بـ UUID الثابت (مع صيغتيه) + الرقم المحلي معًا لتجنّب تضارب bookingLocalId
               ..where(
                 (p) =>
                     p.bookingLocalId.equals(booking.id) |
-                    p.bookingUuidCache.equals(booking.localUuid),
+                    p.bookingUuidCache.isIn(uuidVariants),
               )
               ..where((p) => p.deletedAt.isNull())
               ..where((p) => p.isVoided.equals(false))
@@ -132,20 +140,30 @@ class GuestPaymentCalculationService {
               ..orderBy([(p) => d.OrderingTerm(expression: p.paymentDate)]))
             .get();
 
-    // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00
+    // حساب الأيام المقضية بناءً على قاعدة الساعة 14:00 مع سقف زمن المغادرة الفعلي ومراعاة الحجوزات المغلقة
     final checkin = DateTime.tryParse(booking.checkinDate) ?? moment;
     final actualCheckout =
         booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty
         ? DateTime.tryParse(booking.actualCheckout!)
         : null;
+    final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
+    final DateTime effectiveStayEnd;
+    if (actualCheckout != null) {
+      effectiveStayEnd = actualCheckout.isAfter(moment)
+          ? moment
+          : actualCheckout;
+    } else if (!StatusUtils.isActiveBooking(booking.status)) {
+      effectiveStayEnd = plannedCheckout ?? moment;
+    } else {
+      effectiveStayEnd = moment;
+    }
 
     final actualDaysSpent = Time.nightsWithCutoff(
       checkin,
-      checkout: actualCheckout ?? moment,
+      checkout: effectiveStayEnd,
     );
 
     // حساب الأيام المتبقية حتى موعد المغادرة المخطط
-    final plannedCheckout = DateTime.tryParse(booking.checkoutDate ?? '');
     int plannedDaysRemaining = 0;
     if (plannedCheckout != null && !plannedCheckout.isBefore(moment)) {
       plannedDaysRemaining = Time.nightsWithCutoff(
@@ -157,14 +175,67 @@ class GuestPaymentCalculationService {
     // حساب سعر الليلة الواحدة بناءً على السعر المخزن في الغرفة
     final nightlyRate = room?.price ?? 0;
 
-    // حساب التكلفة حتى الآن (الأيام المقضية فقط)
-    final costSoFar = actualDaysSpent * nightlyRate;
+    // استخدم نفس محرك التسعير المعتمد في شاشة المدفوعات والتقارير؛
+    // فهو يطبق تعديلات الأسعار والخصومات القديمة والخصم الإجمالي مرة واحدة.
+    final enhanced = EnhancedBookingCalculationService(db);
+    final financials = await enhanced.calculateFinancials(booking, now: moment);
+    final totalPlannedDays = financials.totalNights > 0
+        ? financials.totalNights
+        : (booking.calculatedNights > 0
+              ? booking.calculatedNights
+              : actualDaysSpent);
+    final totalPlannedCost = financials.totalDue.toDouble();
 
-    // حساب التكلفة الإجمالية المخطط لها
-    final totalPlannedDays = booking.calculatedNights > 0
-        ? booking.calculatedNights
-        : actualDaysSpent;
-    final totalPlannedCost = totalPlannedDays * nightlyRate;
+    // تكلفة الليالي المستهلكة: الأفضلية لسجلات الليالي الفعلية التي تحمل
+    // finalRate (وتتضمن الخصومات/الزيادات لكل ليلة). لا نستخدم سعر الغرفة
+    // الحالي لإعادة تسعير ليالٍ تاريخية إذا كانت السجلات متوفرة.
+    final storedNights =
+        await (db.select(db.bookingNights)
+              ..where(
+                (n) =>
+                    n.bookingLocalId.equals(booking.id) |
+                    n.bookingUuidCache.isIn(uuidVariants),
+              )
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([(n) => d.OrderingTerm.asc(n.hotelDayKey)]))
+            .get();
+
+    double costSoFar;
+    if (storedNights.length >= actualDaysSpent && actualDaysSpent > 0) {
+      final consumedNights = storedNights.take(actualDaysSpent).toList();
+      costSoFar = consumedNights.fold<double>(0, (sum, night) {
+        final rate = night.finalRate > 0
+            ? night.finalRate
+            : (night.nightlyRate > 0 ? night.nightlyRate : nightlyRate);
+        return sum + rate;
+      });
+      // الخصم الإجمالي لا يُخزّن على مستوى الليلة؛ نوزعه نسبياً على
+      // الفترة المستهلكة حتى لا يظهر في هذا التقرير رصيد أعلى من المحرك.
+      if (booking.discountType == 'total' &&
+          booking.discount > 0 &&
+          totalPlannedDays > 0) {
+        final allocatedDiscount =
+            booking.discount *
+            (actualDaysSpent / totalPlannedDays).clamp(0.0, 1.0);
+        costSoFar = (costSoFar - allocatedDiscount).clamp(0.0, costSoFar);
+      }
+    } else {
+      // توافق مع الحجوزات القديمة التي لا تحتوي على سجلات ليالي.
+      costSoFar = actualDaysSpent * nightlyRate;
+      if (booking.discountType == 'per_night' && booking.discount > 0) {
+        costSoFar = (costSoFar - booking.discount * actualDaysSpent).clamp(
+          0.0,
+          costSoFar,
+        );
+      } else if (booking.discountType == 'total' &&
+          booking.discount > 0 &&
+          totalPlannedDays > 0) {
+        final allocatedDiscount =
+            booking.discount *
+            (actualDaysSpent / totalPlannedDays).clamp(0.0, 1.0);
+        costSoFar = (costSoFar - allocatedDiscount).clamp(0.0, costSoFar);
+      }
+    }
 
     // حساب إجمالي المدفوع
     final totalPaid = payments.fold<double>(0, (sum, p) => sum + p.amount);

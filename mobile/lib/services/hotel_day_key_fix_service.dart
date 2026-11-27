@@ -36,14 +36,9 @@ class HotelDayKeyFixService {
   HotelDayKeyFixService._();
   static final HotelDayKeyFixService instance = HotelDayKeyFixService._();
 
-  /// هل تم الإصلاح بالفعل في هذه الجلسة؟
-  bool _applied = false;
-
-  /// تشغيل الإصلاح (مرة واحدة فقط لكل جلسة)
+  /// الإصلاح آمن للتكرار: لا يُكتب إلا عند اختلاف القيمة، ودمج Outbox
+  /// يستخدم هوية الكيان/العملية نفسها. لذلك نعيد الفحص بعد كل pull ناجح.
   Future<void> runIfNeeded(AppDatabase db) async {
-    if (_applied) return;
-    _applied = true;
-
     dlog('🔧 HotelDayKeyFixService: بدء فحص وإصلاح hotelDayKey...');
 
     int totalFixed = 0;
@@ -78,25 +73,36 @@ class HotelDayKeyFixService {
   /// - تاريخ تقويمي (yyyy-MM-dd): يمرّر 14:01 لضمان اليوم الفندقي الصحيح
   /// - تاريخ ISO مع وقت (yyyy-MM-dd HH:mm): يستخدم الوقت مباشرة
   static String computeCorrectHotelDayKey(String date) {
-    try {
-      final trimmed = date.trim();
-      // إذا كان التاريخ يحتوي على وقت (مثل "2026-05-19 14:30")
-      if (trimmed.length > 10) {
-        return HotelTimeEngine.getHotelDayKeyFromIso(trimmed);
+    final trimmed = date.trim();
+    if (trimmed.isEmpty) throw const FormatException('empty date');
+    // A date-only value denotes that calendar day, independent of the host TZ.
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(trimmed)) {
+      final parsed = DateTime.tryParse(trimmed);
+      if (parsed == null ||
+          parsed.year.toString().padLeft(4, '0') != trimmed.substring(0, 4) ||
+          parsed.month.toString().padLeft(2, '0') != trimmed.substring(5, 7) ||
+          parsed.day.toString().padLeft(2, '0') != trimmed.substring(8, 10)) {
+        throw FormatException('invalid calendar date: $trimmed');
       }
-      // تاريخ تقويمي بدون وقت — نمرّر 14:01:00
-      final parts = trimmed.split('-');
-      if (parts.length != 3) {
-        return HotelTimeEngine.getHotelDayKey();
-      }
-      final year = int.tryParse(parts[0]) ?? 1;
-      final month = int.tryParse(parts[1]) ?? 1;
-      final day = int.tryParse(parts[2]) ?? 1;
       return HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(year, month, day, 14, 1),
+        dateTime: DateTime(parsed.year, parsed.month, parsed.day, 14, 1),
       );
-    } catch (_) {
-      return HotelTimeEngine.getHotelDayKey();
+    }
+    // Do not reinterpret malformed or unknown UTC strings as today's date.
+    final normalized = trimmed.contains('T')
+        ? trimmed
+        : trimmed.replaceFirst(' ', 'T');
+    final parsed = DateTime.tryParse(normalized);
+    if (parsed == null) throw FormatException('invalid date/time: $trimmed');
+    return HotelTimeEngine.getHotelDayKeyFromIso(normalized);
+  }
+
+  String? _tryComputeCorrectHotelDayKey(String date) {
+    try {
+      return computeCorrectHotelDayKey(date);
+    } on FormatException catch (e) {
+      dwarn(() => 'Skipping hotelDayKey repair for invalid source date: $e');
+      return null;
     }
   }
 
@@ -116,7 +122,8 @@ class HotelDayKeyFixService {
       final toFix =
           <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
-        final correctKey = computeCorrectHotelDayKey(row.date);
+        final correctKey = _tryComputeCorrectHotelDayKey(row.date);
+        if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
           toFix.add((
             id: row.id,
@@ -175,7 +182,8 @@ class HotelDayKeyFixService {
       final toFix =
           <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
-        final correctKey = computeCorrectHotelDayKey(row.withdrawDate);
+        final correctKey = _tryComputeCorrectHotelDayKey(row.withdrawDate);
+        if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
           toFix.add((
             id: row.id,
@@ -504,7 +512,8 @@ class HotelDayKeyFixService {
           <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.paymentDate.isEmpty) continue;
-        final correctKey = computeCorrectHotelDayKey(row.paymentDate);
+        final correctKey = _tryComputeCorrectHotelDayKey(row.paymentDate);
+        if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
           toFix.add((
             id: row.id,
@@ -516,6 +525,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toUtc().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -524,12 +535,15 @@ class HotelDayKeyFixService {
             PaymentsCompanion(
               hotelDayKey: d.Value(item.correctKey),
               version: d.Value(item.version + 1),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
             ),
           );
         }
 
         final outboxDao = OutboxDao(db);
-        final now = Time.nowEpoch();
         await outboxDao.mergeBatch(
           toFix
               .map(
@@ -562,7 +576,8 @@ class HotelDayKeyFixService {
           <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.nightStart.isEmpty) continue;
-        final correctKey = computeCorrectHotelDayKey(row.nightStart);
+        final correctKey = _tryComputeCorrectHotelDayKey(row.nightStart);
+        if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
           toFix.add((
             id: row.id,
@@ -620,7 +635,8 @@ class HotelDayKeyFixService {
           <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.paymentDateIso.isEmpty) continue;
-        final correctKey = computeCorrectHotelDayKey(row.paymentDateIso);
+        final correctKey = _tryComputeCorrectHotelDayKey(row.paymentDateIso);
+        if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
           toFix.add((
             id: row.id,
@@ -678,7 +694,8 @@ class HotelDayKeyFixService {
           <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.voidedAtIso.isEmpty) continue;
-        final correctKey = computeCorrectHotelDayKey(row.voidedAtIso);
+        final correctKey = _tryComputeCorrectHotelDayKey(row.voidedAtIso);
+        if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
           toFix.add((
             id: row.id,
@@ -736,7 +753,8 @@ class HotelDayKeyFixService {
           <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.timestampIso.isEmpty) continue;
-        final correctKey = computeCorrectHotelDayKey(row.timestampIso);
+        final correctKey = _tryComputeCorrectHotelDayKey(row.timestampIso);
+        if (correctKey == null) continue;
         if (row.hotelDayKey != correctKey) {
           toFix.add((
             id: row.id,

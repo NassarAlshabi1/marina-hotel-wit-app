@@ -12,6 +12,10 @@ class FinancialRelinkReport {
   int cyclesEmployeeIdFixed = 0;
   int paymentsCycleIdFixed = 0;
   int carryOversEmployeeIdFixed = 0;
+  int bookingPaymentsFixed = 0;
+  int bookingDebtsFixed = 0;
+  int bookingPriceAdjustmentsFixed = 0;
+  int bookingNightsFixed = 0;
 
   /// سجلات راتبية بـ employeeUuid لا يطابق موظفاً محلياً — تُترك كما هي
   /// بلا تخمين (§4.2/§5.2) وتُعرض في تقرير السلامة (§11).
@@ -21,6 +25,9 @@ class FinancialRelinkReport {
   /// كما ورد ولا يُستنتج من رقم بعيد (§4.2).
   int unresolvedExpenseRefs = 0;
 
+  /// سجلات حجزية (مدفوعات/ديون/تعديلات/ليالٍ) بـ bookingUuid لا يطابق حجزاً محلياً.
+  int unresolvedBookingRefs = 0;
+
   final List<String> notes = [];
 
   bool get hasRepairs =>
@@ -29,7 +36,11 @@ class FinancialRelinkReport {
       withdrawalsExpenseIdFixed > 0 ||
       cyclesEmployeeIdFixed > 0 ||
       paymentsCycleIdFixed > 0 ||
-      carryOversEmployeeIdFixed > 0;
+      carryOversEmployeeIdFixed > 0 ||
+      bookingPaymentsFixed > 0 ||
+      bookingDebtsFixed > 0 ||
+      bookingPriceAdjustmentsFixed > 0 ||
+      bookingNightsFixed > 0;
 
   @override
   String toString() =>
@@ -39,8 +50,13 @@ class FinancialRelinkReport {
       'cycles.employeeId=$cyclesEmployeeIdFixed, '
       'payments.cycleId=$paymentsCycleIdFixed, '
       'carryOvers.employeeId=$carryOversEmployeeIdFixed, '
+      'bookingPayments=$bookingPaymentsFixed, '
+      'bookingDebts=$bookingDebtsFixed, '
+      'bookingPriceAdjustments=$bookingPriceAdjustmentsFixed, '
+      'bookingNights=$bookingNightsFixed, '
       'unresolvedEmployees=$unresolvedEmployeeRefs, '
-      'unresolvedExpenses=$unresolvedExpenseRefs';
+      'unresolvedExpenses=$unresolvedExpenseRefs, '
+      'unresolvedBookings=$unresolvedBookingRefs';
 }
 
 /// ✅ «وثيقة الربط والمزامنة Appwrite الموحدة» — تنفيذ الـ relink المالي:
@@ -92,6 +108,11 @@ class FinancialLinkRelinkService {
       uuid: (SalaryCycle c) => c.localUuid,
       id: (SalaryCycle c) => c.id,
     );
+    final bookingsByUuid = await _buildUuidIndex(
+      rowsFuture: db.select(db.bookings).get(),
+      uuid: (Booking b) => b.localUuid,
+      id: (Booking b) => b.id,
+    );
 
     await db.transaction(() async {
       await _relinkExpenses(report, employeesByUuid);
@@ -99,6 +120,10 @@ class FinancialLinkRelinkService {
       await _relinkCycles(report, employeesByUuid);
       await _relinkPayments(report, cyclesByUuid);
       await _relinkCarryOvers(report, employeesByUuid);
+      await _relinkBookingPayments(report, bookingsByUuid);
+      await _relinkBookingDebts(report, bookingsByUuid);
+      await _relinkBookingPriceAdjustments(report, bookingsByUuid);
+      await _relinkBookingNights(report, bookingsByUuid);
     });
 
     return report;
@@ -263,6 +288,137 @@ class FinancialLinkRelinkService {
               ..where((t) => t.id.equals(c.id)))
             .write(SalaryCarryOverLogsCompanion(employeeId: d.Value(empId)));
         report.carryOversEmployeeIdFixed++;
+      }
+    }
+  }
+
+  /// payments.bookingLocalId ← bookingUuidCache.
+  Future<void> _relinkBookingPayments(
+    FinancialRelinkReport report,
+    _UuidLookup bookings,
+  ) async {
+    final rows = await db.select(db.payments).get();
+    for (final p in rows) {
+      final rawUuid = p.bookingUuidCache;
+      if (rawUuid == null || rawUuid.trim().isEmpty) continue;
+      final bId = _resolve(bookings, rawUuid);
+      if (bId == null) {
+        report.unresolvedBookingRefs++;
+        continue;
+      }
+      if (p.bookingLocalId != bId) {
+        await (db.update(db.payments)..where((t) => t.id.equals(p.id))).write(
+          PaymentsCompanion(bookingLocalId: d.Value(bId)),
+        );
+        report.bookingPaymentsFixed++;
+      }
+    }
+  }
+
+  /// debts.bookingLocalId ← bookingUuidCache.
+  Future<void> _relinkBookingDebts(
+    FinancialRelinkReport report,
+    _UuidLookup bookings,
+  ) async {
+    final rows = await db.select(db.debts).get();
+    for (final debt in rows) {
+      final rawUuid = debt.bookingUuidCache;
+      if (rawUuid == null || rawUuid.trim().isEmpty) continue;
+      final bId = _resolve(bookings, rawUuid);
+      if (bId == null) {
+        report.unresolvedBookingRefs++;
+        continue;
+      }
+      if (debt.bookingLocalId != bId) {
+        await (db.update(db.debts)..where((t) => t.id.equals(debt.id))).write(
+          DebtsCompanion(bookingLocalId: d.Value(bId)),
+        );
+        report.bookingDebtsFixed++;
+      }
+    }
+  }
+
+  /// booking_price_adjustments.bookingLocalId ← bookingLocalUuid / bookingUuid.
+  Future<void> _relinkBookingPriceAdjustments(
+    FinancialRelinkReport report,
+    _UuidLookup bookings,
+  ) async {
+    final rows = await db.select(db.bookingPriceAdjustments).get();
+    for (final adj in rows) {
+      final rawUuid = adj.bookingLocalUuid.trim().isNotEmpty
+          ? adj.bookingLocalUuid
+          : adj.bookingUuid;
+      if (rawUuid == null || rawUuid.trim().isEmpty) continue;
+      final bId = _resolve(bookings, rawUuid);
+      if (bId == null) {
+        report.unresolvedBookingRefs++;
+        continue;
+      }
+      if (adj.bookingLocalId != bId) {
+        await (db.update(
+          db.bookingPriceAdjustments,
+        )..where((t) => t.id.equals(adj.id))).write(
+          BookingPriceAdjustmentsCompanion(bookingLocalId: d.Value(bId)),
+        );
+        report.bookingPriceAdjustmentsFixed++;
+      }
+    }
+  }
+
+  /// booking_nights.bookingLocalId ← bookingUuidCache (مع إزالة التكرار عند التصادم).
+  Future<void> _relinkBookingNights(
+    FinancialRelinkReport report,
+    _UuidLookup bookings,
+  ) async {
+    final rows = await db.select(db.bookingNights).get();
+    final canonicalByComposite = <String, BookingNight>{};
+    for (final night in rows) {
+      final rawUuid = night.bookingUuidCache;
+      final resolvedId = (rawUuid != null && rawUuid.trim().isNotEmpty)
+          ? _resolve(bookings, rawUuid)
+          : null;
+      if (resolvedId == null && night.bookingLocalId > 0) {
+        canonicalByComposite['${night.bookingLocalId}|${night.hotelDayKey}'] =
+            night;
+      } else if (resolvedId != null && night.bookingLocalId == resolvedId) {
+        canonicalByComposite['$resolvedId|${night.hotelDayKey}'] = night;
+      }
+    }
+
+    for (final night in rows) {
+      final rawUuid = night.bookingUuidCache;
+      if (rawUuid == null || rawUuid.trim().isEmpty) continue;
+      final bId = _resolve(bookings, rawUuid);
+      if (bId == null) {
+        report.unresolvedBookingRefs++;
+        continue;
+      }
+      if (night.bookingLocalId != bId) {
+        final compositeKey = '$bId|${night.hotelDayKey}';
+        final existingCanonical = canonicalByComposite[compositeKey];
+        if (existingCanonical != null && existingCanonical.id != night.id) {
+          // يوجد بالفعل سجل لنفس (bookingLocalId, hotelDayKey) — نحتفظ بالأحدث ونزيل المكرر
+          if (night.lastModified > existingCanonical.lastModified) {
+            await (db.delete(
+              db.bookingNights,
+            )..where((t) => t.id.equals(existingCanonical.id))).go();
+            await (db.update(db.bookingNights)
+                  ..where((t) => t.id.equals(night.id)))
+                .write(BookingNightsCompanion(bookingLocalId: d.Value(bId)));
+            canonicalByComposite[compositeKey] = night;
+          } else {
+            await (db.delete(
+              db.bookingNights,
+            )..where((t) => t.id.equals(night.id))).go();
+          }
+          report.bookingNightsFixed++;
+        } else {
+          await (db.update(db.bookingNights)
+                ..where((t) => t.id.equals(night.id)))
+              .write(BookingNightsCompanion(bookingLocalId: d.Value(bId)));
+          canonicalByComposite[compositeKey] = night;
+          report.bookingNightsFixed++;
+        }
       }
     }
   }

@@ -18,8 +18,8 @@ import '../local_db.dart';
 ///   إعادة محاولة pending links»)؛
 /// - **سبب التعذر وعدد المحاولات معروضان** في تقرير السلامة (§5.2/§11).
 ///
-/// تغطية الكيانات: salary_cycles / salary_payments / salary_carry_over_logs
-/// (اليتيم فيها كان يُرمى أو يجمّد checkpoint). أما:
+/// تغطية الكيانات: payments / salary_cycles / salary_payments /
+/// salary_carry_over_logs (اليتيم فيها كان يُرمى أو يجمّد checkpoint). أما:
 /// - `expenses`: يُحفظ الصف نفسه محلياً بـ employeeUuid ويُعاد ربط
 ///   relatedId عبر `_relinkOrphanSalaryExpenses` — لا حاجة لصف pending؛
 /// - `salary_withdrawals`: لها طابور يتامى دائم خاص (pending queue في

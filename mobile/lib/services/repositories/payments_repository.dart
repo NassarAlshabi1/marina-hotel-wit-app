@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/time.dart';
 import '../auth_local_store.dart';
 import '../auto_backup_manager.dart';
 import '../booking_derived_fields_service.dart';
@@ -16,6 +17,26 @@ import '../payment_void_service.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+
+class LatestRoomReceipt {
+  const LatestRoomReceipt({
+    required this.roomNumber,
+    required this.amount,
+    required this.paymentDate,
+  });
+
+  factory LatestRoomReceipt.fromRow(Map<String, dynamic> row) {
+    return LatestRoomReceipt(
+      roomNumber: row['room_number']?.toString() ?? '',
+      amount: (row['amount'] as num?)?.toDouble() ?? 0,
+      paymentDate: row['payment_date']?.toString() ?? '',
+    );
+  }
+
+  final String roomNumber;
+  final double amount;
+  final String paymentDate;
+}
 
 class PaymentShiftSummary {
   const PaymentShiftSummary({
@@ -50,6 +71,68 @@ class PaymentsRepository {
   late final OutboxDao outbox;
   late final PaymentsDao dao;
   late final BookingDerivedFieldsService derivedFields;
+
+  /// أحدث دفعة فعلية لكل غرفة ضمن اليوم الفندقي المحدد، مرتبة بالأحدث أولاً.
+  /// تُستثنى الدفعات المحذوفة والملغاة والمعلّقة، وتُراقَب تغييرات payments.
+  /// يُرجع صفاً واحداً لكل غرفة بدلاً من تحميل سجل المدفوعات بالكامل إلى الذاكرة.
+  Stream<List<LatestRoomReceipt>> watchLatestRoomReceiptsByRoom(
+    String hotelDayKey,
+  ) {
+    return db
+        .customSelect(
+          'WITH ranked_room_receipts AS ('
+          ' SELECT room_number, amount, payment_date,'
+          ' ROW_NUMBER() OVER ('
+          ' PARTITION BY room_number ORDER BY payment_date DESC, id DESC'
+          ' ) AS room_rank'
+          ' FROM payments'
+          ' WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0'
+          " AND room_number IS NOT NULL AND TRIM(room_number) <> ''"
+          " AND revenue_type = 'room'"
+          ' AND ${_hotelDayPaymentPredicate()}'
+          ') '
+          'SELECT room_number, amount, payment_date '
+          'FROM ranked_room_receipts WHERE room_rank = 1 '
+          'ORDER BY payment_date DESC, room_number ASC',
+          variables: _hotelDayPaymentVariables(hotelDayKey),
+          readsFrom: {db.payments},
+        )
+        .watch()
+        .map(
+          (rows) => rows
+              .map((row) => LatestRoomReceipt.fromRow(row.data))
+              .toList(growable: false),
+        );
+  }
+
+  /// ✅ تصنيف اليوم الفندقي في SQL مطابق لـ Dart (HotelTimezone.parseHotelDateTime):
+  /// الطوابع المنتهية بـ Z أو بإزاحة زمنية صريحة (±HH:MM) لحظات مطلقة تُحوَّل
+  /// إلى توقيت الفندق (Asia/Aden = UTC+3 ثابت) قبل المقارنة بحدود اليوم
+  /// الفندقي — بينما الطوابع الخالية من المنطقة الزمنية أصلًا توقيت جداري
+  /// للفندق فتُقارن كما هي. (بند 3.5: كان `datetime(...)` الساذج يقارن
+  /// توقيت UTC الخام بحدود جدارية فيُصنّف 10 سجلات إنتاج يومًا خاطئًا.)
+  String _hotelDayPaymentPredicate() =>
+      "(hotel_day_key = ? OR ((hotel_day_key IS NULL OR TRIM(hotel_day_key) = '') "
+      "AND ((LENGTH(TRIM(payment_date)) <= 10 "
+      "AND SUBSTR(TRIM(payment_date), 1, 10) = ?) "
+      "OR (LENGTH(TRIM(payment_date)) > 10 "
+      "AND (CASE "
+      "WHEN TRIM(payment_date) GLOB '*Z' "
+      "OR TRIM(payment_date) GLOB '*[+-][0-9][0-9]:[0-9][0-9]' "
+      "THEN datetime(replace(TRIM(payment_date), ' ', 'T'), '+3 hours') "
+      "ELSE datetime(replace(TRIM(payment_date), ' ', 'T')) END) >= datetime(?) "
+      "AND (CASE "
+      "WHEN TRIM(payment_date) GLOB '*Z' "
+      "OR TRIM(payment_date) GLOB '*[+-][0-9][0-9]:[0-9][0-9]' "
+      "THEN datetime(replace(TRIM(payment_date), ' ', 'T'), '+3 hours') "
+      "ELSE datetime(replace(TRIM(payment_date), ' ', 'T')) END) < datetime(?)))))";
+
+  List<d.Variable<Object>> _hotelDayPaymentVariables(String hotelDayKey) => [
+    d.Variable.withString(hotelDayKey),
+    d.Variable.withString(hotelDayKey),
+    d.Variable.withString(Time.hotelDayStartIso(hotelDayKey)),
+    d.Variable.withString(Time.hotelDayEndIso(hotelDayKey)),
+  ];
 
   /// يحلّ هوية من نفّذ الحذف: مفتاح الجهاز المخزن عند تسجيل الجهاز
   /// (`appwrite_device_id` مع رجوع لـ `device_id`) واسم المستخدم الحالي
@@ -102,8 +185,13 @@ class PaymentsRepository {
       if (booking == null) {
         q.where((p) => p.bookingLocalId.equals(bookingLocalId));
       } else {
+        final compactUuid = booking.localUuid.replaceAll('-', '');
+        final uuidVariants = <String>{
+          booking.localUuid,
+          if (compactUuid.isNotEmpty) compactUuid,
+        }.toList(growable: false);
         final byLocalId = db.payments.bookingLocalId.equals(bookingLocalId);
-        final byUuid = db.payments.bookingUuidCache.equals(booking.localUuid);
+        final byUuid = db.payments.bookingUuidCache.isIn(uuidVariants);
         q.where((p) => byLocalId | byUuid);
       }
 
@@ -119,17 +207,14 @@ class PaymentsRepository {
   /// مراقبة إجمالي المدفوعات ليوم فندقي محدد عبر SQL SUM() — أداء أفضل
   /// من تحميل جميع صفوف المدفوعات (38 عمود لكل صف) ثم جمعها في Dart.
   /// يُحدَّث تلقائياً عند أي تغيير في جدول المدفوعات بفضل Stream من Drift.
-  /// يطابق المنطق السابق: hotelDayKey مطابق OR (hotelDayKey فارغ AND paymentDate ضمن النطاق).
+  /// السجلات التاريخية بلا مفتاح تُحسب ضمن النطاق الحصري 14:01→14:01.
   Stream<double> watchTotalByHotelDayKey(String hotelDayKey) {
     return db
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0 AND '
-          '(hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
-          variables: [
-            d.Variable.withString(hotelDayKey),
-            d.Variable.withString('$hotelDayKey%'),
-          ],
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 AND ${_hotelDayPaymentPredicate()}',
+          variables: _hotelDayPaymentVariables(hotelDayKey),
           readsFrom: {db.payments},
         )
         .watchSingle()
@@ -152,12 +237,11 @@ class PaymentsRepository {
           'WHERE deleted_at IS NULL AND is_voided = 0 '
           'AND is_pending_balance = 0 '
           'AND received_by_user_id = ? AND received_session_uuid = ? '
-          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
+          'AND ${_hotelDayPaymentPredicate()}',
           variables: [
             d.Variable.withInt(userId),
             d.Variable.withString(sessionUuid),
-            d.Variable.withString(hotelDayKey),
-            d.Variable.withString('$hotelDayKey%'),
+            ..._hotelDayPaymentVariables(hotelDayKey),
           ],
           readsFrom: {db.payments},
         )
@@ -198,7 +282,7 @@ class PaymentsRepository {
           '${excludedUserId == null ? '' : 'AND received_by_user_id != ? '} '
           '$excludedNameFilter'
           '$excludedCloudIdFilter'
-          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
+          'AND ${_hotelDayPaymentPredicate()} '
           'GROUP BY received_by_user_id, received_by_name '
           'ORDER BY total_amount DESC',
           variables: [
@@ -207,8 +291,7 @@ class PaymentsRepository {
               d.Variable.withString(excludedUserName),
             if (excludedUserCloudId != null)
               d.Variable.withString(excludedUserCloudId),
-            d.Variable.withString(hotelDayKey),
-            d.Variable.withString('$hotelDayKey%'),
+            ..._hotelDayPaymentVariables(hotelDayKey),
           ],
           readsFrom: {db.payments},
         )
@@ -220,22 +303,69 @@ class PaymentsRepository {
         );
   }
 
+  /// قائمة المدفوعات حسب نطاق اليوم الفندقي، بما فيها السجلات التاريخية.
+  Future<List<Payment>> listFilteredByHotelDay({
+    String? fromHotelDay,
+    String? toHotelDay,
+    String? roomNumber,
+    String? revenueType,
+    bool excludeVoided = false,
+    bool excludePendingBalance = false,
+    bool includeDeleted = false,
+  }) => dao.listFilteredByHotelDay(
+    fromHotelDay: fromHotelDay,
+    toHotelDay: toHotelDay,
+    roomNumber: roomNumber,
+    revenueType: revenueType,
+    excludeVoided: excludeVoided,
+    excludePendingBalance: excludePendingBalance,
+    includeDeleted: includeDeleted,
+  );
+
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
   /// لـ [paymentsByBooking] عندما يحتاج المستهلك فقط للمجموع (مثل قائمة الحجوزات).
   /// يتجنب تحميل جميع صفوف المدفوعات (38 عمود) وفك تشفيرها فقط لجمع `amount`.
-  /// الرصيد الفعلي المدفوع للحجز (للعرض في قائمة الحجوزات) — نفس قاعدة
-  /// المحرك الموحد: غير المحذوفة/الملغاة/المعلّقة، بدون فلتر نوع الإيراد.
+  ///
+  /// ✅ نفس قاعدة المحرك الموحد حرفياً (totalPaymentsForBooking):
+  /// (booking_local_id = ? OR booking_uuid_cache = ?) — فيلتقط الدفعات
+  /// المرتبطة بـ UUID فقط (سحب المزامنة بلا bookingLocalId — نمط الإنتاج
+  /// الموثق: 98/172 دفعة لحجز غرفة 203) — مع الفلاتر الثلاثة:
+  /// غير المحذوفة/الملغاة/المعلّقة، وبدون فلتر نوع الإيراد.
+  /// نراقب صف الحجز نفسه حتى إذا وُجد لاحقاً (بعد استعادة/مزامنة) تنعكس
+  /// هويته فوراً في الاستعلام.
   Stream<double> watchTotalPaidForBooking(int bookingLocalId) {
-    return db
-        .customSelect(
-          'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0 '
-          'AND is_pending_balance = 0 AND booking_local_id = ?',
-          variables: [d.Variable.withInt(bookingLocalId)],
-          readsFrom: {db.payments},
-        )
-        .watchSingle()
-        .map((result) => (result.data['total'] as num).toDouble());
+    final bookingStream =
+        (db.select(
+              db.bookings,
+            )..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
+
+    return bookingStream.asyncExpand((booking) {
+      final variables = <d.Variable<Object>>[
+        d.Variable.withInt(bookingLocalId),
+      ];
+      var uuidFilter = '';
+      if (booking != null && booking.localUuid.isNotEmpty) {
+        // ✅ الصيغتان معاً دائماً: كما خُزن وبالمطبّعة بلا شرطات (تطبيع
+        // BaseRepository) — كي يلتقط الدفعات أياً كان تنسيق أي الطرفين.
+        uuidFilter = ' OR booking_uuid_cache = ? OR booking_uuid_cache = ?';
+        variables
+          ..add(d.Variable.withString(booking.localUuid))
+          ..add(
+            d.Variable.withString(booking.localUuid.replaceAll('-', '')),
+          );
+      }
+      return db
+          .customSelect(
+            'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+            'WHERE deleted_at IS NULL AND is_voided = 0 '
+            'AND is_pending_balance = 0 '
+            'AND (booking_local_id = ?$uuidFilter)',
+            variables: variables,
+            readsFrom: {db.payments},
+          )
+          .watchSingle()
+          .map((result) => (result.data['total'] as num).toDouble());
+    });
   }
 
   Future<int> create({
@@ -260,7 +390,12 @@ class PaymentsRepository {
       if (!PaymentSessionContext.isActive) {
         throw StateError('لا يمكن تسجيل دفعة دون جلسة مستخدم نشطة');
       }
-      final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+      final hotelDayKey =
+          HotelTimeEngine.resolvePaymentHotelDayKey(
+            storedHotelDayKey: null,
+            paymentDate: paymentDate,
+          ) ??
+          HotelTimeEngine.getHotelDayKey();
 
       String? bookingUuidCache;
       if (bookingLocalId != null) {
@@ -344,7 +479,16 @@ class PaymentsRepository {
       final oldBookingId = before?.bookingLocalId;
 
       final hotelDayKey = paymentDate != null
-          ? HotelTimeEngine.getHotelDayKeyFromIso(paymentDate)
+          ? HotelTimeEngine.resolvePaymentHotelDayKey(
+              storedHotelDayKey: null,
+              paymentDate: paymentDate,
+            )
+          : null;
+
+      final targetBooking = bookingLocalId != null
+          ? await (db.select(
+              db.bookings,
+            )..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull()
           : null;
 
       // ✅ تغليف العملية في معاملة لضمان اتساق البيانات
@@ -354,6 +498,9 @@ class PaymentsRepository {
           PaymentsCompanion(
             bookingLocalId: bookingLocalId != null
                 ? d.Value(bookingLocalId)
+                : const d.Value.absent(),
+            bookingUuidCache: targetBooking != null
+                ? d.Value(targetBooking.localUuid)
                 : const d.Value.absent(),
             serverBookingId: serverBookingId != null
                 ? d.Value(serverBookingId)
@@ -519,10 +666,7 @@ class PaymentsRepository {
     String hotelDayKey, {
     String? revenueType,
   }) async {
-    final variables = <d.Variable<Object>>[
-      d.Variable.withString(hotelDayKey),
-      d.Variable.withString('$hotelDayKey%'),
-    ];
+    final variables = _hotelDayPaymentVariables(hotelDayKey);
     var revenueFilter = '';
     if (revenueType != null && revenueType.isNotEmpty) {
       revenueFilter = ' AND revenue_type = ?';
@@ -531,8 +675,8 @@ class PaymentsRepository {
     final result = await db
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
-          'WHERE deleted_at IS NULL AND is_voided = 0'
-          '  AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))'
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 AND ${_hotelDayPaymentPredicate()}'
           '$revenueFilter',
           variables: variables,
           readsFrom: {db.payments},

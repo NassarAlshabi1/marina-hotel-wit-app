@@ -25,10 +25,26 @@ class BookingsRepository {
   late final BookingsDao dao;
   late final BookingDerivedFieldsService derivedFields;
 
-  Stream<List<Booking>> watch({String? roomNumber, String? status}) =>
-      dao.watchList(roomNumber: roomNumber, status: status);
-  Stream<List<Booking>> watchList({String? roomNumber, String? status}) =>
-      dao.watchList(roomNumber: roomNumber, status: status);
+  Stream<List<Booking>> watch({
+    String? roomNumber,
+    String? status,
+    List<String>? statuses,
+  }) =>
+      dao.watchList(
+        roomNumber: roomNumber,
+        status: status,
+        statuses: statuses,
+      );
+  Stream<List<Booking>> watchList({
+    String? roomNumber,
+    String? status,
+    List<String>? statuses,
+  }) =>
+      dao.watchList(
+        roomNumber: roomNumber,
+        status: status,
+        statuses: statuses,
+      );
   Stream<Booking?> watchOne(int id) => dao.watchById(id);
 
   Future<int> create({

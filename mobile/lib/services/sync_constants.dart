@@ -114,9 +114,9 @@ class SyncConstants {
   /// مهلة تجميع الكتابات المحلية قبل دفعها إلى Appwrite.
   ///
   /// يُعاد تشغيل هذه المهلة عند كل إنشاء أو تعديل أو حذف مسجّل في Outbox؛
-  /// لذلك تُرفع الدفعة بعد 3 ثوانٍ من **آخر** تغيير، لا بعد كل نقرة. هذا
+  /// لذلك تُرفع الدفعة بعد ثانيتين من **آخر** تغيير، لا بعد كل نقرة. هذا
   /// يحقق مزامنة شبه فورية من دون طلبات شبكة متتابعة على الأجهزة الضعيفة.
-  static const Duration outboxDebounceWindow = Duration(seconds: 3);
+  static const Duration outboxDebounceWindow = Duration(seconds: 2);
   static const Duration guardianOutboxDebounce = Duration(seconds: 30);
   static const Duration guardianLocalChangeDebounce = Duration(seconds: 5);
   static const Duration shortPollingDelay = Duration(milliseconds: 500);

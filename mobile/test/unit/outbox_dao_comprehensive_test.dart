@@ -7,9 +7,13 @@
 
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values, unused_local_variable, unnecessary_parenthesis
 
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/appwrite_sync_utils.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 
@@ -26,6 +30,57 @@ void main() {
 
   tearDown(() async {
     await db.close();
+  });
+
+  group('OutboxDao — failed primary entries', () {
+    test(
+      'counts and resets only selected undelivered source entries',
+      () async {
+        Future<int> addEntry(String uuid, {String source = 'local'}) {
+          return outboxDao.merge(
+            entity: 'rooms',
+            op: 'update',
+            localUuid: uuid,
+            payload: const {},
+            clientTs: uuid.hashCode,
+            source: source,
+          );
+        }
+
+        final localId = await addEntry('local-failed');
+        final restoreId = await addEntry('restore-failed', source: 'restore');
+        final deliveredId = await addEntry('local-delivered');
+        await (db.update(
+          db.outbox,
+        )..where((t) => t.id.isIn([localId, restoreId, deliveredId]))).write(
+          const OutboxCompanion(processingStatus: drift.Value('failed')),
+        );
+        await (db.update(
+          db.outbox,
+        )..where((t) => t.id.equals(deliveredId))).write(
+          const OutboxCompanion(deliveredToPrimary: drift.Value(true)),
+        );
+
+        expect(
+          await outboxDao.countFailedUndeliveredToPrimary(
+            sources: const ['local'],
+          ),
+          1,
+        );
+        expect(await outboxDao.countFailedUndeliveredToPrimary(), 2);
+
+        await outboxDao.resetErrors(
+          sources: const ['local'],
+          undeliveredToPrimaryOnly: true,
+        );
+
+        final rows = await db.select(db.outbox).get();
+        final byId = {for (final row in rows) row.id: row};
+        expect(byId[localId]!.processingStatus, 'pending');
+        expect(byId[restoreId]!.processingStatus, 'failed');
+        expect(byId[deliveredId]!.processingStatus, 'failed');
+      },
+    );
   });
 
   group('OutboxDao — merge / idempotency', () {
@@ -87,6 +142,77 @@ void main() {
       final all = await (db.select(db.outbox)).get();
       expect(all.length, 1);
       expect(all.first.payload, contains('999'));
+    });
+
+    test(
+      'يبقي payload المركب كاملاً في Outbox بعد تصفية نسخة الإرسال',
+      () async {
+        final notes = List<String>.generate(
+          40,
+          (index) => 'note-$index ${'ن' * 40}',
+        );
+        await outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: 'booking-001',
+          payload: {'notes': notes},
+          clientTs: 3000,
+          source: 'local',
+        );
+
+        final saved = await (db.select(db.outbox)).getSingle();
+        final savedPayload = jsonDecode(saved.payload) as Map<String, dynamic>;
+        final rawOutboxPayload = saved.payload;
+        expect(savedPayload['notes'], notes);
+
+        expect(
+          () => AppwriteSyncUtils.filterPayloadForCollection(
+            'bookings',
+            savedPayload,
+          ),
+          throwsArgumentError,
+        );
+
+        final savedAfterFiltering = await (db.select(db.outbox)).getSingle();
+        expect(savedAfterFiltering.payload, rawOutboxPayload);
+        expect(
+          (jsonDecode(savedAfterFiltering.payload)
+              as Map<String, dynamic>)['notes'],
+          notes,
+        );
+      },
+    );
+
+    test('يبقي deviceId الأطول من حد المخطط محفوظاً خاماً في Outbox', () async {
+      final deviceId = 'd' * 101;
+      await outboxDao.merge(
+        entity: 'bookings',
+        op: 'update',
+        localUuid: 'booking-device-id-001',
+        payload: {'deviceId': deviceId},
+        clientTs: 4000,
+        source: 'local',
+      );
+
+      final saved = await (db.select(db.outbox)).getSingle();
+      final rawOutboxPayload = saved.payload;
+      final savedPayload = jsonDecode(saved.payload) as Map<String, dynamic>;
+      expect(savedPayload['deviceId'], deviceId);
+      expect(
+        () => AppwriteSyncUtils.filterPayloadForCollection(
+          'bookings',
+          savedPayload,
+        ),
+        throwsArgumentError,
+      );
+
+      final savedAfterFiltering = await (db.select(db.outbox)).getSingle();
+      expect(savedAfterFiltering.payload, rawOutboxPayload);
+      expect(
+        (jsonDecode(savedAfterFiltering.payload)
+            as Map<String, dynamic>)['deviceId'],
+        deviceId,
+      );
     });
 
     test(
@@ -212,6 +338,78 @@ void main() {
       expect(batch.length, 1);
       expect(batch.first.source, 'local');
     });
+  });
+
+  group('OutboxDao — stale worker ownership', () {
+    test(
+      'يرفض ACK وفشل العامل القديم بعد تحديث الحمولة والتقاط العامل الجديد',
+      () async {
+        final id = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'room-worker-race',
+          payload: const {'roomNumber': '101'},
+          clientTs: 100,
+          source: 'local',
+        );
+        final workerA = (await outboxDao.takeBatch(
+          1,
+          workerId: 'worker-A',
+        )).single;
+
+        await outboxDao.mergeBatch([
+          {
+            'entity': 'rooms',
+            'op': 'update',
+            'localUuid': 'room-worker-race',
+            'payload': const {'roomNumber': '102'},
+            'clientTs': 200,
+            'source': 'local',
+          },
+        ]);
+        final workerB = (await outboxDao.takeBatch(
+          1,
+          workerId: 'worker-B',
+        )).single;
+
+        expect(workerB.id, id);
+        expect(workerA.processingPayloadVersion, isNot(workerB.processingPayloadVersion));
+        expect(workerB.processingWorker, 'worker-B');
+
+        await outboxDao.markDeliveredToPrimary(
+          workerA.id,
+          workerId: workerA.processingWorker,
+          processingPayloadVersion: workerA.processingPayloadVersion,
+        );
+        await outboxDao.setError(
+          workerA.id,
+          'late failure from worker A',
+          workerA.attempts + 1,
+          workerId: workerA.processingWorker,
+          processingPayloadVersion: workerA.processingPayloadVersion,
+        );
+
+        final afterStaleWorker = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(afterStaleWorker.processingStatus, 'processing');
+        expect(afterStaleWorker.processingWorker, 'worker-B');
+        expect(
+          afterStaleWorker.processingPayloadVersion,
+          workerB.processingPayloadVersion,
+        );
+        expect(afterStaleWorker.payload, workerB.payload);
+        expect(afterStaleWorker.deliveredToPrimary, isFalse);
+        expect(afterStaleWorker.lastError, isNull);
+
+        await outboxDao.markDeliveredToPrimary(
+          workerB.id,
+          workerId: workerB.processingWorker,
+          processingPayloadVersion: workerB.processingPayloadVersion,
+        );
+        expect(await db.select(db.outbox).get(), isEmpty);
+      },
+    );
   });
 
   group('OutboxDao — dual-delivery lifecycle', () {
@@ -374,6 +572,75 @@ void main() {
       expect(updated.processingWorker, isNull);
     });
 
+    test('الاستعادة التلقائية لا تعيد سجلاً processing حديثاً', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'recent-processing',
+        payload: {},
+        clientTs: 101,
+        source: 'local',
+      );
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await db.customStatement(
+        'UPDATE outbox SET processing_status = ?, processing_started_at = ? WHERE id = ?',
+        ['processing', now, id],
+      );
+
+      expect(await outboxDao.reclaimForPush(), 0);
+      final updated = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(updated.processingStatus, 'processing');
+    });
+
+    test('الضغط اليدوي يعيد processing حديثاً فوراً', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'manual-retry-processing',
+        payload: {},
+        clientTs: 102,
+        source: 'local',
+      );
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await db.customStatement(
+        'UPDATE outbox SET processing_status = ?, processing_started_at = ? WHERE id = ?',
+        ['processing', now, id],
+      );
+
+      expect(
+        await outboxDao.reclaimForPush(retryProcessingImmediately: true),
+        1,
+      );
+      final updated = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(updated.processingStatus, 'pending');
+      expect(updated.processingStartedAt, isNull);
+    });
+
+    test('processing بلا وقت بدء يُستعاد بدل أن يبقى عالقاً', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'processing-without-start-time',
+        payload: {},
+        clientTs: 103,
+        source: 'local',
+      );
+      await db.customStatement(
+        'UPDATE outbox SET processing_status = ?, processing_started_at = NULL WHERE id = ?',
+        ['processing', id],
+      );
+
+      expect(await outboxDao.reclaimForPush(), 1);
+      final updated = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(updated.processingStatus, 'pending');
+    });
+
     test('يُعيد السجلات الفاشلة ذات المحاولات القليلة إلى pending', () async {
       final id = await outboxDao.merge(
         entity: 'rooms',
@@ -534,6 +801,45 @@ void main() {
           2,
           reason: 'يجب أن يشمل processing و failed أيضاً',
         );
+      },
+    );
+
+    test(
+      'watchUndeliveredToPrimaryCount يتابع إضافة السجل وتفريغ Outbox',
+      () async {
+        final observedCounts = <int>[];
+        final pendingCount = Completer<void>();
+        final clearedCount = Completer<void>();
+        final subscription = outboxDao
+            .watchUndeliveredToPrimaryCount(sources: const ['local'])
+            .listen((count) {
+              observedCounts.add(count);
+              if (count > 0 && !pendingCount.isCompleted) {
+                pendingCount.complete();
+              } else if (count == 0 &&
+                  pendingCount.isCompleted &&
+                  !clearedCount.isCompleted) {
+                clearedCount.complete();
+              }
+            });
+        addTearDown(subscription.cancel);
+
+        await outboxDao.merge(
+          entity: 'rooms',
+          op: 'create',
+          localUuid: 'live-outbox-count',
+          payload: {},
+          clientTs: 100,
+          source: 'local',
+        );
+        await pendingCount.future.timeout(const Duration(seconds: 2));
+
+        final batch = await outboxDao.takeBatch(1, sources: const ['local']);
+        await outboxDao.markDeliveredToPrimary(batch.single.id);
+        await clearedCount.future.timeout(const Duration(seconds: 2));
+
+        expect(observedCounts, contains(1));
+        expect(observedCounts.last, 0);
       },
     );
   });

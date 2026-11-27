@@ -1,3 +1,5 @@
+import 'hotel_timezone.dart';
+
 class Time {
   static const int earlyCheckinGraceHour = 8;
 
@@ -7,6 +9,11 @@ class Time {
 
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
+  static String nowPaymentIso() => HotelTimezone.nowPaymentTimestamp();
+
+  static String paymentIsoFromInstant(DateTime instant) =>
+      HotelTimezone.paymentTimestampFromInstant(instant);
+
   static String nowDateString() {
     final now = DateTime.now();
     return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -21,7 +28,9 @@ class Time {
     int cutoffHour = hotelDayBoundaryHour,
     int cutoffMinute = hotelDayBoundaryMinute,
   }) {
-    final base = now ?? DateTime.now();
+    final base = now == null
+        ? HotelTimezone.now()
+        : HotelTimezone.toHotelDateTime(now);
     final shifted = base.subtract(
       Duration(hours: cutoffHour, minutes: cutoffMinute),
     );
@@ -40,7 +49,7 @@ class Time {
     final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
     try {
       return hotelDayKey(
-        now: DateTime.parse(normalized),
+        now: HotelTimezone.parseHotelDateTime(normalized),
         cutoffHour: cutoffHour,
         cutoffMinute: cutoffMinute,
       );
@@ -166,17 +175,20 @@ class Time {
     int cutoffHour = hotelDayBoundaryHour,
     int cutoffMinute = hotelDayBoundaryMinute,
   }) {
-    final end = checkout ?? DateTime.now();
+    final hotelCheckin = HotelTimezone.toHotelDateTime(checkin);
+    final end = checkout == null
+        ? HotelTimezone.now()
+        : HotelTimezone.toHotelDateTime(checkout);
 
     // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
+    DateTime startOfCheckinHotelDay = HotelTimezone.atHotelTime(
+      hotelCheckin.year,
+      hotelCheckin.month,
+      hotelCheckin.day,
       cutoffHour,
       cutoffMinute,
     );
-    if (checkin.isBefore(startOfCheckinHotelDay)) {
+    if (hotelCheckin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
         const Duration(days: 1),
       );

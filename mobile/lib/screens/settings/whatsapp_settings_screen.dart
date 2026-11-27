@@ -21,7 +21,8 @@ class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
       _WhatsAppSettingsScreenState();
 }
 
-class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen> {
+class _WhatsAppSettingsScreenState
+    extends ConsumerState<WhatsAppSettingsScreen> {
   final _baseUrlController = TextEditingController();
   final _instanceIdController = TextEditingController();
   final _tokenController = TextEditingController();

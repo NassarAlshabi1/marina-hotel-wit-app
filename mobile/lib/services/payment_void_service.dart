@@ -2,6 +2,7 @@
 
 import 'package:drift/drift.dart' as drift;
 
+import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'appwrite_sync_manager.dart';
@@ -86,6 +87,14 @@ class PaymentVoidService {
           return false;
         }
 
+        // No currency scale is declared: do not silently round REAL amounts
+        // into the integer voidedAmount schema. Reject unrepresentable values.
+        if (!payment.amount.isFinite ||
+            payment.amount != payment.amount.roundToDouble()) {
+          dlog(() => 'PaymentVoid refused: amount requires rounding');
+          return false;
+        }
+
         final nowEpoch = Time.nowEpoch();
         final nowIso = DateTime.now().toIso8601String();
         final voidUuid = IdGen.uuid();
@@ -93,7 +102,13 @@ class PaymentVoidService {
         // 1.5) حل bookingUuid و hotelDayKey من الدفعة أو من الحجز المرتبط
         // ✅ OCR Comment #2: معالجة حالة عدم التمكن من حل bookingUuid/hotelDayKey
         String bookingUuid = payment.bookingUuidCache ?? '';
-        String hotelDayKey = payment.hotelDayKey ?? '';
+        final hotelDayKey = HotelTimeEngine.resolvePaymentHotelDayKey(
+          storedHotelDayKey: payment.hotelDayKey,
+          paymentDate: payment.paymentDate,
+        );
+        if (hotelDayKey == null) {
+          throw StateError('تعذر تحديد اليوم الفندقي للدفعة المراد إلغاؤها');
+        }
 
         // إذا لم يكن bookingUuid متوفراً، نحاول حله من bookingLocalId
         if (bookingUuid.isEmpty && payment.bookingLocalId != null) {
@@ -105,11 +120,6 @@ class PaymentVoidService {
           if (booking != null) {
             bookingUuid = booking.localUuid;
           }
-        }
-
-        // إذا لم يكن hotelDayKey متوفراً، نستمده من paymentDate
-        if (hotelDayKey.isEmpty && payment.paymentDate.isNotEmpty) {
-          hotelDayKey = payment.paymentDate;
         }
 
         // إذا لم نتمكن من حل bookingUuid، نرفض العملية
@@ -133,7 +143,7 @@ class PaymentVoidService {
                 originalPaymentUuid: paymentUuid,
                 originalPaymentId: payment.id,
                 bookingUuid: bookingUuid,
-                voidedAmount: payment.amount.round(),
+                voidedAmount: payment.amount.toInt(),
                 voidReason: voidReason,
                 voidedBy: voidedBy,
                 voidedAt: nowEpoch,
@@ -147,6 +157,36 @@ class PaymentVoidService {
                   AppwriteSyncManager.currentDeviceIdStatic ?? '',
                 ),
                 approvedBy: drift.Value(approvedBy),
+              ),
+            );
+
+        // Durable audit entry, in the same transaction as the void.
+        await _db
+            .into(_db.auditLogs)
+            .insert(
+              AuditLogsCompanion.insert(
+                localUuid: voidUuid,
+                operationType: 'void',
+                entityType: 'payments',
+                entityUuid: paymentUuid,
+                entityId: drift.Value(payment.id),
+                previousState: const drift.Value('{"isVoided":false}'),
+                newState: const drift.Value('{"isVoided":true}'),
+                changedFields: const drift.Value(
+                  'isVoided,voidedAt,voidedBy,voidReason',
+                ),
+                performedBy: voidedBy,
+                hotelDayKey: hotelDayKey,
+                timestamp: nowEpoch,
+                timestampIso: nowIso,
+                updatedAt: nowEpoch,
+                lastModified: nowEpoch,
+                isFinancial: const drift.Value(true),
+                amountImpact: drift.Value(payment.amount.toInt()),
+                deviceId: drift.Value(
+                  AppwriteSyncManager.currentDeviceIdStatic ?? '',
+                ),
+                createdAt: nowEpoch,
               ),
             );
 
@@ -177,9 +217,8 @@ class PaymentVoidService {
           clientTs: nowEpoch,
           payload: {
             'originalPaymentUuid': paymentUuid,
-            'originalPaymentId': payment.id,
             'bookingUuid': bookingUuid,
-            'voidedAmount': payment.amount.round(),
+            'voidedAmount': payment.amount.toInt(),
             'voidReason': voidReason,
             'voidedBy': voidedBy,
             'voidedAt': nowEpoch,
