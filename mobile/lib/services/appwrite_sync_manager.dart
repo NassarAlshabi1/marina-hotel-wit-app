@@ -9750,6 +9750,17 @@ class AppwriteSyncManager {
               batchIndexByComposite.containsKey(compositeKey)) {
             final prevIdx = batchIndexByComposite[compositeKey]!;
             final prevEntry = batchEntries[prevIdx];
+            if (prevEntry.localUuid != entry.localUuid) {
+              // لا نختار نسخة بصمت عند وصول هويتين مختلفتين لنفس
+              // (الحجز، اليوم الفندقي). اختيار الأحدث هنا قد يخفي سجلاً
+              // صحيحاً ويجعل أجهزة أخرى تختلف عن السحابة. نوقف هذه الدورة
+              // ونبقي المؤشر دون تجاوز التعارض حتى يُحل صراحةً.
+              throw StateError(
+                'conflicting booking_nights UUIDs for $compositeKey: '
+                '${prevEntry.localUuid} vs ${entry.localUuid}; '
+                'pull paused without applying either copy',
+              );
+            }
             final prevLastMod =
                 _asIntNullable(prevEntry.remoteData['lastModified']) ??
                 _asIntNullable(prevEntry.remoteData['last_modified']) ??
