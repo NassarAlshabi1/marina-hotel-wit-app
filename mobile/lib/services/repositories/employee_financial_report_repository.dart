@@ -401,16 +401,20 @@ class EmployeeFinancialReportRepository {
 
     final cycles =
         await (_db.select(_db.salaryCycles)..where(
-              (c) => uuid == null || uuid.isEmpty
-                  ? const d.Constant(true)
-                  : c.employeeUuid.equals(uuid),
+              (c) =>
+                  c.deletedAt.isNull() &
+                  (uuid == null || uuid.isEmpty
+                      ? const d.Constant(true)
+                      : c.employeeUuid.equals(uuid)),
             ))
             .get();
     final payments =
         await (_db.select(_db.salaryPayments)..where(
-              (p) => uuid == null || uuid.isEmpty
-                  ? const d.Constant(true)
-                  : p.employeeUuid.equals(uuid),
+              (p) =>
+                  p.deletedAt.isNull() &
+                  (uuid == null || uuid.isEmpty
+                      ? const d.Constant(true)
+                      : p.employeeUuid.equals(uuid)),
             ))
             .get();
     final employees = await _db.select(_db.employees).get();
