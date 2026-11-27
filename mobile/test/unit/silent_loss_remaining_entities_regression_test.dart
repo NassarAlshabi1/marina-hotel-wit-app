@@ -15,8 +15,8 @@
 //     بمعرّف فارغ ($id='') بلا localUuid في البيانات → localUuid فارغ →
 //     upsertFromJson يرمي StateError (رفض اختراع هوية لسجل بعيد — عقد
 //     الهوية المستقرة) — قبل أي كتابة.
-//   - blacklist (تعمل بـ companion مباشر بلا adapter): deletedAt بقيمة
-//     رقمية (int) بدل ISO string → TypeError في الـ cast داخل الحلقة.
+//   - blacklist (تعمل بـ companion مباشر بلا adapter): قيمة name من النوع
+//     الخاطئ → TypeError في تحويل الحقول داخل الحلقة.
 //
 // العقد المُختبر لكل كيان (نفس فصول الملف المرجعي):
 //   الفصل A — دفعة [سليم + فاشل]: StateError تحمل اسم الكيان، السليم
@@ -127,16 +127,15 @@ models.Document _goodBlacklistDoc() => _doc(
   },
 );
 
-/// مستند فاشل للقائمة السوداء: deletedAt رقمي → TypeError في الـ cast.
+/// مستند فاشل للقائمة السوداء: name من النوع الخاطئ → TypeError متوقع.
 models.Document _badBlacklistDoc() => _doc(
   id: 'blacklist-bad',
   collectionId: 'blacklist',
   data: {
     'localUuid': 'blacklist-bad-uuid',
-    'name': 'اسم فاشل',
-    'createdAt': '2026-11-01T08:00:00.000Z',
+    'name': 12345, // int بدل String — يُسقط cast الحقل
+    'createdAt': 1761984000, // integer هو العقد الصحيح الحالي
     'lastModified': _kBaseEpochSec + 20,
-    'deletedAt': 12345, // int بدل ISO string — يُسقط الـ cast
   },
 );
 

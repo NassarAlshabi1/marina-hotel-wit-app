@@ -3381,6 +3381,33 @@ class AppwriteSyncManager {
     return result ?? fallback;
   }
 
+  /// يحوّل timestamp القادم من Appwrite إلى ISO دون افتراض نوع واحد.
+  /// يدعم عقد integer الحالي والوثائق القديمة التي استخدمت ISO strings.
+  String? _timestampToIso(dynamic value) {
+    if (value is String && value.isNotEmpty) {
+      return value;
+    }
+    final epochSeconds = _asIntNullable(value);
+    if (epochSeconds == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(
+      epochSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+  }
+
+  /// يحوّل timestamp رقميًا أو ISO إلى epoch seconds.
+  int? _timestampToEpochSeconds(dynamic value) {
+    final numeric = _asIntNullable(value);
+    if (numeric != null) return numeric;
+    if (value is String && value.isNotEmpty) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) {
+        return parsed.millisecondsSinceEpoch ~/ 1000;
+      }
+    }
+    return null;
+  }
+
   int? _asIntNullable(dynamic value) {
     if (value == null) {
       return null;
@@ -8489,14 +8516,15 @@ class AppwriteSyncManager {
         final localUuid = (data['localUuid'] as String?) ?? doc.$id;
         final name = (data['name'] as String?) ?? '';
 
-        // Appwrite blacklist: createdAt/updatedAt/deletedAt هي STRING (ISO)
+        // Appwrite blacklist: الحقول الأساسية integer (epoch seconds)، مع
+        // قبول ISO strings للتوافق مع الوثائق القديمة.
         final createdAtIso =
-            (data['createdAt'] as String?) ??
-            (data['createdAtIso'] as String?) ??
+            _timestampToIso(data['createdAt']) ??
+            _timestampToIso(data['createdAtIso']) ??
             DateTime.now().toIso8601String();
         final updatedAtIso =
-            (data['updatedAt'] as String?) ??
-            (data['updatedAtIso'] as String?) ??
+            _timestampToIso(data['updatedAt']) ??
+            _timestampToIso(data['updatedAtIso']) ??
             createdAtIso;
 
         // تحويل ISO إلى epoch seconds لقاعدة البيانات المحلية
@@ -8526,21 +8554,8 @@ class AppwriteSyncManager {
 
         // معالجة الحذف الناعم
         final deletedAtVal = data['deletedAt'];
-        int? deletedAtEpoch;
-        String? deletedAtStr;
-        if (deletedAtVal != null) {
-          deletedAtStr = deletedAtVal as String?;
-          if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
-            try {
-              deletedAtEpoch =
-                  DateTime.parse(deletedAtStr).millisecondsSinceEpoch ~/ 1000;
-            } catch (_) {
-              deletedAtEpoch = _asIntNullable(deletedAtVal);
-            }
-          } else {
-            deletedAtEpoch = _asIntNullable(deletedAtVal);
-          }
-        }
+        final deletedAtEpoch = _timestampToEpochSeconds(deletedAtVal);
+        final deletedAtStr = _timestampToIso(deletedAtVal);
 
         // إذا كان السجل محذوفاً، نحذفه محلياً
         if (deletedAtEpoch != null && deletedAtEpoch > 0) {

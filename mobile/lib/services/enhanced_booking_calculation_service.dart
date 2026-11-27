@@ -747,7 +747,9 @@ class EnhancedBookingCalculationService {
 
       // ③ الليالي الزائدة → حذف ناعم + قبر مُزامَن
       for (final night in existing) {
-        if (breakdownDays.contains(night.hotelDayKey)) {
+        final chosenForDay = existingByDay[night.hotelDayKey];
+        final isChosenForKeptDay = chosenForDay?.localUuid == night.localUuid;
+        if (breakdownDays.contains(night.hotelDayKey) && isChosenForKeptDay) {
           continue;
         }
         await (db.update(
