@@ -595,7 +595,9 @@ void main() {
         reason: 'نفس الليلة لنفس الحجز تنتج نفس الـ UUID الحتمي على كل الأجهزة',
       );
 
-      // إرسال مستندين مكررين لنفس الليلة (2026-11-01) بمعرّفين مختلفين: الأول أحدث (8500) والثاني أقدم (10000)
+      // إرسال مستندين لنفس الليلة بمعرّفين مختلفين يجب أن يُرفض بالكامل.
+      // اختيار النسخة الأحدث هنا سيخفي تعارض الهوية ويعرّض السجل للتكرار
+      // أو لاستبدال UUID المحلي بصمت.
       final newerNightDoc = _doc(
         id: 'dup-night-newer',
         collectionId: 'booking_nights',
@@ -637,36 +639,30 @@ void main() {
         },
       );
 
-      await manager.applyBookingNightsForTesting([
-        newerNightDoc,
-        olderNightDoc,
-      ]);
+      await expectLater(
+        manager.applyBookingNightsForTesting([newerNightDoc, olderNightDoc]),
+        throwsA(isA<StateError>()),
+        reason:
+            'يجب إيقاف السحب عند تعارض UUIDs لنفس الحجز واليوم دون اختيار نسخة صامتاً',
+      );
       final nightsAfterFirstBatch = await (db.select(
         db.bookingNights,
       )..where((n) => n.hotelDayKey.equals('2026-11-01'))).get();
       expect(
-        nightsAfterFirstBatch.single.finalRate,
-        closeTo(8500.0, 0.01),
-        reason: 'عند وصول التكرارين معاً يجب أن يفوز lastModified الأحدث',
+        nightsAfterFirstBatch,
+        isEmpty,
+        reason: 'يجب ألا تحدث كتابة جزئية قبل حل تعارض UUID',
       );
 
-      // وحتى لو وصل المستند القديم بمعرّف مختلف في دورة سحب لاحقة منفصلة، لا يطغى على السجل المحلي الأحدث
-      await manager.applyBookingNightsForTesting([olderNightDoc]);
-
+      // بعد معالجة التعارض خارجياً، وصول مستند واحد صالح يجب أن ينجح
+      // ويحافظ على UUID الذي أرسلته السحابة.
+      await manager.applyBookingNightsForTesting([newerNightDoc]);
       final nightsForDay = await (db.select(
         db.bookingNights,
       )..where((n) => n.hotelDayKey.equals('2026-11-01'))).get();
-      expect(
-        nightsForDay.length,
-        equals(1),
-        reason: 'لا يجوز وجود أكثر من سجل واحد لنفس اليوم الفندقي والحجز',
-      );
-      expect(
-        nightsForDay.first.finalRate,
-        closeTo(8500.0, 0.01),
-        reason:
-            'المستند الأحدث زمنياً هو الذي يبقى ولا يطغى عليه المكرر الأقدم',
-      );
+      expect(nightsForDay, hasLength(1));
+      expect(nightsForDay.single.localUuid, equals('dup-night-newer'));
+      expect(nightsForDay.single.finalRate, closeTo(8500.0, 0.01));
     },
   );
 }

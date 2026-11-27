@@ -9789,6 +9789,16 @@ class AppwriteSyncManager {
             ),
           );
         } catch (e) {
+          // تعارض هويتين لنفس (الحجز، اليوم) ليس حالة يمكن تأجيلها أو
+          // تسجيلها ثم متابعة batch: وجود أي entry سابق في الذاكرة يعني أن
+          // تطبيق الدفعة سيؤدي إلى كتابة جزئية قبل رمي StateError لاحقاً.
+          // أعد رمي التعارض فوراً كي لا تُستدعى _applyNightBatchEntries.
+          if (e is StateError &&
+              e.message.toString().startsWith(
+                'conflicting booking_nights UUIDs for ',
+              )) {
+            rethrow;
+          }
           // تأجيل فقط لأخطاء القيود (نفس منطق المسار القديم).
           final errStr = e.toString();
           if (errStr.contains('FOREIGN KEY constraint failed') ||
