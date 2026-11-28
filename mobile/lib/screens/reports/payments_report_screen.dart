@@ -45,6 +45,10 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
   double _totalRemaining = 0;
   double _totalDue = 0;
 
+  // دفعات غير منسوبة لحجز معروف — تقرير استثناءات (المرحلة 2.3)
+  int _unattributedCount = 0;
+  double _unattributedTotal = 0;
+
   String _formatBookingCode(int bookingId) =>
       bookingId.toString().padLeft(6, '0');
 
@@ -118,6 +122,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
           _totalOtherPaid = result.totalOtherPaid;
           _totalRemaining = result.totalRemaining;
           _totalDue = result.totalDue;
+          _unattributedCount = result.unattributedCount;
+          _unattributedTotal = result.unattributedTotal;
         });
       }
     } finally {
@@ -169,20 +175,51 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
     // ✅ إزالة فلترة الغرفة في الذاكرة — يتم الآن على مستوى قاعدة البيانات
     final filteredPayments = payments;
 
+    // ✅ حل الحجز بالمعرف المحلي أولاً ثم بالـ UUID — قاعدة المحرك الموحد.
+    // الدفعات المسحوبة من السحابة قد تحمل bookingUuidCache فقط بلا
+    // bookingLocalId (نمط الإنتاج الموثق: 98/172 دفعة لحجز غرفة 203)،
+    // فكانت تظهر بلا نزيل ولا غرفة وتذوب في الإجماليات.
     final bookingIds = filteredPayments
         .map((p) => p.bookingLocalId)
         .whereType<int>()
         .toSet();
-    final bookings = bookingIds.isEmpty
+    final bookingUuids = filteredPayments
+        .map((p) => p.bookingUuidCache)
+        .whereType<String>()
+        .where((u) => u.trim().isNotEmpty)
+        .toSet();
+    // نطابق الصيغتين (بشرطات وبلا شرطات) — نفس تطبيع BaseRepository.
+    final uuidVariants = <String>{
+      ...bookingUuids,
+      ...bookingUuids.map((u) => u.replaceAll('-', '')),
+    };
+    final bookingsByIds = bookingIds.isEmpty
         ? <Booking>[]
         : await (db.select(
             db.bookings,
           )..where((tbl) => tbl.id.isIn(bookingIds))).get();
+    final bookingsByUuids = uuidVariants.isEmpty
+        ? <Booking>[]
+        : await (db.select(
+            db.bookings,
+          )..where((tbl) => tbl.localUuid.isIn(uuidVariants))).get();
+    final bookings = [...bookingsByIds, ...bookingsByUuids];
     final bookingMap = {for (final b in bookings) b.id: b};
+    // فهرس UUID بصيغتيه (بشرطات + مطبّع بلا شرطات)
+    final bookingByUuid = <String, Booking>{};
+    for (final b in bookings) {
+      bookingByUuid[b.localUuid] = b;
+      final compact = b.localUuid.replaceAll('-', '');
+      if (compact != b.localUuid) {
+        bookingByUuid[compact] = b;
+      }
+    }
 
     final rows = <_PaymentReportRow>[];
     double totalRoomPaid = 0;
     double totalOtherPaid = 0;
+    int unattributedCount = 0;
+    double unattributedTotal = 0;
     final relevantBookingIds = <int>{};
 
     for (final payment in filteredPayments) {
@@ -196,7 +233,19 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
 
       // ✅ إزالة الفلترة المكررة: نثق أن قاعدة البيانات أرجعَت دفعات ضمن النطاق
 
-      final booking = bookingMap[payment.bookingLocalId];
+      // ✅ الحل بالهوية العابرة: المحلي أولاً ثم UUID (بصيغتيه) — لا تذويب.
+      final booking = bookingMap[payment.bookingLocalId] ??
+          (payment.bookingUuidCache != null &&
+                  payment.bookingUuidCache!.trim().isNotEmpty
+              ? bookingByUuid[payment.bookingUuidCache] ??
+                  bookingByUuid[payment.bookingUuidCache!.replaceAll('-', '')]
+              : null);
+      if (booking == null) {
+        // دفعة غير منسوبة لأي حجز معروف — تُحصى في تقرير الاستثناءات
+        // بدل أن تذوب بلا نزيل/غرفة (قاعدة المرحلة 2.3 من خطة الإصلاح).
+        unattributedCount++;
+        unattributedTotal += payment.amount;
+      }
       final roomNumber =
           booking?.roomNumber ?? payment.roomNumber ?? 'غير محدد';
       final payerName = booking?.guestName ?? payment.revenueType;
@@ -250,6 +299,8 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
       totalOtherPaid: totalOtherPaid,
       totalRemaining: totalRemaining,
       totalDue: totalDue,
+      unattributedCount: unattributedCount,
+      unattributedTotal: unattributedTotal,
     );
   }
 
@@ -379,15 +430,54 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen>
               message: 'لم يتم العثور على دفوعات ضمن النطاق المحدد.',
               icon: Icons.receipt_long,
             )
-          : ListView.separated(
+          : ListView.builder(
               padding: const EdgeInsets.only(bottom: 8),
-              itemCount: _rows.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 5),
+              // +1 لصف بانر الاستثناءات إن وُجدت دفعات غير منسوبة
+              itemCount: _rows.length + (_unattributedCount > 0 ? 1 : 0),
               itemBuilder: (context, index) {
-                final row = _rows[index];
+                if (_unattributedCount > 0 && index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                      left: 8,
+                      right: 8,
+                      top: 4,
+                      bottom: 4,
+                    ),
+                    child: _buildUnattributedBanner(),
+                  );
+                }
+                final row = _rows[_unattributedCount > 0 ? index - 1 : index];
                 return RepaintBoundary(child: _buildPaymentCard(row));
               },
             ),
+    );
+  }
+
+  /// بانر تقرير الاستثناءات: دفعات دخلت الإجماليات لكنها غير منسوبة
+  /// لأي حجز معروف (لا معرف محلي ولا UUID قابل للحل) — تُعلن ولا تذوب.
+  Widget _buildUnattributedBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              size: 18, color: Colors.orange),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'تنبيه استثناءات: $_unattributedCount دفعة '
+              '(${_currencyFmt.format(_unattributedTotal)} ريال) غير منسوبة لحجز معروف '
+              '— دخلت الإجماليات دون نزيل أو غرفة وتحتاج مراجعة ربط.',
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -624,6 +714,8 @@ class _PaymentsReportResult {
     required this.totalOtherPaid,
     required this.totalRemaining,
     required this.totalDue,
+    this.unattributedCount = 0,
+    this.unattributedTotal = 0,
   });
 
   final List<_PaymentReportRow> rows;
@@ -631,4 +723,9 @@ class _PaymentsReportResult {
   final double totalOtherPaid;
   final double totalRemaining;
   final double totalDue;
+
+  /// دفعات لم تُنسب لأي حجز معروف (لا معرف محلي ولا UUID قابل للحل)
+  /// — تُعرض في تقرير الاستثناءات بدل أن تذوب في الإجماليات بلا نزيل.
+  final int unattributedCount;
+  final double unattributedTotal;
 }

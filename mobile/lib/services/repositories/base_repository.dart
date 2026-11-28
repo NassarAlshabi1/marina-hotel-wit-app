@@ -97,6 +97,30 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       return -1; // إشارة إلى أن السجل تم تخطيه
     }
 
+    if ((src == Source.appwrite || src == Source.drive) &&
+        table.actualTableName == 'booking_nights' &&
+        json['id'] == null &&
+        refs.bookingLocalId != null) {
+      final hotelDayKey =
+          (json['hotelDayKey'] ?? json['hotel_day_key'])?.toString() ?? '';
+      if (hotelDayKey.isNotEmpty) {
+        final existingByDay = await db
+            .customSelect(
+              'SELECT id FROM booking_nights '
+              'WHERE booking_local_id = ? AND hotel_day_key = ? LIMIT 1',
+              variables: [
+                Variable.withInt(refs.bookingLocalId!),
+                Variable.withString(hotelDayKey),
+              ],
+              readsFrom: {table},
+            )
+            .getSingleOrNull();
+        if (existingByDay != null) {
+          json['id'] = existingByDay.data['id'] as int?;
+        }
+      }
+    }
+
     final comp = adapter.fromJson(json, src: src, refs: refs);
 
     // Remote records are identified exclusively by local_uuid.  The numeric
@@ -248,6 +272,17 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         'UNIQUE constraint. Refusing remote upsert until the schema migration '
         'is complete.',
       );
+    }
+
+    if (table.actualTableName == 'booking_nights') {
+      final bookingLocalIdCol = columnsByName['booking_local_id'];
+      final hotelDayKeyCol = columnsByName['hotel_day_key'];
+      if (bookingLocalIdCol != null && hotelDayKeyCol != null) {
+        return [
+          <Column>[localUuid],
+          <Column>[bookingLocalIdCol, hotelDayKeyCol],
+        ];
+      }
     }
 
     return [

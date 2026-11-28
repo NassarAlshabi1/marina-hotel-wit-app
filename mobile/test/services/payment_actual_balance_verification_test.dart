@@ -3,7 +3,6 @@
 // ============================================================================
 //  يتحقق من قاعدة «الرصيد الفعلي» الموحدة عبر طبقات الإنتاج الحقيقية
 //  (PaymentsRepository / BookingDerivedFieldsService /
-//  EnhancedBookingCalculationService / BookingComputedStreamService /
 //  GuestPaymentCalculationService / StayBalanceCalculator) — لا mock.
 //
 //  القاعدة المدروسة (المطلب): عند إضافة دفعة — ومنها «رصيد تراكمي للنزيل» —
@@ -16,7 +15,7 @@
 //    B5: الدفعة المعلّقة (isPendingBalance) لا تُحتسب حتى تُعالج.
 //    B6: الدفعة الملغاة (voided — مسار PaymentVoidService) تُستبعد فوراً
 //        وتُحدَّث الخزائن داخل نفس المعاملة.
-//    B7: الاتساق المتقاطع: المحرك == SQL قائمة الحجوزات == ComputedStream ==
+//    B7: الاتساق المتقاطع: المحرك == SQL قائمة الحجوزات ==
 //        GuestPaymentCalculation == StayBalanceCalculator == الخزائن المخبأة.
 // ============================================================================
 
@@ -25,7 +24,6 @@
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/services/booking_computed_stream_service.dart';
 import 'package:marina_hotel_mobile/services/booking_derived_fields_service.dart';
 import 'package:marina_hotel_mobile/services/guest_payment_calculation_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
@@ -371,14 +369,10 @@ void main() {
             .first;
         expect(sqlPaid, expectedPaid.toDouble());
 
-        // ③ BookingComputedStreamService (شبكة الغرف/اللوحة).
-        final computed = await BookingComputedStreamService(
-          db,
-        ).buildBookingWithPayments(bookingId);
-        expect(computed, isNotNull);
-        expect(computed!.totalPaid, expectedPaid);
-        expect(computed.remainingBalance, 400 - expectedPaid);
-
+        // ③ BookingComputedStreamService — حُذف من الكود في هذا الإصلاح
+        // (كود ميت بمسار حساب خاطئ: days × السعر الحالي متجاهلاً
+        // الخصومات الليلية وتعديلات الأسعار، مع قصّ الدائن).
+        // المسارات الحية أعلاه وأدناه هي العقد الوحيد.
         // ④ GuestPaymentCalculationService (كشف حساب النزيل).
         final guestCalc = await GuestPaymentCalculationService(
           db,

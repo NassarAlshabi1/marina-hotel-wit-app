@@ -12,10 +12,23 @@
 import 'dart:async';
 import 'dart:io' show Directory;
 
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:device_info_plus_platform_interface/device_info_plus_platform_interface.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+class _TestDeviceInfoPlatform extends DeviceInfoPlatform {
+  @override
+  Future<BaseDeviceInfo> deviceInfo() async => LinuxDeviceInfo(
+    name: 'Marina Test Device',
+    id: 'linux',
+    prettyName: 'Marina Flutter Test',
+    machineId: 'marina-test-device',
+  );
+}
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // ✅ تهيئة SQLite FFI مرة واحدة قبل كل الاختبارات
@@ -23,6 +36,10 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
+  // الاختبارات تنشئ قواعد AppDatabase مستقلة عمداً؛ لا تحوّل هذا النمط
+  // الاختباري إلى تحذير متكرر يطمس النتائج الفعلية للاختبارات.
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  DeviceInfoPlatform.instance = _TestDeviceInfoPlatform();
 
   // ✅ تهيئة SharedPreferences mock للاختبارات
   // عدة خدمات (AutoBackupManager, AppwriteConfigManager, etc.) تستدعي

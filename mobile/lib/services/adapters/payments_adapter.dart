@@ -46,13 +46,22 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       fromRemote: src == Source.appwrite || src == Source.drive,
     );
 
-    // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
-    if (resolvedId == null && localId != null) {
-      // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
-      dlog(
-        () =>
-            '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
-      );
+    // الدفعات المرتبطة بحجز لا يجوز إدراجها كدفعات عامة عند فشل الحل.
+    // في المصادر البعيدة لا نستخدم bookingLocalId كـ fallback لأنه محلي للجهاز
+    // المصدر. تحفظ المزامنة payload في pending_links حتى يصل الحجز.
+    final hasBookingReference =
+        bookingUuid != null || serverBookingId != null || localId != null;
+    final remoteSource = src == Source.appwrite || src == Source.drive;
+    final shouldSkip =
+        remoteSource && hasBookingReference && resolvedId == null;
+    final skipReason = shouldSkip
+        ? 'payment: unresolved booking reference '
+              '(bookingUuid=$bookingUuid, serverBookingId=$serverBookingId, '
+              'remoteLocalId=$localId)'
+        : null;
+
+    if (shouldSkip) {
+      dlog(() => '[PaymentsAdapter] $skipReason');
     }
 
     final createdAt = _epoch(json, 'createdAt', src);
@@ -62,6 +71,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       bookingUuidCache: bookingUuid,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
     );
   }
 

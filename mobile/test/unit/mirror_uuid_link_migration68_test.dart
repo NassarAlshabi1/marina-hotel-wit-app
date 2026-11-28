@@ -390,7 +390,7 @@ void main() {
     test('4. mapper السحبات يختم expenseUuid والـ adapter يقرؤه', () async {
       final db = _db();
       addTearDown(db.close);
-      final sw = SalaryWithdrawal(
+      const sw = SalaryWithdrawal(
         id: 1,
         localUuid: 'sw-uuid-1',
         employeeId: 2,
@@ -411,7 +411,7 @@ void main() {
         deviceId: '',
         syncTimestamp: _now,
       );
-      final remote = PayloadMapper().salaryWithdrawalToRemote(sw);
+      final remote = const PayloadMapper().salaryWithdrawalToRemote(sw);
       expect(remote['expenseUuid'], 'exp-uuid-5');
 
       final adapter = SalaryWithdrawalsAdapter(IdResolver(db));
@@ -436,7 +436,7 @@ void main() {
       () async {
         final db = _db();
         addTearDown(db.close);
-        final expense = Expense(
+        const expense = Expense(
           id: 5,
           localUuid: 'exp-uuid-5',
           expenseType: 'سحب راتب',
@@ -456,7 +456,7 @@ void main() {
           deviceId: '',
           syncTimestamp: _now,
         );
-        final remote = PayloadMapper().expenseToRemote(expense);
+        final remote = const PayloadMapper().expenseToRemote(expense);
         expect(remote['withdrawalUuid'], 'sw-uuid-1');
 
         final adapter = ExpensesAdapter(IdResolver(db));
@@ -497,7 +497,7 @@ void main() {
       final expensesSpec =
           AppwriteSchemaVerifier.requiredCollections['expenses']!;
       final expensesAttrs = (expensesSpec['attributes']! as List)
-          .cast<Map>()
+          .cast<Map<dynamic, dynamic>>()
           .map((a) => a['key'])
           .toList();
       expect(expensesAttrs, contains('withdrawalUuid'));
@@ -505,7 +505,7 @@ void main() {
       final swSpec =
           AppwriteSchemaVerifier.requiredCollections['salary_withdrawals']!;
       final swAttrs = (swSpec['attributes']! as List)
-          .cast<Map>()
+          .cast<Map<dynamic, dynamic>>()
           .map((a) => a['key'])
           .toList();
       expect(swAttrs, contains('expenseUuid'));

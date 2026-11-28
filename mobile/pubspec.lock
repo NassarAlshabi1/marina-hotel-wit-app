@@ -266,7 +266,7 @@ packages:
     source: hosted
     version: "6.1.5"
   connectivity_plus_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: connectivity_plus_platform_interface
       sha256: "3c09627c536d22fd24691a905cdd8b14520de69da52c7a97499c8be5284a32ed"
@@ -346,7 +346,7 @@ packages:
     source: hosted
     version: "12.4.0"
   device_info_plus_platform_interface:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: device_info_plus_platform_interface
       sha256: e1ea89119e34903dca74b883d0dd78eb762814f97fb6c76f35e9ff74d261a18f
@@ -418,7 +418,7 @@ packages:
     source: hosted
     version: "4.0.6"
   fake_async:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: fake_async
       sha256: "5368f224a74523e8d2e7399ea1638b37aecfca824a3cc4dfdf77bf1fa905ac44"
@@ -1786,7 +1786,7 @@ packages:
     source: hosted
     version: "0.6.20"
   timezone:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: timezone
       sha256: "9f4e5a1a0e4fef7dd3424842c0575db01bfb7a11730e8d55753fcd5c5c98767b"

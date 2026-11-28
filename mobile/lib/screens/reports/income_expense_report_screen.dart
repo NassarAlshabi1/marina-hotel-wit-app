@@ -248,7 +248,12 @@ class _IncomeExpenseReportScreenState
           payments: payments
               .map(
                 (p) => {
-                  'date': p.paymentDate,
+                  'date':
+                      HotelTimeEngine.resolvePaymentHotelDayKey(
+                        storedHotelDayKey: p.hotelDayKey,
+                        paymentDate: p.paymentDate,
+                      ) ??
+                      p.paymentDate,
                   'roomNumber': p.roomNumber ?? '',
                   'guestName': p.bookingLocalId != null
                       ? (bookingGuestMap[p.bookingLocalId] ?? '')
@@ -1307,8 +1312,8 @@ class _ReportResult {
 }
 
 _ReportResult _processReportData(_ReportParams params) {
-  // ✅ إصلاح: إزالة الفلترة المزدوجة — البيانات مُفلترة مسبقاً من SQL
-  // المدفوعات: مُفلترة بنطاق زمني كامل من paymentsDao.list()
+  // ✅ إزالة الفلترة المزدوجة: المدفوعات مُفلترة حسب اليوم الفندقي
+  // ويُمرّر تاريخها إلى التجميع كمفتاح يوم فندقي، لا كتاريخ تقويمي.
   // المصروفات: مُفلترة بـ hotelDayKey من expensesDao.listFilteredByHotelDay()
   // لا حاجة لإعادة الفلترة في Dart — كان يسبب استبعاد بيانات صحيحة
 

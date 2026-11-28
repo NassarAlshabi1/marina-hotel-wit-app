@@ -15,27 +15,27 @@ void main() {
       await db
           .into(db.employees)
           .insert(
-            EmployeesCompanion(
-              name: const d.Value('A'),
-              basicSalary: const d.Value(1000),
-              status: const d.Value('active'),
-              localUuid: const d.Value('EMP-A'),
-              createdAt: const d.Value(1),
-              updatedAt: const d.Value(1),
-              lastModified: const d.Value(1),
+            const EmployeesCompanion(
+              name: d.Value('A'),
+              basicSalary: d.Value(1000),
+              status: d.Value('active'),
+              localUuid: d.Value('EMP-A'),
+              createdAt: d.Value(1),
+              updatedAt: d.Value(1),
+              lastModified: d.Value(1),
             ),
           );
       await db
           .into(db.employees)
           .insert(
-            EmployeesCompanion(
-              name: const d.Value('B'),
-              basicSalary: const d.Value(1000),
-              status: const d.Value('active'),
-              localUuid: const d.Value('EMP-B'),
-              createdAt: const d.Value(1),
-              updatedAt: const d.Value(1),
-              lastModified: const d.Value(1),
+            const EmployeesCompanion(
+              name: d.Value('B'),
+              basicSalary: d.Value(1000),
+              status: d.Value('active'),
+              localUuid: d.Value('EMP-B'),
+              createdAt: d.Value(1),
+              updatedAt: d.Value(1),
+              lastModified: d.Value(1),
             ),
           );
       await db.customStatement('''INSERT INTO salary_withdrawals

@@ -142,6 +142,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   final AuthLocalStore _store;
   Timer? _sessionCheckTimer;
+  static const _localAdminCredentialVersionKey =
+      'local_admin_credential_version';
+  static const _localAdminCredentialVersion = 2;
 
   /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
   void _startSessionCheck() {
@@ -228,6 +231,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final user = AuthUser.fromJson(json);
     final authType = await _store.getAuthType();
 
+    if (user.username == 'admin' && _store.isFixedAccount(user.username)) {
+      final prefs = await SharedPreferences.getInstance();
+      final savedCredentialVersion =
+          prefs.getInt(_localAdminCredentialVersionKey) ?? 0;
+      if (savedCredentialVersion != _localAdminCredentialVersion) {
+        await _store.clearSession();
+        await prefs.setInt(
+          _localAdminCredentialVersionKey,
+          _localAdminCredentialVersion,
+        );
+        PaymentSessionContext.clear();
+        state = const AuthState(
+          isAuthenticated: false,
+          error: 'تم تحديث بيانات دخول المدير. يرجى تسجيل الدخول مجدداً.',
+        );
+        return;
+      }
+    }
+
     // التحقق من صلاحية الجلسة عند الاستعادة
     if (!_store.isFixedAccount(user.username)) {
       final valid = await _store.checkSessionValidity();
@@ -285,6 +307,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _store.saveCurrentUser(user.toJson());
     await _store.setRememberMe(rememberMe);
     await _store.setAuthType(AuthType.local);
+    if (user.username == 'admin' && _store.isFixedAccount(user.username)) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+        _localAdminCredentialVersionKey,
+        _localAdminCredentialVersion,
+      );
+    }
 
     state = AuthState(
       isAuthenticated: true,

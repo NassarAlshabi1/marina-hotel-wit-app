@@ -42,6 +42,9 @@ class _GuestPaymentsDetailReportScreenState
   /// تُحدّث عند كل استدعاء لـ _refreshData()
   Map<int, List<BookingPriceAdjustment>> _adjustmentsByBookingId = const {};
 
+  /// خريطة أسعار الغرف الأساسية لتمريرها إلى StayBalanceCalculator ومنع ازدواجية الخصم
+  Map<String, double> _roomPricesByNumber = const {};
+
   /// ✅ إصلاح: تخزين مؤقت لنتائج _calculateCoverage لتجنب إعادة الحساب
   /// لكل بطاقة عدة مرات. المفتاح = معرّف الحجز.
   Map<int, StayBalanceResult> _coverageCache = {};
@@ -89,13 +92,25 @@ class _GuestPaymentsDetailReportScreenState
   static final _dateFormatter = DateFormat('yyyy/MM/dd');
 
   /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:00
-  /// ✅ إصلاح: عند فشل تحليل تاريخ الدخول، نستخدم اليوم الفندقي بدلاً من DateTime.now()
+  /// ✅ إصلاح: سقف زمن المغادرة الفعلي عند الوقت الحالي + مراعاة الحجوزات المغلقة بدون actualCheckout
   int _getActualDaysSpent(Booking b) {
     final checkin = DateTime.tryParse(b.checkinDate);
     if (checkin == null) return 0; // لا يمكن حساب بدون تاريخ دخول صالح
-    final end = (b.actualCheckout != null && b.actualCheckout!.isNotEmpty)
+    final now = DateTime.now();
+    final actual = (b.actualCheckout != null && b.actualCheckout!.isNotEmpty)
         ? DateTime.tryParse(b.actualCheckout!)
-        : DateTime.now();
+        : null;
+    final DateTime end;
+    if (actual != null) {
+      end = actual.isAfter(now) ? now : actual;
+    } else if (!StatusUtils.isActiveBooking(b.status)) {
+      final planned = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty)
+          ? DateTime.tryParse(b.checkoutDate!)
+          : null;
+      end = planned ?? now;
+    } else {
+      end = now;
+    }
     return Time.nightsWithCutoff(checkin, checkout: end);
   }
 
@@ -119,6 +134,10 @@ class _GuestPaymentsDetailReportScreenState
   /// حساب متوسط سعر الليلة الواحدة للحجز
   /// يُفضّل السعر الفعلي من الغرفة، وإلا يُحسب من إجمالي العقد
   double _getAverageNightlyRate(Booking b) {
+    final roomRate = _roomPricesByNumber[b.roomNumber];
+    if (roomRate != null && roomRate > 0) {
+      return roomRate;
+    }
     final nights = b.calculatedNights > 0 ? b.calculatedNights : 1;
     // استخدام السعر الأساسي من الغرفة بدلاً من المتوسط الذي قد يتضمن خصومات
     // المتوسط يُستخدم فقط كاحتياطي عندما لا يتوفر سعر الغرفة
@@ -151,6 +170,7 @@ class _GuestPaymentsDetailReportScreenState
       );
       final result = StayBalanceCalculator.calculate(
         b,
+        roomRate: _roomPricesByNumber[b.roomNumber],
         priceAdjustments: filtered,
       );
       // حفظ في التخزين المؤقت
@@ -206,27 +226,59 @@ class _GuestPaymentsDetailReportScreenState
       // بدلاً من ذلك، نستخدم القيم المخزنة مسبقاً (cached) من قاعدة البيانات
       // التي تم تحديثها آخر مرة تم فيها فتح الشاشة أو إجراء عملية.
 
-      // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز فقط
+      // جلب أسعار الغرف الأساسية لتمريرها إلى StayBalanceCalculator
+      final allRooms = await (db.select(
+        db.rooms,
+      )..where((r) => r.deletedAt.isNull())).get();
+      final roomPricesByNumber = <String, double>{
+        for (final r in allRooms) r.roomNumber: r.price,
+      };
+
+      // جلب جميع تعديلات الأسعار النشطة وتجميعها حسب معرّف الحجز (مع دعم المطابقة عبر UUID)
       final allAdjustments =
           await (db.select(db.bookingPriceAdjustments)
                 ..where((a) => a.isActive.equals(true))
                 ..where((a) => a.deletedAt.isNull()))
               .get();
 
+      final bookings = await ref.read(bookingsRepoProvider).watch().first;
+      final bookingIdByUuid = <String, int>{};
+      final validBookingIds = <int>{};
+      for (final b in bookings) {
+        validBookingIds.add(b.id);
+        final u = b.localUuid.trim().toLowerCase();
+        if (u.isNotEmpty) {
+          bookingIdByUuid[u] = b.id;
+          bookingIdByUuid[u.replaceAll('-', '')] = b.id;
+        }
+      }
+
       final grouped = <int, List<BookingPriceAdjustment>>{};
       for (final adj in allAdjustments) {
-        if (adj.bookingLocalId == null) {
+        var targetBookingId = adj.bookingLocalId;
+        if (targetBookingId == null ||
+            !validBookingIds.contains(targetBookingId)) {
+          final rawUuid = adj.bookingLocalUuid.trim().isNotEmpty
+              ? adj.bookingLocalUuid
+              : (adj.bookingUuid ?? '');
+          final key = rawUuid.trim().toLowerCase();
+          if (key.isNotEmpty) {
+            targetBookingId =
+                bookingIdByUuid[key] ??
+                bookingIdByUuid[key.replaceAll('-', '')];
+          }
+        }
+        if (targetBookingId == null) {
           continue;
         }
-        grouped.putIfAbsent(adj.bookingLocalId!, () => []);
-        grouped[adj.bookingLocalId!]!.add(adj);
+        grouped.putIfAbsent(targetBookingId, () => []);
+        grouped[targetBookingId]!.add(adj);
       }
 
       // ✅ إصلاح حرج: حساب مسبق لكل التغطيات هنا بدلاً من أثناء build
       // السبب: _calculateCoverage يستدعي StayBalanceCalculator.calculate الذي
       // يُنفّذ حلقات محاكاة يومية (حتى 3650 تكرار) — تشغيلها على الخيط
       // الرئيسي أثناء build يُسبب تجميد/انهيار التطبيق (ANR)
-      final bookings = await ref.read(bookingsRepoProvider).watch().first;
       final newCache = <int, StayBalanceResult>{};
       for (final b in bookings) {
         try {
@@ -237,6 +289,7 @@ class _GuestPaymentsDetailReportScreenState
           );
           newCache[b.id] = StayBalanceCalculator.calculate(
             b,
+            roomRate: roomPricesByNumber[b.roomNumber],
             priceAdjustments: filtered,
           );
         } catch (e) {
@@ -251,6 +304,7 @@ class _GuestPaymentsDetailReportScreenState
 
       if (mounted) {
         setState(() {
+          _roomPricesByNumber = roomPricesByNumber;
           _adjustmentsByBookingId = grouped;
           _coverageCache = newCache;
         });

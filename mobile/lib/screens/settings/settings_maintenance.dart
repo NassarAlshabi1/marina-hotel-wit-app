@@ -19,6 +19,8 @@ import '../../providers/service_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' show DatabaseManager;
 import '../../services/sqlite_backup_restore.dart';
+import '../../services/sync/sync_gate.dart';
+import '../../services/sync_guard.dart';
 import '../../utils/env.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -52,6 +54,13 @@ class _SystemInfo {
   final Map<String, int> logStats;
   final String apiEndpoint;
 }
+
+typedef _OutboxUploadResult = ({
+  int failedBefore,
+  int undeliveredBefore,
+  int pushed,
+  int remaining,
+});
 
 // ═══════════════════════════════════════════════════════════════
 //  الشاشة الرئيسية
@@ -261,6 +270,15 @@ class _SettingsMaintenanceScreenState
 
           if (canManage)
             _buildMaintenanceCard(
+              title: 'رفع عناصر Outbox الفاشلة',
+              subtitle: 'إعادة المحاولة ورفع التغييرات المتعثرة إلى Appwrite',
+              icon: Icons.cloud_upload,
+              color: Colors.deepPurple,
+              onTap: () => _showOutboxUploadDialog(context),
+            ),
+
+          if (canManage)
+            _buildMaintenanceCard(
               title: 'ضغط قاعدة البيانات (VACUUM)',
               subtitle: 'تحرير المساحة غير المستخدمة وتحسين الأداء',
               icon: Icons.compress,
@@ -290,15 +308,6 @@ class _SettingsMaintenanceScreenState
             color: Colors.teal,
             onTap: () => _showProcessPendingBalanceDialog(context, ref),
           ),
-
-          if (canManage)
-            _buildMaintenanceCard(
-              title: 'إعادة محاولة Outbox الفاشل',
-              subtitle: 'تعيد العمليات الفاشلة إلى الانتظار دون حذف أي بيانات',
-              icon: Icons.outbox,
-              color: Colors.deepPurple,
-              onTap: () => _showOutboxResetDialog(context, ref),
-            ),
 
           if (canManage)
             _buildMaintenanceCard(
@@ -1039,17 +1048,18 @@ class _SettingsMaintenanceScreenState
     );
   }
 
-  // ─── مسح Outbox ───────────────────────────────────────
+  // ─── إعادة محاولة ورفع عناصر Outbox الفاشلة ────────────
 
-  void _showOutboxResetDialog(BuildContext context, WidgetRef ref) {
+  void _showOutboxUploadDialog(BuildContext context) {
     if (!_requireManage()) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('إعادة محاولة Outbox الفاشل'),
+        title: const Text('رفع عناصر Outbox الفاشلة'),
         content: const Text(
-          'ستُعاد العمليات الفاشلة فقط إلى حالة "معلقة" للمحاولة مرة أخرى.\n'
-          'لن تُحذف أي عملية أو بيانات محلية.',
+          'ستُعاد العناصر الفاشلة إلى قائمة الانتظار ثم يحاول التطبيق رفعها '
+          'الآن إلى Appwrite. لن تُحذف أي عملية أو بيانات محلية؛ وإذا تعذر '
+          'الاتصال فستبقى العناصر في Outbox لإعادة المحاولة لاحقاً.',
         ),
         actions: [
           TextButton(
@@ -1059,24 +1069,98 @@ class _SettingsMaintenanceScreenState
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              _showLoading('جاري إعادة تعيين Outbox...');
-              try {
-                final outboxDao = ref.read(outboxDaoProvider);
-                await outboxDao.resetErrors();
-                final stuckCount = await outboxDao.cleanupStuckEntries();
+              _showLoading('جاري إعادة المحاولة ورفع عناصر Outbox...');
+              final syncToken = SyncGuard.tryAcquire(
+                label: 'settings_outbox_upload',
+              );
+              if (syncToken == null) {
                 _hideLoading();
                 _showSnack(
-                  'تم إعادة تعيين Outbox ($stuckCount عملية عالقة)',
-                  color: Colors.green,
+                  'توجد مزامنة أخرى قيد التنفيذ؛ أعد المحاولة بعد انتهائها.',
+                  color: Colors.orange,
                 );
+                return;
+              }
+              try {
+                final result = await SyncGate.instance
+                    .runGuarded<_OutboxUploadResult>(
+                      operation: 'push',
+                      source: 'settings_maintenance',
+                      task: () async {
+                        final outboxDao = ref.read(outboxDaoProvider);
+                        final failedBefore = await outboxDao
+                            .countFailedUndeliveredToPrimary(
+                              sources: const ['local'],
+                            );
+                        final undeliveredBefore = await outboxDao
+                            .countUndeliveredToPrimary(
+                              sources: const ['local'],
+                            );
+                        if (undeliveredBefore == 0) {
+                          return (
+                            failedBefore: failedBefore,
+                            undeliveredBefore: undeliveredBefore,
+                            pushed: 0,
+                            remaining: 0,
+                          );
+                        }
+
+                        await outboxDao.resetErrors(
+                          sources: const ['local'],
+                          undeliveredToPrimaryOnly: true,
+                        );
+                        final pushed = await ref
+                            .read(appwriteSyncManagerProvider)
+                            .pushLocalChanges(retryProcessingImmediately: true);
+                        final remaining = await outboxDao
+                            .countUndeliveredToPrimary(
+                              sources: const ['local'],
+                            );
+                        return (
+                          failedBefore: failedBefore,
+                          undeliveredBefore: undeliveredBefore,
+                          pushed: pushed,
+                          remaining: remaining,
+                        );
+                      },
+                    );
+                _hideLoading();
+                if (result == null) {
+                  _showSnack(
+                    'توجد مزامنة أخرى قيد التنفيذ؛ أعد المحاولة بعد انتهائها.',
+                    color: Colors.orange,
+                  );
+                } else if (result.undeliveredBefore == 0) {
+                  _showSnack('لا توجد تغييرات معلقة في Outbox.');
+                } else if (result.pushed < 0) {
+                  _showSnack(
+                    'تعذر رفع العناصر. بقي ${result.remaining} في Outbox؛ '
+                    'تحقق من الاتصال وإعدادات Appwrite.',
+                    color: Colors.red,
+                  );
+                } else if (result.remaining > 0) {
+                  _showSnack(
+                    'تم رفع ${result.pushed} عنصرًا، وبقي ${result.remaining} '
+                    'في Outbox لإعادة المحاولة.',
+                    color: Colors.orange,
+                  );
+                } else {
+                  _showSnack(
+                    'تم رفع ${result.pushed} عنصرًا إلى Appwrite بنجاح'
+                    '${result.failedBefore > 0 ? ' (منها ${result.failedBefore} فاشلة)' : ''}.',
+                    color: Colors.green,
+                  );
+                }
                 unawaited(_loadSystemInfo());
               } catch (e) {
                 _hideLoading();
-                _showSnack('خطأ: $e', color: Colors.red);
+                _showSnack('فشل رفع عناصر Outbox: $e', color: Colors.red);
+              } finally {
+                SyncGuard.release(syncToken);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: const Text('إعادة المحاولة'),
+            child: const Text('إعادة المحاولة والرفع'),
           ),
         ],
       ),

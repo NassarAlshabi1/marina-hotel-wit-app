@@ -15,7 +15,6 @@ import '../daos/ancestor_cache_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../vector_clock_service.dart';
-import 'smart_conflict_resolver.dart';
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 ///
@@ -43,8 +42,18 @@ class SyncPullService {
   final AppwriteLogger _logger;
 
   /// ✅ Audit Fix: AncestorCacheDao للوصول إلى الـ ancestor cache.
-  /// يُحقنlazy من AppwriteSyncManager عبر [setAncestorCacheDao].
+  /// يُحقن lazy من AppwriteSyncManager عبر [setAncestorCacheDao].
+  ///
+  /// ⚠️ (2026-11-04 — وثيقة §7.5): الدمج الثلاثي (3-way merge) أُزيل من
+  /// مسار التعارض المتزامن — Cloud Wins يعتمد نسخة السحابة كاملة — فيبقى
+  /// الحقن للتوافق التشخيصي فقط ( ancestor cache يُدار عند الرفع في
+  /// AppwriteSyncManager._occCheckAndMerge).
   AncestorCacheDao? _ancestorCacheDao;
+
+  /// وصول تشخيصي للـ ancestor cache المُحقن (يمنع unused_field مع بقاء
+  /// عقد الحقن [setAncestorCacheDao] كما هو للمستدعين الحاليين).
+  // ignore: unused_field
+  AncestorCacheDao? get ancestorCacheDiagnostics => _ancestorCacheDao;
 
   /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
   String? _currentDeviceId;
@@ -218,81 +227,262 @@ class SyncPullService {
         return const RemoteCheckResult(shouldApplyRemote: false);
 
       case VectorClockComparison.concurrent:
-        // ⚠️ تعارض متزامن!
+        // كلا الجهازين عدّلا السجل باستقلال. لا نختار فائزاً ولا نمسح
+        // Outbox: نحفظ الطرفين ذرياً، ونوقف الرفع/التطبيق حتى المراجعة.
+        // نرمي الخطأ عند فشل الحفظ كي لا يعتبر المستدعي الوثيقة معالجة.
+        if (entityName == null ||
+            entityName.isEmpty ||
+            localUuid == null ||
+            localUuid.isEmpty ||
+            localData == null) {
+          throw StateError(
+            'Concurrent conflict lacks a complete local snapshot identity: '
+            'entity=$entityName uuid=$localUuid localData=${localData != null}',
+          );
+        }
+
         _logger.warning(
-          '⚠️ CONCURRENT CONFLICT: entity=$entityName, uuid=$localUuid, '
-          'localVc=$localVectorClock, remoteVc=$remoteVcStr.',
+          'CONCURRENT CONFLICT (preserve both / manual review): entity=$entityName, '
+          'uuid=$localUuid, localVectorClock=$localVectorClock, '
+          'cloudVectorClock=$remoteVcStr, '
+          'localLastModified=$localLastModified, cloudLastModified=$effectiveRemoteTs',
           tag: 'CONFLICT',
         );
 
-        // محاولة الحل الذكي عبر SmartConflictResolver (3-way merge)
-        if (entityName != null &&
-            localUuid != null &&
-            localData != null &&
-            _ancestorCacheDao != null) {
-          try {
-            final ancestor = await _ancestorCacheDao!.getAncestor(
-              entityName,
-              localUuid,
-            );
-            final remoteDataOriginal = Map<String, dynamic>.from(remoteData);
-            final resolution = SmartConflictResolver.resolve(
-              entity: entityName,
-              localData: localData,
-              remoteData: remoteData,
-              commonAncestor: ancestor,
-            );
-
-            if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
-              _logger.info(
-                '✅ 3-way merge resolved: entity=$entityName, uuid=$localUuid, '
-                'warnings=${resolution.warnings.length}',
-                tag: 'CONFLICT',
-              );
-              // كتابة البيانات المدمجة في remoteData in-place.
-              // ✅ Sync Safety Fix (2026-08-10): استخدم iterative put بدل
-              // addAll لتفادي type mismatch عند runtime. مشكلة addAll: إذا
-              // كان remoteData من literal `{'k': 'v'}` يصبح runtime type
-              // هو `_Map<String, Object>`، بينما mergedData قد يكون
-              // `Map<String, dynamic>` → addAll يرمي type error ويُحوِّل
-              // المسار لـ LWW fallback (فقدان النتيجة المدمجة).
-              // الـ iterative put يتجاوز variance rules في Dart.
-              remoteData.clear();
-              for (final entry in resolution.mergedData.entries) {
-                remoteData[entry.key] = entry.value;
-              }
-              // حفظ البيانات البعيدة الأصلية كـ ancestor
-              await _ancestorCacheDao!.saveAncestor(
+        final ancestor = await _ancestorCacheDao?.getAncestor(
+          entityName,
+          localUuid,
+        );
+        final merged = ancestor == null
+            ? null
+            : _tryMergeIndependentFields(
+                ancestor: ancestor,
+                local: localData,
+                remote: remoteData,
                 entity: entityName,
-                localUuid: localUuid,
-                data: remoteDataOriginal,
               );
-              return RemoteCheckResult(
-                shouldApplyRemote: true,
-                mergedData: resolution.mergedData,
-                pushedToRemote: resolution.pushedToRemote,
-              );
-            }
-          } catch (e) {
-            _logger.warning(
-              '⚠️ SmartConflictResolver failed, LWW fallback: $e',
-              tag: 'CONFLICT',
-            );
-          }
+
+        if (merged != null) {
+          await _persistConflictAndHoldOutbox(
+            entity: entityName,
+            uuid: localUuid,
+            localData: localData,
+            remoteData: remoteData,
+            resolution: <String, dynamic>{
+              'type': 'automatic_three_way_merge',
+              'mergedPayload': merged,
+              'resolvedAt': DateTime.now().toIso8601String(),
+            },
+            holdOutbox: false,
+          );
+          remoteData
+            ..clear()
+            ..addAll(merged);
+          return RemoteCheckResult(
+            shouldApplyRemote: true,
+            mergedData: merged,
+            pushedToRemote: true,
+          );
         }
 
-        // LWW fallback + deviceId tie-break
-        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
-            ? effectiveRemoteTs ~/ 1000
-            : effectiveRemoteTs;
-        final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
-        final localDeviceId = _currentDeviceId ?? '';
-        final shouldApply =
-            normalizedRemoteTs > localLastModified ||
-            (normalizedRemoteTs == localLastModified &&
-                remoteDeviceId.compareTo(localDeviceId) < 0);
-        return RemoteCheckResult(shouldApplyRemote: shouldApply);
+        await _persistConflictAndHoldOutbox(
+          entity: entityName,
+          uuid: localUuid,
+          localData: localData,
+          remoteData: remoteData,
+        );
+
+        // لا تطبيق للبعيد أو المحلي ولا enqueue تلقائي قبل قرار صريح.
+        return const RemoteCheckResult(shouldApplyRemote: false);
     }
+  }
+
+  /// يحفظ الطرفين ويوقف فقط عمليات UUID المتعارض داخل معاملة واحدة.
+  /// لا تُحذف أو تُستبدل بيانات Outbox؛ حالة المراجعة ليست ضمن takeBatch.
+  Future<void> _persistConflictAndHoldOutbox({
+    required String entity,
+    required String uuid,
+    required Map<String, dynamic> localData,
+    required Map<String, dynamic> remoteData,
+    Map<String, dynamic>? resolution,
+    bool holdOutbox = true,
+  }) async {
+    final localSnapshot = Map<String, dynamic>.from(localData)
+      ..putIfAbsent('localUuid', () => uuid);
+    final remoteSnapshot = Map<String, dynamic>.from(remoteData)
+      ..putIfAbsent('localUuid', () => uuid);
+    final now = DateTime.now().toIso8601String();
+
+    await database.transaction(() async {
+      final existing =
+          await (database.select(database.syncConflicts)
+                ..where(
+                  (c) =>
+                      c.targetTable.equals(entity) &
+                      c.uuid.equals(uuid) &
+                      c.resolution.equals(''),
+                )
+                ..orderBy([(c) => drift.OrderingTerm.desc(c.id)])
+                ..limit(1))
+              .getSingleOrNull();
+
+      if (existing == null) {
+        var latestLog =
+            await (database.select(database.syncLog)
+                  ..orderBy([(l) => drift.OrderingTerm.desc(l.id)])
+                  ..limit(1))
+                .getSingleOrNull();
+        if (latestLog == null) {
+          final logId = await database
+              .into(database.syncLog)
+              .insert(
+                SyncLogCompanion.insert(
+                  syncId:
+                      '${entity}_${uuid}_${DateTime.now().microsecondsSinceEpoch}',
+                  direction: 'conflict',
+                  deviceId: _currentDeviceId ?? 'unknown',
+                  metadata: jsonEncode({'entity': entity, 'uuid': uuid}),
+                  status: const drift.Value('conflict_pending_review'),
+                  createdAt: now,
+                ),
+              );
+          latestLog = await (database.select(
+            database.syncLog,
+          )..where((l) => l.id.equals(logId))).getSingle();
+        }
+        await database
+            .into(database.syncConflicts)
+            .insert(
+              SyncConflictsCompanion.insert(
+                logId: latestLog.id,
+                targetTable: entity,
+                uuid: uuid,
+                localPayload: jsonEncode(localSnapshot),
+                remotePayload: jsonEncode(remoteSnapshot),
+                resolution: resolution == null ? '' : jsonEncode(resolution),
+                createdAt: now,
+              ),
+            );
+      } else {
+        await (database.update(
+          database.syncConflicts,
+        )..where((c) => c.id.equals(existing.id))).write(
+          SyncConflictsCompanion(
+            localPayload: drift.Value(jsonEncode(localSnapshot)),
+            remotePayload: drift.Value(jsonEncode(remoteSnapshot)),
+            resolution: resolution == null
+                ? const drift.Value.absent()
+                : drift.Value(jsonEncode(resolution)),
+          ),
+        );
+      }
+
+      if (holdOutbox) {
+        await (database.update(database.outbox)..where(
+              (o) =>
+                  o.entity.equals(entity) &
+                  o.localUuid.equals(uuid) &
+                  o.processingStatus.isIn(const [
+                    'pending',
+                    'processing',
+                    'failed',
+                  ]),
+            ))
+            .write(
+              const OutboxCompanion(
+                processingStatus: drift.Value('conflict_pending_review'),
+                processingStartedAt: drift.Value(null),
+                processingWorker: drift.Value(null),
+                processingPayloadVersion: drift.Value(null),
+                lastError: drift.Value(
+                  'conflict_pending_review: both local and remote snapshots preserved; '
+                  'manual resolution required',
+                ),
+              ),
+            );
+      }
+    });
+  }
+
+  /// Field-wise 3-way merge. A result is returned only when every changed
+  /// field has a single unambiguous value and no financial field changed.
+  /// Device-local identifiers and sync metadata remain from the remote record.
+  Map<String, dynamic>? _tryMergeIndependentFields({
+    required Map<String, dynamic> ancestor,
+    required Map<String, dynamic> local,
+    required Map<String, dynamic> remote,
+    required String entity,
+  }) {
+    const metadata = <String>{
+      'id',
+      'serverId',
+      'server_id',
+      'localId',
+      'local_id',
+      'lastModified',
+      'last_modified',
+      'lastModifiedEpoch',
+      'createdAt',
+      'created_at',
+      'updatedAt',
+      'updated_at',
+      'deletedAt',
+      'deleted_at',
+      'version',
+      'vectorClock',
+      'vector_clock',
+      'deviceId',
+      'syncTimestamp',
+      'sync_origin',
+      r'$id',
+      r'$createdAt',
+      r'$updatedAt',
+      r'$permissions',
+    };
+    final keys = <String>{...ancestor.keys, ...local.keys, ...remote.keys}
+      ..removeAll(metadata);
+    const equality = DeepCollectionEquality();
+    final result = Map<String, dynamic>.from(remote);
+    for (final key in keys) {
+      final base = ancestor[key];
+      final localValue = local[key];
+      final remoteValue = remote[key];
+      final localChanged = !equality.equals(base, localValue);
+      final remoteChanged = !equality.equals(base, remoteValue);
+      if (!localChanged) continue;
+      if (remoteChanged && !equality.equals(localValue, remoteValue)) {
+        return null;
+      }
+      if (_isFinancialConflictField(entity, key)) return null;
+      if (local.containsKey(key)) {
+        result[key] = localValue;
+      } else {
+        result.remove(key);
+      }
+    }
+    return result;
+  }
+
+  bool _isFinancialConflictField(String entity, String field) {
+    const financialEntities = <String>{
+      'payments',
+      'expenses',
+      'debts',
+      'cash_transactions',
+      'payment_voids',
+      'salary_cycles',
+      'salary_payments',
+      'salary_withdrawals',
+      'salary_carry_over_logs',
+      'price_adjustments',
+      'booking_price_adjustments',
+      'inventory_transactions',
+    };
+    if (financialEntities.contains(entity)) return true;
+    return RegExp(
+      r'(amount|price|paid|balance|total|discount|salary|cost|revenue|financial|payment|debt)',
+      caseSensitive: false,
+    ).hasMatch(field);
   }
 
   // ── Helper Methods ─────────────────────────────────────────────────────
@@ -347,6 +537,23 @@ class SyncPullService {
       '\$createdAt',
       '\$updatedAt',
       '\$permissions',
+      // ✅ (2026-11-02) معرفات FK الرقمية المحلية لكل جهاز — مطابقة لقائمة
+      // ConflictDetector._deviceLocalIdFields: بدون تخطيها كانت مقارنة
+      // المحتوى تفشل دائماً بين جهازين (relatedId/employeeId/… تختلف حتماً)
+      // فيُعاد تطبيق نفس السجل الذي لم يتغير فعلياً في كل دورة سحب، مع
+      // إشعارات «تغييرات جديدة» متكررة لنفس البيانات.
+      'relatedId',
+      'related_id',
+      'cashTransactionId',
+      'cash_transaction_id',
+      'employeeId',
+      'employee_id',
+      'expenseId',
+      'expense_id',
+      'bookingId',
+      'booking_id',
+      'cycleId',
+      'cycle_id',
     };
     final keys = <String>{...a.keys, ...b.keys}..removeWhere(skip.contains);
     const eq = DeepCollectionEquality();

@@ -134,7 +134,24 @@ void main() {
       forceRebuild: true,
     );
 
-    expect(await outboxCount(), 1);
+    final queued = await db.select(db.outbox).get();
+    final bookingEntries = queued
+        .where((entry) => entry.entity == 'bookings')
+        .toList();
+    final queuedNightEntries = queued
+        .where((entry) => entry.entity == 'booking_nights')
+        .toList();
+    final nights = await (db.select(
+      db.bookingNights,
+    )..where((night) => night.bookingLocalId.equals(bookingId))).get();
+
+    expect(bookingEntries, hasLength(1));
+    expect(queuedNightEntries, hasLength(nights.length));
+    expect(
+      queuedNightEntries.map((entry) => entry.localUuid).toSet(),
+      equals(nights.map((night) => night.localUuid).toSet()),
+    );
+    expect(await outboxCount(), 1 + nights.length);
   });
 
   test('دفعة لاحقة لا تعيد تسعير ليالي حجز مكتمل بسعر الغرفة الحالي', () async {

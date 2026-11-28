@@ -95,8 +95,8 @@ models.Document _nightDoc(int i) {
       'bookingUuidCache': 'booking-uuid-$booking',
       'serverId': i,
       'hotelDayKey': day.toIso8601String().substring(0, 10),
-      'nightStart': '${day.toIso8601String()}',
-      'nightEnd': '${nextDay.toIso8601String()}',
+      'nightStart': day.toIso8601String(),
+      'nightEnd': nextDay.toIso8601String(),
       'nightlyRate': 100.0 + (i % 7) * 10,
       'baseRate': 100.0 + (i % 7) * 10,
       'adjustment': 0,
@@ -227,7 +227,7 @@ void main() {
             guestName: d.Value('ضيف $b'),
             guestPhone: d.Value('05000$b'),
             guestNationality: const d.Value('يمني'),
-            checkinDate: d.Value('${day.toIso8601String()}'),
+            checkinDate: d.Value(day.toIso8601String()),
             status: const d.Value('نشط'),
             localUuid: d.Value('booking-uuid-$b'),
             createdAt: const d.Value(_kBaseEpochSec),
@@ -311,6 +311,39 @@ void main() {
         reason:
             'الكتابة يجب أن تمر عبر db.batch (الإصلاح P0-2) — '
             'لا INSERT منفصل لكل سجل',
+      );
+
+      // ── السيناريو A2: UUID بعيد بديل لنفس الحجز/اليوم ──────────────
+      // UUID المحلي هو هوية السجل العابرة للأجهزة. إذا وصل alias من جهاز
+      // آخر، يجب تحديث الصف الموجود لا إنشاء صف ثانٍ ولا استبدال هويته.
+      final original = docs.first;
+      final originalData = Map<String, dynamic>.from(original.data)
+        ..['localUuid'] = 'night-uuid-alias-from-other-device'
+        ..['lastModified'] = _kBaseEpochSec + 100;
+      final aliasDoc = models.Document(
+        $id: 'night-alias-document',
+        $sequence: original.$sequence,
+        $collectionId: original.$collectionId,
+        $databaseId: original.$databaseId,
+        $createdAt: original.$createdAt,
+        $updatedAt: original.$updatedAt,
+        $permissions: original.$permissions,
+        data: originalData,
+      );
+      final aliasProcessed = await manager.applyBookingNightsForTesting([
+        aliasDoc,
+      ]);
+      final firstLocalNight =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(1))
+                ..where((n) => n.hotelDayKey.equals('2026-01-01')))
+              .getSingle();
+      expect(aliasProcessed, 1);
+      expect(await _countNights(db), _kTotalNights);
+      expect(
+        firstLocalNight.localUuid,
+        'night-uuid-0',
+        reason: 'يجب الحفاظ على UUID المحلي عند ورود alias للزوج نفسه',
       );
 
       // ── السيناريو B: إعادة سحب نفس المستندات (idempotent) ───────────

@@ -2420,7 +2420,8 @@ class GeminiService {
 ▸ الرصيد الفعّال (StayBalanceCalculator):
   - consumedCost = تكلفة الأيام المقضية فعلياً حتى الآن
   - effectiveBalance = totalPaid - consumedCost (الرصيد الحقيقي)
-  - autoCheckoutDate = تاريخ الدخول + عدد الليالي المغطاة بالمدفوع
+  - autoCheckoutDate = حدّ 14:01 في Asia/Aden بعد عدد الليالي التي يغطيها المدفوع
+  - extraNightsBeyondManual = الليالي المدفوعة ناقص الليالي المخططة، بالاحتساب من الدخول وحدّ 14:01
 
 ═══ أنواع المصروفات والرواتب ═══
 ▸ المصروفات العادية: صيانة, ديزل, كهرباء, ماء, طعام, تنظيف, نقل, أخرى

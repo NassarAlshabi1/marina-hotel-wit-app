@@ -75,7 +75,7 @@ void main() {
             relatedId: byUuidOnly ? const d.Value(null) : d.Value(emp.id),
             employeeUuid: d.Value(emp.localUuid),
             localUuid: d.Value(
-              uuid ?? 'exp-${emp.id}-${now}-${seedExpenseCounter++}',
+              uuid ?? 'exp-${emp.id}-$now-${seedExpenseCounter++}',
             ),
             createdAt: const d.Value(now),
             updatedAt: const d.Value(now),
@@ -100,7 +100,7 @@ void main() {
             withdrawDate: const d.Value('2026-09-01'),
             expenseId: d.Value(expenseId),
             localUuid: d.Value(
-              uuid ?? 'sw-${emp.id}-${now}-${seedWithdrawalCounter++}',
+              uuid ?? 'sw-${emp.id}-$now-${seedWithdrawalCounter++}',
             ),
             createdAt: const d.Value(now),
             updatedAt: const d.Value(now),
@@ -188,19 +188,19 @@ void main() {
       final swId = await seedWithdrawal(emp, expenseId: expId);
 
       await (db.update(db.expenses)..where((t) => t.id.equals(expId))).write(
-        ExpensesCompanion(
-          deletedAt: const d.Value(now),
-          updatedAt: const d.Value(now),
-          lastModified: const d.Value(now),
+        const ExpensesCompanion(
+          deletedAt: d.Value(now),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
         ),
       );
       await (db.update(
         db.salaryWithdrawals,
       )..where((t) => t.id.equals(swId))).write(
-        SalaryWithdrawalsCompanion(
-          deletedAt: const d.Value(now),
-          updatedAt: const d.Value(now),
-          lastModified: const d.Value(now),
+        const SalaryWithdrawalsCompanion(
+          deletedAt: d.Value(now),
+          updatedAt: d.Value(now),
+          lastModified: d.Value(now),
         ),
       );
 

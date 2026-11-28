@@ -531,13 +531,20 @@ class _BookingRow extends ConsumerWidget {
     final guestTooltip = guestTooltipLines.join('\n');
 
     final paid = paidAsync.maybeWhen(data: (total) => total, orElse: () => 0.0);
-    final remaining = (totalAmount - paid).clamp(0.0, totalAmount);
-    final Color statusColor = remaining <= 0.0
-        ? Colors.green
-        : (paid > 0 ? Colors.orange : Colors.red);
-    final String statusText = remaining <= 0.0
-        ? 'مسددة'
-        : (paid > 0 ? 'جزئياً' : 'غير مسددة');
+    // ✅ لا قصّ للرصيد: المتبقي السالب رصيد دائن للنزيل ويجب أن يظهر كما هو
+    // (اتساقاً مع شاشة الدفع وشاشة المغادرة والاشتقاق — نفس الثابت المالي).
+    final remaining = totalAmount - paid;
+    final bool hasGuestCredit = remaining < -0.005;
+    final Color statusColor = hasGuestCredit
+        ? Colors.orange
+        : (remaining <= 0.0
+              ? Colors.green
+              : (paid > 0 ? Colors.orange : Colors.red));
+    final String statusText = hasGuestCredit
+        ? 'دائن'
+        : (remaining <= 0.0
+              ? 'مسددة'
+              : (paid > 0 ? 'جزئياً' : 'غير مسددة'));
 
     return compact
         ? _CompactBookingCard(

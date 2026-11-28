@@ -66,7 +66,7 @@ void main() {
         revenueType: 'room',
       );
       await (db.update(db.payments)..where((p) => p.id.equals(voidedId))).write(
-        PaymentsCompanion(isVoided: Value(true)),
+        const PaymentsCompanion(isVoided: Value(true)),
       );
 
       final total = await repository
@@ -183,6 +183,205 @@ void main() {
       expect(summaries.single.userId, 1);
       expect(summaries.single.userName, 'المستخدم 1');
       expect(summaries.single.totalAmount, 17000);
+    },
+  );
+
+  test(
+    'legacy receipts respect the 14:01 hotel-day boundary in all totals',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() async {
+        PaymentSessionContext.clear();
+        await db.close();
+      });
+
+      AdapterRegistry.initialize(db);
+      final repository = PaymentsRepository(db);
+      PaymentSessionContext.start(
+        userId: 9,
+        userName: 'موظف الاستقبال',
+        sessionUuid: 'hotel-day-boundary-session',
+      );
+
+      Future<void> addLegacyPayment(
+        double amount,
+        String paymentDate, {
+        bool pending = false,
+      }) async {
+        final id = await repository.create(
+          amount: amount,
+          paymentDate: paymentDate,
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+          isPendingBalance: pending,
+        );
+        final created = await (db.select(
+          db.payments,
+        )..where((payment) => payment.id.equals(id))).getSingle();
+        expect(
+          created.hotelDayKey,
+          HotelTimeEngine.resolvePaymentHotelDayKey(
+            storedHotelDayKey: null,
+            paymentDate: paymentDate,
+          ),
+        );
+        await (db.update(db.payments)
+              ..where((payment) => payment.id.equals(id)))
+            .write(const PaymentsCompanion(hotelDayKey: Value(null)));
+      }
+
+      await addLegacyPayment(7, '2026-08-21T14:00:59');
+      await addLegacyPayment(5, '2026-08-21');
+      await addLegacyPayment(20, '2026-08-21T14:01:00');
+      await addLegacyPayment(10, '2026-08-22T08:00:00');
+      await addLegacyPayment(30, '2026-08-22 14:00:59');
+      await addLegacyPayment(70, '2026-08-22T14:01:00');
+      await addLegacyPayment(100, '2026-08-21T15:00:00', pending: true);
+
+      const hotelDay = '2026-08-21';
+      expect(await repository.getTotalByHotelDayKey(hotelDay), 65);
+      expect(await repository.watchTotalByHotelDayKey(hotelDay).first, 65);
+      expect(
+        await repository.watchTotalByCurrentPaymentSession(hotelDay).first,
+        65,
+      );
+      expect(
+        await repository.dao
+            .listFilteredByHotelDay(
+              fromHotelDay: hotelDay,
+              toHotelDay: hotelDay,
+              excludeVoided: true,
+              excludePendingBalance: true,
+            )
+            .then(
+              (payments) =>
+                  payments.fold<double>(0, (sum, p) => sum + p.amount),
+            ),
+        65,
+      );
+      final summaries = await repository
+          .watchPaymentShiftSummaries(hotelDay)
+          .first;
+      expect(summaries.single.totalAmount, 65);
+      expect(summaries.single.paymentCount, 4);
+    },
+  );
+
+  test(
+    'latest room receipts show the latest valid amount, room, and timestamp',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() async {
+        PaymentSessionContext.clear();
+        await db.close();
+      });
+
+      AdapterRegistry.initialize(db);
+      final repository = PaymentsRepository(db);
+
+      Future<int> addReceipt({
+        required int userId,
+        required String roomNumber,
+        required double amount,
+        required String date,
+        bool pending = false,
+      }) async {
+        PaymentSessionContext.start(
+          userId: userId,
+          userName: 'موظف $userId',
+          sessionUuid: 'receipt-session-$userId',
+        );
+        return repository.create(
+          amount: amount,
+          paymentDate: date,
+          paymentMethod: 'نقدي',
+          revenueType: 'room',
+          roomNumber: roomNumber,
+          isPendingBalance: pending,
+        );
+      }
+
+      await addReceipt(
+        userId: 1,
+        roomNumber: '301',
+        amount: 15000,
+        date: '2026-08-21T06:00:00',
+      );
+      final voidedReceiptId = await addReceipt(
+        userId: 2,
+        roomNumber: '301',
+        amount: 20000,
+        date: '2026-08-21T07:00:00',
+      );
+      await addReceipt(
+        userId: 3,
+        roomNumber: '301',
+        amount: 50000,
+        date: '2026-08-21T08:00:00',
+        pending: true,
+      );
+      final deletedReceiptId = await addReceipt(
+        userId: 5,
+        roomNumber: '301',
+        amount: 60000,
+        date: '2026-08-21T08:30:00',
+      );
+      await addReceipt(
+        userId: 4,
+        roomNumber: '302',
+        amount: 9000,
+        date: '2026-08-21T05:30:00',
+      );
+      await addReceipt(
+        userId: 6,
+        roomNumber: '303',
+        amount: 5000,
+        date: '2026-08-21T14:00:59',
+      );
+      await addReceipt(
+        userId: 7,
+        roomNumber: '303',
+        amount: 7000,
+        date: '2026-08-21T14:01:00',
+      );
+      await (db.update(db.payments)
+            ..where((payment) => payment.id.equals(voidedReceiptId)))
+          .write(const PaymentsCompanion(isVoided: Value(true)));
+      await (db.update(
+        db.payments,
+      )..where((payment) => payment.id.equals(deletedReceiptId))).write(
+        PaymentsCompanion(
+          deletedAt: Value(DateTime.now().millisecondsSinceEpoch ~/ 1000),
+        ),
+      );
+
+      final receipts = await repository
+          .watchLatestRoomReceiptsByRoom('2026-08-20')
+          .first;
+      final room301 = receipts.singleWhere(
+        (receipt) => receipt.roomNumber == '301',
+      );
+      final room302 = receipts.singleWhere(
+        (receipt) => receipt.roomNumber == '302',
+      );
+      final room303 = receipts.singleWhere(
+        (receipt) => receipt.roomNumber == '303',
+      );
+
+      expect(room301.amount, 15000);
+      expect(room301.paymentDate, '2026-08-21T06:00:00');
+      expect(room302.amount, 9000);
+      expect(room302.paymentDate, '2026-08-21T05:30:00');
+      expect(room303.amount, 5000);
+      expect(room303.paymentDate, '2026-08-21T14:00:59');
+
+      final followingHotelDay = await repository
+          .watchLatestRoomReceiptsByRoom('2026-08-21')
+          .first;
+      expect(followingHotelDay, hasLength(1));
+      expect(followingHotelDay.single.roomNumber, '303');
+      expect(followingHotelDay.single.amount, 7000);
+      expect(followingHotelDay.single.paymentDate, '2026-08-21T14:01:00');
     },
   );
 }

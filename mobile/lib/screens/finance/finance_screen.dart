@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../models/payment_models.dart';
-import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
@@ -15,10 +13,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
-import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});
@@ -31,8 +26,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     with SyncOnExitMixin {
   @override
   String get screenId => 'finance';
-  bool _isSavingPayment = false;
-
   // ✅ ValueNotifier — أسرع بديل لـ StreamBuilder في الهواتف الضعيفة
   ValueNotifier<List<db.Payment>>? _paymentsNotifier;
   ValueNotifier<List<db.Booking>>? _bookingsNotifier;
@@ -88,12 +81,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     return wrapWithSyncOnExit(
       child: AppScaffold(
         title: 'الصندوق والمالية',
-        fab: FloatingActionButton.extended(
-          onPressed: _isSavingPayment ? null : _showNewPaymentDialog,
-          icon: const Icon(Icons.add_card),
-          label: const Text('دفعة جديدة'),
-          backgroundColor: Colors.green,
-        ),
         body: Consumer(
           builder: (context, ref, _) {
             final todayIncome = ref.watch(todayPaymentsProvider);
@@ -203,7 +190,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Widget _buildHotelDayCard() {
     final now = DateTime.now();
     final hotelDay = HotelTimeEngine.getHotelDayKey();
-    final cutoff = now.hour >= 14;
+    final cutoff = HotelTimeEngine.isAfterCutoff(now);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -280,7 +267,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 ),
                 const SizedBox(width: 3),
                 Text(
-                  cutoff ? 'بعد 14:00' : 'قبل 14:00',
+                  cutoff ? 'من 14:01' : 'قبل 14:01',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
@@ -505,16 +492,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Widget _buildTodayPayments(List<db.Payment> payments) {
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPayments = payments.where((p) {
-      if (p.isVoided) {
+      if (p.isVoided || p.isPendingBalance) {
         return false;
       }
-      if (p.hotelDayKey == hotelDay) {
-        return true;
-      }
-      if (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay)) {
-        return true;
-      }
-      return false;
+      return HotelTimeEngine.paymentBelongsToHotelDay(
+        storedHotelDayKey: p.hotelDayKey,
+        paymentDate: p.paymentDate,
+        hotelDayKey: hotelDay,
+      );
     }).toList();
 
     // تجميع المدفوعات حسب رقم الغرفة
@@ -844,265 +829,5 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         ],
       ),
     );
-  }
-
-  // ─── إضافة دفعة جديدة تراكمية ───
-
-  void _showNewPaymentDialog() {
-    final amountController = TextEditingController();
-    final notesController = TextEditingController();
-    final referenceController = TextEditingController();
-    PaymentMethod selectedMethod = PaymentMethod.cash;
-
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.add_card, color: Colors.green),
-                SizedBox(width: 8),
-                Text('دفعة جديدة تراكمية'),
-              ],
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'طريقة الدفع',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: PaymentMethod.values.map((method) {
-                        final isSelected = selectedMethod == method;
-                        return ChoiceChip(
-                          avatar: Icon(
-                            method.icon,
-                            size: 16,
-                            color: isSelected ? Colors.white : method.color,
-                          ),
-                          label: Text(
-                            method.displayName,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isSelected ? Colors.white : method.color,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: method.color,
-                          onSelected: (_) {
-                            setDialogState(() {
-                              selectedMethod = method;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: amountController,
-                      decoration: const InputDecoration(
-                        labelText: 'المبلغ *',
-                        prefixText: 'ر.ي ',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: const [englishIntegerInputFormatter],
-                    ),
-                    const SizedBox(height: 12),
-                    if (selectedMethod == PaymentMethod.transfer ||
-                        selectedMethod == PaymentMethod.check) ...[
-                      TextField(
-                        controller: referenceController,
-                        decoration: const InputDecoration(
-                          labelText: 'رقم المرجع / الشيك',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    TextField(
-                      controller: notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'ملاحظات (اختياري)',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: _isSavingPayment
-                    ? null
-                    : () => _saveStandalonePayment(
-                        ctx,
-                        amountController.text,
-                        notesController.text,
-                        referenceController.text,
-                        selectedMethod,
-                      ),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                child: _isSavingPayment
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('تسجيل الدفعة'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ).then((_) {
-      amountController.dispose();
-      notesController.dispose();
-      referenceController.dispose();
-    });
-  }
-
-  Future<void> _saveStandalonePayment(
-    BuildContext dialogContext,
-    String amountText,
-    String notes,
-    String reference,
-    PaymentMethod method,
-  ) async {
-    final parsedAmount = CurrencyFormatter.parseAmount(amountText);
-    if (parsedAmount == null || parsedAmount <= 0) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى إدخال مبلغ صحيح'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSavingPayment = true);
-
-    try {
-      final paymentsRepo = ref.read(paymentsRepoProvider);
-
-      String dbMethod;
-      switch (method) {
-        case PaymentMethod.cash:
-          dbMethod = 'نقدي';
-        case PaymentMethod.card:
-          dbMethod = 'بطاقة';
-        case PaymentMethod.transfer:
-          dbMethod = 'تحويل';
-        case PaymentMethod.check:
-          dbMethod = 'شيك';
-        case PaymentMethod.installment:
-          dbMethod = 'تقسيط';
-      }
-
-      await paymentsRepo.create(
-        amount: parsedAmount,
-        paymentDate: Time.nowIso(),
-        notes: notes.trim().isEmpty ? null : notes.trim(),
-        paymentMethod: dbMethod,
-        revenueType: 'other',
-      );
-
-      // ✅ رفع فوري لدفعة جديدة (شاشة المالية) إلى Appwrite Cloud.
-      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
-
-      // إرسال إشعار واتساب
-      unawaited(
-        _sendPaymentWhatsAppNotification(
-          amount: parsedAmount,
-          method: dbMethod,
-          notes: notes.trim(),
-        ),
-      );
-
-      if (mounted) {
-        Navigator.pop(dialogContext);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount)} بنجاح',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(dialogContext);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل تسجيل الدفعة: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSavingPayment = false);
-      }
-    }
-  }
-
-  Future<void> _sendPaymentWhatsAppNotification({
-    required double amount,
-    required String method,
-    required String notes,
-  }) async {
-    try {
-      final whatsappService = ref.read(whatsappServiceProvider);
-
-      final message = StringBuffer()
-        ..writeln('إشعار دفعة جديدة')
-        ..writeln('━━━━━━━━━━━━━━━')
-        ..writeln('المبلغ: ${CurrencyFormatter.formatAmount(amount)}')
-        ..writeln('طريقة الدفع: $method')
-        ..writeln('التاريخ: ${Time.nowIso()}')
-        ..writeln('اليوم الفندقي: ${HotelTimeEngine.getHotelDayKey()}')
-        ..writeln(notes.isNotEmpty ? 'ملاحظات: $notes' : '');
-
-      final result = await whatsappService.sendMessage(
-        phoneE164: '9677734587456',
-        message: message.toString(),
-      );
-      if (result.quotaMessage != null) {
-        dlog(() => 'تجاوز حصة الواتساب: ${result.quotaMessage}');
-      }
-    } catch (_) {
-      dlog('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
-    }
   }
 }

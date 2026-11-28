@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -20,7 +21,10 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
+import '../../services/booking_price_adjustment_service.dart';
+import '../../services/enhanced_booking_calculation_service.dart';
 import '../../services/local_db.dart' as db;
+import '../../services/payment_session_context.dart';
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
@@ -559,7 +563,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     // آخر مبلغ مدفوع: أحدث دفعة غير ملغاة لهذا الحجز
     db.Payment? lastPaidPayment;
-    final activeDbPayments = dbPayments.where((p) => !p.isVoided).toList();
+    final activeDbPayments = dbPayments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .toList();
     if (activeDbPayments.isNotEmpty) {
       activeDbPayments.sort((a, b) {
         final dateA = DateTime.tryParse(a.paymentDate);
@@ -582,13 +588,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           (p) =>
               !p.isVoided &&
               !p.isPendingBalance &&
-              (p.hotelDayKey == hotelDay ||
-                  (p.hotelDayKey == null &&
-                      p.paymentDate.startsWith(hotelDay))),
+              HotelTimeEngine.paymentBelongsToHotelDay(
+                storedHotelDayKey: p.hotelDayKey,
+                paymentDate: p.paymentDate,
+                hotelDayKey: hotelDay,
+              ),
         )
         .fold<double>(0, (s, p) => s + p.amount);
-    double remainingAmount = totalAmount - paidAmount;
-    if (remainingAmount < 0) remainingAmount = 0;
+    // الرصيد السالب يعني رصيداً دائناً للنزيل، وليس متبقياً صفراً.
+    final remainingAmount = totalAmount - paidAmount;
     _remainingAmount = remainingAmount;
     final uiPayments = dbPayments.map(_mapDbPaymentToUi).toList();
     final summary = BookingPaymentSummary(
@@ -757,8 +765,22 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   /// بطاقة «آخر مبلغ مدفوع» — تعرض آخر دفعة غير ملغاة لهذا الحجز فقط.
+  ///
+  /// ✅ (2026-11-11) إضافة تاريخ الدفعة تحت المبلغ بخط صغير — يعرض فقط
+  /// عند وجود دفعة فعلية؛ التنسيق dd/MM/yyyy HH:mm (تاريخ + وقت الاستلام).
   Widget _buildLastPaidAmountCard(db.Payment? lastPaidPayment) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    // تحليل تاريخ الدفعة (ISO String) لعرضه بخط صغير — لا يُعرض عند الفشل.
+    String? paymentDateLabel;
+    if (lastPaidPayment != null) {
+      final parsedDate = DateTime.tryParse(lastPaidPayment.paymentDate);
+      paymentDateLabel = parsedDate != null
+          ? DateFormat('dd/MM/yyyy  HH:mm').format(parsedDate)
+          : lastPaidPayment.paymentDate.trim();
+      if (paymentDateLabel.isEmpty) paymentDateLabel = null;
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -777,15 +799,29 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           ),
           const Spacer(),
-          Text(
-            lastPaidPayment == null
-                ? 'لا يوجد'
-                : _currencyFmt.format(lastPaidPayment.amount),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: colorScheme.primary,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                lastPaidPayment == null
+                    ? 'لا يوجد'
+                    : _currencyFmt.format(lastPaidPayment.amount),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
+              ),
+              // تاريخ الدفعة بخط صغير — يظهر فقط عند وجود دفعة صالحة
+              if (paymentDateLabel != null)
+                Text(
+                  paymentDateLabel,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -862,20 +898,31 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     double roomRate = 0,
   }) {
     if (summary.isFullyPaid) {
-      return const Center(
+      final hasGuestCredit = summary.remainingAmount < 0;
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle, size: 80, color: Colors.green),
-            SizedBox(height: 16),
-            Text(
-              'تم سداد المبلغ كاملاً',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            Icon(
+              hasGuestCredit
+                  ? Icons.account_balance_wallet
+                  : Icons.check_circle,
+              size: 80,
+              color: hasGuestCredit ? Colors.orange : Colors.green,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
-              'يمكنك الآن تسجيل مغادرة العميل',
-              style: TextStyle(color: Colors.grey),
+              hasGuestCredit
+                  ? 'للنزيل رصيد دائن: ${_currencyFmt.format(-summary.remainingAmount)}'
+                  : 'تم سداد المبلغ كاملاً',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              hasGuestCredit
+                  ? 'لا تُنشئ دفعة عكسية تلقائياً؛ راجع التسوية المالية.'
+                  : 'يمكنك الآن تسجيل مغادرة العميل',
+              style: const TextStyle(color: Colors.grey),
             ),
           ],
         ),
@@ -1534,7 +1581,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       serverBookingId: widget.booking.serverBookingId,
       roomNumber: widget.booking.roomNumber,
       amount: amount,
-      paymentDate: Time.nowIso(),
+      paymentDate: Time.nowPaymentIso(),
       notes: notes.isEmpty
           ? 'دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية'
           : notes,
@@ -1555,17 +1602,34 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final double roomRate = room?.price ?? 0;
     final checkin =
         DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-    final now = DateTime.now();
-    final currentNights = Time.nightsWithCutoff(checkin, checkout: now);
-    final currentTotal = currentNights * roomRate;
+    final actualCheckout = widget.booking.actualCheckout == null
+        ? null
+        : DateTime.tryParse(widget.booking.actualCheckout!);
+    final database = ref.read(databaseProvider);
+    final storedNights =
+        await (database.select(database.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+              ..where((n) => n.deletedAt.isNull())
+              ..orderBy([(n) => OrderingTerm.asc(n.hotelDayKey)]))
+            .get();
+    final stayCalculation = _calculateStay(
+      checkin: checkin,
+      actualCheckout: actualCheckout,
+      nights: storedNights,
+      roomRate: roomRate,
+      discount: widget.booking.discount,
+      discountType: widget.booking.discountType,
+      discountStartDate: _parseDateTime(widget.booking.discountStartDate),
+    );
+    final currentTotal = stayCalculation.totalAmount;
     final allPayments = await paymentsRepo
         .paymentsByBooking(widget.booking.id)
         .first;
-    final totalPaid = allPayments.fold<double>(0, (s, p) => s + p.amount);
-    double newRemaining = currentTotal - totalPaid;
-    if (newRemaining < 0) {
-      newRemaining = 0;
-    }
+    final totalPaid = allPayments
+        .where((p) => !p.isVoided && !p.isPendingBalance)
+        .fold<double>(0, (s, p) => s + p.amount);
+    // Keep negative balances: they represent a credit/overpayment owed to the guest.
+    final double newRemaining = currentTotal - totalPaid;
 
     // إرسال رسالة واتساب
     final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);
@@ -1691,10 +1755,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paidAmount = payments
         .where((p) => !p.isVoided && !p.isPendingBalance)
         .fold<double>(0, (s, p) => s + p.amount);
-    double remainingAmount = stayCalc.totalAmount - paidAmount;
-    if (remainingAmount < 0) {
-      remainingAmount = 0;
-    }
+    final remainingAmount = stayCalc.totalAmount - paidAmount;
 
     return _PaymentTotals(stayCalc.totalAmount, remainingAmount);
   }
@@ -1736,142 +1797,178 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final totals = await _calculateCurrentTotals();
 
       // ════════════════════════════════════════════════════════════════
-      // حساب التمديد (قراءة + حوار تأكيد) — قبل الـ transaction
+      // معالجة الفائض (قراءة + حوار تأكيد) — قبل الـ transaction
       // ════════════════════════════════════════════════════════════════
       bool needsExtension = false;
       DateTime? newCheckout;
       int? newExpectedNights;
       int? extraNights;
+      bool needsNegotiatedRate = false;
+      _NegotiatedRatePreview? negotiatedPreview;
 
       if (!isPendingBalance && amount > totals.remaining) {
-        // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
+        // المبلغ يتجاوز المتبقي — المستخدم المخوّل يختار المعالجة:
+        // تفاوض على سعر الغرفة (زيادة على سعر الليلة) أو تمديد الإقامة
         final surplus = amount - totals.remaining;
 
-        // ═══════════════════════════════════════════════════════════════
-        /// نستخدم السعر الفعلي للليلة (effectiveNightlyRate) بدلاً من
-        /// السعر الأساسي للغرفة (roomRate) — السعر الفعلي يشمل الخصومات
-        /// والإضافات على مستوى كل ليلة، وهو ما يحسب به المستحق فعلياً.
-        /// ═══════════════════════════════════════════════════════════════
-        // نجلب الليالي والخصومات لحساب السعر الفعلي
-        final roomsRepo = ref.read(roomsRepoProvider);
-        final dbInstance = ref.read(databaseProvider);
-        final room = await roomsRepo
-            .watchByNumber(widget.booking.roomNumber)
-            .first;
-        final double baseRoomRate = room?.price ?? 0;
-
-        final checkin =
-            DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
-        final actualCheckout = widget.booking.actualCheckout != null
-            ? DateTime.tryParse(widget.booking.actualCheckout!)
-            : null;
-        final discount = widget.booking.discount;
-        final discountType = widget.booking.discountType;
-        final discountStartDate = _parseDateTime(
-          widget.booking.discountStartDate,
+        final action = await _chooseSurplusAction(
+          surplus: surplus,
+          remaining: totals.remaining,
         );
-
-        final nights =
-            await (dbInstance.select(dbInstance.bookingNights)
-                  ..where((n) => n.bookingLocalId.equals(widget.booking.id))
-                  ..where((n) => n.deletedAt.isNull()))
-                .get();
-
-        // حساب موحد مع forExtensionCalculation=true للحصول على السعر الفعلي
-        final stayCalc = _calculateStay(
-          checkin: checkin,
-          actualCheckout: actualCheckout,
-          nights: nights,
-          roomRate: baseRoomRate,
-          discount: discount,
-          discountType: discountType,
-          discountStartDate: discountStartDate,
-        );
-
-        final double effectiveRate = stayCalc.effectiveNightlyRate;
-
-        if (effectiveRate <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'لا يمكن حساب الليالي الإضافية — السعر الفعلي للليلة غير محدد',
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
+        if (action == null) {
+          return; // إلغاء — لا يُكتب شيء
         }
 
-        extraNights = (surplus / effectiveRate).ceil();
-        if (extraNights <= 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
+        if (action == _SurplusAction.negotiateRate) {
+          // ══════════════════════════════════════════════════════════
+          // المسار الجديد: التفاوض على سعر الغرفة — زيادة يدوية على
+          // سعر الليلة لكامل ليالي الحجز (بلا أي تغيير في المدة).
+          // ══════════════════════════════════════════════════════════
+          final preview = await _promptNegotiatedRateIncrease(
+            surplus: surplus,
+            totals: totals,
+            amount: amount,
           );
-          return;
+          if (preview == null) {
+            return; // ألغى أو رُفض المدخل — لا يُكتب شيء
+          }
+          negotiatedPreview = preview;
+          needsNegotiatedRate = true;
         }
 
-        // تأكيد التمديد من المستخدم
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.update, color: Colors.indigo),
-                SizedBox(width: 8),
-                Text('تسجيل دفعة مع تمديد'),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('المبلغ يتجاوز المتبقي. سيتم تمديد الحجز تلقائياً:'),
-                const SizedBox(height: 12),
-                Text(
-                  'المبلغ المتبقي الحالي: ${_currencyFmt.format(totals.remaining)}',
+        if (action == _SurplusAction.extend) {
+          // المبلغ يتجاوز المتبقي — نحسب الليالي الإضافية و نمدد الحجز
+
+          // ═══════════════════════════════════════════════════════════════
+          /// نستخدم السعر الفعلي للليلة (effectiveNightlyRate) بدلاً من
+          /// السعر الأساسي للغرفة (roomRate) — السعر الفعلي يشمل الخصومات
+          /// والإضافات على مستوى كل ليلة، وهو ما يحسب به المستحق فعلياً.
+          /// ═══════════════════════════════════════════════════════════════
+          // نجلب الليالي والخصومات لحساب السعر الفعلي
+          final roomsRepo = ref.read(roomsRepoProvider);
+          final dbInstance = ref.read(databaseProvider);
+          final room = await roomsRepo
+              .watchByNumber(widget.booking.roomNumber)
+              .first;
+          final double baseRoomRate = room?.price ?? 0;
+
+          final checkin =
+              DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+          final actualCheckout = widget.booking.actualCheckout != null
+              ? DateTime.tryParse(widget.booking.actualCheckout!)
+              : null;
+          final discount = widget.booking.discount;
+          final discountType = widget.booking.discountType;
+          final discountStartDate = _parseDateTime(
+            widget.booking.discountStartDate,
+          );
+
+          final nights =
+              await (dbInstance.select(dbInstance.bookingNights)
+                    ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+                    ..where((n) => n.deletedAt.isNull()))
+                  .get();
+
+          // حساب موحد مع forExtensionCalculation=true للحصول على السعر الفعلي
+          final stayCalc = _calculateStay(
+            checkin: checkin,
+            actualCheckout: actualCheckout,
+            nights: nights,
+            roomRate: baseRoomRate,
+            discount: discount,
+            discountType: discountType,
+            discountStartDate: discountStartDate,
+          );
+
+          final double effectiveRate = stayCalc.effectiveNightlyRate;
+
+          if (effectiveRate <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'لا يمكن حساب الليالي الإضافية — السعر الفعلي للليلة غير محدد',
                 ),
-                Text('المبلغ الفائض: ${_currencyFmt.format(surplus)}'),
-                Text(
-                  'سيتم إضافة: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'} قادمة',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+
+          extraNights = (surplus / effectiveRate).ceil();
+          if (extraNights <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('لا يمكن حساب الليالي الإضافية')),
+            );
+            return;
+          }
+
+          // تأكيد التمديد من المستخدم
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.update, color: Colors.indigo),
+                  SizedBox(width: 8),
+                  Text('تسجيل دفعة مع تمديد'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'المبلغ يتجاوز المتبقي. سيتم تمديد الحجز تلقائياً:',
                   ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'المبلغ المتبقي الحالي: ${_currencyFmt.format(totals.remaining)}',
+                  ),
+                  Text('المبلغ الفائض: ${_currencyFmt.format(surplus)}'),
+                  Text(
+                    'سيتم إضافة: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'} قادمة',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('إلغاء'),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'سيتم تحديث تاريخ المغادرة وإضافة الليالي الجديدة',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                  ),
+                  child: const Text('تأكيد التمديد والدفع'),
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
-                child: const Text('تأكيد التمديد والدفع'),
-              ),
-            ],
-          ),
-        );
+          );
 
-        if (confirmed != true) {
-          return;
+          if (confirmed != true) {
+            return;
+          }
+
+          // حساب بيانات التمديد
+          final currentCheckout = widget.booking.checkoutDate != null
+              ? DateTime.tryParse(widget.booking.checkoutDate!)
+              : DateTime.now().add(const Duration(days: 1));
+          newCheckout = (currentCheckout ?? DateTime.now()).add(
+            Duration(days: extraNights),
+          );
+          newExpectedNights = widget.booking.expectedNights + extraNights;
+          needsExtension = true;
         }
-
-        // حساب بيانات التمديد
-        final currentCheckout = widget.booking.checkoutDate != null
-            ? DateTime.tryParse(widget.booking.checkoutDate!)
-            : DateTime.now().add(const Duration(days: 1));
-        newCheckout = (currentCheckout ?? DateTime.now()).add(
-          Duration(days: extraNights),
-        );
-        newExpectedNights = widget.booking.expectedNights + extraNights;
-        needsExtension = true;
       }
 
       // ═══════════════════════════════════════════════════════
@@ -1882,7 +1979,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final cleanedPhone = _cleanAndFormatPhone(_phoneController.text);
       final database = ref.read(databaseProvider);
       await database.transaction(() async {
-        // 1) تمديد الحجز (إذا لزم)
+        // 1) اعتماد السعر المتفاوض عليه (إن اختير) — قبل تسجيل الدفعة حتى
+        //    تُحسب الإجماليات على السعر الجديد. التعديل مالي فقط: لا يمسّ
+        //    تاريخ المغادرة ولا عدد الليالي ولا ينشئ دفعة وهمية.
+        if (needsNegotiatedRate) {
+          await BookingPriceAdjustmentService(
+            database,
+          ).applyNegotiatedRateIncrease(
+            bookingLocalUuid: widget.booking.localUuid,
+            amount: negotiatedPreview!.increase,
+            appliedBy: PaymentSessionContext.userName ?? 'admin',
+          );
+        }
+
+        // 2) تمديد الحجز (إذا لزم)
         if (needsExtension) {
           await bookingsRepo.update(
             widget.booking.id,
@@ -1896,7 +2006,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           await _calculateCurrentTotals();
         }
 
-        // 2) تحديث رقم الهاتف الضيف
+        // 3) تحديث رقم الهاتف الضيف
         await bookingsRepo.update(widget.booking.id, guestPhone: cleanedPhone);
         if (mounted) {
           setState(() {
@@ -1912,13 +2022,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           _currentGuestPhone = cleanedPhone;
         }
 
-        // 3) إنشاء الدفعة
+        // 4) إنشاء الدفعة
         await paymentsRepo.create(
           bookingLocalId: widget.booking.id,
           serverBookingId: widget.booking.serverBookingId,
           roomNumber: widget.booking.roomNumber,
           amount: amount,
-          paymentDate: Time.nowIso(),
+          paymentDate: Time.nowPaymentIso(),
           notes: notes.isEmpty ? null : notes,
           paymentMethod: _mapUiMethodToDb(method),
           revenueType: 'room',
@@ -1931,6 +2041,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       double newRemaining = totals.remaining - amount;
+      if (needsNegotiatedRate && negotiatedPreview != null) {
+        // الإجمالي ارتفع بمقدار الزيادة × الليالي — المتبقي بعد الدفعة
+        // وفق السعر المتفاوض عليه المعتمد.
+        newRemaining = negotiatedPreview.remainingAfter;
+      }
       if (newRemaining < 0) {
         newRemaining = 0;
       }
@@ -1995,6 +2110,278 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       } else {
         _isSavingPayment = false;
       }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ✅ التفاوض على سعر الغرفة — معالجة فائض الدفعة (قاعدة 2026-11-01)
+  // ════════════════════════════════════════════════════════════════
+
+  /// حوار اختيار معالجة الفائض: التفاوض على سعر الغرفة (المسار الجديد)
+  /// أو تمديد الإقامة (المسار القائم) أو الإلغاء. لا يُعتمد أي مسار
+  /// تلقائياً دون قرار صريح من المستخدم المخوّل.
+  Future<_SurplusAction?> _chooseSurplusAction({
+    required double surplus,
+    required double remaining,
+  }) {
+    return showDialog<_SurplusAction>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.help_outline, color: Colors.indigo),
+            SizedBox(width: 8),
+            Text('المبلغ يتجاوز المتبقي'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('المبلغ المتبقي الحالي: ${_currencyFmt.format(remaining)}'),
+            const SizedBox(height: 4),
+            Text('المبلغ الفائض: ${_currencyFmt.format(surplus)}'),
+            const SizedBox(height: 12),
+            const Text(
+              'كيف تريد معالجة المبلغ الفائض؟',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(ctx, _SurplusAction.extend),
+            icon: const Icon(Icons.update),
+            label: const Text('تمديد الإقامة'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, _SurplusAction.negotiateRate),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.price_change),
+            label: const Text('التفاوض على سعر الغرفة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// حوار التفاوض: إدخال قيمة الزيادة المتفق عليها لكل ليلة يدوياً،
+  /// مع التحقق من سقف 5,000 ريال/ليلة، ومعاينة السعر الأصلي والسعر
+  /// الجديد وعدد الليالي وإجمالي الإقامة بعد التعديل والمتبقي بعد
+  /// الدفعة — كله قبل التأكيد. يعيد null عند الإلغاء أو الرفض.
+  Future<_NegotiatedRatePreview?> _promptNegotiatedRateIncrease({
+    required double surplus,
+    required _PaymentTotals totals,
+    required double amount,
+  }) async {
+    // ✅ حرس الصلاحية/الحالة: التفاوض للحجوزات النشطة غير المسجَّل
+    // مغادرتها فقط — بعد المغادرة يبقى مسار شاشة إدارة الضيوف كما هو.
+    final bookingsRepo = ref.read(bookingsRepoProvider);
+    final current = await bookingsRepo.watchOne(widget.booking.id).first;
+    if (current == null) {
+      throw StateError('الحجز غير موجود — ربما حُذف');
+    }
+    if (_isAlreadyCheckedOut(current) ||
+        !StatusUtils.isBookingActive(current)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'لا يمكن التفاوض على سعر الغرفة — الحجز غير نشط أو مسجّل مغادرته',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return null;
+    }
+
+    // قيم المعاينة — من نفس مصادر الشاشة (الغرفة + الليالي + الحساب الموحد)
+    final roomsRepo = ref.read(roomsRepoProvider);
+    final dbInstance = ref.read(databaseProvider);
+    final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
+    final double baseRoomRate = room?.price ?? 0;
+
+    final checkin =
+        DateTime.tryParse(widget.booking.checkinDate) ?? DateTime.now();
+    final actualCheckout = widget.booking.actualCheckout != null
+        ? DateTime.tryParse(widget.booking.actualCheckout!)
+        : null;
+
+    final nights =
+        await (dbInstance.select(dbInstance.bookingNights)
+              ..where((n) => n.bookingLocalId.equals(widget.booking.id))
+              ..where((n) => n.deletedAt.isNull()))
+            .get();
+
+    final stayCalc = _calculateStay(
+      checkin: checkin,
+      actualCheckout: actualCheckout,
+      nights: nights,
+      roomRate: baseRoomRate,
+      discount: widget.booking.discount,
+      discountType: widget.booking.discountType,
+      discountStartDate: _parseDateTime(widget.booking.discountStartDate),
+    );
+
+    final int nightsCount = stayCalc.nightsCount;
+    if (nightsCount <= 0 || baseRoomRate <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا يمكن التفاوض — سعر الليلة أو الليالي غير محسوبة'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return null;
+    }
+
+    const maxIncrease =
+        BookingPriceAdjustmentService.maxNegotiatedPerNightIncrease;
+    final controller = TextEditingController();
+    try {
+      return await showDialog<_NegotiatedRatePreview>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          int? parsed;
+          String? errorText;
+
+          void validate() {
+            final text = controller.text.trim();
+            parsed = text.isEmpty ? null : int.tryParse(text);
+            errorText = null;
+            final value = parsed;
+            if (value != null) {
+              if (value < 1) {
+                errorText = 'أدخل زيادة أكبر من صفر';
+              } else if (value > maxIncrease) {
+                errorText =
+                    'الحد الأقصى للزيادة ${_currencyFmt.format(maxIncrease)} '
+                    'ريال لليلة';
+              }
+            }
+          }
+
+          validate();
+
+          return StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              final increase = parsed;
+              final valid = increase != null && errorText == null;
+              final newNightlyRate = valid
+                  ? baseRoomRate + increase
+                  : baseRoomRate;
+              final newStayTotal = valid
+                  ? totals.total + increase * nightsCount
+                  : totals.total;
+              final rawRemainingAfter = valid
+                  ? totals.remaining + increase * nightsCount - amount
+                  : totals.remaining - amount;
+              final remainingAfter = rawRemainingAfter < 0
+                  ? 0.0
+                  : rawRemainingAfter;
+
+              return AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.price_change, color: Colors.indigo),
+                    SizedBox(width: 8),
+                    Text('التفاوض على سعر الغرفة'),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('أدخل قيمة الزيادة المتفق عليها لكل ليلة:'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        const EnglishDigitsInputFormatter(),
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'الزيادة لكل ليلة (ريال)',
+                        errorText: errorText,
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setDialogState(validate),
+                    ),
+                    if (valid) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'سعر الليلة الأصلي: ${_currencyFmt.format(baseRoomRate)}',
+                      ),
+                      Text('الزيادة: ${_currencyFmt.format(increase)}'),
+                      Text(
+                        'السعر الجديد لليلة: ${_currencyFmt.format(newNightlyRate)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
+                      ),
+                      Text('عدد الليالي: $nightsCount'),
+                      Text(
+                        'إجمالي الإقامة بعد التعديل: '
+                        '${_currencyFmt.format(newStayTotal)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'المتبقي بعد هذه الدفعة: '
+                        '${_currencyFmt.format(remainingAfter)}',
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'التعديل مالي فقط — لا يتغير تاريخ المغادرة '
+                        'ولا عدد الليالي',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('إلغاء'),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: valid
+                        ? () => Navigator.pop(
+                            ctx,
+                            _NegotiatedRatePreview(
+                              increase: increase,
+                              nights: nightsCount,
+                              remainingAfter: remainingAfter,
+                            ),
+                          )
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.check),
+                    label: const Text('اعتماد السعر الجديد والدفع'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
     }
   }
 
@@ -2311,20 +2698,38 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ? nights[i].finalRate
             : nights[i].nightlyRate;
       }
-    } else if (nights.isNotEmpty) {
-      // Nights exist but failed validation — fallback to calculated nights
-      final roomsRepo = ref.read(roomsRepoProvider);
-      final room = await roomsRepo
-          .watchByNumber(widget.booking.roomNumber)
-          .first;
-      actualNightsCost = actualNights * (room?.price ?? 0);
     } else {
-      // بديل: سعر الغرفة × الليالي الفعلية
-      final roomsRepo = ref.read(roomsRepoProvider);
-      final room = await roomsRepo
-          .watchByNumber(widget.booking.roomNumber)
-          .first;
-      actualNightsCost = actualNights * (room?.price ?? 0);
+      try {
+        final room =
+            await (dbInstance.select(dbInstance.rooms)
+                  ..where((r) => r.roomNumber.equals(widget.booking.roomNumber))
+                  ..where((r) => r.deletedAt.isNull()))
+                .getSingleOrNull();
+        if (room == null || room.price <= 0 || actualNights <= 0) {
+          throw StateError('Room pricing is unavailable');
+        }
+        actualNightsCost =
+            (await EnhancedBookingCalculationService(
+                  dbInstance,
+                ).calculateActualStayCost(
+                  widget.booking,
+                  actualCheckout: now,
+                  actualNights: actualNights,
+                ))
+                .toDouble();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'تعذر حساب تكلفة المغادرة بدقة — لم يتم تسجيل المردود',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
     }
 
     final totalPaid = summary.paidAmount;
@@ -2547,7 +2952,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         serverBookingId: widget.booking.serverBookingId,
         roomNumber: widget.booking.roomNumber,
         amount: refundAmount.toDouble() * -1,
-        paymentDate: nowIso,
+        paymentDate: Time.nowPaymentIso(),
         notes:
             'مردود مغادرة مبكرة - $unusedNights ${unusedNights == 1 ? 'ليلة' : 'ليالي'} غير مستخدمة',
         paymentMethod: 'نقدي',
@@ -3156,9 +3561,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               .where(
                 (p) =>
                     !p.isVoided &&
-                    (p.hotelDayKey == hotelDay ||
-                        (p.hotelDayKey == null &&
-                            p.paymentDate.startsWith(hotelDay))),
+                    !p.isPendingBalance &&
+                    HotelTimeEngine.paymentBelongsToHotelDay(
+                      storedHotelDayKey: p.hotelDayKey,
+                      paymentDate: p.paymentDate,
+                      hotelDayKey: hotelDay,
+                    ),
               )
               .toList();
 
@@ -4366,13 +4774,28 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       final currentCheckout = widget.booking.checkoutDate != null
           ? DateTime.tryParse(widget.booking.checkoutDate!)
           : DateTime.now().add(const Duration(days: 1));
-
-      final newCheckout = (currentCheckout ?? DateTime.now()).add(
-        Duration(days: additionalNights),
-      );
+      final extensionStart = currentCheckout ?? DateTime.now();
+      final newCheckout = extensionStart.add(Duration(days: additionalNights));
 
       final newExpectedNights =
           widget.booking.expectedNights + additionalNights;
+
+      final dbInstance = ref.read(databaseProvider);
+      final room =
+          await (dbInstance.select(dbInstance.rooms)
+                ..where((r) => r.roomNumber.equals(widget.booking.roomNumber))
+                ..where((r) => r.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (room == null || room.price <= 0) {
+        throw StateError('سعر الغرفة غير متوفر لحساب التمديد');
+      }
+      final calculation = EnhancedBookingCalculationService(dbInstance);
+      final amount = (await calculation.calculateManualExtensionCharge(
+        widget.booking,
+        currentCheckout: extensionStart,
+        newCheckout: newCheckout,
+        additionalNights: additionalNights,
+      )).toDouble();
 
       // تحديث الحجز
       await bookingsRepo.update(
@@ -4385,13 +4808,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
 
       // تسجيل دفعة الليالي الإضافية
-      final double amount = additionalNights * roomRate;
       await paymentsRepo.create(
         bookingLocalId: widget.booking.id,
         serverBookingId: widget.booking.serverBookingId,
         roomNumber: widget.booking.roomNumber,
         amount: amount,
-        paymentDate: Time.nowIso(),
+        paymentDate: Time.nowPaymentIso(),
         notes: notes.isEmpty
             ? 'تمديد $additionalNights ${additionalNights == 1 ? 'ليلة إضافية' : 'ليالي إضافية'}'
             : notes,
@@ -4500,6 +4922,27 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     return '$y-$m-$d $h:$min:$s';
   }
 }
+
+/// نتيجة حوار التفاوض على سعر الغرفة قبل اعتماده.
+class _NegotiatedRatePreview {
+  const _NegotiatedRatePreview({
+    required this.increase,
+    required this.nights,
+    required this.remainingAfter,
+  });
+
+  /// قيمة الزيادة المتفق عليها لكل ليلة (يدخلها المستخدم المخوّل).
+  final int increase;
+
+  /// عدد الليالي التي تسري عليها الزيادة (كامل ليالي الحجز الحالية).
+  final int nights;
+
+  /// المتبقي بعد الدفعة وفق الإجمالي المعدّل (لا يقل عن صفر).
+  final double remainingAfter;
+}
+
+/// خيارات معالجة فائض الدفعة في شاشة الدفع.
+enum _SurplusAction { extend, negotiateRate }
 
 class _StayCalculation {
   final int actualNights;

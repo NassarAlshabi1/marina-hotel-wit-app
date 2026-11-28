@@ -322,6 +322,22 @@ class AppwriteNetworkHelper {
       if (e is TimeoutException) {
         rethrow;
       }
+      // ✅ إصلاح (2026-11-25): 409 document_already_exists بعد timeout ليس
+      // فشلًا — غالبًا المحاولة الأولى وصلت للسيرفر وأنشأت المستند فعليًا
+      // ثم انتهت مهلة العميل، فالإعادة بنفس المعرّف الحتمي تُصطدم بوجوده.
+      // نكتفي بسطر debug هادئ؛ الخطأ يُعاد رميه ويتولاه المتصل الأعلى
+      // (createRow يرجع المستند الموجود كنجاح متكرر آمن).
+      if (e is AppwriteException &&
+          (e.code == 409 ||
+              (e.type ?? '').contains('document_already_exists') ||
+              e.toString().contains('document_already_exists'))) {
+        _logger.debug(
+          '$opName - Already exists (409) — المحاولة الأولى غالبًا وصلت '
+          'للسيرفر ونجحت؛ يُعالجه المتصل كنجاح متكرر آمن',
+          tag: 'TIMEOUT',
+        );
+        rethrow;
+      }
       // ✅ إصلاح (2026-06-28): كتم أخطاء 404 المتوقعة في upsert probe
       // 404 من updateDocument متوقع تماماً للسجلات الجديدة التي لم تُرفع
       // للسحابة بعد. تسجيله كـ ERROR يُسبب ضوضاء كبيرة في السجلات.

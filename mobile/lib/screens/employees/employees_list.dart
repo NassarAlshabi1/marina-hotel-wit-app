@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../expenses/expenses_list.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
@@ -67,6 +68,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
         ],
         body: Stack(
           children: [
+            // ✅ (وثيقة §3.1.1) حالات مزامنة الموظفين معروضة للمستخدم:
+            // pending_sync («بانتظار المزامنة») وsuperseded_by_cloud
+            // («استُبدلت بالسحابة») — فصل نتيجة الحفظ المحلي عن المزامنة.
+            const _EmployeeSyncStateBanner(),
             StreamBuilder(
               stream: debounceStream(
                 repo.watchAll(),
@@ -287,6 +292,16 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                                           e.status,
                                         )
                                     ? () => _reactivateEmployee(context, ref, e)
+                                    : null,
+                                // ✅ (2026-11-04) زر «سحب» — يفتح شاشة
+                                // المصروفات الحالية مباشرة مع تحديد تصنيف
+                                // «رواتب» ونوع العملية «سحب من الراتب»
+                                // تلقائياً وتمرير employeeUuid (متطلب 1).
+                                // لا يظهر للمنتهية خدمتهم (سياسة الفصل).
+                                onWithdraw:
+                                    StatusUtils.isEmployeeActive(e.status) &&
+                                        e.localUuid.trim().isNotEmpty
+                                    ? () => _openWithdrawalScreen(context, e)
                                     : null,
                               ),
                             );
@@ -908,6 +923,24 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     }
   }
 
+  /// ✅ (2026-11-04) زر «سحب» — يفتح شاشة المصروفات الحالية مباشرة
+  /// (لا شاشة سحب مستقلة) مع:
+  /// - تحديد تصنيف «رواتب» ونوع العملية «سحب من الراتب» تلقائياً.
+  /// - تمرير employeeUuid وتحديد الموظف تلقائياً.
+  /// - بطاقة الأرصدة (الاستحقاق/المتبقي/رصيد السلف/الصافي) داخل شاشة
+  ///   المصروفات (متطلب 1 — بدون تغيير تصميم شاشة الموظفين).
+  void _openWithdrawalScreen(BuildContext context, Employee employee) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => ExpensesListScreen(
+          preselectedEmployeeUuid: employee.localUuid.trim(),
+          preselectedSalaryAction: 'سحب من الراتب',
+        ),
+      ),
+    );
+  }
+
   Future<void> _edit(
     BuildContext context,
     WidgetRef ref, {
@@ -1286,12 +1319,16 @@ class _EmployeeCard extends StatelessWidget {
     this.onDelete,
     this.onTerminate,
     this.onReactivate,
+    // ✅ (2026-11-04) زر «سحب» — يفتح شاشة المصروفات مع تحديد الموظف
+    // تلقائياً (متطلب 1: المحافظة على تصميم الشاشة والأزرار الحالية).
+    this.onWithdraw,
   });
   final Employee employee;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
   final VoidCallback? onTerminate;
   final VoidCallback? onReactivate;
+  final VoidCallback? onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -1301,7 +1338,7 @@ class _EmployeeCard extends StatelessWidget {
     final statusColor = Color(StatusUtils.employeeStatusColor(employee.status));
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 1),
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
         side: BorderSide(color: statusColor.withValues(alpha: 0.15)),
@@ -1310,13 +1347,13 @@ class _EmployeeCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
           child: Row(
             children: [
               // صورة رمزية للموظف
               Container(
-                width: 26,
-                height: 26,
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(5),
@@ -1325,10 +1362,10 @@ class _EmployeeCard extends StatelessWidget {
                 child: Icon(
                   isTerminated ? Icons.person_off : Icons.person,
                   color: statusColor,
-                  size: 14,
+                  size: 12,
                 ),
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
 
               // بيانات الموظف
               Expanded(
@@ -1342,7 +1379,7 @@ class _EmployeeCard extends StatelessWidget {
                             employee.name,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 11,
+                              fontSize: 10,
                               decoration: isTerminated
                                   ? TextDecoration.lineThrough
                                   : null,
@@ -1474,6 +1511,23 @@ class _EmployeeCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // ✅ (2026-11-04) زر «سحب» — يفتح شاشة المصروفات الحالية
+                  // مباشرة (لا شاشة سحب مستقلة) — أول زر في الصف.
+                  if (onWithdraw != null)
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: IconButton(
+                        onPressed: onWithdraw,
+                        icon: const Icon(Icons.payments_outlined, size: 12),
+                        color: Colors.indigo,
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.indigo.withValues(alpha: 0.1),
+                        ),
+                        tooltip: 'سحب / سلفة / تسديد سلفة',
+                      ),
+                    ),
                   if (onTerminate != null)
                     SizedBox(
                       width: 24,
@@ -1528,6 +1582,106 @@ class _EmployeeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// ✅ (وثيقة الربط §3.1.1 — 2026-11-05) شريط حالات مزامنة الموظفين —
+/// عرض فقط بلا أي كتابة. يفصل نتيجة الحفظ المحلي عن نتيجة المزامنة
+/// («saved_local لا تعني synced») ويترجم حالات outbox للموظفين:
+/// - pending/failed → «بانتظار المزامنة» (سيُرفع تلقائياً عند الاتصال)
+/// - superseded_by_cloud → «استُبدلت بالسحابة» (Cloud Wins §7.5 —
+///   أثر تشخيصي لا يُعاد رفعه)
+/// يتحدث لحظياً عبر drift streams؛ لا يظهر شيئاً عند اكتمال المزامنة.
+class _EmployeeSyncStateBanner extends ConsumerWidget {
+  const _EmployeeSyncStateBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final db = ref.watch(databaseProvider);
+    final outboxDao = ref.watch(outboxDaoProvider);
+    return Positioned(
+      top: 8,
+      left: 16,
+      right: 16,
+      child: StreamBuilder<int>(
+        stream: outboxDao.watchEntityCount('employees'),
+        builder: (context, pendingSnap) {
+          final pending = pendingSnap.data ?? 0;
+          return StreamBuilder<int>(
+            stream: db
+                .customSelect(
+                  "SELECT COUNT(*) AS c FROM outbox WHERE entity = 'employees' "
+                  "AND processing_status = 'superseded_by_cloud'",
+                  readsFrom: {db.outbox},
+                )
+                .watchSingle()
+                .map((row) => row.data['c'] as int? ?? 0),
+            builder: (context, supSnap) {
+              final superseded = supSnap.data ?? 0;
+              if (pending == 0 && superseded == 0) {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (pending > 0)
+                    _SyncBannerCard(
+                      color: Colors.amber.shade700,
+                      icon: Icons.cloud_upload_outlined,
+                      text:
+                          'بانتظار المزامنة: $pending — سيُرفع تلقائياً '
+                          'عند توفر الاتصال (الحفظ المحلي مكتمل)',
+                    ),
+                  if (superseded > 0)
+                    _SyncBannerCard(
+                      color: Colors.blueGrey,
+                      icon: Icons.cloud_done_outlined,
+                      text:
+                          'استُبدلت بالسحابة: $superseded — نسخة Appwrite '
+                          'هي المعتمدة (Cloud Wins)',
+                    ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SyncBannerCard extends StatelessWidget {
+  const _SyncBannerCard({
+    required this.color,
+    required this.icon,
+    required this.text,
+  });
+
+  final Color color;
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: 12.5, color: color)),
+          ),
+        ],
       ),
     );
   }

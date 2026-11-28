@@ -10,6 +10,7 @@ import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'stay_balance_calculator.dart';
 
 enum AdjustmentType {
   discount(0),
@@ -131,6 +132,192 @@ class BookingPriceAdjustmentService {
   final AppDatabase db;
   final BookingDerivedFieldsService? derivedFieldsService;
 
+  // ════════════════════════════════════════════════════════════════
+  // ✅ التفاوض على سعر الغرفة من شاشة الدفع (قاعدة العمل 2026-11-01)
+  // ════════════════════════════════════════════════════════════════
+
+  /// أقصى زيادة تفاوضية فوق سعر الغرفة الأصلي لكل ليلة.
+  /// مثال: غرفة 20,000 → الحد الأقصى لليلة 25,000.
+  static const int maxNegotiatedPerNightIncrease = 5000;
+
+  /// علامة سبب موحّدة تميّز تعديلات التفاوض القادمة من شاشة الدفع
+  /// (تُستخدم لنافذة منع التكرار — لا تمسّ مسار شاشة إدارة الضيوف).
+  static const String negotiatedRateReason = 'تفاوض سعر الغرفة من شاشة الدفع';
+
+  /// نافذة (ثوانٍ) تعامَل فيها الطلبات المتطابقة كضغطة مكررة واحدة.
+  static const int _negotiationDedupeWindowSec = 10;
+
+  /// عمليات تفاوض جارية (قفل لكل حجز) — يمنع التسجيل المزدوج عند
+  /// الضغط المتكرر أو الاستدعاء المتزامن لنفس الحجز.
+  static final Map<String, Future<BookingPriceAdjustment>>
+  _negotiationInFlight = {};
+
+  /// يطبّق زيادة تفاوضية على سعر الليلة لكل ليالي الحجز — مسار
+  /// «التفاوض على سعر الغرفة» من شاشة الدفع.
+  ///
+  /// القواعد:
+  ///   • [amount] يدخله المستخدم المخوّل يدوياً (قيمة الزيادة المتفق
+  ///     عليها لكل ليلة) — ليس مشتقاً من مبلغ الدفعة.
+  ///   • سقف صارم: الزيادة + مجموع الزيادات النشطة (per_night) لا
+  ///     تتجاوز [maxNegotiatedPerNightIncrease] فوق السعر الأصلي/ليلة.
+  ///     للتعديلات الأكبر يبقى مسار شاشة إدارة الضيوف كما هو بلا سقف.
+  ///   • تسري من يوم الدخول الفندقي وبلا تاريخ نهاية → كل ليالي الحجز
+  ///     الحالية وأي ليلة تُضاف لاحقاً (بعد 14:01) تُسعَّر بالسعر المتفاوض.
+  ///   • التعديل مالي فقط: لا يمسّ تاريخ المغادرة ولا عدد الليالي ولا
+  ///     ينشئ دفعات — الدفعة تُسجّل منفصلة بمعاملة شاشة الدفع.
+  ///   • المصدر الكنوني للسعر هو هذا السجل (booking_price_adjustments)
+  ///     وليس قيم صفوف الليالي — لذا يصمد أمام أي إعادة تحديث لاحقة.
+  ///
+  /// يرمي [ArgumentError] عند قيمة خارج (0, 5000]، و[StateError] عند
+  /// تجاوز السقف المجمّع أو عدم وجود الحجز.
+  Future<BookingPriceAdjustment> applyNegotiatedRateIncrease({
+    required String bookingLocalUuid,
+    required int amount,
+    required String appliedBy,
+    String? reason,
+  }) {
+    // ضغطة متكررة/استدعاء متزامن لنفس الحجز → نفس النتيجة، بلا سجل مكرر
+    final inFlight = _negotiationInFlight[bookingLocalUuid];
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final future = _applyNegotiatedRateIncreaseImpl(
+      bookingLocalUuid: bookingLocalUuid,
+      amount: amount,
+      appliedBy: appliedBy,
+      reason: reason,
+    );
+    _negotiationInFlight[bookingLocalUuid] = future;
+    // ✅ تنظيف صامت لا يسرّب أخطاء التنفيذ إلى الـ zone كخطأ غير معالَج
+    // (المستدعي يرى الخطأ عبر future نفسه — expectLater/try-catch الشاشة).
+    // ⚠️ جسم الكتلة إلزامي: Map.remove يُعيد الـ Future المحذوف، ولو أُعيد
+    // من whenComplete كـ arrow لسلسلت خطأه على هذه السلسلة غير المنتظرة.
+    unawaited(
+      future.then<void>((_) {}, onError: (Object _) {}).whenComplete(() {
+        _negotiationInFlight.remove(bookingLocalUuid);
+      }),
+    );
+    return future;
+  }
+
+  /// @visibleForTesting — يفرّغ أقفال التفاوض الجارية بين الاختبارات
+  /// (الخريطة static وتُشارك عبر نسخ قاعدة البيانات المؤقتة).
+  static void debugClearNegotiationGuardsForTest() {
+    _negotiationInFlight.clear();
+  }
+
+  Future<BookingPriceAdjustment> _applyNegotiatedRateIncreaseImpl({
+    required String bookingLocalUuid,
+    required int amount,
+    required String appliedBy,
+    String? reason,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError('قيمة الزيادة يجب أن تكون أكبر من صفر');
+    }
+    if (amount > maxNegotiatedPerNightIncrease) {
+      throw ArgumentError(
+        'الزيادة التفاوضية لا يجوز أن تتجاوز $maxNegotiatedPerNightIncrease '
+        'ريال فوق سعر الغرفة الأصلي لكل ليلة (المُدخل: $amount)',
+      );
+    }
+
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.localUuid.equals(bookingLocalUuid))).getSingleOrNull();
+    if (booking == null) {
+      throw StateError('Booking not found: $bookingLocalUuid');
+    }
+
+    final now = Time.nowEpoch();
+
+    // ─── نافذة منع التكرار: نفس الزيادة لنفس الحجز خلال ثوانٍ قليلة
+    // تُعامَل كضغطة مكررة واحدة (تُعيد السجل الموجود نفسه).
+    final recentDuplicate =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
+              ..where(
+                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
+              )
+              ..where(
+                (a) => a.adjustmentMode.equals(AdjustmentMode.perNight.value),
+              )
+              ..where((a) => a.amount.equals(amount.toDouble()))
+              ..where((a) => a.reason.equals(negotiatedRateReason))
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull())
+              ..where(
+                (a) => a.createdAt.isBiggerOrEqualValue(
+                  now - _negotiationDedupeWindowSec,
+                ),
+              )
+              ..limit(1))
+            .get();
+    if (recentDuplicate.isNotEmpty) {
+      dlog(() => '♻️ تكرار تفاوض خلال النافذة — إعادة السجل الموجود');
+      return recentDuplicate.first;
+    }
+
+    // ─── سقف السعر الكلّي: (زيادات per_night النشطة + المُدخلة) ≤ 5000
+    // فوق السعر الأصلي — أي سعر الليلة النهائي لا يتجاوز الأصلي + 5000.
+    final existingPerNight = await _sumActivePerNightSurcharges(
+      bookingLocalUuid,
+    );
+    if (existingPerNight + amount > maxNegotiatedPerNightIncrease) {
+      throw StateError(
+        'سعر الليلة النهائي يتجاوز الحد — الزيادات النشطة '
+        '($existingPerNight) + المُدخل ($amount) = '
+        '${existingPerNight + amount} > $maxNegotiatedPerNightIncrease. '
+        'للتعديلات الأكبر استخدم شاشة إدارة الضيوف في الإعدادات',
+      );
+    }
+
+    // تسري من يوم الدخول الفندقي (أول ليلة) وبلا نهاية: كل ليالي الحجز
+    final checkin = DateTime.tryParse(booking.checkinDate);
+    final effectiveHotelDay = checkin != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: checkin)
+        : HotelTimeEngine.getHotelDayKey();
+
+    return _createAdjustment(
+      booking: booking,
+      amount: amount,
+      type: AdjustmentType.surcharge,
+      mode: AdjustmentMode.perNight,
+      effectiveHotelDay: effectiveHotelDay,
+      endHotelDay: null,
+      reason: reason ?? negotiatedRateReason,
+      appliedBy: appliedBy,
+      appliedAt: now,
+    );
+  }
+
+  Future<int> _sumActivePerNightSurcharges(
+    String bookingLocalUuid, {
+    String? excludingAdjustmentUuid,
+  }) async {
+    final activePerNightSurcharges =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
+              ..where(
+                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
+              )
+              ..where(
+                (a) => a.adjustmentMode.equals(AdjustmentMode.perNight.value),
+              )
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull()))
+            .get();
+
+    var total = 0;
+    for (final adjustment in activePerNightSurcharges) {
+      if (adjustment.localUuid != excludingAdjustmentUuid) {
+        total += adjustment.amount.round();
+      }
+    }
+    return total;
+  }
+
   Future<AdjustmentPreview> previewAdjustment({
     required int bookingId,
     required int amount,
@@ -153,9 +340,19 @@ class BookingPriceAdjustmentService {
       throw StateError('Room not found: ${booking.roomNumber}');
     }
 
+    final compactUuid = booking.localUuid.replaceAll('-', '');
+    final uuidVariants = <String>{
+      booking.localUuid,
+      if (compactUuid.isNotEmpty) compactUuid,
+    }.toList(growable: false);
+
     final nights =
         await (db.select(db.bookingNights)
-              ..where((n) => n.bookingLocalId.equals(bookingId))
+              ..where(
+                (n) =>
+                    n.bookingLocalId.equals(bookingId) |
+                    n.bookingUuidCache.isIn(uuidVariants),
+              )
               ..where((n) => n.deletedAt.isNull())
               ..orderBy([(n) => OrderingTerm.asc(n.hotelDayKey)]))
             .get();
@@ -168,13 +365,35 @@ class BookingPriceAdjustmentService {
     int nightsAffected = 0;
     final breakdown = <NightBreakdown>[];
 
-    final nightsInRange = nights.where((night) {
+    // إذا لم تكن سجلات الليالي مبنية بعد، نشتق الليالي بقاعدة الساعة 14:00 (Time.nightsWithCutoff)
+    final List<({String hotelDayKey, double nightlyRate})> effectiveNights;
+    if (nights.isNotEmpty) {
+      effectiveNights = nights
+          .map((n) => (hotelDayKey: n.hotelDayKey, nightlyRate: n.nightlyRate))
+          .toList(growable: false);
+    } else {
+      final checkin =
+          DateTime.tryParse(booking.checkinDate) ?? DateTime.now();
+      final endInstant =
+          DateTime.tryParse(
+            booking.actualCheckout ?? booking.checkoutDate ?? '',
+          ) ??
+          DateTime.now();
+      final count = Time.nightsWithCutoff(checkin, checkout: endInstant);
+      final firstHotelDay = HotelTimeEngine.getHotelDay(checkin);
+      effectiveNights = List.generate(count, (i) {
+        final day = firstHotelDay.add(Duration(days: i));
+        return (hotelDayKey: Time.dateToString(day), nightlyRate: room.price);
+      });
+    }
+
+    final nightsInRange = effectiveNights.where((night) {
       final nightDate = DateTime.parse(night.hotelDayKey);
       return !nightDate.isBefore(effectiveDate) &&
           (endDate == null || !nightDate.isAfter(endDate));
     }).toList();
 
-    for (final night in nights) {
+    for (final night in effectiveNights) {
       final nightDate = DateTime.parse(night.hotelDayKey);
       final isInRange =
           !nightDate.isBefore(effectiveDate) &&
@@ -192,7 +411,11 @@ class BookingPriceAdjustmentService {
           mode: mode,
           totalNights: nightsInRange.length,
         );
-        finalRate = (baseRate + adjustmentAmount).clamp(0.0, baseRate * 3);
+        final minAllowedRate = baseRate > 0 ? 0.01 : 0.0;
+        finalRate = (baseRate + adjustmentAmount).clamp(
+          minAllowedRate,
+          baseRate * 3,
+        );
         nightsAffected++;
       }
 
@@ -255,8 +478,197 @@ class BookingPriceAdjustmentService {
       throw StateError('Booking not found: $bookingLocalUuid');
     }
 
+    return _createAdjustment(
+      booking: booking,
+      amount: amount,
+      type: type,
+      mode: mode,
+      effectiveHotelDay: effectiveHotelDay,
+      endHotelDay: endHotelDay,
+      reason: reason,
+      appliedBy: appliedBy,
+    );
+  }
+
+  /// ✅ قاعدة الفندق المُثبتة (تأكيد المالك 2026-11-23): «لا ليالٍ مجانية»
+  /// — أي خصم (per_night أو توزيع total) يجعل السعر الفعلي لأي ليلة في
+  /// نطاقه ≤ 0 يُرفض عند الإدخال برسالة صريحة للمستخدم. الزيادات
+  /// (surcharges) لا يمكنها تصفير ليلة فلا يفحصها هذا الحارس.
+  ///
+  /// المحاكاة بنفس منطق الحاسبة الموحدة (StayBalanceCalculator.
+  /// buildPerNightAdjustments): سعر الغرفة الأساسي − الخصم الليلي القديم
+  /// (booking.discount غير الكلي) + خريطة كل التعديلات النشطة (بعد إضافة
+  /// التعديل قيد الإنشاء/التعديل). حارس الحساب (anomalyNights) يبقى خط
+  /// الدفاع الثاني لأي بيانات قديمة/مسحوبة.
+  Future<void> _assertNoFreeNights({
+    required Booking booking,
+    required int amount,
+    required AdjustmentType type,
+    required AdjustmentMode mode,
+    required String effectiveHotelDay,
+    String? endHotelDay,
+    String? excludingAdjustmentUuid,
+  }) async {
+    if (type != AdjustmentType.discount) {
+      return; // الزيادات لا تصفّر ليالٍ
+    }
+    if (amount <= 0) {
+      return; // ترفضه تحققات أسبق
+    }
+
+    // 1) السعر الأساسي — نفس مصدر المحرك الموحد (سعر الغرفة)
+    final room = await (db.select(db.rooms)
+          ..where((r) => r.roomNumber.equals(booking.roomNumber))
+          ..where((r) => r.deletedAt.isNull()))
+        .getSingleOrNull();
+    final baseRate = (room?.price ?? 0).round();
+    if (baseRate <= 0) {
+      // لا يمكن التحقق دون سعر أساسي — حارس الحساب سيلتقطه عند التنفيذ
+      return;
+    }
+
+    // 2) نطاق الإقامة للفحص والتوزيع
+    final checkin = DateTime.tryParse(booking.checkinDate);
+    if (checkin == null) {
+      return;
+    }
+    final checkinOnly = DateTime(checkin.year, checkin.month, checkin.day);
+    final recordedCheckout = (booking.actualCheckout != null &&
+            booking.actualCheckout!.isNotEmpty)
+        ? DateTime.tryParse(booking.actualCheckout!)
+        : null;
+    final manualCheckout = (booking.checkoutDate != null &&
+            booking.checkoutDate!.isNotEmpty)
+        ? DateTime.tryParse(booking.checkoutDate!)
+        : null;
+    final now = DateTime.now();
+    DateTime hotelDayDate(DateTime instant) => DateTime.parse(
+          HotelTimeEngine.getHotelDayKey(dateTime: instant),
+        );
+    final distributionEnd = recordedCheckout != null &&
+            !recordedCheckout.isAfter(now)
+        ? hotelDayDate(recordedCheckout)
+        : hotelDayDate(now);
+
+    // 3) التعديلات النشطة الحالية (مع استثناء قيد التعديل)
+    final actives = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) =>
+              a.bookingLocalUuid.equals(booking.localUuid) |
+              a.bookingLocalId.equals(booking.id))
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.deletedAt.isNull()))
+        .get();
+    final relevant = actives
+        .where((a) => a.localUuid != excludingAdjustmentUuid)
+        .toList();
+
+    // 4) خريطة لكل ليلة بنفس منطق الحاسبة الموحدة + التعديل الجديد فوقها
+    // (نسخة قابلة للتعديل: الدالة قد تعيد const {} عند فراغ القائمة)
+    final map = Map<String, double>.from(
+      StayBalanceCalculator.buildPerNightAdjustments(
+        relevant,
+        checkinOnly,
+        manualCheckout,
+        distributionEnd: distributionEnd,
+      ),
+    );
+    final effDate = DateTime.tryParse(effectiveHotelDay);
+    if (effDate != null) {
+      final effOnly = DateTime(effDate.year, effDate.month, effDate.day);
+      final endParsed = (endHotelDay != null && endHotelDay.isNotEmpty)
+          ? DateTime.tryParse(endHotelDay)
+          : null;
+      final endOnly = endParsed != null
+          ? DateTime(endParsed.year, endParsed.month, endParsed.day)
+          : null;
+      if (mode == AdjustmentMode.total) {
+        final rangeStart =
+            effOnly.isBefore(checkinOnly) ? checkinOnly : effOnly;
+        final rangeEnd = (endOnly != null && endOnly.isBefore(distributionEnd))
+            ? endOnly
+            : distributionEnd;
+        int nights = rangeEnd.difference(rangeStart).inDays + 1;
+        if (nights > 0) {
+          if (nights > 365) nights = 365;
+          final basePart = amount ~/ nights;
+          final remainder = amount % nights;
+          for (int i = 0; i < nights; i++) {
+            final key =
+                Time.dateToString(rangeStart.add(Duration(days: i)));
+            map[key] = (map[key] ?? 0.0) -
+                (basePart + (i < remainder ? 1 : 0)).toDouble();
+          }
+        }
+      } else {
+        final perNightEnd = endOnly ??
+            manualCheckout ??
+            checkinOnly.add(const Duration(days: 365));
+        DateTime night = effOnly;
+        int safety = 0;
+        while (!night.isAfter(perNightEnd) && safety < 365) {
+          final key = Time.dateToString(night);
+          map[key] = (map[key] ?? 0.0) - amount.toDouble();
+          night = night.add(const Duration(days: 1));
+          safety++;
+        }
+      }
+    }
+
+    // 5) الخصم الليلي القديم (booking.discount غير الكلي) يخفض السعر الأساسي
+    final legacyPerNight =
+        booking.discountType != 'total' ? booking.discount.round() : 0;
+    final effectiveBase = baseRate - legacyPerNight;
+
+    // 6) أي ليلة يصبح سعرها الفعلي ≤ 0 → رفض صريح (لا مجانية ولا عبور)
+    final violating = <String>[];
+    for (final entry in map.entries) {
+      final adjSum = entry.value;
+      if (adjSum >= 0) continue; // لا خصم صافياً على هذه الليلة
+      if (effectiveBase + adjSum <= 0) {
+        violating.add(entry.key);
+      }
+    }
+    if (violating.isNotEmpty) {
+      violating.sort();
+      final shown = violating.take(3).join('، ');
+      throw ArgumentError(
+        'قاعدة الفندق: لا ليالٍ مجانية إطلاقاً — هذا الخصم يجعل السعر الفعلي '
+        'لليالٍ ($shown${violating.length > 3 ? ' و${violating.length - 3} أخرى' : ''}) '
+        'صفراً أو أقل (السعر الأساسي الفعلي $effectiveBase). '
+        'خفّض قيمة الخصم أو قصّر نطاقه.',
+      );
+    }
+  }
+
+  /// النواة المشتركة لإنشاء سجل تعديل سعر: تعبئة كل الأعمدة الإلزامية،
+  /// تسجيل Outbox للمزامنة، إعادة تسعير الليالي، والنسخ الاحتياطي.
+  /// يستخدمها مسار شاشة إدارة الضيوف (applyTemporaryAdjustment) ومسار
+  /// التفاوض من شاشة الدفع (applyNegotiatedRateIncrease) معاً.
+  Future<BookingPriceAdjustment> _createAdjustment({
+    required Booking booking,
+    required int amount,
+    required AdjustmentType type,
+    required AdjustmentMode mode,
+    required String effectiveHotelDay,
+    required String? endHotelDay,
+    required String? reason,
+    required String? appliedBy,
+    int? appliedAt,
+  }) async {
+    final bookingLocalUuid = booking.localUuid;
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
+
+    // ✅ قاعدة «لا ليالٍ مجانية» (تأكيد المالك 2026-11-23): منع عند
+    // الإدخال — رفض أي خصم يصفّر ليلة داخل نطاقه برسالة صريحة.
+    await _assertNoFreeNights(
+      booking: booking,
+      amount: amount,
+      type: type,
+      mode: mode,
+      effectiveHotelDay: effectiveHotelDay,
+      endHotelDay: endHotelDay,
+    );
 
     final adjustment = BookingPriceAdjustmentsCompanion(
       localUuid: Value(uuid),
@@ -271,6 +683,7 @@ class BookingPriceAdjustmentService {
       isActive: const Value(true),
       reason: Value(reason),
       appliedBy: Value(appliedBy),
+      appliedAt: appliedAt != null ? Value(appliedAt) : const Value.absent(),
       createdAt: Value(now),
       updatedAt: Value(now),
       lastModified: Value(now),
@@ -296,6 +709,7 @@ class BookingPriceAdjustmentService {
         'isActive': true,
         'reason': reason,
         'appliedBy': appliedBy,
+        'appliedAt': appliedAt,
       },
       clientTs: now,
     );
@@ -315,6 +729,122 @@ class BookingPriceAdjustmentService {
     dlog(() => '✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
+  }
+
+  /// تعديل سجل تخفيض/زيادة نشط مع الحفاظ على UUID وسجل المزامنة.
+  /// لا يسمح بتعديل سجل منتهي أو محذوف حتى لا تتغير الحسابات التاريخية بصمت.
+  Future<void> updateAdjustment({
+    required String adjustmentUuid,
+    required int amount,
+    required AdjustmentMode mode,
+    required String effectiveHotelDay,
+    String? updatedBy,
+  }) async {
+    if (amount <= 0) {
+      throw ArgumentError('يجب أن تكون قيمة التعديل أكبر من صفر');
+    }
+    if (effectiveHotelDay.trim().isEmpty) {
+      throw ArgumentError('تاريخ بداية التعديل مطلوب');
+    }
+    final now = Time.nowEpoch();
+
+    final update = await db.transaction(() async {
+      final adjustment =
+          await (db.select(db.bookingPriceAdjustments)
+                ..where((a) => a.localUuid.equals(adjustmentUuid))
+                ..where((a) => a.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (adjustment == null) {
+        throw StateError('Adjustment not found: $adjustmentUuid');
+      }
+      final today = HotelTimeEngine.getHotelDayKey();
+      if (!adjustment.isActive ||
+          (adjustment.endHotelDay != null &&
+              adjustment.endHotelDay!.isNotEmpty &&
+              adjustment.endHotelDay!.compareTo(today) < 0)) {
+        throw StateError('لا يمكن تعديل تعديل سعري منتهي');
+      }
+
+      final isNegotiatedRateSurcharge =
+          adjustment.reason == negotiatedRateReason &&
+          adjustment.adjustmentType == AdjustmentType.surcharge.value;
+      if (isNegotiatedRateSurcharge) {
+        if (mode != AdjustmentMode.perNight) {
+          throw ArgumentError('الزيادة التفاوضية يجب أن تبقى محسوبة لكل ليلة');
+        }
+        if (amount > maxNegotiatedPerNightIncrease) {
+          throw ArgumentError(
+            'الزيادة التفاوضية لا يجوز أن تتجاوز '
+            '$maxNegotiatedPerNightIncrease ريال لكل ليلة',
+          );
+        }
+
+        final otherPerNightSurcharges = await _sumActivePerNightSurcharges(
+          adjustment.bookingLocalUuid,
+          excludingAdjustmentUuid: adjustment.localUuid,
+        );
+        final proposedTotal = otherPerNightSurcharges + amount;
+        if (proposedTotal > maxNegotiatedPerNightIncrease) {
+          throw StateError(
+            'مجموع الزيادات النشطة لكل ليلة يتجاوز الحد '
+            '($proposedTotal > $maxNegotiatedPerNightIncrease ريال)',
+          );
+        }
+      }
+
+      // ✅ قاعدة «لا ليالٍ مجانية» (تأكيد المالك 2026-11-23): منع عند
+      // الإدخال في مسار التعديل أيضاً — التحقق بالقيم الجديدة مع استثناء
+      // التعديل القديم من الحساب (سيُستبدل).
+      final linkedBooking = await (db.select(
+            db.bookings,
+          )..where((b) => b.localUuid.equals(adjustment.bookingLocalUuid)))
+          .getSingleOrNull();
+      if (linkedBooking != null) {
+        await _assertNoFreeNights(
+          booking: linkedBooking,
+          amount: amount,
+          type: AdjustmentType.fromValue(adjustment.adjustmentType ?? 0),
+          mode: mode,
+          effectiveHotelDay: effectiveHotelDay,
+          endHotelDay: adjustment.endHotelDay,
+          excludingAdjustmentUuid: adjustment.localUuid,
+        );
+      }
+
+      final update = BookingPriceAdjustmentsCompanion(
+        amount: Value(amount.toDouble()),
+        adjustmentMode: Value(mode.value),
+        effectiveHotelDay: Value(effectiveHotelDay),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(adjustment.version + 1),
+        appliedBy: updatedBy == null ? const Value.absent() : Value(updatedBy),
+      );
+      await (db.update(
+        db.bookingPriceAdjustments,
+      )..where((a) => a.localUuid.equals(adjustmentUuid))).write(update);
+      await OutboxDao(db).merge(
+        entity: 'booking_price_adjustments',
+        op: 'update',
+        localUuid: adjustmentUuid,
+        payload: {
+          'amount': amount.toDouble(),
+          'adjustmentMode': mode.value,
+          'effectiveHotelDay': effectiveHotelDay,
+          'updatedBy': updatedBy,
+        },
+        clientTs: now,
+      );
+      if (adjustment.bookingLocalId != null) {
+        await _recalculateBookingNights(adjustment.bookingLocalId!);
+      }
+      return update;
+    });
+    await AutoBackupManager.instance.onDataChange(
+      'booking_price_adjustments',
+      'UPDATE',
+      recordData: update.toColumns(false),
+    );
   }
 
   Future<void> cancelAdjustment({
@@ -445,9 +975,24 @@ class BookingPriceAdjustmentService {
     required int bookingId,
     required String newRoomNumber,
   }) async {
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final compactUuid = (booking?.localUuid ?? '').replaceAll('-', '');
+    final uuidVariants = <String>{
+      if (booking != null && booking.localUuid.isNotEmpty) booking.localUuid,
+      if (compactUuid.isNotEmpty) compactUuid,
+    }.toList(growable: false);
+
     final adjustments =
         await (db.select(db.bookingPriceAdjustments)
-              ..where((a) => a.bookingLocalId.equals(bookingId))
+              ..where(
+                (a) => uuidVariants.isEmpty
+                    ? a.bookingLocalId.equals(bookingId)
+                    : (a.bookingLocalId.equals(bookingId) |
+                          a.bookingLocalUuid.isIn(uuidVariants) |
+                          a.bookingUuid.isIn(uuidVariants)),
+              )
               ..where((a) => a.isActive.equals(true))
               ..where((a) => a.deletedAt.isNull()))
             .get();
@@ -467,6 +1012,7 @@ class BookingPriceAdjustmentService {
           db.bookingPriceAdjustments,
         )..where((a) => a.localUuid.equals(adj.localUuid))).write(
           BookingPriceAdjustmentsCompanion(
+            bookingLocalId: Value(bookingId),
             roomNumber: Value(newRoomNumber),
             updatedAt: Value(now),
             lastModified: Value(now),
@@ -537,21 +1083,48 @@ class BookingPriceAdjustmentService {
 
     final result = <Booking>[];
 
-    // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل التعديلات مرة واحدة
+    // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل التعديلات مرة واحدة مع دعم UUID
     final bookingIds = bookings.map((b) => b.id).toSet();
+    final bookingUuidToId = <String, int>{};
+    for (final b in bookings) {
+      final u = b.localUuid.trim();
+      if (u.isNotEmpty) {
+        bookingUuidToId[u] = b.id;
+        bookingUuidToId[u.replaceAll('-', '')] = b.id;
+      }
+    }
+    final uuidKeys = bookingUuidToId.keys.toList(growable: false);
     final allSurcharges =
         await (db.select(db.bookingPriceAdjustments)
-              ..where((a) => a.bookingLocalId.isIn(bookingIds))
+              ..where(
+                (a) => uuidKeys.isEmpty
+                    ? a.bookingLocalId.isIn(bookingIds)
+                    : (a.bookingLocalId.isIn(bookingIds) |
+                          a.bookingLocalUuid.isIn(uuidKeys) |
+                          a.bookingUuid.isIn(uuidKeys)),
+              )
               ..where(
                 (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
               )
               ..where((a) => a.isActive.equals(true))
               ..where((a) => a.deletedAt.isNull()))
             .get();
-    final surchargeBookingIds = allSurcharges
-        .map((a) => a.bookingLocalId)
-        .whereType<int>()
-        .toSet();
+    final surchargeBookingIds = <int>{};
+    for (final a in allSurcharges) {
+      if (a.bookingLocalId != null && bookingIds.contains(a.bookingLocalId)) {
+        surchargeBookingIds.add(a.bookingLocalId!);
+      } else {
+        final rawUuid = a.bookingLocalUuid.trim().isNotEmpty
+            ? a.bookingLocalUuid.trim()
+            : (a.bookingUuid ?? '').trim();
+        final resolvedId =
+            bookingUuidToId[rawUuid] ??
+            bookingUuidToId[rawUuid.replaceAll('-', '')];
+        if (resolvedId != null) {
+          surchargeBookingIds.add(resolvedId);
+        }
+      }
+    }
 
     for (final booking in bookings) {
       if (!surchargeBookingIds.contains(booking.id)) {
@@ -580,10 +1153,23 @@ class BookingPriceAdjustmentService {
 
     final adjustments = await query.get();
 
-    final bookingIds = adjustments
+    final directBookingIds = adjustments
         .map((a) => a.bookingLocalId)
         .whereType<int>()
         .toSet();
+    final adjustmentUuids = <String>{};
+    for (final a in adjustments) {
+      final u1 = a.bookingLocalUuid.trim();
+      final u2 = (a.bookingUuid ?? '').trim();
+      if (u1.isNotEmpty) {
+        adjustmentUuids.add(u1);
+        adjustmentUuids.add(u1.replaceAll('-', ''));
+      }
+      if (u2.isNotEmpty) {
+        adjustmentUuids.add(u2);
+        adjustmentUuids.add(u2.replaceAll('-', ''));
+      }
+    }
 
     double totalPotentialRevenue = 0;
     double totalActualRevenue = 0;
@@ -591,11 +1177,43 @@ class BookingPriceAdjustmentService {
     double totalGainedRevenue = 0;
     final bookingDetails = <BookingLostRevenue>[];
 
-    // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل الحجوزات والغرف والليالي مرة واحدة
-    final bookingList = await (db.select(
-      db.bookings,
-    )..where((b) => b.id.isIn(bookingIds))).get();
+    // ✅ تحسين أداء: batch lookup بدل N+1 — جلب الحجوزات بـ id أو UUID
+    final bookingList =
+        await (db.select(db.bookings)..where(
+              (b) => adjustmentUuids.isEmpty
+                  ? b.id.isIn(directBookingIds)
+                  : (b.id.isIn(directBookingIds) |
+                        b.localUuid.isIn(adjustmentUuids)),
+            ))
+            .get();
     final bookingMap = {for (final b in bookingList) b.id: b};
+    final bookingIdByUuid = <String, int>{};
+    final bookingUuidVariants = <String>{};
+    for (final b in bookingList) {
+      final u = b.localUuid.trim();
+      if (u.isNotEmpty) {
+        bookingIdByUuid[u] = b.id;
+        bookingIdByUuid[u.replaceAll('-', '')] = b.id;
+        bookingUuidVariants.add(u);
+        bookingUuidVariants.add(u.replaceAll('-', ''));
+      }
+    }
+
+    int? resolveAdjustmentBookingId(BookingPriceAdjustment a) {
+      if (a.bookingLocalId != null &&
+          bookingMap.containsKey(a.bookingLocalId)) {
+        return a.bookingLocalId;
+      }
+      final raw = a.bookingLocalUuid.trim().isNotEmpty
+          ? a.bookingLocalUuid.trim()
+          : (a.bookingUuid ?? '').trim();
+      if (raw.isEmpty) return a.bookingLocalId;
+      return bookingIdByUuid[raw] ??
+          bookingIdByUuid[raw.replaceAll('-', '')] ??
+          a.bookingLocalId;
+    }
+
+    final bookingIds = bookingMap.keys.toSet();
 
     final roomNumbers = bookingList.map((b) => b.roomNumber).toSet();
     final roomList = await (db.select(
@@ -603,12 +1221,27 @@ class BookingPriceAdjustmentService {
     )..where((r) => r.roomNumber.isIn(roomNumbers))).get();
     final roomMap = {for (final r in roomList) r.roomNumber: r};
 
-    final nightsList = await (db.select(
-      db.bookingNights,
-    )..where((n) => n.bookingLocalId.isIn(bookingIds))).get();
+    final nightsList =
+        await (db.select(db.bookingNights)
+              ..where(
+                (n) => bookingUuidVariants.isEmpty
+                    ? n.bookingLocalId.isIn(bookingIds)
+                    : (n.bookingLocalId.isIn(bookingIds) |
+                          n.bookingUuidCache.isIn(bookingUuidVariants)),
+              )
+              ..where((n) => n.deletedAt.isNull()))
+            .get();
     final nightsMap = <int, List<BookingNight>>{};
     for (final night in nightsList) {
-      nightsMap.putIfAbsent(night.bookingLocalId, () => []).add(night);
+      var targetId = night.bookingLocalId;
+      if (!bookingMap.containsKey(targetId)) {
+        final rawUuid = (night.bookingUuidCache ?? '').trim();
+        targetId =
+            bookingIdByUuid[rawUuid] ??
+            bookingIdByUuid[rawUuid.replaceAll('-', '')] ??
+            targetId;
+      }
+      nightsMap.putIfAbsent(targetId, () => []).add(night);
     }
 
     for (final bookingId in bookingIds) {
@@ -622,16 +1255,40 @@ class BookingPriceAdjustmentService {
         continue;
       }
 
-      final nights = nightsMap[bookingId] ?? const [];
+      final storedNights = nightsMap[bookingId] ?? const [];
+      final List<({String hotelDayKey, double rate})> effectiveNights;
+      if (storedNights.isNotEmpty) {
+        effectiveNights = storedNights
+            .map(
+              (n) => (
+                hotelDayKey: n.hotelDayKey,
+                rate: n.finalRate > 0 ? n.finalRate : n.nightlyRate,
+              ),
+            )
+            .toList(growable: false);
+      } else {
+        final checkin = DateTime.tryParse(booking.checkinDate) ?? DateTime.now();
+        final endInstant =
+            DateTime.tryParse(
+              booking.actualCheckout ?? booking.checkoutDate ?? '',
+            ) ??
+            DateTime.now();
+        final count = Time.nightsWithCutoff(checkin, checkout: endInstant);
+        final firstHotelDay = HotelTimeEngine.getHotelDay(checkin);
+        effectiveNights = List.generate(count, (i) {
+          final day = firstHotelDay.add(Duration(days: i));
+          return (hotelDayKey: Time.dateToString(day), rate: room.price);
+        });
+      }
 
       final bookingAdjustments = adjustments
-          .where((a) => a.bookingLocalId == bookingId)
+          .where((a) => resolveAdjustmentBookingId(a) == bookingId)
           .toList();
 
-      final double potentialRevenue = nights.length * room.price;
-      final double actualRevenue = nights.fold<double>(
+      final double potentialRevenue = effectiveNights.length * room.price;
+      final double actualRevenue = effectiveNights.fold<double>(
         0,
-        (sum, n) => sum + n.nightlyRate,
+        (sum, n) => sum + n.rate,
       );
       double lostRevenue = 0;
       double gainedRevenue = 0;
@@ -645,7 +1302,7 @@ class BookingPriceAdjustmentService {
             : null;
 
         int nightsAffected = 0;
-        for (final night in nights) {
+        for (final night in effectiveNights) {
           final nightDate = DateTime.parse(night.hotelDayKey);
           if (!nightDate.isBefore(effectiveDate) &&
               (endDate == null || !nightDate.isAfter(endDate))) {
@@ -654,15 +1311,19 @@ class BookingPriceAdjustmentService {
         }
 
         final type = AdjustmentType.fromValue(adj.adjustmentType ?? 0);
+        final mode = AdjustmentMode.fromValue(adj.adjustmentMode);
         final double signedAmount = adj.amount;
-        final double impact = type == AdjustmentType.discount
-            ? -signedAmount * nightsAffected
+        final double totalAdjustmentMagnitude = mode == AdjustmentMode.total
+            ? (nightsAffected > 0 ? signedAmount : 0.0)
             : signedAmount * nightsAffected;
+        final double impact = type == AdjustmentType.discount
+            ? -totalAdjustmentMagnitude
+            : totalAdjustmentMagnitude;
 
         if (type == AdjustmentType.discount) {
-          lostRevenue += signedAmount * nightsAffected;
+          lostRevenue += totalAdjustmentMagnitude;
         } else {
-          gainedRevenue += signedAmount * nightsAffected;
+          gainedRevenue += totalAdjustmentMagnitude;
         }
 
         adjustmentSummaries.add(

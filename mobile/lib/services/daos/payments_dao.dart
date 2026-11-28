@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
@@ -23,6 +24,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
+
+  List<String> _bookingUuidVariants(String? rawUuid) {
+    final trimmed = (rawUuid ?? '').trim();
+    if (trimmed.isEmpty) return const [];
+    final compact = trimmed.replaceAll('-', '');
+    return <String>{
+      trimmed,
+      if (compact.isNotEmpty) compact,
+    }.toList(growable: false);
+  }
 
   Future<List<Payment>> list({
     int? bookingLocalId,
@@ -46,7 +57,16 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.isPendingBalance.equals(false));
     }
     if (bookingLocalId != null) {
-      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
+      final booking = await (db.select(
+        db.bookings,
+      )..where((b) => b.id.equals(bookingLocalId))).getSingleOrNull();
+      final variants = _bookingUuidVariants(booking?.localUuid);
+      q.where(
+        (t) => variants.isEmpty
+            ? t.bookingLocalId.equals(bookingLocalId)
+            : (t.bookingLocalId.equals(bookingLocalId) |
+                  t.bookingUuidCache.isIn(variants)),
+      );
     }
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));
@@ -110,12 +130,37 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     int? limit,
     int offset = 0,
   }) {
+    if (bookingLocalId != null) {
+      final bookingStream = (db.select(
+        db.bookings,
+      )..where((b) => b.id.equals(bookingLocalId))).watchSingleOrNull();
+      return bookingStream.asyncExpand((booking) {
+        final scopedQuery = select(payments);
+        if (!includeDeleted) {
+          scopedQuery.where((t) => t.deletedAt.isNull());
+        }
+        final variants = _bookingUuidVariants(booking?.localUuid);
+        scopedQuery.where(
+          (t) => variants.isEmpty
+              ? t.bookingLocalId.equals(bookingLocalId)
+              : (t.bookingLocalId.equals(bookingLocalId) |
+                    t.bookingUuidCache.isIn(variants)),
+        );
+        scopedQuery.orderBy([
+          (t) =>
+              OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+          (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+        ]);
+        if (limit != null) {
+          scopedQuery.limit(limit, offset: offset);
+        }
+        return scopedQuery.watch();
+      });
+    }
+
     final q = select(payments);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
-    }
-    if (bookingLocalId != null) {
-      q.where((t) => t.bookingLocalId.equals(bookingLocalId));
     }
     // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT لمنع تذبذب الصفحات
     // عبر التحديثات. id كـ tie-breaker يضمن استقرار الترتيب.
@@ -210,27 +255,33 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (excludePendingBalance) {
       q.where((t) => t.isPendingBalance.equals(false));
     }
-    if (fromHotelDay != null) {
-      // hotelDayKey >= fromHotelDay، مع fallback لحقل paymentDate عند كون hotelDayKey فارغاً
-      q.where(
-        (t) =>
-            (t.hotelDayKey.isNotNull() &
-                t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() &
-                t.paymentDate.isBiggerOrEqualValue(fromHotelDay)),
-      );
-    }
-    if (toHotelDay != null) {
-      final endRange = SqlDateRange.forDay(toHotelDay);
-      q.where(
-        (t) =>
-            (t.hotelDayKey.isNotNull() &
-                t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() &
-                (endRange == null
-                    ? t.paymentDate.isSmallerOrEqualValue(toHotelDay)
-                    : t.paymentDate.isSmallerThanValue(endRange.endExclusive))),
-      );
+    if (fromHotelDay != null || toHotelDay != null) {
+      q.where((t) {
+        Expression<bool> hotelDayKeyRange = const Constant(true);
+        Expression<bool> legacyDateRange = const Constant(true);
+        if (fromHotelDay != null) {
+          hotelDayKeyRange =
+              hotelDayKeyRange &
+              t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay);
+          legacyDateRange =
+              legacyDateRange &
+              t.paymentDate.isBiggerOrEqualValue(fromHotelDay);
+        }
+        if (toHotelDay != null) {
+          hotelDayKeyRange =
+              hotelDayKeyRange &
+              t.hotelDayKey.isSmallerOrEqualValue(toHotelDay);
+          legacyDateRange =
+              legacyDateRange &
+              t.paymentDate.isSmallerThanValue(Time.hotelDayEndIso(toHotelDay));
+        }
+        final hasHotelDayKey =
+            t.hotelDayKey.isNotNull() & t.hotelDayKey.equals('').not();
+        final hasNoHotelDayKey =
+            t.hotelDayKey.isNull() | t.hotelDayKey.equals('');
+        return (hasHotelDayKey & hotelDayKeyRange) |
+            (hasNoHotelDayKey & legacyDateRange);
+      });
     }
     if (roomNumber != null && roomNumber.isNotEmpty) {
       q.where((t) => t.roomNumber.equals(roomNumber));
@@ -241,7 +292,20 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     q.orderBy([
       (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
     ]);
-    return q.get();
+    final results = await q.get();
+    if (fromHotelDay == null && toHotelDay == null) return results;
+    return results
+        .where((payment) {
+          final hotelDayKey = HotelTimeEngine.resolvePaymentHotelDayKey(
+            storedHotelDayKey: payment.hotelDayKey,
+            paymentDate: payment.paymentDate,
+          );
+          if (hotelDayKey == null) return false;
+          return (fromHotelDay == null ||
+                  hotelDayKey.compareTo(fromHotelDay) >= 0) &&
+              (toHotelDay == null || hotelDayKey.compareTo(toHotelDay) <= 0);
+        })
+        .toList(growable: false);
   }
 
   Future<List<Payment>> listByHotelDayKey(
@@ -280,12 +344,24 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
   Stream<Payment?> watchById(int id) =>
       (select(payments)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
+  String _canonicalPaymentUuid(String value) {
+    final trimmed = value.trim();
+    if (trimmed.length == 32 && !trimmed.contains('-')) {
+      return '${trimmed.substring(0, 8)}-${trimmed.substring(8, 12)}-'
+          '${trimmed.substring(12, 16)}-${trimmed.substring(16, 20)}-'
+          '${trimmed.substring(20)}';
+    }
+    return trimmed;
+  }
+
   Future<int> insertOne(
     PaymentsCompanion data, {
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
-    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+    final uu = _canonicalPaymentUuid(
+      data.localUuid.present ? data.localUuid.value : IdGen.uuid(),
+    );
     final comp = data.copyWith(
       localUuid: Value(uu),
       createdAt: Value(now),
@@ -294,6 +370,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       origin: Value(originIsServer ? 'server' : 'local'),
       deviceId: originIsServer
           ? const Value.absent()
+          : (data.deviceId.present && data.deviceId.value.trim().isNotEmpty)
+          ? Value(data.deviceId.value)
           : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       serverId: data.serverPaymentId.present
           ? Value(data.serverPaymentId.value)
@@ -351,6 +429,11 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
+      if (existing.isImmutable && !originIsServer) {
+        // Immutable financial records may only change through an explicit,
+        // audited domain operation (for example PaymentVoidService).
+        return 0;
+      }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
       final effectiveLastModified = originIsServer && data.lastModified.present
@@ -386,6 +469,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       final existing = await getById(id);
       if (existing == null) {
+        return 0;
+      }
+      if (existing.isImmutable && !originIsServer) {
         return 0;
       }
       final rows = await (update(payments)..where((t) => t.id.equals(id)))
@@ -479,20 +565,35 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             paymentMethod: Value(payment.paymentMethod),
             revenueType: Value(payment.revenueType),
             hotelDayKey: Value(payment.hotelDayKey),
+            isVoided: Value(payment.isVoided),
+            voidedAt: Value(payment.voidedAt),
+            voidedBy: Value(payment.voidedBy),
+            voidReason: Value(payment.voidReason),
+            isPendingBalance: Value(payment.isPendingBalance),
             linkedDebtUuid: Value(payment.linkedDebtUuid),
             bookingUuidCache: Value(payment.bookingUuidCache),
             cashTransactionLocalId: Value(payment.cashTransactionLocalId),
             cashTransactionServerId: Value(payment.cashTransactionServerId),
-            localUuid: Value(payment.localUuid),
+            isImmutable: Value(payment.isImmutable),
+            localUuid: Value(_canonicalPaymentUuid(payment.localUuid)),
             serverId: Value(payment.serverId),
             createdAt: Value(payment.createdAt),
             updatedAt: Value(payment.updatedAt),
             deletedAt: Value(payment.deletedAt),
             lastModified: Value(payment.lastModified),
+            createdAtIso: Value(payment.createdAtIso),
+            updatedAtIso: Value(payment.updatedAtIso),
+            deletedAtIso: Value(payment.deletedAtIso),
+            createdAtEpoch: Value(payment.createdAtEpoch),
+            lastModifiedEpoch: Value(payment.lastModifiedEpoch),
             version: Value(payment.version),
             origin: Value(payment.origin),
+            deviceId: Value(payment.deviceId),
+            vectorClock: Value(payment.vectorClock),
+            idempotencyKey: Value(payment.idempotencyKey),
             receivedByUserId: Value(payment.receivedByUserId),
             receivedByName: Value(payment.receivedByName),
+            receivedByCloudId: Value(payment.receivedByCloudId),
             receivedSessionUuid: Value(payment.receivedSessionUuid),
           ),
         );

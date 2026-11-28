@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/hotel_time_engine.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/stream_helpers.dart';
 
@@ -358,11 +359,14 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
       0,
       (s, p) => s + (p.amount as num).toDouble(),
     );
-    final now = DateTime.now();
+    final hotelDayKey = HotelTimeEngine.getHotelDayKey();
     final today = payments.where((p) {
       try {
-        final d = DateTime.parse(p.paymentDate as String);
-        return d.year == now.year && d.month == now.month && d.day == now.day;
+        return HotelTimeEngine.paymentBelongsToHotelDay(
+          storedHotelDayKey: p.hotelDayKey as String?,
+          paymentDate: p.paymentDate as String,
+          hotelDayKey: hotelDayKey,
+        );
       } catch (_) {
         return false;
       }
@@ -477,7 +481,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     final methodIcon = _getMethodIcon(payment.paymentMethod as String);
     final revenueLabel = _getRevenueLabel(payment.revenueType as String);
     final formattedDate = _formatDate(payment.paymentDate as String);
-    final isToday = _isToday(payment.paymentDate as String);
+    final isToday = _isToday(payment);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -682,7 +686,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     final methodColor = _getMethodColor(payment.paymentMethod as String);
     final revenueLabel = _getRevenueLabel(payment.revenueType as String);
     final formattedDate = _formatDate(payment.paymentDate as String);
-    final isToday = _isToday(payment.paymentDate as String);
+    final isToday = _isToday(payment);
 
     showDialog<void>(
       context: context,
@@ -964,13 +968,13 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     }
   }
 
-  bool _isToday(String dateStr) {
+  bool _isToday(dynamic payment) {
     try {
-      final date = DateTime.parse(dateStr);
-      final now = DateTime.now();
-      return date.year == now.year &&
-          date.month == now.month &&
-          date.day == now.day;
+      return HotelTimeEngine.paymentBelongsToHotelDay(
+        storedHotelDayKey: payment.hotelDayKey as String?,
+        paymentDate: payment.paymentDate as String,
+        hotelDayKey: HotelTimeEngine.getHotelDayKey(),
+      );
     } catch (_) {
       return false;
     }

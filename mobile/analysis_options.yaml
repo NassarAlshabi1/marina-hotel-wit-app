@@ -15,7 +15,6 @@ analyzer:
     - "**/generated_plugin_registrant.dart"
     - "**/firebase_options.dart"
     - "build/**"
-    - "test/**"
     - "integration_test/**"
     - "test_driver/**"
     - "android/**"

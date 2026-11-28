@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
@@ -14,7 +15,50 @@ import 'password_hasher.dart';
 
 enum AuthType { local }
 
+typedef CloudAccountsLoader =
+    Future<Map<String, Map<String, dynamic>>> Function({bool includeInactive});
+
+abstract interface class AuthAccountCache {
+  Future<String?> read(String key);
+  Future<void> write(String key, String value);
+}
+
+class _FlutterSecureAuthAccountCache implements AuthAccountCache {
+  const _FlutterSecureAuthAccountCache(this._storage);
+
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<String?> read(String key) => _storage.read(key: key);
+
+  @override
+  Future<void> write(String key, String value) =>
+      _storage.write(key: key, value: value);
+}
+
 class AuthLocalStore {
+  AuthLocalStore({
+    FlutterSecureStorage? secureStorage,
+    AuthAccountCache? accountCache,
+    CloudAccountsLoader? cloudAccountsLoader,
+  }) : _accountCache =
+           accountCache ??
+           _FlutterSecureAuthAccountCache(
+             secureStorage ?? _defaultSecureStorage,
+           ),
+       _cloudAccountsLoader = cloudAccountsLoader;
+
+  final AuthAccountCache _accountCache;
+  final CloudAccountsLoader? _cloudAccountsLoader;
+
+  static const FlutterSecureStorage _defaultSecureStorage =
+      FlutterSecureStorage(
+        aOptions: AndroidOptions(encryptedSharedPreferences: true),
+        iOptions: IOSOptions(
+          accessibility: KeychainAccessibility.first_unlock_this_device,
+        ),
+      );
+
   String _cloudDocumentId(String username) {
     final legacyId = 'user_$username';
     final validLegacy =
@@ -29,6 +73,7 @@ class AuthLocalStore {
   static const _kCurrentUser = 'current_user';
   static const _kPermissionsMap = 'user_permissions';
   static const _kCustomAccounts = 'custom_accounts';
+  static const _kCachedCloudAccounts = 'cached_cloud_accounts_v1';
   static const _kRememberMe = 'remember_me';
   static const _kAuthType = 'auth_type';
 
@@ -87,14 +132,14 @@ class AuthLocalStore {
   }
 
   /// حسابات افتراضية للوصول المحلي (fallback عند عدم توفر Appwrite Cloud).
-  ///
-  /// admin/admin — مدير النظام
+  /// كلمة مرور المدير المحلي محفوظة كتحقق PBKDF2 مملّح، لا كنص صريح.
   ///
   /// ⚠️ مهم: هذه الحسابات تعمل فقط على الأجهزة التي لم تُهاجر لـ Appwrite Cloud.
   /// الأجهزة المُهاجرة تستخدم `app_users` collection في Cloud.
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
     'admin': {
-      'password': 'admin',
+      'password':
+          r'pbkdf2_sha256$100000$b1M/nOTsNvDaYSDcqvXqbg==$ToNC4MMLGeMcuEbJZKgB/xib/U1eOOmJm/nrxLw1MJo=',
       'user_type': 'admin',
       'full_name': 'مدير النظام',
       'id': 1,
@@ -195,6 +240,12 @@ class AuthLocalStore {
     bool includeInactive = false,
   }) async {
     try {
+      final injectedLoader = _cloudAccountsLoader;
+      if (injectedLoader != null) {
+        final accounts = await injectedLoader(includeInactive: includeInactive);
+        await _saveCachedCloudAccounts(accounts);
+        return accounts;
+      }
       final appwrite = AppwriteService();
       await appwrite.initialize();
       final docs = await appwrite.listDocuments(
@@ -232,12 +283,68 @@ class AuthLocalStore {
           tag: 'AUTH',
         );
       }
+      // نسخة مشفّرة على الجهاز تتيح للمستخدم الذي سبق مزامنته تسجيل الدخول
+      // دون شبكة. لا نحتفظ بالحسابات المعطلة أو المقفلة في هذه النسخة.
+      await _saveCachedCloudAccounts(cloudAccounts);
       return cloudAccounts;
     } catch (e) {
       AppLogger.warning(
-        'Failed to load cloud users (fallback to local only)',
+        'Failed to load cloud users (trying secure offline cache)',
         tag: 'AUTH',
         error: e,
+      );
+      return _loadCachedCloudAccounts();
+    }
+  }
+
+  Future<void> _saveCachedCloudAccounts(
+    Map<String, Map<String, dynamic>> accounts,
+  ) async {
+    try {
+      final activeAccounts = <String, Map<String, dynamic>>{};
+      for (final entry in accounts.entries) {
+        final account = entry.value;
+        if (account['active'] == false || account['is_locked'] == true) {
+          continue;
+        }
+        activeAccounts[entry.key] = account;
+      }
+      await _accountCache.write(
+        _kCachedCloudAccounts,
+        jsonEncode(activeAccounts),
+      );
+    } catch (e, st) {
+      // فشل التخزين الاحتياطي لا يمنع الدخول عند توفر Appwrite.
+      AppLogger.warning(
+        'تعذر تحديث نسخة الحسابات السحابية الآمنة',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _loadCachedCloudAccounts() async {
+    try {
+      final raw = await _accountCache.read(_kCachedCloudAccounts);
+      if (raw == null || raw.isEmpty) return {};
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return {};
+      return decoded.map((key, value) {
+        if (value is Map) {
+          return MapEntry(
+            key.toString(),
+            value.map((k, v) => MapEntry(k.toString(), v)),
+          );
+        }
+        return MapEntry(key.toString(), <String, dynamic>{});
+      });
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر قراءة نسخة الحسابات السحابية الآمنة',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
       );
       return {};
     }
@@ -260,6 +367,10 @@ class AuthLocalStore {
     }
 
     if (account == null) {
+      return null;
+    }
+    if (account['is_cloud'] == true &&
+        (account['active'] == false || account['is_locked'] == true)) {
       return null;
     }
     final storedPassword = account['password']?.toString() ?? '';
@@ -303,22 +414,13 @@ class AuthLocalStore {
       }
       // حفظ credentials_version لمراقبة الجلسة
       try {
-        final appwrite = AppwriteService();
-        await appwrite.initialize();
-        final docs = await appwrite.listDocuments(
-          collectionId: 'app_users',
-          useCache: false,
-        );
-        for (final doc in docs) {
-          if ((doc.data['username']?.toString() ?? '') == normalized) {
-            final version = doc.data['credentials_version'] as int? ?? 0;
-            await saveCredentialsVersion(version);
-            break;
-          }
-        }
+        // يحتوي السجل الذي جرى تحميله للتو (أو من النسخة الآمنة) على
+        // credentials_version؛ لا حاجة لطلب شبكة إضافي بعد فحص كلمة المرور.
+        final version = (account['credentials_version'] as num?)?.toInt();
+        if (version != null) await saveCredentialsVersion(version);
       } catch (e, st) {
         AppLogger.warning(
-          'تعذر حفظ credentials_version للمستخدم $normalized',
+          'تعذر حفظ credentials_version المحلي للمستخدم $normalized',
           tag: 'AUTH',
           error: e,
           stackTrace: st,

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
+import 'package:flutter/foundation.dart';
 
 import 'adapters/id_resolver.dart';
 import 'appwrite_cache_manager.dart';
@@ -13,6 +14,7 @@ import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
 import 'appwrite_sync_utils.dart';
 import 'secondary_appwrite_config.dart';
+import 'sync/blacklist_timestamp_compat.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
@@ -21,8 +23,14 @@ class AppwriteService {
   AppwriteService._internal();
   static final AppwriteService _instance = AppwriteService._internal();
 
-  late final Client _client;
-  late final Databases _databases;
+  // ✅ إصلاح شاشة إعدادات Appwrite Cloud: ليست final — يجب السماح
+  // بإعادة بناء العميل عند تغيير إعدادات الاتصال وقت التشغيل
+  // (reconfigure) بدلاً من إبقاء العميل القديم حتى إعادة تشغيل التطبيق.
+  late Client _client;
+  late Databases _databases;
+
+  /// آخر إعدادات استُخدمت في بناء [_client] — لمقارنة reconfigureIfNeeded.
+  Map<String, String>? _lastInitConfig;
 
   /// Cached secondary client & databases – lazily initialised on first failover call.
   Client? _secondaryClient;
@@ -98,7 +106,48 @@ class AppwriteService {
 
     _databases = Databases(_client);
     _initialized = true;
+    _lastInitConfig = Map<String, String>.from(
+      AppwriteConfigManager.currentConfig,
+    );
     _logger.info('AppwriteService initialized', tag: 'INIT');
+  }
+
+  /// ✅ إعادة بناء العميل بالإعدادات الفعّالة الحالية.
+  ///
+  /// يُستدعى بعد حفظ/إعادة تعيين إعدادات الاتصال من شاشة إعدادات
+  /// Appwrite Cloud حتى تُطبَّق القيم الجديدة فوراً على كل عمليات
+  /// القراءة/الكتابة/المزامنة — دون الحاجة لإغلاق التطبيق وإعادة فتحه.
+  /// (قبل هذا الإصلاح كان العميل singleton بـ late final يُبنى مرة
+  /// واحدة فقط، فكان زر «اختبار الاتصال» يفحص الإعدادات القديمة
+  /// والشاشة تعرض «غير متصل» رغم صحة القيم الجديدة المحفوظة).
+  Future<void> reconfigure() async {
+    _initialized = false;
+    invalidateSecondaryClient();
+    await initialize();
+    _logger.info(
+      'AppwriteService reconfigured → ${AppwriteConfigManager.endpoint} / '
+      '${AppwriteConfigManager.projectId}',
+      tag: 'INIT',
+    );
+  }
+
+  /// يعيد بناء العميل فقط إذا كانت الإعدادات الفعّالة مختلفة عن
+  /// الإعدادات التي بُني بها العميل الحالي. آمن للاستدعاء المتكرر.
+  Future<void> reconfigureIfNeeded() async {
+    final current = AppwriteConfigManager.currentConfig;
+    if (!_initialized ||
+        _lastInitConfig == null ||
+        !_sameConfig(_lastInitConfig!, current)) {
+      await reconfigure();
+    }
+  }
+
+  bool _sameConfig(Map<String, String> a, Map<String, String> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
   }
 
   Future<void> _ensureInitialized() async {
@@ -1381,11 +1430,19 @@ class AppwriteService {
     bool useCache = true,
   }) async {
     await _ensureInitialized();
-    return _listAllDocumentsInternal(
+    final docs = await _listAllDocumentsInternal(
       collectionId: AppwriteConfig.blacklistCollectionId,
       queries: queries ?? [],
       useCache: useCache,
     );
+    // ✅ (2026-11-26) توصيل طبقة التطبيع التي أنشأها c37431a — كانت
+    // مُعرَّفة وغير مُستدعاة أبداً (تحذير Kilo على PR #694) فكانت الطوابع
+    // الرقمية من السحابة ترمي TypeError داخل _syncBlacklist
+    // (`data['createdAt'] as String?`) ويُبتلع الاستثناء بدرع الفقدان
+    // فتفشل دفعة blacklist كاملة عند كل سحب. التطبيع هنا (خط الجلب) يغطي
+    // كل مستهلكي listBlacklist — سحب الإنتاج والتحقق — قبل وصول العقد
+    // القديم للمدير.
+    return BlacklistTimestampCompat.normalizeDocs(docs);
   }
 
   Future<models.Document> upsertBlacklist(
@@ -1714,6 +1771,21 @@ class AppwriteService {
   /// كان يصعد مباشرة كـ Exception إلى Crashlytics ويُسجّل كـ Fatal.
   /// بعد الإصلاح: يُعاد المحاولة 3 مرات (default) مع exponential backoff
   /// قبل رمي الاستثناء.
+  ///
+  /// ✅ إصلاح (2026-11-25) — «نجاح كاذب معكوس» بعد Timeout:
+  /// المسار الذي ظهر في سجلات الإنتاج:
+  ///   1) المحاولة الأولى تصل للسيرفر ويُنشأ المستند فعليًا، لكن العميل
+  ///      ينتظر أكثر من 30s فيحكم withTimeout بالـ TimeoutException.
+  ///   2) withRetry يعيد المحاولة بنفس documentId (معرّف حتمي = localUuid).
+  ///   3) السيرفر يرد بـ 409 document_already_exists لأن المستند وُجد من
+  ///      المحاولة الأولى نفسها!
+  ///   4) 409 غير قابل لإعادة المحاولة → كان يُرمى كخطأ ERROR كاذب، وفي
+  ///      مسار sync() يجعل hasSyncLog=false فيظل سجل sync_logs السحابي
+  ///      عالقًا على in_progress للأبد.
+  ///
+  /// الحل: 409 على create بمعرّف حتمي = نجاح متكرر آمن (idempotent) —
+  /// المستند موجود، فنرجعه بـ getDocument (أو مستندًا تركيبيًا إن فشلت
+  /// الجلسة) بدل رمي خطأ يعامَل كفشل.
   Future<models.Document> createRow({
     required String collectionId,
     required String documentId,
@@ -1748,8 +1820,83 @@ class AppwriteService {
           );
           continue;
         }
+        // ✅ (2026-11-25): 409 document_already_exists على create بمعرّف
+        // حتمي يعني غالبًا أن المحاولة السابقة (بعد timeout العميل) وصلت
+        // للسيرفر وأنشأت المستند بنجاح — لا فشل حقيقي. نرجع المستند
+        // الموجود بدل رمي الخطأ (السجل يظهر في سجلات الإنتاج كـ
+        // [TIMEOUT] createRow(...) - Failed: 409 وهو نجاح فعلي).
+        if (_isDocumentAlreadyExists(e)) {
+          return _resolveExistingDocumentAsSuccess(
+            collectionId: collectionId,
+            documentId: documentId,
+            createError: e,
+            data: workingData,
+          );
+        }
         rethrow;
       }
+    }
+  }
+
+  /// يكتشف خطأ «المستند موجود مسبقًا» (409) بصيغه المختلفة.
+  /// static — منطق نقي قابل للاختبار دون اتصال.
+  static bool _isDocumentAlreadyExists(AppwriteException e) =>
+      e.code == 409 ||
+      (e.type ?? '').contains('document_already_exists') ||
+      (e.type ?? '').contains('conflict') ||
+      e.toString().contains('document_already_exists');
+
+  /// نسخة للاختبار من كاشف 409 (نفس المنطق النقي).
+  @visibleForTesting
+  static bool isDocumentAlreadyExistsForTest(AppwriteException e) =>
+      _isDocumentAlreadyExists(e);
+
+  /// إرجاع المستند الموجود كنجاح متكرر آمن (idempotent) بعد 409 على create.
+  ///
+  /// نحاول getDocument أولًا (نتيجة حقيقية وموثوقة). إن فشل (شبكة عابرة)،
+  /// نُرجع مستندًا تركيبيًا بنفس المعرّف والبيانات المطلوبة كي يُكمل المتصل
+  /// مساره (مثال: sync() يميّز hasSyncLog=true فيحدّث سجل sync_logs إلى
+  /// completed بدل بقائه in_progress للأبد).
+  Future<models.Document> _resolveExistingDocumentAsSuccess({
+    required String collectionId,
+    required String documentId,
+    required AppwriteException createError,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      final existing = await _networkHelper.withTimeout(
+        operation: () =>
+            // ignore: deprecated_member_use
+            _databases.getDocument(
+              databaseId: AppwriteConfigManager.databaseId,
+              collectionId: collectionId,
+              documentId: documentId,
+            ),
+        operationName: 'getRow($collectionId/$documentId)',
+      );
+      _logger.info(
+        '✅ createRow: 409 بعد timeout — المستند موجود أصلًا؛ اعتُبر نجاحًا '
+        'متكررًا آمنًا وأُعيد المستند الحقيقي ($collectionId/$documentId)',
+        tag: 'CREATE',
+      );
+      return existing;
+    } catch (getError) {
+      _logger.warning(
+        '⚠️ createRow: 409 بعد timeout ($collectionId/$documentId) — '
+        'تعذر جلب المستند الموجود ($getError). أُعيد مستند تركيبي حتى لا '
+        'يُعامَل الإنشاء الناجح كفشل. الأصل: $createError',
+        tag: 'CREATE',
+      );
+      return models.Document(
+        $id: documentId,
+        $sequence: 0,
+        $collectionId: collectionId,
+        $databaseId: AppwriteConfigManager.databaseId,
+        $createdAt: '',
+        $updatedAt: '',
+        $permissions: const [],
+        data: data,
+      );
     }
   }
 

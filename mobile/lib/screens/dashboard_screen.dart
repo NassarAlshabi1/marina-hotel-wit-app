@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../providers/appwrite_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
@@ -13,12 +11,11 @@ import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_db.dart';
 import '../services/repositories/payments_repository.dart';
-import '../services/sync/sync_gate.dart';
-import '../services/sync_constants.dart';
-import '../utils/loading_snackbar.dart';
 import '../utils/responsive.dart';
 import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
+import '../utils/hotel_time_engine.dart';
+import '../utils/hotel_timezone.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
@@ -69,120 +66,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         screenClass: 'DashboardScreen',
       ),
     );
-    // ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
-    // refactor/performance-fixes-v2: فحص ساعة + SyncGate + إشعار تحميل.
-    // التكييف مع معمارية هذا الفرع: deltaOnly:true — فتح الشاشة لا يبدأ
-    // Full Sync أبداً (Bootstrap الصريح فقط)؛ الدلتا تكفي لتحديث قسم
-    // "استلامات المستخدمين" وأقسام اليوم الفندقي بأحدث بيانات الخادم.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoPullFromAppwrite();
-    });
-  }
-
-  /// ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
-  /// refactor/performance-fixes-v2 (SyncGate + فحص ساعة + إشعار تحميل)
-  /// مع تكييف المعمارية: deltaOnly فقط — لا Full Sync من الشاشة أبداً.
-  Future<void> _autoPullFromAppwrite() async {
-    // ✅ SyncGate: إذا كانت مزامنة يدوية/مؤقت/realtime يعمل — يُلغى بصمت
-    // دون منافسة على الموارد (نفس نمط DashboardSyncButton).
-    final executed = await SyncGate.instance.runGuardedVoid(
-      operation: 'auto_pull',
-      source: 'auto_open',
-      task: _autoPullFromAppwriteInner,
-    );
-    if (!executed) {
-      dlog(
-        () =>
-            'ℹ️ [AutoPull] skipped — SyncGate busy with '
-            '${SyncGate.instance.state.operation} from '
-            '${SyncGate.instance.state.source}',
-      );
-    }
-  }
-
-  Future<void> _autoPullFromAppwriteInner() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-
-      if (!appwriteEnabled) {
-        return;
-      }
-
-      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب عند الفتح؟ ───
-      // نفس مفتاح فحص إقلاع التطبيق (lastAppOpenPullKey) — مصدر واحد للحقيقة.
-      final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
-      if (lastPullEpochMs != null) {
-        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
-        final elapsed = DateTime.now().difference(lastPull);
-        if (elapsed < SyncConstants.appOpenSyncInterval) {
-          return;
-        }
-      }
-
-      // التأكد من الاتصال
-      await ref.read(connectionStatusProvider.notifier).checkConnection();
-      final isConnected = ref.read(connectionStatusProvider).isConnected;
-      if (!isConnected) {
-        return;
-      }
-
-      // ✅ إشعار تحميل قابل للإغلاق برمجياً
-      LoadingSnackBar? loading;
-      if (mounted) {
-        loading = LoadingSnackBar.show(
-          context,
-          message: '📥 جاري سحب البيانات...',
-        );
-      }
-
-      final syncManager = ref.read(appwriteSyncManagerProvider);
-      // المحرك الموحد: pull هنا دلتا عبر checkpoints لكل مجموعة —
-      // لا Full Sync ضمنياً (Bootstrap الصريح وحده مسؤول عنه).
-      final result = await syncManager.sync(push: false, pull: true);
-      final pulledCount = result.recordsPulled;
-
-      // ✅ إغلاق إشعار التحميل فور انتهاء السحب
-      if (mounted) {
-        loading?.close();
-      }
-
-      // ─── تسجيل وقت هذا السحب التلقائي ───
-      await prefs.setInt(
-        SyncConstants.lastAppOpenPullKey,
-        DateTime.now().millisecondsSinceEpoch,
-      );
-
-      if (mounted && pulledCount > 0) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.cloud_download, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '✅ تم سحب $pulledCount سجل جديد من Appwrite تلقائياً',
-                    style: const TextStyle(fontFamily: 'Tajawal'),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      } else {
-        // إشعار صامت بأن البيانات محدثة
-        dlog('✅ البيانات محدثة — لا توجد سجلات جديدة');
-      }
-    } catch (e) {
-      dlog(() => '❌ فشل السحب التلقائي عند الفتح: $e');
-    }
+    // 🚫 قرار المالك (2026-11-26): لا سحب تلقائي من Appwrite عند فتح
+    // الشاشة — التنقل بين الشاشات لا يشغّل أي Pull (حُذف
+    // _autoPullFromAppwrite). السحب يبقى متاحاً من: زر المزامنة في
+    // الشاشة، سحب إقلاع التطبيق (ساعة واحدة)، العودة من الخلفية،
+    // وrealtime/FCM — لم يُمسّ أي من هذه المسارات.
   }
 
   @override
@@ -551,9 +439,111 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               );
             },
           ),
+          const SizedBox(height: 12),
+          _buildLatestRoomReceiptCard(),
         ],
       ),
     );
+  }
+
+  Widget _buildLatestRoomReceiptCard() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final user = ref.watch(authProvider).currentUser;
+        final canViewLatestRoomReceipt =
+            user?.isAdmin == true ||
+            user?.userType == 'manager' ||
+            user?.userType == 'supervisor';
+        if (!canViewLatestRoomReceipt) return const SizedBox.shrink();
+
+        final receiptsAsync = ref.watch(latestRoomReceiptsProvider);
+        return receiptsAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (error, stackTrace) {
+            dlog(() => 'تعذر تحميل آخر استلام للغرف: $error');
+            return const SizedBox.shrink();
+          },
+          data: (receipts) {
+            if (receipts.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'لا توجد استلامات مسجلة من الغرف حتى الآن',
+                  style: TextStyle(fontSize: 9),
+                ),
+              );
+            }
+
+            final receipt = receipts.first;
+            final parsedPaymentDate = DateTime.tryParse(receipt.paymentDate);
+            final paidAt = parsedPaymentDate == null
+                ? null
+                : HotelTimezone.toHotelDateTime(parsedPaymentDate);
+            final amount = NumberFormat(
+              '#,##0',
+              'en_US',
+            ).format(receipt.amount.round());
+            final timeLabel = paidAt == null
+                ? 'الوقت غير متاح'
+                : _formatReceiptTime(paidAt);
+            final dateLabel = paidAt == null
+                ? ''
+                : HotelTimeEngine.getHotelDayKeyFromIso(
+                    receipt.paymentDate,
+                  ).replaceAll('-', '/');
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'آخر استلام من الغرف',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'استلم مبلغ $amount ريال من غرفة ${receipt.roomNumber}',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$timeLabel${dateLabel.isEmpty ? '' : ' • $dateLabel'}',
+                    style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatReceiptTime(DateTime dateTime) {
+    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour < 12 ? 'صباحًا' : 'مساءً';
+    return 'الساعة $hour:$minute $period';
   }
 
   Widget _buildLegendItem(String label, Color color) {
@@ -1001,13 +991,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'استلامات المستخدمين الآخرين في النوبات',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  'استلام الموظفين',
+                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
                 'اليوم الفندقي الحالي',
-                style: TextStyle(fontSize: 9, color: Colors.grey),
+                style: TextStyle(fontSize: 8, color: Colors.grey),
               ),
               const SizedBox(width: 4),
               // ✅ تحديث فوري من السحابة عند الطلب.
@@ -1079,24 +1069,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           '${summary.paymentCount} دفعة',
                           style: const TextStyle(
-                            fontSize: 9,
+                            fontSize: 8,
                             color: Colors.grey,
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 6),
                         Text(
                           currencyFmt.format(summary.totalAmount),
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
                             color: Colors.blue.shade700,
                           ),

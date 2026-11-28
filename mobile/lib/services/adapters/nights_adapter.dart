@@ -81,12 +81,23 @@ class NightsAdapter
         refs.lastModifiedEpoch ??
         _epoch(json, 'lastModified', src) ??
         createdAt;
+    final hotelDayKey =
+        _asString(json, 'hotelDayKey', src) ??
+        _asString(json, 'hotel_day_key', src) ??
+        '';
+    final fallbackBookingUuid =
+        refs.bookingUuidCache ??
+        _asString(json, 'bookingUuidCache', src) ??
+        _asString(json, 'booking_uuid_cache', src) ??
+        '';
     return BookingNightsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(
         _asString(json, 'localUuid', src) ??
             _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
+            (fallbackBookingUuid.isNotEmpty && hotelDayKey.isNotEmpty
+                ? IdGen.bookingNightUuid(fallbackBookingUuid, hotelDayKey)
+                : IdGen.uuid()),
       ),
       serverId: _vInt(json, 'serverId', src),
       // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
