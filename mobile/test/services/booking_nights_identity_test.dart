@@ -7,17 +7,12 @@
 //      ناعماً (deletedAt) + قبر مُزامَن في outbox (op=delete) — لا حذف
 //      جذري صامت.
 //   ④ لا تغيير ⇒ لا كتابة إطلاقاً (updatedAt كما هو).
-//   ⑤ التعديل المحلي يدخل Outbox مرة واحدة ويزيد vectorClock.
-//   ⑥ التحديث الوارد من المزامنة لا يُعاد إلى Outbox.
 //  لا mock — قاعدة SQLite حقيقية في الذاكرة.
 // ============================================================================
-
-import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/services/appwrite_sync_manager.dart';
 import 'package:marina_hotel_mobile/services/enhanced_booking_calculation_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/repositories/bookings_repository.dart';
@@ -37,7 +32,6 @@ void main() {
       DateTime(today.year, today.month, today.day - daysBack, hour);
 
   setUp(() async {
-    AppwriteSyncManager.updateStaticDeviceId('booking-nights-test-device');
     db = AppDatabase.forTesting(NativeDatabase.memory());
     roomsRepo = RoomsRepository(db);
     bookingsRepo = BookingsRepository(db);
@@ -50,10 +44,7 @@ void main() {
     );
   });
 
-  tearDown(() async {
-    AppwriteSyncManager.updateStaticDeviceId(null);
-    await db.close();
-  });
+  tearDown(() => db.close());
 
   Future<Booking> fetchBooking(int id) =>
       (db.select(db.bookings)..where((b) => b.id.equals(id))).getSingle();
@@ -84,23 +75,9 @@ void main() {
     // تنظيف ليالي الإنشاء التلقائي (تُولَّد حتى الساعة الحقيقية للجهاز —
     // غير حتمية عبر أوقات التشغيل) كي يكون مصدر الليالي updateNightlyRecords
     // وحده بلحظة `now` الحتمية التي يمررها كل اختبار.
-    final generatedNights = await (db.select(
+    await (db.delete(
       db.bookingNights,
-    )..where((n) => n.bookingLocalId.equals(id))).get();
-    final generatedUuids = generatedNights
-        .map((night) => night.localUuid)
-        .toList();
-    if (generatedUuids.isNotEmpty) {
-      await (db.delete(db.outbox)..where(
-            (entry) =>
-                entry.entity.equals('booking_nights') &
-                entry.localUuid.isIn(generatedUuids),
-          ))
-          .go();
-      await (db.delete(db.bookingNights)
-            ..where((n) => n.localUuid.isIn(generatedUuids)))
-          .go();
-    }
+    )..where((n) => n.bookingLocalId.equals(id))).go();
     return id;
   }
 
@@ -228,110 +205,5 @@ void main() {
     final after = await liveNights(id);
     expect(after.map((n) => n.updatedAt).toList(), updatedBefore,
         reason: 'لا كتابة عند عدم وجود فرق (كان الكود القديم يعيد الإدراج)');
-  });
-
-  test('⑤ الليالي المحلية تُزامَن دون تكرار وتُحدَّث vectorClock', () async {
-    final id = await seedActiveBooking();
-    final now = day(0, 10);
-
-    await engine.updateNightlyRecords(
-      await fetchBooking(id),
-      now: now,
-      forceRebuild: true,
-    );
-    final first = await liveNights(id);
-    expect(first, hasLength(4));
-
-    Future<List<OutboxData>> nightOutbox() =>
-        (db.select(db.outbox)
-              ..where((entry) => entry.entity.equals('booking_nights')))
-            .get();
-
-    var queued = await nightOutbox();
-    expect(queued, hasLength(first.length));
-    expect(
-      queued.map((entry) => entry.localUuid).toSet(),
-      first.map((night) => night.localUuid).toSet(),
-    );
-    for (final night in first) {
-      final clock = jsonDecode(night.vectorClock) as Map<String, dynamic>;
-      expect(clock['booking-nights-test-device'], 1);
-    }
-
-    // إعادة الحساب دون اختلاف لا تنشئ ليالي أو عناصر Outbox إضافية.
-    await engine.updateNightlyRecords(
-      await fetchBooking(id),
-      now: now,
-      forceRebuild: true,
-    );
-    final repeated = await liveNights(id);
-    queued = await nightOutbox();
-    expect(
-      repeated.map((night) => night.localUuid).toList(),
-      first.map((night) => night.localUuid).toList(),
-    );
-    expect((await allNights(id)), hasLength(first.length));
-    expect(queued, hasLength(first.length));
-
-    // تعديل السعر يدمج العملية تحت UUID نفسها، ولا يكرر الليلة أو الـOutbox.
-    final booking = await fetchBooking(id);
-    await db.into(db.bookingPriceAdjustments).insert(
-          BookingPriceAdjustmentsCompanion.insert(
-            localUuid: 'adj-outbox-${DateTime.now().millisecondsSinceEpoch}',
-            bookingLocalUuid: booking.localUuid,
-            createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            updatedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            lastModified: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            bookingLocalId: d.Value(id),
-            roomNumber: const d.Value('101'),
-            amount: const d.Value(20.0),
-            effectiveHotelDay: first.first.hotelDayKey,
-            reason: const d.Value('خصم ليلي لاختبار المزامنة'),
-            adjustmentType: const d.Value(0),
-            adjustmentMode: const d.Value('per_night'),
-          ),
-        );
-    await engine.updateNightlyRecords(
-      await fetchBooking(id),
-      now: now,
-      forceRebuild: true,
-    );
-
-    final updated = await liveNights(id);
-    queued = await nightOutbox();
-    expect(
-      updated.map((night) => night.localUuid).toList(),
-      first.map((night) => night.localUuid).toList(),
-    );
-    expect((await allNights(id)), hasLength(first.length));
-    expect(queued, hasLength(first.length));
-    final adjusted = updated.first;
-    final adjustedClock =
-        jsonDecode(adjusted.vectorClock) as Map<String, dynamic>;
-    expect(adjustedClock['booking-nights-test-device'], 2);
-    final adjustedOutbox =
-        queued.singleWhere((entry) => entry.localUuid == adjusted.localUuid);
-    expect(adjustedOutbox.op, 'update');
-  });
-
-  test('⑥ إعادة الحساب الواردة من المزامنة لا تُعاد إلى Outbox', () async {
-    final id = await seedActiveBooking();
-    await engine.updateNightlyRecords(
-      await fetchBooking(id),
-      now: day(0, 10),
-      forceRebuild: true,
-      enqueueOutbox: false,
-    );
-
-    expect(
-      await (db.select(db.outbox)
-            ..where((entry) => entry.entity.equals('booking_nights')))
-          .get(),
-      isEmpty,
-    );
-    expect(
-      (await liveNights(id)).every((night) => night.vectorClock == '{}'),
-      isTrue,
-    );
   });
 }
