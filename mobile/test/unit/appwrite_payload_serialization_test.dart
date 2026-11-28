@@ -186,6 +186,103 @@ void main() {
       expect(original, '${'a' * 999}😀x');
     });
 
+    test('يحوّل أنواع حقول booking_nights إلى أنواع Appwrite الصحيحة', () {
+      final payload = AppwriteSyncUtils.filterPayloadForCollection(
+        'booking_nights',
+        {
+          'localUuid': 'u' * 36,
+          'serverId': '12',
+          'createdAt': '1723603472',
+          'nightlyRate': '149.75',
+          'sequence': '3',
+          'isProcessedByAutoFix': 'true',
+          'baseRate': 150,
+          'adjustment': -0.25,
+          'finalRate': 149.75,
+          'appliedAdjustmentUuid': 'a' * 36,
+          'appliedAdjustmentsJson': <String, dynamic>{'amount': -0.25},
+          'bookingUuidCache': 'b' * 36,
+          'serverBookingId': '99',
+          'hotelDayKey': '2026-11-28',
+          'nightStart': '2026-11-27T15:00:00.000',
+          'nightEnd': '2026-11-28T12:00:00.000',
+          'vectorClock': <String, int>{'device-a': 2},
+        },
+      );
+
+      expect(payload['serverId'], isA<int>());
+      expect(payload['createdAt'], isA<int>());
+      expect(payload['nightlyRate'], isA<double>());
+      expect(payload['sequence'], isA<int>());
+      expect(payload['isProcessedByAutoFix'], isA<bool>());
+      expect(payload['baseRate'], isA<double>());
+      expect(payload['adjustment'], isA<double>());
+      expect(payload['finalRate'], isA<double>());
+      expect(payload['serverBookingId'], isA<int>());
+      expect(payload['appliedAdjustmentsJson'], isA<String>());
+      expect(
+        jsonDecode(payload['vectorClock'] as String),
+        equals(<String, int>{'device-a': 2}),
+      );
+    });
+
+    test('يقبل حقول booking_nights عند الحدود النصية المنشورة', () {
+      final payload =
+          AppwriteSyncUtils.filterPayloadForCollection('booking_nights', {
+            'localUuid': 'u' * 36,
+            'createdAtIso': 'c' * 50,
+            'updatedAtIso': 'u' * 50,
+            'deletedAtIso': 'd' * 50,
+            'origin': 'o' * 50,
+            'deviceId': 'd' * 100,
+            'idempotencyKey': 'i' * 100,
+            'sync_origin': 's' * 50,
+            'bookingUuidCache': 'b' * 36,
+            'hotelDayKey': 'h' * 64,
+            'nightStart': 's' * 255,
+            'nightEnd': 'e' * 255,
+            'appliedAdjustmentUuid': 'a' * 36,
+            'appliedAdjustmentsJson': 'j' * 5000,
+          });
+
+      expect(payload['localUuid'], 'u' * 36);
+      expect(payload['deviceId'], 'd' * 100);
+      expect(payload['hotelDayKey'], 'h' * 64);
+      expect(payload['nightStart'], 's' * 255);
+      expect(payload['nightEnd'], 'e' * 255);
+      expect(payload['appliedAdjustmentsJson'], 'j' * 5000);
+    });
+
+    test('يرفض حقول booking_nights الأطول من حد Appwrite دون قص البيانات', () {
+      final oversizedFields = <String, String>{
+        'localUuid': 'u' * 37,
+        'createdAtIso': 'c' * 51,
+        'updatedAtIso': 'u' * 51,
+        'deletedAtIso': 'd' * 51,
+        'origin': 'o' * 51,
+        'deviceId': 'd' * 101,
+        'idempotencyKey': 'i' * 101,
+        'sync_origin': 's' * 51,
+        'bookingUuidCache': 'b' * 37,
+        'hotelDayKey': 'h' * 65,
+        'nightStart': 's' * 256,
+        'nightEnd': 'e' * 256,
+        'appliedAdjustmentUuid': 'a' * 37,
+        'appliedAdjustmentsJson': 'j' * 5001,
+      };
+
+      for (final entry in oversizedFields.entries) {
+        expect(
+          () => AppwriteSyncUtils.filterPayloadForCollection('booking_nights', {
+            entry.key: entry.value,
+          }),
+          throwsArgumentError,
+          reason: '${entry.key} يتجاوز حد Appwrite ولا يجب قصّه',
+        );
+        expect(entry.value.length, greaterThan(0));
+      }
+    });
+
     test('يحمي مسار النقل الأخير الحمولة غير المصفاة', () {
       final payload = AppwriteSyncUtils.normalizeVectorClockInPayload({
         'vectorClock': <String, dynamic>{'device-a': '5'},

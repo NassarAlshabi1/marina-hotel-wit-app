@@ -1738,7 +1738,7 @@ class AppwriteSyncUtils {
     },
   };
 
-  /// حدود string المعتمدة في مخطط الإنشاء المحلي؛ لا نخمّن بقية الحقول.
+  /// حدود string المعتمدة في مخطط Appwrite الفعلي؛ لا نخمّن بقية الحقول.
   ///
   /// ✅ 2026-11-24: حُدّثت من التحقق الحي للقراءة فقط من Appwrite Cloud
   /// (GET /attributes). أي حقل يتجاوز حده يُرفض محليًا بـ ArgumentError
@@ -1762,6 +1762,23 @@ class AppwriteSyncUtils {
     'booking_price_adjustments': {'localUuid': 36, 'cancelledAt': 30},
     'salary_withdrawals': {'localUuid': 36},
     'guest_infos': {'localUuid': 36},
+    'booking_nights': {
+      'localUuid': 36,
+      'createdAtIso': 50,
+      'updatedAtIso': 50,
+      'deletedAtIso': 50,
+      'origin': 50,
+      'vectorClock': 1000,
+      'deviceId': 100,
+      'idempotencyKey': 100,
+      'sync_origin': 50,
+      'bookingUuidCache': 36,
+      'hotelDayKey': 64,
+      'nightStart': 255,
+      'nightEnd': 255,
+      'appliedAdjustmentUuid': 36,
+      'appliedAdjustmentsJson': 5000,
+    },
     // ✅ (2026-11-26) حدود السحابة الحية لحقول الترحيل الجديدة المرفوعة
     // (تدقيق cloud_gap_analysis 2026-11-24): carryDate 64 / hotelDayKey 64 /
     // performedBy 512 — حمولة أكبر تفشل محلياً بـ ArgumentError مع بقاء
