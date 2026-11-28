@@ -126,14 +126,16 @@ void main() {
     String uuid = 'exp-uuid-1',
     String? employeeUuid,
     String? withdrawalUuid,
+    double amount = 3000,
+    String date = '2026-05-25',
   }) => db
       .into(db.expenses)
       .insert(
         ExpensesCompanion(
           expenseType: const d.Value('سحب راتب'),
           description: const d.Value('مصروف مرآة اختبار'),
-          amount: const d.Value(3000),
-          date: const d.Value('2026-05-25'),
+          amount: d.Value(amount),
+          date: d.Value(date),
           localUuid: d.Value(uuid),
           employeeUuid: employeeUuid == null
               ? const d.Value.absent()
@@ -629,6 +631,77 @@ void main() {
         0,
         reason: 'اختلاف التنسيق ليس mismatch حقيقياً',
       );
+    },
+  );
+
+  test(
+    'SYNC_RELINK لا يكتب expense_id عند اختلاف الموظف أو المبلغ أو التاريخ',
+    () async {
+      final employeeA = await addEmployee('emp-a');
+      await addEmployee('emp-b');
+      final employeeB = await (db.select(
+        db.employees,
+      )..where((e) => e.localUuid.equals('emp-b'))).getSingle();
+
+      final otherEmployeeExpense = await addExpense(
+        uuid: 'exp-other-employee',
+        employeeUuid: 'emp-b',
+      );
+      final wrongAmountExpense = await addExpense(
+        uuid: 'exp-wrong-amount',
+        employeeUuid: 'emp-a',
+      );
+      final wrongDateExpense = await addExpense(
+        uuid: 'exp-wrong-date',
+        employeeUuid: 'emp-a',
+      );
+      await addWithdrawal(
+        uuid: 'sw-other-employee',
+        employeeId: employeeA,
+        employeeUuid: 'emp-a',
+        expenseUuid: 'exp-other-employee',
+      );
+      await addWithdrawal(
+        uuid: 'sw-wrong-amount',
+        employeeId: employeeA,
+        employeeUuid: 'emp-a',
+        amount: 3200,
+        expenseUuid: 'exp-wrong-amount',
+      );
+      await addWithdrawal(
+        uuid: 'sw-wrong-date',
+        employeeId: employeeA,
+        employeeUuid: 'emp-a',
+        date: '2026-05-26',
+        expenseUuid: 'exp-wrong-date',
+      );
+
+      final manager = newManager();
+      final relinked = await manager.relinkMirrorExpenseIdsForTesting();
+      expect(relinked, 0);
+      final withdrawals = await db.select(db.salaryWithdrawals).get();
+      expect(withdrawals, hasLength(3));
+      expect(withdrawals.every((w) => w.expenseId == null), isTrue);
+      expect(withdrawals.map((w) => w.expenseUuid).toSet(), {
+        'exp-other-employee',
+        'exp-wrong-amount',
+        'exp-wrong-date',
+      });
+      final expenses = await db.select(db.expenses).get();
+      expect(expenses, hasLength(3));
+      expect(
+        expenses.singleWhere((e) => e.id == otherEmployeeExpense).employeeUuid,
+        'emp-b',
+      );
+      expect(
+        expenses.singleWhere((e) => e.id == wrongAmountExpense).employeeUuid,
+        'emp-a',
+      );
+      expect(
+        expenses.singleWhere((e) => e.id == wrongDateExpense).employeeUuid,
+        'emp-a',
+      );
+      expect(employeeB.localUuid, 'emp-b');
     },
   );
 }

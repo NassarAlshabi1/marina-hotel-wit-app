@@ -5461,9 +5461,8 @@ class AppwriteSyncManager {
 
   /// ✅ (migration 68) حل رابط المرآة سحبة→مصروف وكتابة expense_id الخام.
   ///
-  /// المستوى 1 (الموثوق قطعياً): expense_uuid → expenses.local_uuid.
-  /// UUID هو هوية ثابتة عبر الأجهزة، فيُحل دائماً إلى المصروف الصحيح
-  /// (بعد وصول المصروف محلياً — المصروفات تُسحب قبل السحبات).
+  /// المستوى 1: expense_uuid → expenses.local_uuid، مع التحقق من تطابق
+  /// الموظف المحلي والمبلغ والتاريخ، ومن عدم تعارض withdrawal_uuid العكسي.
   ///
   /// المستوى 2 (أُلغي 2026-11-03): expense_id الخام من جهاز المصدر لم
   /// يعد يُكتب أبداً — autoincrement جهاز المصدر غير موثوق عبر الأجهزة.
@@ -5540,21 +5539,58 @@ class AppwriteSyncManager {
         );
         return _MirrorLinkOutcome.error;
       }
-      final withdrawalEmployeeUuid = withdrawal.employeeUuid?.trim();
-      final expenseEmployeeUuid = linkedExpense.employeeUuid?.trim();
-      final withdrawalEmployeeCompact = _compactUuidToken(
-        withdrawalEmployeeUuid,
+      final expenseEmployeeLocalUuid = await _employeeLocalUuidForId(
+        linkedExpense.relatedId,
       );
-      final expenseEmployeeCompact = _compactUuidToken(expenseEmployeeUuid);
-      if (withdrawalEmployeeCompact.isNotEmpty &&
-          expenseEmployeeCompact.isNotEmpty &&
-          withdrawalEmployeeCompact != expenseEmployeeCompact) {
-        _logger.error(
-          '❌ رفض ربط السحبة $salaryWithdrawalLocalUuid بالمصروف '
-          '$expenseUuid: employeeUuid mismatch '
-          '($withdrawalEmployeeUuid != $expenseEmployeeUuid)',
+      final withdrawalEmployeeLocalUuid = await _employeeLocalUuidForId(
+        withdrawal.employeeId,
+      );
+      final reverseWithdrawalUuid = _compactUuidToken(
+        linkedExpense.withdrawalUuid,
+      );
+      if (reverseWithdrawalUuid.isNotEmpty &&
+          reverseWithdrawalUuid != _compactUuidToken(withdrawal.localUuid)) {
+        final existingOwner = await database
+            .customSelect(
+              'SELECT 1 FROM salary_withdrawals '
+              "WHERE REPLACE(LOWER(TRIM(local_uuid)), '-', '') = ? "
+              'AND deleted_at IS NULL LIMIT 1',
+              variables: [drift.Variable.withString(reverseWithdrawalUuid)],
+            )
+            .get();
+        if (existingOwner.isNotEmpty) {
+          _logger.warning(
+            '⚠️ أُوقف ربط expenseUuid=$expenseUuid بالسحبة '
+            '$salaryWithdrawalLocalUuid: withdrawalUuid يشير إلى سحبة نشطة أخرى',
+            tag: 'SYNC_RELINK',
+          );
+          return _MirrorLinkOutcome.employeeMismatch;
+        }
+      }
+      if (!_mirrorMetadataMatches(
+        expenseEmployeeUuid: linkedExpense.employeeUuid,
+        expenseEmployeeLocalUuid: expenseEmployeeLocalUuid,
+        withdrawalEmployeeUuid: withdrawal.employeeUuid,
+        withdrawalEmployeeLocalUuid: withdrawalEmployeeLocalUuid,
+        expenseAmount: linkedExpense.amount,
+        withdrawalAmount: withdrawal.amount,
+        expenseDate: linkedExpense.date,
+        withdrawalDate: withdrawal.withdrawDate,
+      )) {
+        _logger.warning(
+          '⚠️ أُوقف ربط المرآة للسحبة $salaryWithdrawalLocalUuid '
+          'والمصروف $expenseUuid: employeeLocalUuid/amount/date mismatch؛ '
+          'لم يُعدّل employeeUuid ولم يُحذف أي مصروف',
           tag: 'SYNC_RELINK',
         );
+        // إذا كان العمود الرقمي يشير لهذا المصروف تحديداً فهو رابط غير
+        // موثوق؛ إزالته تمنع إبقاء الإسناد الخاطئ مع الإبقاء على السجلين.
+        if (withdrawal.expenseId == linkedExpense.id) {
+          await database.customStatement(
+            'UPDATE salary_withdrawals SET expense_id = NULL WHERE id = ?',
+            [withdrawal.id],
+          );
+        }
         return _MirrorLinkOutcome.employeeMismatch;
       }
       final swAdapter = _adapterRegistry.salaryWithdrawals.adapter;
@@ -5620,40 +5656,90 @@ class AppwriteSyncManager {
     if (claim.isEmpty) return true;
 
     final incomingUuid = _compactUuidToken(data['localUuid']);
-    final incomingEmployee = _compactUuidToken(
-      data['employeeUuid'] ??
-          data['employee_uuid'] ??
-          data['employeeLocalUuid'] ??
-          data['employee_local_uuid'],
-    );
+    final incomingEmployee =
+        _employeeIdentityForMirror(
+          data['employeeUuid'] ?? data['employee_uuid'],
+          data['employeeLocalUuid'] ?? data['employee_local_uuid'],
+        ) ??
+        '';
 
     // (2) اتساق الموظف مع المصروف صاحب الـ uuid قبل احتلال خانة الرابط.
     final expenseRows = await database
         .customSelect(
-          'SELECT e.id AS eid, e.withdrawal_uuid AS wuuid, e.employee_uuid '
-          'AS empuuid FROM expenses e '
+          'SELECT e.id AS eid, e.local_uuid AS elocaluuid, '
+          'e.withdrawal_uuid AS wuuid, e.employee_uuid AS empuuid, '
+          'e.related_id AS erelatedid, e.amount AS eamount, e.date AS edate, '
+          '(SELECT emp.local_uuid FROM employees emp '
+          ' WHERE emp.id = e.related_id LIMIT 1) AS eemployee_local_uuid '
+          'FROM expenses e '
           "WHERE REPLACE(LOWER(TRIM(e.local_uuid)), '-', '') = ? "
-          'AND e.deleted_at IS NULL LIMIT 1',
+          'AND e.deleted_at IS NULL',
           variables: [drift.Variable.withString(claim)],
         )
         .get();
-    if (expenseRows.isNotEmpty) {
-      final expenseEmployee = _compactUuidToken(
-        expenseRows.first.read<String?>('empuuid'),
+    if (expenseRows.length > 1) {
+      data.remove('expenseUuid');
+      data.remove('expense_uuid');
+      _logger.warning(
+        '⚠️ أُوقفت مطالبة $claimRaw: توجد مصروفات متعددة بالهوية نفسها؛ '
+        'لم يُغيّر employeeUuid ولم يُحذف أي مصروف',
+        tag: 'SYNC_RELINK',
       );
-      if (incomingEmployee.isNotEmpty &&
-          expenseEmployee.isNotEmpty &&
-          incomingEmployee != expenseEmployee) {
+      return true;
+    }
+    if (expenseRows.isNotEmpty) {
+      final expense = expenseRows.first;
+      final incomingLocalEmployee =
+          data['employeeLocalUuid'] ?? data['employee_local_uuid'];
+      final incomingAmount = data['amount'];
+      final incomingDate =
+          data['withdrawDate'] ?? data['withdraw_date'] ?? data['date'];
+      final incomingEmployeeUuid =
+          data['employeeUuid'] ?? data['employee_uuid'];
+      if (!_mirrorMetadataMatches(
+        expenseEmployeeUuid: expense.read<String?>('empuuid'),
+        expenseEmployeeLocalUuid: expense.read<String?>('eemployee_local_uuid'),
+        withdrawalEmployeeUuid: incomingEmployeeUuid,
+        withdrawalEmployeeLocalUuid: incomingLocalEmployee,
+        expenseAmount: expense.read<double>('eamount'),
+        withdrawalAmount: incomingAmount,
+        expenseDate: expense.read<String>('edate'),
+        withdrawalDate: incomingDate,
+      )) {
         data.remove('expenseUuid');
         data.remove('expense_uuid');
-        _logger.error(
-          '❌ نُزعت مطالبة رابط المرآة قبل الكتابة: السحبة '
-          '${data['localUuid']} تطالب بالمصروف uuid=$claimRaw لكن موظفها '
-          '($incomingEmployee) != موظف المصروف ($expenseEmployee) — زوج '
-          'فاسد من حقبة الروابط الرقمية',
+        _logger.warning(
+          '⚠️ نُزعت مطالبة رابط المرآة قبل الكتابة: السحبة '
+          '${data['localUuid']} لا تطابق المصروف $claimRaw في '
+          'employeeLocalUuid/amount/date — بقي employeeUuid والمصروف كما هما',
           tag: 'SYNC_RELINK',
         );
         return true;
+      }
+      // withdrawalUuid في المصروف مرجع عكسي صريح؛ لا نسمح لمطالبة أخرى
+      // بأخذ مصروف يعلن ملكيته لسحبة نشطة مختلفة، حتى إن لم يكن لديها
+      // expenseUuid بعد.
+      final reverseOwner = _compactUuidToken(expense.read<String?>('wuuid'));
+      if (reverseOwner.isNotEmpty && reverseOwner != incomingUuid) {
+        final ownerRows = await database
+            .customSelect(
+              'SELECT local_uuid FROM salary_withdrawals '
+              "WHERE REPLACE(LOWER(TRIM(local_uuid)), '-', '') = ? "
+              'AND deleted_at IS NULL LIMIT 1',
+              variables: [drift.Variable.withString(reverseOwner)],
+            )
+            .get();
+        if (ownerRows.isNotEmpty) {
+          data.remove('expenseUuid');
+          data.remove('expense_uuid');
+          _logger.warning(
+            '⚠️ نُزعت مطالبة السحبة ${data['localUuid']} بالمصروف '
+            '$claimRaw: withdrawalUuid يعلن ملكية سحبة نشطة أخرى؛ '
+            'لم يُغيّر employeeUuid ولم يُحذف المصروف',
+            tag: 'SYNC_RELINK',
+          );
+          return true;
+        }
       }
     }
 
@@ -5661,11 +5747,14 @@ class AppwriteSyncManager {
     final claimantRows = await database
         .customSelect(
           'SELECT w.id AS wid, w.local_uuid AS wuuid, w.employee_uuid AS '
-          'empuuid, w.amount AS amount, w.withdraw_date AS wdate '
+          'empuuid, w.employee_id AS employee_id, w.amount AS amount, '
+          'w.withdraw_date AS wdate, '
+          '(SELECT emp.local_uuid FROM employees emp '
+          ' WHERE emp.id = w.employee_id LIMIT 1) AS employee_local_uuid '
           'FROM salary_withdrawals w '
           "WHERE REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') = ? "
           "AND REPLACE(LOWER(TRIM(w.local_uuid)), '-', '') != ? "
-          'AND w.deleted_at IS NULL LIMIT 1',
+          'AND w.deleted_at IS NULL',
           variables: [
             drift.Variable.withString(claim),
             drift.Variable.withString(incomingUuid),
@@ -5673,43 +5762,49 @@ class AppwriteSyncManager {
         )
         .get();
     if (claimantRows.isEmpty) return true;
-    final claimant = claimantRows.first;
-
     if (expenseRows.isNotEmpty) {
       final ownerUuid = _compactUuidToken(
         expenseRows.first.read<String?>('wuuid'),
       );
-      if (ownerUuid.isNotEmpty) {
-        if (ownerUuid == incomingUuid) {
-          // القادم هو صاحب الرابط الموثوق — ننزعه من المتنازع القائم.
+      if (ownerUuid.isNotEmpty && ownerUuid == incomingUuid) {
+        // ختم المصروف يثبت مالك الرابط؛ أزل جميع المطالبات المنافسة
+        // (قد توجد صيغ UUID قديمة لا يكشفها الفهرس الخام).
+        for (final claimant in claimantRows) {
           await database.customStatement(
             'UPDATE salary_withdrawals SET expense_uuid = NULL, '
             'expense_id = NULL WHERE id = ?',
             [claimant.read<int>('wid')],
           );
-          _logger.info(
-            '🔗 نُقل رابط المرآة ($claimRaw) من السحبة '
-            '${claimant.read<String?>('wuuid')} إلى صاحبه الموثوق '
-            '${data['localUuid']} وفق expenses.withdrawal_uuid',
-            tag: 'SYNC_RELINK',
-          );
-          return true;
         }
-        data.remove('expenseUuid');
-        data.remove('expense_uuid');
-        _logger.warning(
-          '⚠️ نُزعت مطالبة السحبة ${data['localUuid']} بالرابط $claimRaw '
-          '— المصروف يعلن ملكية السحبة $ownerUuid (ختم المرآة العكسي)',
+        _logger.info(
+          '🔗 نُقل رابط المرآة ($claimRaw) من ${claimantRows.length} '
+          'مطالِب متعارض إلى صاحبه الموثوق ${data['localUuid']} '
+          'وفق expenses.withdrawal_uuid',
           tag: 'SYNC_RELINK',
         );
         return true;
       }
     }
 
+    if (claimantRows.length > 1) {
+      data.remove('expenseUuid');
+      data.remove('expense_uuid');
+      _logger.warning(
+        '⚠️ أُوقفت مطالبة السحبة ${data['localUuid']} بالمصروف $claimRaw: '
+        'توجد عدة سحبات نشطة بالهوية المعيارية نفسها؛ لم يُختر مرشح بالترتيب',
+        tag: 'SYNC_RELINK',
+      );
+      return true;
+    }
+    final claimant = claimantRows.single;
+
     // (4-أ) توأم مطابق (موظف+مبلغ+تاريخ) → مستند مكرر لسجل موجود.
-    final claimantEmployee = _compactUuidToken(
-      claimant.read<String?>('empuuid'),
-    );
+    final claimantEmployee =
+        _employeeIdentityForMirror(
+          claimant.read<String?>('empuuid'),
+          claimant.read<String?>('employee_local_uuid'),
+        ) ??
+        '';
     final incomingAmount = (data['amount'] as num?)?.toDouble();
     final claimantAmount = claimant.read<double>('amount');
     final incomingDate = (data['withdrawDate'] ?? data['withdraw_date'])
@@ -5720,8 +5815,10 @@ class AppwriteSyncManager {
     final sameAmount =
         incomingAmount != null &&
         (incomingAmount - claimantAmount).abs() < 0.001;
+    final incomingDateToken = _mirrorDateToken(incomingDate);
     final sameDate =
-        incomingDate != null && incomingDate.trim() == claimantDate.trim();
+        incomingDateToken != null &&
+        incomingDateToken == _mirrorDateToken(claimantDate);
     if (sameEmployee && sameAmount && sameDate) {
       _logger.debug(
         '🧹 تخطي مستند سحبة مكرر ${data['localUuid']} — السحبة '
@@ -5744,6 +5841,90 @@ class AppwriteSyncManager {
     return true;
   }
 
+  /// هوية الموظف الموثوقة للمطابقة: employeeUuid وemployeeLocalUuid يجب أن
+  /// يتفقا إن توفرا معاً. يُستخدم UUID المستخرج من FK المحلي فقط عند غياب
+  /// الحقل الصريح؛ لا نعيد كتابة employeeUuid ولا نستخدم أرقاماً عابرة للأجهزة.
+  String? _employeeIdentityForMirror(
+    Object? employeeUuid,
+    Object? employeeLocalUuid,
+  ) {
+    final uuid = _compactUuidToken(employeeUuid);
+    final localUuid = _compactUuidToken(employeeLocalUuid);
+    if (uuid.isNotEmpty && localUuid.isNotEmpty && uuid != localUuid) {
+      return null;
+    }
+    final identity = uuid.isNotEmpty ? uuid : localUuid;
+    return identity.isEmpty ? null : identity;
+  }
+
+  String? _mirrorDateToken(Object? value) {
+    final raw = (value?.toString() ?? '').trim();
+    if (raw.isEmpty) return null;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) {
+      final y = parsed.year.toString().padLeft(4, '0');
+      final m = parsed.month.toString().padLeft(2, '0');
+      final d = parsed.day.toString().padLeft(2, '0');
+      return '$y-$m-$d';
+    }
+    // احتياط للقيم التاريخية التي تحتوي وقتاً بعد تاريخ ISO.
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(raw)) {
+      return raw.substring(0, 10);
+    }
+    return null;
+  }
+
+  bool _mirrorMetadataMatches({
+    required Object? expenseEmployeeUuid,
+    required Object? expenseEmployeeLocalUuid,
+    required Object? withdrawalEmployeeUuid,
+    required Object? withdrawalEmployeeLocalUuid,
+    required Object? expenseAmount,
+    required Object? withdrawalAmount,
+    required Object? expenseDate,
+    required Object? withdrawalDate,
+  }) {
+    final expenseEmployee = _employeeIdentityForMirror(
+      expenseEmployeeUuid,
+      expenseEmployeeLocalUuid,
+    );
+    final withdrawalEmployee = _employeeIdentityForMirror(
+      withdrawalEmployeeUuid,
+      withdrawalEmployeeLocalUuid,
+    );
+    if (expenseEmployee == null ||
+        withdrawalEmployee == null ||
+        expenseEmployee != withdrawalEmployee) {
+      return false;
+    }
+    final eAmount = expenseAmount is num
+        ? expenseAmount.toDouble()
+        : double.tryParse(expenseAmount?.toString() ?? '');
+    final wAmount = withdrawalAmount is num
+        ? withdrawalAmount.toDouble()
+        : double.tryParse(withdrawalAmount?.toString() ?? '');
+    if (eAmount == null ||
+        wAmount == null ||
+        !eAmount.isFinite ||
+        !wAmount.isFinite ||
+        (eAmount - wAmount).abs() >= 0.001) {
+      return false;
+    }
+    final eDate = _mirrorDateToken(expenseDate);
+    final wDate = _mirrorDateToken(withdrawalDate);
+    return eDate != null && wDate != null && eDate == wDate;
+  }
+
+  Future<String?> _employeeLocalUuidForId(int? employeeId) async {
+    if (employeeId == null) return null;
+    final employee =
+        await (database.select(database.employees)
+              ..where((e) => e.id.equals(employeeId))
+              ..limit(1))
+            .getSingleOrNull();
+    return employee?.localUuid;
+  }
+
   /// ✅ (2026-11-03) تطبيع UUID للمقارنة: trim + بدون الشرطات + lowercase
   /// — يطابق REPLACE(LOWER(TRIM(col)), '-', '') في استعلامات الحارس أعلاه.
   String _compactUuidToken(Object? value) =>
@@ -5758,39 +5939,67 @@ class AppwriteSyncManager {
   Future<int> _relinkMirrorExpenseIds() async {
     var relinked = 0;
     try {
-      // سحبات لها expense_uuid لكن expense_id مفقود أو يشير إلى مصروف
-      // محلي لا يساوي المصروف صاحب الـ uuid (رابط خاطئ أو يتيم).
+      // لا يكفي expenseUuid وحده لإسناد سجل مالي. نطلب تطابق UUID في
+      // الاتجاه الصحيح، وهوية الموظف المحلية (employeeLocalUuid/employeeUuid)،
+      // والمبلغ والتاريخ. القيم غير الحاسمة لا تُربط ولا تُحذف.
       final rows = await database
           .customSelect(
-            'SELECT w.id AS wid, w.expense_id AS current_expense_id, '
-            'w.expense_uuid AS expense_uuid, '
-            '(SELECT e.id FROM expenses e WHERE '
-            "  REPLACE(LOWER(TRIM(e.local_uuid)), '-', '') = "
-            "      REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') "
-            '  AND e.deleted_at IS NULL '
-            '  AND (e.employee_uuid IS NULL OR w.employee_uuid IS NULL '
-            "       OR REPLACE(LOWER(TRIM(e.employee_uuid)), '-', '') = "
-            "          REPLACE(LOWER(TRIM(w.employee_uuid)), '-', '')"
-            '  ) LIMIT 1) AS resolved_expense_id '
-            'FROM salary_withdrawals w '
-            'WHERE w.expense_uuid IS NOT NULL '
-            "AND TRIM(w.expense_uuid) != '' "
-            'AND w.deleted_at IS NULL '
-            'AND (w.expense_id IS NULL OR w.expense_id NOT IN '
-            '  (SELECT e2.id FROM expenses e2 '
-            "   WHERE REPLACE(LOWER(TRIM(e2.local_uuid)), '-', '') = "
-            "         REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') "
-            '     AND e2.deleted_at IS NULL))',
+            'SELECT w.id AS wid, w.local_uuid AS wlocaluuid, '
+            'w.expense_id AS current_expense_id, w.expense_uuid AS wexpenseuuid, '
+            'w.employee_uuid AS wemployeeuuid, w.employee_id AS wemployeeid, '
+            'w.amount AS wamount, w.withdraw_date AS wdate, '
+            'e.id AS eid, e.local_uuid AS elocaluuid, '
+            'e.employee_uuid AS eemployeeuuid, e.related_id AS erelatedid, '
+            'e.amount AS eamount, e.date AS edate, '
+            '(SELECT emp.local_uuid FROM employees emp '
+            ' WHERE emp.id = w.employee_id LIMIT 1) AS wemployee_local_uuid, '
+            '(SELECT emp.local_uuid FROM employees emp '
+            ' WHERE emp.id = e.related_id LIMIT 1) AS eemployee_local_uuid '
+            'FROM salary_withdrawals w JOIN expenses e ON '
+            "REPLACE(LOWER(TRIM(e.local_uuid)), '-', '') = "
+            "REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') "
+            'WHERE w.expense_uuid IS NOT NULL AND TRIM(w.expense_uuid) != \'\' '
+            'AND w.deleted_at IS NULL AND e.deleted_at IS NULL '
+            'AND (e.withdrawal_uuid IS NULL OR TRIM(e.withdrawal_uuid) = \'\' '
+            'OR REPLACE(LOWER(TRIM(e.withdrawal_uuid)), \'-\', \'\') = '
+            "REPLACE(LOWER(TRIM(w.local_uuid)), '-', '') "
+            'OR NOT EXISTS (SELECT 1 FROM salary_withdrawals owner '
+            'WHERE REPLACE(LOWER(TRIM(owner.local_uuid)), \'-\', \'\') = '
+            'REPLACE(LOWER(TRIM(e.withdrawal_uuid)), \'-\', \'\') '
+            'AND owner.deleted_at IS NULL)) '
+            'AND (w.expense_id IS NULL OR w.expense_id != e.id)',
           )
           .get();
+
+      final rowsByWithdrawal = <int, List<dynamic>>{};
       for (final row in rows) {
+        rowsByWithdrawal.putIfAbsent(row.read<int>('wid'), () => []).add(row);
+      }
+      for (final entry in rowsByWithdrawal.entries) {
+        // localUuid المصروف يجب أن يكون فريداً قبل أن نستخدم metadata
+        // لتأكيد الرابط؛ تكرار UUID لا يتحول إلى تخمين بالمرشح الأقرب.
+        if (entry.value.length != 1) continue;
+        final candidates = entry.value.where((row) {
+          return _mirrorMetadataMatches(
+            expenseEmployeeUuid: row.read<String?>('eemployeeuuid'),
+            expenseEmployeeLocalUuid: row.read<String?>('eemployee_local_uuid'),
+            withdrawalEmployeeUuid: row.read<String?>('wemployeeuuid'),
+            withdrawalEmployeeLocalUuid: row.read<String?>(
+              'wemployee_local_uuid',
+            ),
+            expenseAmount: row.read<double>('eamount'),
+            withdrawalAmount: row.read<double>('wamount'),
+            expenseDate: row.read<String>('edate'),
+            withdrawalDate: row.read<String>('wdate'),
+          );
+        }).toList();
+        // UUID مكرر بصيغ مختلفة أو أكثر من مرشح صالح = غموض؛ لا نختار
+        // صفاً بالترتيب ولا نستعمل updated_at كبديل عن دليل الملكية.
+        if (candidates.length != 1) continue;
+        final row = candidates.single;
         final wid = row.read<int>('wid');
-        final resolved = row.read<int?>('resolved_expense_id');
+        final resolved = row.read<int>('eid');
         final current = row.read<int?>('current_expense_id');
-        if (resolved == null) {
-          // المصروف لم يصل بعد — يُعاد الفحص في الدورة التالية
-          continue;
-        }
         if (current == resolved) continue;
         await database.customStatement(
           'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
@@ -5798,14 +6007,16 @@ class AppwriteSyncManager {
         );
         relinked++;
         _logger.debug(
-          '🩹 إصلاح رابط المرآة: السحبة #$wid كانت expense_id=$current '
-          '→ أصبحت #$resolved وفق expense_uuid',
+          '🩹 إصلاح رابط المرآة للسحبة ${row.read<String?>('wlocaluuid')} '
+          '→ المصروف ${row.read<String?>('elocaluuid')} وفق UUID الموظف '
+          'والمبلغ والتاريخ',
           tag: 'SYNC_RELINK',
         );
       }
       if (relinked > 0) {
         _logger.info(
-          '✅ إصلاح $relinked رابط مرآة سحبة→مصروف عبر expense_uuid',
+          '✅ إصلاح $relinked رابط مرآة سحبة→مصروف بعد التحقق من '
+          'expenseUuid وemployeeLocalUuid والمبلغ والتاريخ',
           tag: 'SYNC_RELINK',
         );
       }
@@ -5831,55 +6042,116 @@ class AppwriteSyncManager {
   /// 3. **ختم مفقود** لمصروف تعلن مرآة قائمة ارتباطها به عبر
   ///    `expense_uuid`.
   ///
-  /// المصدر الوحيد للحقيقة هنا هو هوية العملية نفسها: سحبة واحدة نشطة
-  /// تعلن `expense_uuid == مصروف.local_uuid`. لا يُستخدم اسم الموظف ولا
-  /// اليوم ولا المبلغ إطلاقاً. يعيد عدد الصفوف المُصلحة.
+  /// لا يكفي أي رابط منفرد: يجب أن تتوافق expenseUuid/withdrawalUuid إن
+  /// وُجدتا، مع تطابق employeeLocalUuid والموظف والمبلغ والتاريخ. لا يُستبدل
+  /// ختم نشط يشير إلى سحبة أخرى. يعيد عدد الصفوف المُصلحة.
   Future<int> _relinkExpenseWithdrawalUuids() async {
     var relinked = 0;
     try {
+      // المطابقة لا تعتمد على expenseUuid وحده: يجب أن يطابق expenseUuid
+      // سحبةً واحدةً مع localUuid للمصروف، ويجب توافق employeeLocalUuid
+      // (المخزّن محلياً في employeeUuid/موظف FK) والمبلغ والتاريخ. إذا كان
+      // withdrawalUuid الحالي يشير إلى سحبة نشطة أخرى نحترمه ولا نستبدله.
       final rows = await database
           .customSelect(
             'SELECT e.id AS eid, e.local_uuid AS e_uuid, '
             'e.withdrawal_uuid AS current_w_uuid, '
-            '(SELECT w.local_uuid FROM salary_withdrawals w '
-            "  WHERE w.expense_uuid = e.local_uuid AND w.deleted_at IS NULL "
-            '  ORDER BY w.updated_at DESC LIMIT 1) AS resolved_w_uuid '
-            'FROM expenses e '
-            "WHERE e.local_uuid IS NOT NULL AND e.local_uuid != '' "
-            'AND e.deleted_at IS NULL '
-            'AND EXISTS (SELECT 1 FROM salary_withdrawals w2 '
-            '  WHERE w2.expense_uuid = e.local_uuid AND w2.deleted_at IS NULL) '
-            'AND (e.withdrawal_uuid IS NULL '
-            "  OR TRIM(e.withdrawal_uuid) = '' "
-            '  OR e.withdrawal_uuid = e.local_uuid '
-            '  OR e.withdrawal_uuid NOT IN '
-            '    (SELECT w3.local_uuid FROM salary_withdrawals w3 '
-            '     WHERE w3.deleted_at IS NULL))',
+            'e.employee_uuid AS eemployeeuuid, e.related_id AS erelatedid, '
+            'e.amount AS eamount, e.date AS edate, '
+            'w.local_uuid AS candidate_w_uuid, w.expense_uuid AS wexpense_uuid, '
+            'w.employee_uuid AS wemployeeuuid, w.employee_id AS wemployeeid, '
+            'w.amount AS wamount, w.withdraw_date AS wdate, '
+            '(SELECT emp.local_uuid FROM employees emp '
+            ' WHERE emp.id = e.related_id LIMIT 1) AS eemployee_local_uuid, '
+            '(SELECT emp.local_uuid FROM employees emp '
+            ' WHERE emp.id = w.employee_id LIMIT 1) AS wemployee_local_uuid '
+            'FROM expenses e JOIN salary_withdrawals w ON '
+            "REPLACE(LOWER(TRIM(w.expense_uuid)), '-', '') = "
+            "REPLACE(LOWER(TRIM(e.local_uuid)), '-', '') OR "
+            "REPLACE(LOWER(TRIM(e.withdrawal_uuid)), '-', '') = "
+            "REPLACE(LOWER(TRIM(w.local_uuid)), '-', '') "
+            'WHERE e.local_uuid IS NOT NULL AND TRIM(e.local_uuid) != \'\' '
+            'AND e.deleted_at IS NULL AND w.deleted_at IS NULL',
           )
           .get();
-      final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      final rowsByExpense = <int, List<dynamic>>{};
       for (final row in rows) {
+        rowsByExpense.putIfAbsent(row.read<int>('eid'), () => []).add(row);
+      }
+      for (final entry in rowsByExpense.entries) {
+        final expenseRows = entry.value;
+        final expense = expenseRows.first;
+        final current = (expense.read<String?>('current_w_uuid') ?? '').trim();
+        final currentCompact = _compactUuidToken(current);
+        final expenseUuid = _compactUuidToken(expense.read<String?>('e_uuid'));
+        if (currentCompact.isNotEmpty && currentCompact != expenseUuid) {
+          final currentIsActive = await database
+              .customSelect(
+                'SELECT 1 FROM salary_withdrawals '
+                "WHERE REPLACE(LOWER(TRIM(local_uuid)), '-', '') = ? "
+                'AND deleted_at IS NULL LIMIT 1',
+                variables: [drift.Variable.withString(currentCompact)],
+              )
+              .get();
+          if (currentIsActive.isNotEmpty) continue;
+        }
+        final validCandidates = expenseRows.where((row) {
+          final candidateUuid = _compactUuidToken(
+            row.read<String?>('candidate_w_uuid'),
+          );
+          final expenseLink = currentCompact;
+          final withdrawalLink = _compactUuidToken(
+            row.read<String?>('wexpense_uuid'),
+          );
+          final reversePointsHere =
+              expenseLink.isNotEmpty && expenseLink == candidateUuid;
+          final forwardPointsHere =
+              withdrawalLink.isNotEmpty && withdrawalLink == expenseUuid;
+          // كلا الرابطين موجودان؟ يجب أن يؤكدا الزوج نفسه، لا أن يتعارضا.
+          final linksAgree =
+              withdrawalLink.isEmpty || withdrawalLink == expenseUuid;
+          if ((!reversePointsHere && !forwardPointsHere) || !linksAgree) {
+            return false;
+          }
+          return _mirrorMetadataMatches(
+            expenseEmployeeUuid: row.read<String?>('eemployeeuuid'),
+            expenseEmployeeLocalUuid: row.read<String?>('eemployee_local_uuid'),
+            withdrawalEmployeeUuid: row.read<String?>('wemployeeuuid'),
+            withdrawalEmployeeLocalUuid: row.read<String?>(
+              'wemployee_local_uuid',
+            ),
+            expenseAmount: row.read<double>('eamount'),
+            withdrawalAmount: row.read<double>('wamount'),
+            expenseDate: row.read<String>('edate'),
+            withdrawalDate: row.read<String>('wdate'),
+          );
+        }).toList();
+        // لا نختار أحدث سحبة عند وجود أكثر من مرشح؛ العلاقة الملتبسة
+        // تبقى كما هي حتى تصل أدلة هوية فريدة.
+        if (validCandidates.length != 1) continue;
+        final row = validCandidates.single;
+        final resolved =
+            (row.read<String?>('candidate_w_uuid') as String? ?? '').trim();
+        if (resolved.isEmpty || _compactUuidToken(resolved) == currentCompact) {
+          continue;
+        }
         final eid = row.read<int>('eid');
-        final eUuid = row.read<String?>('e_uuid');
-        final resolved = row.read<String?>('resolved_w_uuid');
-        final current = row.read<String?>('current_w_uuid');
-        if (resolved == null || resolved.isEmpty) continue;
-        if (current == resolved) continue;
         await database.customStatement(
           'UPDATE expenses SET withdrawal_uuid = ? WHERE id = ?',
           [resolved, eid],
         );
         relinked++;
         _logger.debug(
-          '🩹 إصلاح الختم العكسي: المصروف #$eid كان withdrawal_uuid=$current '
-          '→ أصبح $resolved وفق هوية المرآة (سحبة.expense_uuid)',
+          '🩹 إصلاح الختم العكسي للمصروف ${row.read<String?>('e_uuid')} '
+          '→ السحبة $resolved بعد التحقق من employeeLocalUuid والمبلغ والتاريخ',
           tag: 'SYNC_RELINK',
         );
-        // ✅ تعميم الإصلاح للسحابة: الدفع يعيد بناء الحمولة من الصف
-        // الكامل فيحمل الختم الصحيح لكل الأجهزة (وليس إضافة جديدة —
-        // عنصر outbox مربوط بهوية المصروف نفسه).
+        // دفع الإصلاح كتحديث للعملية نفسها دون تعديل employeeUuid.
+        final eUuid = row.read<String?>('e_uuid') as String?;
         if (eUuid != null && eUuid.isNotEmpty) {
           try {
+            final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
             await outboxDao.merge(
               entity: 'expenses',
               op: 'update',
@@ -5897,7 +6169,8 @@ class AppwriteSyncManager {
       }
       if (relinked > 0) {
         _logger.info(
-          '✅ إصلاح $relinked ختم عكسي مصروف→سحبة عبر هوية المرآة',
+          '✅ إصلاح $relinked ختم عكسي مصروف→سحبة عبر UUIDs والتحقق '
+          'من الموظف والمبلغ والتاريخ',
           tag: 'SYNC_RELINK',
         );
       }

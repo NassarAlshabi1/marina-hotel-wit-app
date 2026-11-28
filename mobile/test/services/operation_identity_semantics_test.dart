@@ -53,6 +53,7 @@ void main() {
     required String localUuid,
     String type = 'سحب راتب',
     String? withdrawalUuid,
+    String employeeUuid = 'emp-uuid-identity',
   }) {
     return db
         .into(db.expenses)
@@ -60,7 +61,7 @@ void main() {
           ExpensesCompanion(
             expenseType: d.Value(type),
             relatedId: d.Value(employeeId),
-            employeeUuid: const d.Value('emp-uuid-identity'),
+            employeeUuid: d.Value(employeeUuid),
             amount: d.Value(amount),
             date: const d.Value(day),
             hotelDayKey: const d.Value(day),
@@ -884,14 +885,19 @@ void main() {
       String localUuid,
       String expenseUuid, {
       bool deleted = false,
+      int? employeeId,
+      String employeeUuid = 'emp-uuid-identity',
+      double amount = 100,
+      String date = day,
     }) {
       return db
           .into(db.salaryWithdrawals)
           .insert(
             SalaryWithdrawalsCompanion(
-              employeeId: d.Value(empId),
-              amount: const d.Value(100),
-              withdrawDate: const d.Value(day),
+              employeeId: d.Value(employeeId ?? empId),
+              employeeUuid: d.Value(employeeUuid),
+              amount: d.Value(amount),
+              withdrawDate: d.Value(date),
               withdrawalType: const d.Value('سحب راتب'),
               reason: const d.Value('exp_1'),
               expenseUuid: d.Value(expenseUuid),
@@ -989,6 +995,54 @@ void main() {
       expect(fixed, 1);
       final expense = await expenseByUuid('rl-5');
       expect(expense.withdrawalUuid, 'sw-live');
+    });
+    test('SYNC_RELINK لا يسرق مصروف موظف آخر ولا يمس employeeUuid', () async {
+      final otherEmployeeId = await db
+          .into(db.employees)
+          .insert(
+            const EmployeesCompanion(
+              name: d.Value('موظف آخر'),
+              basicSalary: d.Value(1000),
+              status: d.Value('active'),
+              hireDate: d.Value('2026-01-01'),
+              localUuid: d.Value('emp-uuid-other'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+            ),
+          );
+      await createExpense(
+        db,
+        otherEmployeeId,
+        100,
+        localUuid: 'rl-other-employee',
+        employeeUuid: 'emp-uuid-other',
+      );
+      await rawMirror('sw-other-employee', 'rl-other-employee');
+
+      final fixed = await manager.relinkExpenseWithdrawalUuidsForTesting();
+      expect(fixed, 0);
+      final expense = await expenseByUuid('rl-other-employee');
+      expect(expense.withdrawalUuid, isNull);
+      expect(expense.employeeUuid, 'emp-uuid-other');
+      expect(expense.deletedAt, isNull);
+      expect(await db.select(db.expenses).get(), hasLength(1));
+    });
+    test('SYNC_RELINK يرفض اختلاف المبلغ أو التاريخ ويحفظ السجلات', () async {
+      await createExpense(db, empId, 100, localUuid: 'rl-wrong-amount');
+      await createExpense(db, empId, 100, localUuid: 'rl-wrong-date');
+      await rawMirror('sw-wrong-amount', 'rl-wrong-amount', amount: 101);
+      await rawMirror('sw-wrong-date', 'rl-wrong-date', date: '2026-10-06');
+
+      final fixed = await manager.relinkExpenseWithdrawalUuidsForTesting();
+      expect(fixed, 0);
+      final amountExpense = await expenseByUuid('rl-wrong-amount');
+      final dateExpense = await expenseByUuid('rl-wrong-date');
+      expect(amountExpense.withdrawalUuid, isNull);
+      expect(dateExpense.withdrawalUuid, isNull);
+      expect(amountExpense.employeeUuid, 'emp-uuid-identity');
+      expect(dateExpense.employeeUuid, 'emp-uuid-identity');
+      expect(await db.select(db.expenses).get(), hasLength(2));
     });
   });
 }
