@@ -348,6 +348,9 @@ class EnhancedBookingCalculationService {
           lastModifiedEpoch: enqueueOutbox
               ? d.Value(stamp)
               : const d.Value.absent(),
+          version: enqueueOutbox
+              ? d.Value(night.version + 1)
+              : const d.Value.absent(),
         ),
       );
       changed.add(night);
@@ -744,6 +747,10 @@ class EnhancedBookingCalculationService {
         }
       }
       final breakdownDays = breakdown.map((n) => n.hotelDayKey).toSet();
+      // Track each changed night once. The deterministic localUuid makes the
+      // Outbox merge update the existing operation instead of creating a new
+      // night or a duplicate queue entry on repeated recalculations.
+      final changedNightOps = <String, String>{};
 
       // ③ الليالي الزائدة → حذف ناعم + قبر مُزامَن
       for (final night in existing) {
@@ -809,6 +816,9 @@ class EnhancedBookingCalculationService {
             }
             // ① تحديث في المكان — نفس المعرف والهوية وتاريخ الإنشاء الأصلي (مع إحياء إن كان محذوفاً ناعماً).
             // (خارج batch: تحديث مع شرط where يحتاج المسماة في drift)
+            if (enqueueOutbox) {
+              changedNightOps[current.localUuid] = 'update';
+            }
             await (db.update(
               db.bookingNights,
             )..where((n) => n.localUuid.equals(current.localUuid))).write(
@@ -823,6 +833,9 @@ class EnhancedBookingCalculationService {
                 lastModifiedEpoch: enqueueOutbox
                     ? d.Value(stamp)
                     : const d.Value.absent(),
+                version: enqueueOutbox
+                    ? d.Value(current.version + 1)
+                    : const d.Value.absent(),
                 bookingUuidCache: d.Value(booking.localUuid),
                 nightlyRate: d.Value(night.finalRate.toDouble()),
                 baseRate: d.Value(night.baseRate.toDouble()),
@@ -835,12 +848,17 @@ class EnhancedBookingCalculationService {
             );
           } else {
             // ② ليلة جديدة — إدراج بمعرف UUID حتمي مشتق من (booking.localUuid, night.hotelDayKey)
+            final localUuid = IdGen.bookingNightUuid(
+              booking.localUuid,
+              night.hotelDayKey,
+            );
+            if (enqueueOutbox) {
+              changedNightOps[localUuid] = 'create';
+            }
             batch.insert(
               db.bookingNights,
               BookingNightsCompanion(
-                localUuid: d.Value(
-                  IdGen.bookingNightUuid(booking.localUuid, night.hotelDayKey),
-                ),
+                localUuid: d.Value(localUuid),
                 createdAt: d.Value(stamp),
                 updatedAt: d.Value(stamp),
                 lastModified: d.Value(enqueueOutbox ? stamp : 0),
@@ -868,6 +886,34 @@ class EnhancedBookingCalculationService {
           }
         }
       });
+
+      // Upsert changed local nights into the durable Outbox. OutboxDao bumps
+      // each row's vectorClock; remote recalculation keeps enqueueOutbox=false
+      // and therefore never echoes pulled data back to Appwrite.
+      if (enqueueOutbox && changedNightOps.isNotEmpty) {
+        final changedUuids = changedNightOps.keys.toList(growable: false);
+        const chunkSize = 400;
+        for (var offset = 0; offset < changedUuids.length; offset += chunkSize) {
+          final end = (offset + chunkSize < changedUuids.length)
+              ? offset + chunkSize
+              : changedUuids.length;
+          final chunk = changedUuids.sublist(offset, end);
+          final changedNights = await (db.select(db.bookingNights)
+                ..where((n) => n.localUuid.isIn(chunk)))
+              .get();
+          await _outboxDao.mergeBatch([
+            for (final changedNight in changedNights)
+              <String, dynamic>{
+                'entity': 'booking_nights',
+                'op': changedNightOps[changedNight.localUuid] ?? 'update',
+                'localUuid': changedNight.localUuid,
+                'serverId': changedNight.serverId,
+                'payload': changedNight.toJson(),
+                'clientTs': stamp,
+              },
+          ]);
+        }
+      }
     }
 
     Future<void> mergeBookingOutbox() async {
