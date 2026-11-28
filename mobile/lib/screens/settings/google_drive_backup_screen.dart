@@ -6,10 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
-import '../../services/google_drive_backup_service.dart';
-import '../../services/local_db.dart';
-import '../../services/restore_fix_service.dart';
-import '../../utils/debug_log.dart';
 import '../../utils/theme.dart';
 import 'backup/widgets/restart_required_dialog.dart';
 import 'google_drive_logs_screen.dart';
@@ -417,8 +413,9 @@ class _GoogleDriveBackupContentState
 
     if (confirmed ?? false) {
       try {
-        final service = ref.read(googleDriveBackupServiceProvider);
-        await service.uploadDbBackup();
+        await ref
+            .read(backupStatusProvider.notifier)
+            .uploadSqliteBackupToDrive();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -611,14 +608,7 @@ class _GoogleDriveBackupContentState
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // التحقق من نوع النسخة
-              if (backup.format == BackupFormat.sqlite) {
-                _restoreDbBackup(backup.fileId);
-              } else {
-                ref
-                    .read(backupStatusProvider.notifier)
-                    .restoreFromBackup(backup.fileId);
-              }
+              unawaited(_restoreBackup(backup));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('استعادة', style: TextStyle(color: Colors.white)),
@@ -628,50 +618,27 @@ class _GoogleDriveBackupContentState
     );
   }
 
-  Future<void> _restoreDbBackup(String fileId) async {
+  Future<void> _restoreBackup(DriveBackupFile backup) async {
     final notifier = ref.read(backupStatusProvider.notifier);
-    try {
-      notifier.setStatus(BackupStatus.downloading, 'جاري تنزيل نسخة .db...');
+    final restored = await notifier.restoreDriveBackup(backup);
+    if (!mounted) return;
 
-      final service = ref.read(googleDriveBackupServiceProvider);
-      await service.restoreDbBackup(fileId);
-
-      if (!mounted) return;
-      notifier.setStatus(
-        BackupStatus.restoring,
-        'جاري فحص وإصلاح البيانات بعد الاستعادة...',
-      );
-
-      // مسار SQLite يستبدل ملف القاعدة مباشرة، لذلك يحتاج إلى نفس
-      // post-restore fix الموجود في مسار JSON لإعادة ربط العلاقات وتحديث
-      // القيم المشتقة بعد إعادة فتح DatabaseManager.
-      final fixReport = await RestoreFixService(
-        DatabaseManager.instance,
-      ).runAutoFixAfterRestore();
-      if (!fixReport.success) {
-        dlog(
-          () => '⚠️ فشل الإصلاح التلقائي بعد استعادة .db: ${fixReport.error}',
+    final state = ref.read(backupStatusProvider);
+    if (!restored) {
+      if (backup.format == BackupFormat.sqlite) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ ${state.message ?? 'فشل استعادة النسخة'}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
+      return;
+    }
 
-      await notifier.updateDatabaseSize();
-      if (!mounted) return;
-      notifier.setStatus(
-        BackupStatus.success,
-        fixReport.success
-            ? 'تمت استعادة قاعدة البيانات وإصلاحها بنجاح'
-            : 'تمت الاستعادة، لكن يلزم فحص الإصلاحات يدوياً',
-      );
-      // استبدال ملف القاعدة يُغلق الاتصال الذي ما زالت المزوّدات
-      // وخدمات المزامنة تحتفظ به؛ لا يُحمَّل الملف المستعاد بأمان إلا بعد
-      // إعادة تشغيل التطبيق.
+    if (state.restartRequired) {
+      // استبدال ملف القاعدة يتطلب إعادة تشغيل التطبيق لتحميل الملف المستعاد.
       await showRestartRequiredDialog(context);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
-      );
-      notifier.setStatus(BackupStatus.error, 'فشل الاستعادة: $e');
     }
   }
 

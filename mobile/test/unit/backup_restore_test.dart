@@ -8,6 +8,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/providers/backup_provider.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/backup_serializers.dart';
@@ -66,6 +67,24 @@ void main() {
     if (tempDir.existsSync()) {
       await tempDir.delete(recursive: true);
     }
+  });
+
+  group('BackupState SQLite restore restart requirement', () {
+    test(
+      'restart requirement is signaled only by the completed restore state',
+      () {
+        final restoredState = BackupState(
+          status: BackupStatus.success,
+          restartRequired: true,
+        );
+
+        expect(restoredState.restartRequired, isTrue);
+        expect(
+          restoredState.copyWith(status: BackupStatus.idle).restartRequired,
+          isFalse,
+        );
+      },
+    );
   });
 
   // ═════════════════════════════════════════════════════════════════════════

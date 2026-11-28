@@ -1,5 +1,8 @@
 import 'dart:io';
 
+export '../services/google_drive_backup_service.dart'
+    show BackupFormat, DriveBackupFile;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -592,6 +595,16 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
   }
 
+  /// Restore a Drive backup according to its detected file format.
+  Future<bool> restoreDriveBackup(DriveBackupFile backup) async {
+    if (backup.format == BackupFormat.sqlite) {
+      return restoreGoogleDriveSqliteBackup(backup.fileId);
+    }
+
+    await restoreFromBackup(backup.fileId);
+    return state.status == BackupStatus.success;
+  }
+
   /// استعادة من نسخة احتياطية
   Future<void> restoreFromBackup(String fileId) async {
     if (!state.isSignedIn) {
@@ -1068,6 +1081,33 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     }
   }
 
+  /// Upload a SQLite database backup to Google Drive.
+  Future<void> uploadSqliteBackupToDrive() async {
+    try {
+      state = state.copyWith(
+        status: BackupStatus.uploading,
+        message: 'جاري إنشاء ورفع نسخة .db...',
+        progress: 0.0,
+      );
+
+      await _backupService.uploadDbBackup();
+
+      state = state.copyWith(
+        status: BackupStatus.success,
+        message: 'تم إنشاء نسخة .db ورفعها بنجاح',
+        progress: 1.0,
+      );
+      await refreshBackupsList();
+    } catch (e) {
+      dlog(() => '❌ خطأ في رفع نسخة SQLite إلى Google Drive: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'فشل رفع نسخة .db: $e',
+      );
+      rethrow;
+    }
+  }
+
   /// استعادة قاعدة البيانات من ملف .db محدد
   Future<void> restoreFromSqliteFile(String sourcePath) async {
     try {
@@ -1110,6 +1150,52 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         status: BackupStatus.error,
         message: 'فشل استعادة قاعدة البيانات: $e',
       );
+    }
+  }
+
+  /// Restore a raw SQLite backup from Google Drive and run post-restore fixes.
+  Future<bool> restoreGoogleDriveSqliteBackup(String fileId) async {
+    try {
+      state = state.copyWith(
+        status: BackupStatus.downloading,
+        message: 'جاري تنزيل نسخة .db...',
+        progress: 0.0,
+      );
+
+      await _backupService.restoreDbBackup(fileId);
+
+      state = state.copyWith(
+        status: BackupStatus.restoring,
+        message: 'جاري فحص وإصلاح البيانات بعد الاستعادة...',
+        progress: 0.8,
+      );
+
+      final fixReport = await RestoreFixService(
+        DatabaseManager.instance,
+      ).runAutoFixAfterRestore();
+      if (!fixReport.success) {
+        dlog(
+          () => '⚠️ فشل الإصلاح التلقائي بعد استعادة .db: ${fixReport.error}',
+        );
+      }
+
+      await updateDatabaseSize();
+      state = state.copyWith(
+        status: BackupStatus.success,
+        message: fixReport.success
+            ? 'تمت استعادة قاعدة البيانات وإصلاحها بنجاح'
+            : 'تمت الاستعادة، لكن يلزم فحص الإصلاحات يدوياً',
+        progress: 1.0,
+        restartRequired: true,
+      );
+      return true;
+    } catch (e) {
+      dlog(() => '❌ خطأ في استعادة نسخة .db من Google Drive: $e');
+      state = state.copyWith(
+        status: BackupStatus.error,
+        message: 'فشل استعادة نسخة .db: $e',
+      );
+      return false;
     }
   }
 
